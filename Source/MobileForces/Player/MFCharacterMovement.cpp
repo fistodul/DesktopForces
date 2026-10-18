@@ -100,6 +100,13 @@ void UMFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 	// PHYS_Ladder: input "forward" (towards the wall) climbs up, backwards climbs down,
 	// strafing moves sideways. Looking up/down does not matter (manual tip: "run at them
 	// whilst looking straight ahead").
+	// Jump lets go of the ladder, pushing away from the wall
+	if (CharacterOwner && CharacterOwner->bPressedJump)
+	{
+		Velocity = LadderWallNormal * 300.f + FVector(0, 0, JumpZVelocity * 0.5f);
+		SetMovementMode(MOVE_Falling);
+		return;
+	}
 	const FVector Accel = GetCurrentAcceleration();
 	const FVector Into = -LadderWallNormal;
 	const float Climb = FVector::DotProduct(Accel.GetSafeNormal(), Into);

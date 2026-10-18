@@ -29,7 +29,8 @@ public class MobileForcesEditor : ModuleRules
 			"LevelEditor",
 			"EditorScriptingUtilities",
 			"AudioEditor",
-			"Landscape"
+			"Landscape",
+			"NavigationSystem"
 		});
 
 		PublicIncludePaths.Add(ModuleDirectory);

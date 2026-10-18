@@ -72,12 +72,26 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	FString GameName = TEXT("DeathMatch");
 
+	/** Bots added at match start (map option ?Bots=N). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 NumBots = 0;
+
+	/** 0..1 (map option ?BotSkill=0.7). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	float BotSkill = 0.5f;
+
+	/** Spawn bots from the MF roster. Server only. */
+	void AddBots(int32 Count);
+
 protected:
 	virtual void ScoreKill(AMFPlayerState* Killer, AMFPlayerState* Victim);
 	virtual void CheckEndConditions(AMFPlayerState* LastKiller);
 	virtual void EndMatch(const FString& WinnerText);
 	virtual bool IsStartAllowed(const class AMFPlayerStart* Start, AController* Player) const;
 	virtual void OnTimeLimit();
+	/** Team for a joining player / bot (team games). */
+	virtual void AssignTeam(class AMFPlayerState* PS, EMFTeam Preferred) {}
+	int32 BotsAdded = 0;
 
 	void ClockTick();
 	void ScheduleRespawn(AController* Victim);
@@ -114,6 +128,7 @@ protected:
 	virtual void CheckEndConditions(AMFPlayerState* LastKiller) override;
 	virtual bool IsStartAllowed(const class AMFPlayerStart* Start, AController* Player) const override;
 	virtual void OnTimeLimit() override;
+	virtual void AssignTeam(class AMFPlayerState* PS, EMFTeam Preferred) override;
 };
 
 /** Plain alias so maps / URLs can say ?game=DM. */

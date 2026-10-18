@@ -21,7 +21,7 @@ def run_commandlet(cfg: Config, name: str, *args: str) -> int:
     return subprocess.run(cmd).returncode
 
 
-def run_importer(cfg: Config, steps: str = 'textures,sounds,maps', maps: list[str] | None = None) -> int:
+def run_importer(cfg: Config, steps: str = 'textures,sounds,music,maps', maps: list[str] | None = None) -> int:
     args = [f'-steps={steps}']
     default_out = (cfg.uproject.parent / 'Tools' / 'mfport' / 'work' / 'out').resolve()
     if cfg.out_dir.resolve() != default_out:
@@ -36,6 +36,6 @@ def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> in
     """Bake static lighting (Lightmass) + precomputed visibility for generated maps."""
     rc = 0
     for m in maps:
-        rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', f'-quality={quality}',
+        rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', '-BuildNavigationData', f'-quality={quality}',
                              '-allowcommandletrendering', f'-map=/Game/MFMaps/Generated/{m}')
     return rc

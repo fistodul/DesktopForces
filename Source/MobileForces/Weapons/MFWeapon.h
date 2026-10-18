@@ -224,6 +224,8 @@ public:
 	// --- interface used by AMFCharacter / HUD -------------------------------------------
 	AMFCharacter* GetOwnerCharacter() const;
 	EMFWeaponState GetState() const { return State; }
+	/** Fire / alt-fire button currently held on this machine. */
+	bool IsFiring(bool bAlt) const { return bAlt ? bAltFireHeld : bFireHeld; }
 
 	virtual void OnGiven(AMFCharacter* NewOwner);
 	virtual void OnEquip();

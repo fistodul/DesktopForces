@@ -19,7 +19,11 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "Lightmass/LightmassImportanceVolume.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "Lightmass/PrecomputedVisibilityVolume.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
+#include "HAL/FileManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Sound/AmbientSound.h"
@@ -90,7 +94,24 @@ namespace
 		Builder->Z = Extent.Z * 2.f;
 		Builder->Build(World, Brush);
 	}
+
+	/** Generated maps are rebuilt from scratch: drop the old level + its built data first. */
+	void DeleteOldMap(const FString& PackageName)
+	{
+		for (const FString& Pkg : { PackageName, PackageName + TEXT("_BuiltData") })
+		{
+			for (const FString& Ext : { FPackageName::GetMapPackageExtension(), FPackageName::GetAssetPackageExtension() })
+			{
+				const FString File = FPackageName::LongPackageNameToFilename(Pkg, Ext);
+				if (IFileManager::Get().FileExists(*File))
+				{
+					IFileManager::Get().Delete(*File, false, true);
+				}
+			}
+		}
+	}
 }
+
 
 bool FMFImporter::BuildMap(const FString& MapName)
 {
@@ -105,6 +126,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	}
 
 	const FString PackageName = TEXT("/Game/MFMaps/Generated/") + MapName;
+	DeleteOldMap(PackageName);
 	UPackage* Pkg = CreatePackage(*PackageName);
 	Pkg->SetPackageFlags(PKG_ContainsMap);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Editor, false, FName(*MapName), Pkg, true);
@@ -316,6 +338,14 @@ bool FMFImporter::BuildMap(const FString& MapName)
 		ALightmassImportanceVolume* Vol = World->SpawnActor<ALightmassImportanceVolume>(WorldBounds.GetCenter(), FRotator::ZeroRotator, SP);
 		MakeBoxBrush(World, Vol, WorldBounds.GetExtent() + FVector(100.f));
 		Vol->SetActorLabel(TEXT("LightmassImportance"));
+		// navigation for bots (built by `mfport.py light` via -BuildNavigationData)
+		ANavMeshBoundsVolume* Nav = World->SpawnActor<ANavMeshBoundsVolume>(WorldBounds.GetCenter(), FRotator::ZeroRotator, SP);
+		MakeBoxBrush(World, Nav, WorldBounds.GetExtent() + FVector(200.f));
+		Nav->SetActorLabel(TEXT("NavMeshBounds"));
+		// precomputed visibility: cheap occlusion culling on mobile, baked with lighting
+		APrecomputedVisibilityVolume* Vis = World->SpawnActor<APrecomputedVisibilityVolume>(WorldBounds.GetCenter(), FRotator::ZeroRotator, SP);
+		MakeBoxBrush(World, Vis, WorldBounds.GetExtent());
+		Vis->SetActorLabel(TEXT("PrecomputedVisibility"));
 	}
 
 	World->UpdateWorldComponents(true, false);
@@ -331,6 +361,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 bool FMFImporter::BuildTestMap()
 {
 	const FString PackageName = TEXT("/Game/MF/Maps/MF_TestRange");
+	DeleteOldMap(PackageName);
 	UPackage* Pkg = CreatePackage(*PackageName);
 	Pkg->SetPackageFlags(PKG_ContainsMap);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Editor, false, TEXT("MF_TestRange"), Pkg, true);

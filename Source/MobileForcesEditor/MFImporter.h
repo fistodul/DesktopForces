@@ -26,7 +26,8 @@ public:
 	explicit FMFImporter(const FString& InWorkDir);
 
 	bool ImportTextures();
-	bool ImportSounds();
+	/** Import WAVs under work/out/<SubDir> to /Game/MFImported/<SubDir>. */
+	bool ImportSounds(const FString& SubDir = TEXT("Sounds"), bool bLooping = false);
 	bool BuildMap(const FString& MapName);
 
 	/** Small blockout map from engine shapes only (no MF assets): /Game/MF/Maps/MF_TestRange. */

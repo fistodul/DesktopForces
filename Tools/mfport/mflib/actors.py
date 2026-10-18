@@ -114,6 +114,13 @@ class ActorMapper:
                 out.append(self._legacy(a))
             return out
 
+        if cls == 'LadderClimber':
+            r = t3d.parse_float(props.get('CollisionRadius'), 22.0) * UU_TO_CM
+            h = t3d.parse_float(props.get('CollisionHeight'), 22.0) * UU_TO_CM
+            return [dict(base, type='actor', **{'class': '/Script/MobileForces.MFLadderVolume'},
+                         props={'Radius': f'{r:.2f}', 'HalfHeight': f'{h:.2f}',
+                                'ClimbSpeed': props.get('ClimbSpeed', '0.5')})]
+
         if cls in CRATES:
             team, team_play, non_team = CRATES[cls]
             hidden = t3d.parse_bool(props.get('bHidden'))

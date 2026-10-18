@@ -5,6 +5,7 @@ Steps (run alone or chained with `all`):
   map <name...>        convert maps: BSP world geometry, static meshes, actors (UCC T3D export)
   textures             export + convert every texture the converted maps use
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
+  music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + sounds + import + light
@@ -71,11 +72,25 @@ def cmd_sounds(cfg, packages):
             print(f'  ! {pkg}: {e}')
 
 
+def cmd_music(cfg, packages):
+    from mflib import music
+    if not packages:
+        wanted = set()
+        for lj in (cfg.out_dir / 'Maps').glob('*/level.json'):
+            wanted |= music.packages_used(json.loads(lj.read_text()))
+        packages = sorted(wanted)
+    for pkg in packages:
+        try:
+            music.convert(cfg, pkg)
+        except Exception as e:
+            print(f'  ! {pkg}: {e}')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
-    ap.add_argument('--steps', default='textures,sounds,maps', help='importer steps for `import`')
+    ap.add_argument('--steps', default='textures,sounds,music,maps', help='importer steps for `import`')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -86,8 +101,11 @@ def main():
         cmd_textures(cfg)
     if a.step == 'sounds':
         cmd_sounds(cfg, a.names)
+    if a.step == 'music':
+        cmd_music(cfg, a.names)
     if a.step == 'all':
         cmd_sounds(cfg, [])
+        cmd_music(cfg, [])
     if a.step in ('import', 'all'):
         rc = ue.run_importer(cfg, a.steps, a.names if a.step == 'import' else a.names or None)
         if rc:

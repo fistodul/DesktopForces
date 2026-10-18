@@ -5,6 +5,7 @@
 #include "Player/MFCharacter.h"
 #include "Player/MFPlayerController.h"
 #include "Loadout/MFLoadout.h"
+#include "AI/MFBotController.h"
 #include "UI/MFHUD.h"
 #include "MobileForces.h"
 #include "Engine/World.h"
@@ -31,6 +32,12 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	FragLimit = UGameplayStatics::GetIntOption(Options, TEXT("FragLimit"), FragLimit);
 	TimeLimit = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), TimeLimit);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
+	NumBots = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), NumBots);
+	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
+	if (!Skill.IsEmpty())
+	{
+		BotSkill = FMath::Clamp(FCString::Atof(*Skill), 0.f, 1.f);
+	}
 }
 
 void AMFGameMode::InitGameState()
@@ -51,6 +58,32 @@ void AMFGameMode::StartPlay()
 {
 	Super::StartPlay();
 	GetWorldTimerManager().SetTimer(ClockTimer, this, &AMFGameMode::ClockTick, 1.f, true);
+	AddBots(NumBots);
+}
+
+void AMFGameMode::AddBots(int32 Count)
+{
+	const TArray<FMFBotProfile>& Roster = AMFBotController::Roster();
+	for (int32 i = 0; i < Count; ++i)
+	{
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AMFBotController* Bot = GetWorld()->SpawnActor<AMFBotController>(SP);
+		if (!Bot)
+		{
+			continue;
+		}
+		Bot->Profile = Roster[BotsAdded % Roster.Num()];
+		Bot->Skill = BotSkill;
+		++BotsAdded;
+		if (AMFPlayerState* PS = Bot->GetPlayerState<AMFPlayerState>())
+		{
+			PS->SetPlayerName(Bot->Profile.Name);
+			PS->SetIsABot(true);
+			AssignTeam(PS, Bot->Profile.PreferredTeam);
+		}
+		RestartPlayer(Bot);
+	}
 }
 
 void AMFGameMode::PostLogin(APlayerController* NewPlayer)
@@ -344,6 +377,12 @@ EMFTeam AMFGameMode_TDM::PickTeam() const
 		}
 	}
 	return Count[0] <= Count[1] ? EMFTeam::Blue : EMFTeam::Red;
+}
+
+void AMFGameMode_TDM::AssignTeam(AMFPlayerState* PS, EMFTeam Preferred)
+{
+	// Always balance; MF's per-bot PreferedTeam only mattered for its fixed mission rosters
+	PS->SetTeam(PickTeam());
 }
 
 void AMFGameMode_TDM::PostLogin(APlayerController* NewPlayer)

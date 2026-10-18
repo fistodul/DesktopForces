@@ -86,7 +86,7 @@ bool FMFImporter::SaveAsset(UObject* Asset)
 	const FString File = FPackageName::LongPackageNameToFilename(Pkg->GetName(), Ext);
 	FSavePackageArgs Args;
 	Args.TopLevelFlags = RF_Public | RF_Standalone;
-	Args.SaveFlags = SAVE_NoError;
+	Args.Error = GWarn;   // report problems as warnings (GError would be fatal)
 	const bool bOk = UPackage::SavePackage(Pkg, Asset, *File, Args);
 	if (!bOk)
 	{
@@ -180,9 +180,9 @@ bool FMFImporter::ImportTextures()
 
 // --- sounds ----------------------------------------------------------------------------
 
-bool FMFImporter::ImportSounds()
+bool FMFImporter::ImportSounds(const FString& SubDir, bool bLooping)
 {
-	const FString SoundDir = WorkDir / TEXT("Sounds");
+	const FString SoundDir = WorkDir / SubDir;
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *SoundDir, TEXT("*.wav"), true, false);
 	if (Files.Num() == 0)
@@ -198,15 +198,29 @@ bool FMFImporter::ImportSounds()
 		FPaths::MakePathRelativeTo(Rel, *(SoundDir + TEXT("/")));
 		UAssetImportTask* Task = NewObject<UAssetImportTask>();
 		Task->Filename = File;
-		Task->DestinationPath = FString::Printf(TEXT("%s/Sounds/%s"), ImportRoot, *FPaths::GetPath(Rel));
+		Task->DestinationPath = FString::Printf(TEXT("%s/%s/%s"), ImportRoot, *SubDir, *FPaths::GetPath(Rel));
 		Task->DestinationName = FPaths::GetBaseFilename(Rel);
 		Task->bAutomated = true;
 		Task->bReplaceExisting = true;
-		Task->bSave = true;
+		Task->bSave = !bLooping;
 		Tasks.Add(Task);
 	}
-	UE_LOG(LogMFEditor, Display, TEXT("Importing %d sounds"), Tasks.Num());
+	UE_LOG(LogMFEditor, Display, TEXT("Importing %d files from %s"), Tasks.Num(), *SubDir);
 	AssetTools.ImportAssetTasks(Tasks);
+	if (bLooping)
+	{
+		for (UAssetImportTask* Task : Tasks)
+		{
+			for (UObject* Obj : Task->GetObjects())
+			{
+				if (USoundWave* Wave = Cast<USoundWave>(Obj))
+				{
+					Wave->bLooping = true;
+					SaveAsset(Wave);
+				}
+			}
+		}
+	}
 	return true;
 }
 
