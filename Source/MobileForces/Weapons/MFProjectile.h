@@ -1,0 +1,129 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "Core/MFTypes.h"
+#include "MFProjectile.generated.h"
+
+class UProjectileMovementComponent;
+class USphereComponent;
+class UStaticMeshComponent;
+class USoundBase;
+
+/**
+ * Rockets, grenades, thrown knives (MF: Projectile subclasses).
+ *
+ * Explosions use MF's HurtRadius rule: full damage at the centre falling off linearly
+ * to zero at DamageRadius. Projectiles replicate their movement; explosion effects are
+ * multicast. Movement is UProjectileMovementComponent (cheap, no physics bodies).
+ */
+UCLASS(Abstract)
+class MOBILEFORCES_API AMFProjectile : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AMFProjectile();
+
+	/** Start flying along Dir. Speed <= 0 uses InitialSpeed. MF adds the shooter's velocity along Dir. */
+	virtual void Launch(const FVector& Dir, float Speed, const FVector& InheritVelocity);
+
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	float Damage = 100.f;
+
+	/** 0 = direct hit only. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	float DamageRadius = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	float Momentum = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	TSubclassOf<UMFDamageType> DamageType;
+
+	/** Explode after this many seconds (0 = never on a timer). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	float FuseTime = 0.f;
+
+	/** Explode when touching world/pawns (rocket, impact grenade); otherwise bounce. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	bool bExplodeOnImpact = true;
+
+	/** Added to the launch velocity's Z (MF grenades: Velocity.z += 210 uu). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	float LaunchUpVelocity = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	TObjectPtr<USoundBase> ExplosionSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FString MFExplosionSound;
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void LifeSpanExpired() override;
+
+	UPROPERTY(VisibleAnywhere, Category = "MF")
+	TObjectPtr<USphereComponent> Collision;
+
+	UPROPERTY(VisibleAnywhere, Category = "MF")
+	TObjectPtr<UStaticMeshComponent> Mesh;
+
+	UPROPERTY(VisibleAnywhere, Category = "MF")
+	TObjectPtr<UProjectileMovementComponent> Movement;
+
+	UFUNCTION()
+	void OnStop(const FHitResult& Hit);
+	UFUNCTION()
+	void OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity);
+	UFUNCTION()
+	void OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
+
+	/** Server: deal damage and destroy. */
+	virtual void Explode(const FVector& Location, const FVector& Normal);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastExplosionFX(FVector_NetQuantize Location);
+
+	bool bExploded = false;
+};
+
+/** RageWeapons.Rocket: 1200 uu/s, 135 damage, radius 400. */
+UCLASS()
+class MOBILEFORCES_API AMFProjectile_Rocket : public AMFProjectile
+{
+	GENERATED_BODY()
+public:
+	AMFProjectile_Rocket();
+};
+
+/** RageWeapons.Grenade1: timed fuse 3 s, bounces (50% damping), 160 damage, radius 400. */
+UCLASS()
+class MOBILEFORCES_API AMFProjectile_Grenade : public AMFProjectile
+{
+	GENERATED_BODY()
+public:
+	AMFProjectile_Grenade();
+};
+
+/** RageWeapons.Grenade2 (alt fire): explodes on impact, 120 damage. */
+UCLASS()
+class MOBILEFORCES_API AMFProjectile_ImpactGrenade : public AMFProjectile_Grenade
+{
+	GENERATED_BODY()
+public:
+	AMFProjectile_ImpactGrenade();
+};
+
+/** RageWeapons.Knife_Thrown: 60 damage (headshot 250 'decapitated'). */
+UCLASS()
+class MOBILEFORCES_API AMFProjectile_Knife : public AMFProjectile
+{
+	GENERATED_BODY()
+public:
+	AMFProjectile_Knife();
+protected:
+	virtual void Explode(const FVector& Location, const FVector& Normal) override;
+	FHitResult LastHit;
+	virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
+};

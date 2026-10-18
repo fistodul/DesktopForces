@@ -1,0 +1,565 @@
+#include "Weapons/MFWeapon.h"
+#include "Weapons/MFProjectile.h"
+#include "Player/MFCharacter.h"
+#include "MobileForces.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/DamageEvents.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
+#include "TimerManager.h"
+#include "UObject/ConstructorHelpers.h"
+
+// Trace channel "Weapon" (Config/DefaultEngine.ini, ECC_GameTraceChannel2)
+static constexpr ECollisionChannel ECC_MFWeapon = ECC_GameTraceChannel2;
+
+AMFWeapon::AMFWeapon()
+{
+	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	SetReplicatingMovement(false);
+	SetNetUpdateFrequency(10.f);
+	SetMinNetUpdateFrequency(2.f);
+	NetPriority = 1.5f;
+
+	Mesh1P = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh1P"));
+	Mesh1P->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Mesh1P->SetOnlyOwnerSee(true);
+	Mesh1P->CastShadow = false;
+	Mesh1P->bReceivesDecals = false;
+	Mesh1P->SetGenerateOverlapEvents(false);
+	Mesh1P->PrimaryComponentTick.bCanEverTick = false;
+	RootComponent = Mesh1P;
+
+	// Placeholder gun: a stretched cube in front of the camera.
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (Cube.Succeeded())
+	{
+		Mesh1P->SetStaticMesh(Cube.Object);
+		Mesh1P->SetRelativeScale3D(FVector(0.35f, 0.06f, 0.08f));
+		Mesh1P->SetRelativeLocation(FVector(30.f, 14.f, -16.f));
+	}
+
+	DamageType = UMFDamage_Bullet::StaticClass();
+	HeadshotDamageType = UMFDamage_Headshot::StaticClass();
+	SetActorHiddenInGame(true);
+}
+
+void AMFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(AMFWeapon, ClipAmmo, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AMFWeapon, TotalAmmo, COND_OwnerOnly);
+	DOREPLIFETIME(AMFWeapon, ZoomLevel);
+	DOREPLIFETIME_CONDITION(AMFWeapon, BurstCounter, COND_SkipOwner);
+}
+
+void AMFWeapon::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	if (HasAuthority())
+	{
+		GiveFullAmmo();   // RageWeapon.PostBeginPlay
+	}
+	ResolveSounds();
+}
+
+void AMFWeapon::Destroyed()
+{
+	ClearStateTimer();
+	Super::Destroyed();
+}
+
+void AMFWeapon::ResolveSounds()
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	// Converted original sounds live in /Game/MFImported/Sounds/<Package>/<Name> (see Tools/mfport).
+	auto Load = [](TObjectPtr<USoundBase>& Slot, const FString& MFName)
+	{
+		if (Slot || MFName.IsEmpty())
+		{
+			return;
+		}
+		FString Package, Name;
+		if (MFName.Split(TEXT("."), &Package, &Name))
+		{
+			const FString Path = FString::Printf(TEXT("/Game/MFImported/Sounds/%s/%s.%s"), *Package, *Name, *Name);
+			Slot = LoadObject<USoundBase>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+		}
+	};
+	Load(FireSound, MFFireSound);
+	Load(ReloadSound, MFReloadSound);
+	Load(SelectSound, MFSelectSound);
+}
+
+// --- ammo ----------------------------------------------------------------------------
+
+void AMFWeapon::GiveFullAmmo()
+{
+	ClipAmmo = MaxClipAmmo;
+	TotalAmmo = MaxClips * MaxClipAmmo - MaxClipAmmo;
+}
+
+void AMFWeapon::ReloadAmmo()
+{
+	const int32 ToFill = FMath::Min(MaxClipAmmo - ClipAmmo, TotalAmmo);
+	if (ToFill > 0)
+	{
+		TotalAmmo -= ToFill;
+		ClipAmmo += ToFill;
+	}
+}
+
+// --- helpers -------------------------------------------------------------------------
+
+AMFCharacter* AMFWeapon::GetOwnerCharacter() const
+{
+	return Cast<AMFCharacter>(GetOwner());
+}
+
+bool AMFWeapon::IsLocallyControlled() const
+{
+	const APawn* P = Cast<APawn>(GetOwner());
+	return P && P->IsLocallyControlled();
+}
+
+bool AMFWeapon::IsSimulatingLocally() const
+{
+	return HasAuthority() || IsLocallyControlled();
+}
+
+FVector AMFWeapon::GetFireStart() const
+{
+	const AMFCharacter* C = GetOwnerCharacter();
+	return C ? C->GetPawnViewLocation() : GetActorLocation();
+}
+
+FRotator AMFWeapon::GetAimRotation() const
+{
+	const AMFCharacter* C = GetOwnerCharacter();
+	return C ? C->GetBaseAimRotation() : GetActorRotation();
+}
+
+float AMFWeapon::GetFOVScale() const
+{
+	return ZoomLevel > 0 ? 1.f / FMath::Max(ZoomScale, 1.f) : 1.f;
+}
+
+float AMFWeapon::GetMoveSpeedScale() const
+{
+	return ZoomLevel > 0 ? ZoomedMoveScale : 1.f;
+}
+
+FString AMFWeapon::GetHUDStatus() const
+{
+	return FString();
+}
+
+void AMFWeapon::PlaySoundLocal(USoundBase* Sound) const
+{
+	if (Sound && GetNetMode() != NM_DedicatedServer)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetFireStart());
+	}
+}
+
+// --- state machine -------------------------------------------------------------------
+
+void AMFWeapon::SetState(EMFWeaponState NewState, float Duration)
+{
+	State = NewState;
+	ClearStateTimer();
+	if (Duration > 0.f)
+	{
+		GetWorldTimerManager().SetTimer(StateTimer, this, &AMFWeapon::OnStateTimer, Duration, false);
+	}
+}
+
+void AMFWeapon::ClearStateTimer()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(StateTimer);
+	}
+}
+
+void AMFWeapon::OnStateTimer()
+{
+	switch (State)
+	{
+	case EMFWeaponState::Equipping:
+		State = EMFWeaponState::Idle;
+		Finish();
+		break;
+	case EMFWeaponState::Firing:
+	case EMFWeaponState::Zooming:
+		Finish();
+		break;
+	case EMFWeaponState::Reloading:
+		ReloadAmmo();
+		Finish();
+		break;
+	case EMFWeaponState::PuttingDown:
+		ForceInactive();
+		if (AMFCharacter* C = GetOwnerCharacter())
+		{
+			C->OnWeaponPutDown(this);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void AMFWeapon::Finish()
+{
+	AMFCharacter* C = GetOwnerCharacter();
+	State = EMFWeaponState::Idle;
+	if (!C || !C->IsAlive())
+	{
+		return;
+	}
+
+	if (bDestroyWhenEmpty && !HasAnyAmmo())
+	{
+		// MF: single-use items must leave the hands right away (loadout-consumables 6B)
+		if (HasAuthority())
+		{
+			OnDepleted();
+		}
+		return;
+	}
+
+	if (bPendingReload || (!HasAmmoInClip() && CanReload()))
+	{
+		bPendingReload = false;
+		StartReload();
+		return;
+	}
+
+	if (!HasAmmoInClip())
+	{
+		if (HasAuthority())
+		{
+			C->SwitchToBestWeapon();
+		}
+		return;
+	}
+
+	if (bFireHeld)
+	{
+		TryFire(false);
+	}
+	else if (bAltFireHeld && MaxZoomLevel == 0)
+	{
+		TryFire(true);
+	}
+}
+
+// --- input entry points --------------------------------------------------------------
+
+void AMFWeapon::StartFire(bool bAlt)
+{
+	(bAlt ? bAltFireHeld : bFireHeld) = true;
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerStartFire(bAlt);
+	}
+	if (!IsSimulatingLocally() || State != EMFWeaponState::Idle)
+	{
+		return;
+	}
+	if (bAlt && MaxZoomLevel > 0)
+	{
+		ToggleZoom();
+	}
+	else
+	{
+		TryFire(bAlt);
+	}
+}
+
+void AMFWeapon::StopFire(bool bAlt)
+{
+	(bAlt ? bAltFireHeld : bFireHeld) = false;
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerStopFire(bAlt);
+	}
+}
+
+void AMFWeapon::ServerStartFire_Implementation(bool bAlt)
+{
+	StartFire(bAlt);
+}
+
+void AMFWeapon::ServerStopFire_Implementation(bool bAlt)
+{
+	StopFire(bAlt);
+}
+
+void AMFWeapon::StartReload()
+{
+	if (GetLocalRole() < ROLE_Authority && IsLocallyControlled() && State == EMFWeaponState::Idle)
+	{
+		ServerReload();
+	}
+	if (!IsSimulatingLocally() || !CanReload())
+	{
+		return;
+	}
+	if (State != EMFWeaponState::Idle)
+	{
+		return;
+	}
+	if (ZoomLevel > 0)
+	{
+		ZoomLevel = 0;
+		if (AMFCharacter* C = GetOwnerCharacter())
+		{
+			C->UpdateCarrySpeed();
+		}
+	}
+	SetState(EMFWeaponState::Reloading, ReloadTime);
+	if (IsLocallyControlled())
+	{
+		PlaySoundLocal(ReloadSound);
+	}
+}
+
+void AMFWeapon::ServerReload_Implementation()
+{
+	StartReload();
+}
+
+bool AMFWeapon::TryFire(bool bAlt)
+{
+	AMFCharacter* C = GetOwnerCharacter();
+	if (!C || !C->IsAlive() || C->IsInLoadout())
+	{
+		return false;
+	}
+	if (!HasAmmoInClip())
+	{
+		if (CanReload())
+		{
+			StartReload();
+		}
+		return false;
+	}
+	const float Duration = ZoomLevel > 0 ? ZoomedFireTime : FireTime;
+	SetState(EMFWeaponState::Firing, Duration);
+	FireShot(bAlt);
+	return true;
+}
+
+void AMFWeapon::ToggleZoom()
+{
+	ZoomLevel = (ZoomLevel + 1) % (MaxZoomLevel + 1);
+	SetState(EMFWeaponState::Zooming, ZoomTime);
+	if (AMFCharacter* C = GetOwnerCharacter())
+	{
+		C->UpdateCarrySpeed();
+	}
+	if (IsLocallyControlled())
+	{
+		PlaySoundLocal(ZoomLevel > 0 ? ZoomInSound : ZoomOutSound);
+	}
+}
+
+void AMFWeapon::OnRep_ZoomLevel(uint8 OldZoom)
+{
+	if (AMFCharacter* C = GetOwnerCharacter())
+	{
+		C->UpdateCarrySpeed();
+	}
+}
+
+// --- firing --------------------------------------------------------------------------
+
+void AMFWeapon::FireShot(bool bAlt)
+{
+	ClipAmmo = FMath::Max(0, ClipAmmo - 1);
+	bLastShotAlt = bAlt;
+
+	if (HasAuthority())
+	{
+		++BurstCounter;
+		const bool bZoomed = ZoomLevel > 0;
+		const float UseAccuracy = (bAlt || bZoomed) ? AltAccuracy : Accuracy;
+		TSubclassOf<AMFProjectile> Proj = bAlt && AltProjectileClass ? AltProjectileClass : ProjectileClass;
+		if (bInstantHit || !Proj)
+		{
+			TraceFire(UseAccuracy, Pellets, bAlt);
+		}
+		else
+		{
+			SpawnProjectile(Proj, 0.f, bAlt);
+		}
+		if (AMFCharacter* C = GetOwnerCharacter())
+		{
+			C->MakeNoise(1.f, C);
+		}
+	}
+
+	if (IsLocallyControlled() || GetNetMode() == NM_Standalone)
+	{
+		PlayFireEffects(bAlt);
+	}
+}
+
+void AMFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
+{
+	AMFCharacter* C = GetOwnerCharacter();
+	if (!C)
+	{
+		return;
+	}
+	const FVector Start = GetFireStart();
+	const FRotationMatrix Aim(GetAimRotation());
+	const FVector X = Aim.GetUnitAxis(EAxis::X);
+	const FVector Y = Aim.GetUnitAxis(EAxis::Y);
+	const FVector Z = Aim.GetUnitAxis(EAxis::Z);
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFWeaponTrace), true, C);
+	Params.AddIgnoredActor(this);
+
+	for (int32 i = 0; i < FMath::Max(1, InPellets); ++i)
+	{
+		// MF TraceFire: End = Start + Acc*(rand-0.5)*Y*1000 + Acc*(rand-0.5)*Z*1000 + X*MaxTraceDistance
+		const FVector End = Start
+			+ InAccuracy * (FMath::FRand() - 0.5f) * Y * 2250.f
+			+ InAccuracy * (FMath::FRand() - 0.5f) * Z * 2250.f
+			+ X * MaxTraceDistance;
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_MFWeapon, Params))
+		{
+			ProcessTraceHit(Hit, (End - Start).GetSafeNormal(), bAlt);
+		}
+	}
+}
+
+void AMFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt)
+{
+	AActor* Other = Hit.GetActor();
+	if (!Other || Other == GetOwner())
+	{
+		return;
+	}
+	float Damage = HitDamage;
+	TSubclassOf<UDamageType> Type = DamageType;
+	float Momentum = HitMomentum;
+	if (const AMFCharacter* Victim = Cast<AMFCharacter>(Other))
+	{
+		if (HeadshotDamage > 0.f && Victim->IsHeadshot(Hit.ImpactPoint))
+		{
+			Damage = HeadshotDamage;
+			Type = HeadshotDamageType;
+			Momentum *= 2.f;
+		}
+	}
+	FPointDamageEvent Event(Damage, Hit, ShotDir, Type);
+	APawn* Shooter = Cast<APawn>(GetOwner());
+	Other->TakeDamage(Damage, Event, Shooter ? Shooter->GetController() : nullptr, this);
+
+	if (UPrimitiveComponent* Comp = Hit.GetComponent(); Comp && Comp->IsSimulatingPhysics())
+	{
+		Comp->AddImpulseAtLocation(ShotDir * Momentum, Hit.ImpactPoint);
+	}
+}
+
+AMFProjectile* AMFWeapon::SpawnProjectile(TSubclassOf<AMFProjectile> Class, float Speed, bool bAlt)
+{
+	AMFCharacter* C = GetOwnerCharacter();
+	if (!C || !Class)
+	{
+		return nullptr;
+	}
+	const FRotator Aim = GetAimRotation();
+	const FVector Start = GetFireStart() + Aim.Vector() * 40.f;
+	FActorSpawnParameters SP;
+	SP.Owner = C;
+	SP.Instigator = C;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AMFProjectile* P = GetWorld()->SpawnActor<AMFProjectile>(Class, Start, Aim, SP);
+	if (P)
+	{
+		P->Launch(Aim.Vector(), Speed, C->GetVelocity());
+	}
+	return P;
+}
+
+void AMFWeapon::PlayFireEffects(bool bAlt)
+{
+	PlaySoundLocal(FireSound);
+	if (AMFCharacter* C = GetOwnerCharacter(); C && C->IsLocallyControlled())
+	{
+		C->AddRecoil(RecoilPower * 6.f);
+	}
+}
+
+void AMFWeapon::OnRep_BurstCounter()
+{
+	PlayFireEffects(false);
+}
+
+void AMFWeapon::OnDepleted()
+{
+	if (AMFCharacter* C = GetOwnerCharacter())
+	{
+		C->RemoveWeapon(this, true);
+		C->SwitchToBestWeapon();
+	}
+}
+
+// --- equip / holster -----------------------------------------------------------------
+
+void AMFWeapon::OnGiven(AMFCharacter* NewOwner)
+{
+	SetOwner(NewOwner);
+	SetInstigator(NewOwner);
+	if (NewOwner && NewOwner->GetWeaponAttachPoint())
+	{
+		AttachToComponent(NewOwner->GetWeaponAttachPoint(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
+	ForceInactive();
+}
+
+void AMFWeapon::OnEquip()
+{
+	SetActorHiddenInGame(false);
+	SetState(EMFWeaponState::Equipping, EquipTime);
+	if (IsLocallyControlled())
+	{
+		PlaySoundLocal(SelectSound);
+	}
+}
+
+void AMFWeapon::OnPutDown()
+{
+	bFireHeld = bAltFireHeld = false;
+	if (ZoomLevel > 0)
+	{
+		ZoomLevel = 0;
+		if (AMFCharacter* C = GetOwnerCharacter())
+		{
+			C->UpdateCarrySpeed();
+		}
+	}
+	SetState(EMFWeaponState::PuttingDown, PutDownTime);
+}
+
+void AMFWeapon::ForceInactive()
+{
+	ClearStateTimer();
+	State = EMFWeaponState::Inactive;
+	bFireHeld = bAltFireHeld = false;
+	bPendingReload = false;
+	ZoomLevel = 0;
+	SetActorHiddenInGame(true);
+}

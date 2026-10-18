@@ -1,0 +1,482 @@
+#include "MFImporter.h"
+#include "MobileForcesEditor.h"
+#include "AssetImportTask.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "Dom/JsonObject.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "MeshDescription.h"
+#include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Sound/SoundWave.h"
+#include "StaticMeshAttributes.h"
+#include "UObject/Package.h"
+#include "UObject/SavePackage.h"
+
+namespace
+{
+	const TCHAR* ImportRoot = TEXT("/Game/MFImported");
+
+	TSharedPtr<FJsonObject> LoadJson(const FString& File)
+	{
+		FString Text;
+		if (!FFileHelper::LoadFileToString(Text, *File))
+		{
+			UE_LOG(LogMFEditor, Error, TEXT("Can't read %s"), *File);
+			return nullptr;
+		}
+		TSharedPtr<FJsonObject> Obj;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Text);
+		if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid())
+		{
+			UE_LOG(LogMFEditor, Error, TEXT("Bad JSON in %s"), *File);
+			return nullptr;
+		}
+		return Obj;
+	}
+
+	/** "rage_warehouse.metal.ware_metal_29" -> ("rage_warehouse/metal", "ware_metal_29") */
+	void SplitKey(const FString& Key, FString& OutDir, FString& OutName)
+	{
+		TArray<FString> Parts;
+		Key.ParseIntoArray(Parts, TEXT("."));
+		OutName = Parts.Num() ? Parts.Pop() : Key;
+		OutDir = FString::Join(Parts, TEXT("/"));
+	}
+
+	template <typename T>
+	T* FindOrCreateAsset(const FString& PackagePath, const FString& Name, bool& bOutCreated)
+	{
+		const FString Full = PackagePath / Name;
+		T* Existing = LoadObject<T>(nullptr, *(Full + TEXT(".") + Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		bOutCreated = Existing == nullptr;
+		if (Existing)
+		{
+			return Existing;
+		}
+		UPackage* Pkg = CreatePackage(*Full);
+		return NewObject<T>(Pkg, *Name, RF_Public | RF_Standalone);
+	}
+}
+
+FMFImporter::FMFImporter(const FString& InWorkDir)
+	: WorkDir(InWorkDir)
+{
+}
+
+bool FMFImporter::SaveAsset(UObject* Asset)
+{
+	if (!Asset)
+	{
+		return false;
+	}
+	UPackage* Pkg = Asset->GetOutermost();
+	Pkg->MarkPackageDirty();
+	const FString Ext = Asset->IsA<UWorld>() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+	const FString File = FPackageName::LongPackageNameToFilename(Pkg->GetName(), Ext);
+	FSavePackageArgs Args;
+	Args.TopLevelFlags = RF_Public | RF_Standalone;
+	Args.SaveFlags = SAVE_NoError;
+	const bool bOk = UPackage::SavePackage(Pkg, Asset, *File, Args);
+	if (!bOk)
+	{
+		UE_LOG(LogMFEditor, Error, TEXT("Failed to save %s"), *File);
+	}
+	return bOk;
+}
+
+FString FMFImporter::TextureAssetPath(const FString& Key)
+{
+	FString Dir, Name;
+	SplitKey(Key, Dir, Name);
+	return FString::Printf(TEXT("%s/Textures/%s/%s.%s"), ImportRoot, *Dir, *Name, *Name);
+}
+
+UTexture2D* FMFImporter::FindTexture(const FString& Key) const
+{
+	return LoadObject<UTexture2D>(nullptr, *TextureAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet);
+}
+
+USoundWave* FMFImporter::FindSound(const FString& MFPath) const
+{
+	FString Pkg, Name;
+	if (!MFPath.Split(TEXT("."), &Pkg, &Name, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+	{
+		return nullptr;
+	}
+	FString Package = Pkg;
+	Package.Split(TEXT("."), &Package, nullptr);   // drop a group: "levelSFX.Water.Drip" -> levelSFX
+	if (Package.IsEmpty())
+	{
+		Package = Pkg;
+	}
+	const FString Path = FString::Printf(TEXT("%s/Sounds/%s/%s.%s"), ImportRoot, *Package, *Name, *Name);
+	return LoadObject<USoundWave>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+}
+
+// --- textures --------------------------------------------------------------------------
+
+bool FMFImporter::ImportTextures()
+{
+	TSharedPtr<FJsonObject> Manifest = LoadJson(WorkDir / TEXT("textures.json"));
+	if (!Manifest)
+	{
+		return false;
+	}
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	TArray<UAssetImportTask*> Tasks;
+	TArray<TPair<FString, bool>> Keys;   // key, has alpha
+	for (const auto& Pair : Manifest->Values)
+	{
+		const TSharedPtr<FJsonObject> Info = Pair.Value->AsObject();
+		FString Dir, Name;
+		const FString Key(Pair.Key);
+		SplitKey(Key, Dir, Name);
+		UAssetImportTask* Task = NewObject<UAssetImportTask>();
+		Task->Filename = FPaths::ConvertRelativePathToFull(WorkDir / Info->GetStringField(TEXT("file")));
+		Task->DestinationPath = FString::Printf(TEXT("%s/Textures/%s"), ImportRoot, *Dir);
+		Task->DestinationName = Name;
+		Task->bAutomated = true;
+		Task->bReplaceExisting = true;
+		Task->bSave = false;
+		Tasks.Add(Task);
+		Keys.Emplace(Key, Info->GetBoolField(TEXT("alpha")));
+	}
+	UE_LOG(LogMFEditor, Display, TEXT("Importing %d textures"), Tasks.Num());
+	AssetTools.ImportAssetTasks(Tasks);
+
+	int32 Ok = 0;
+	for (int32 i = 0; i < Tasks.Num(); ++i)
+	{
+		UTexture2D* Tex = FindTexture(Keys[i].Key);
+		if (!Tex)
+		{
+			UE_LOG(LogMFEditor, Warning, TEXT("Texture import failed: %s"), *Keys[i].Key);
+			continue;
+		}
+		// Mobile-friendly: world group, never streamed (they're tiny), no alpha channel unless masked
+		Tex->LODGroup = TEXTUREGROUP_World;
+		Tex->NeverStream = true;
+		Tex->SRGB = true;
+		Tex->CompressionSettings = TC_Default;
+		Tex->CompressionNoAlpha = !Keys[i].Value;
+		Tex->MipGenSettings = TMGS_FromTextureGroup;
+		Tex->PostEditChange();
+		Ok += SaveAsset(Tex) ? 1 : 0;
+	}
+	UE_LOG(LogMFEditor, Display, TEXT("Textures: %d / %d imported"), Ok, Tasks.Num());
+	return Ok > 0;
+}
+
+// --- sounds ----------------------------------------------------------------------------
+
+bool FMFImporter::ImportSounds()
+{
+	const FString SoundDir = WorkDir / TEXT("Sounds");
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *SoundDir, TEXT("*.wav"), true, false);
+	if (Files.Num() == 0)
+	{
+		UE_LOG(LogMFEditor, Warning, TEXT("No sounds in %s"), *SoundDir);
+		return false;
+	}
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	TArray<UAssetImportTask*> Tasks;
+	for (const FString& File : Files)
+	{
+		FString Rel = File;
+		FPaths::MakePathRelativeTo(Rel, *(SoundDir + TEXT("/")));
+		UAssetImportTask* Task = NewObject<UAssetImportTask>();
+		Task->Filename = File;
+		Task->DestinationPath = FString::Printf(TEXT("%s/Sounds/%s"), ImportRoot, *FPaths::GetPath(Rel));
+		Task->DestinationName = FPaths::GetBaseFilename(Rel);
+		Task->bAutomated = true;
+		Task->bReplaceExisting = true;
+		Task->bSave = true;
+		Tasks.Add(Task);
+	}
+	UE_LOG(LogMFEditor, Display, TEXT("Importing %d sounds"), Tasks.Num());
+	AssetTools.ImportAssetTasks(Tasks);
+	return true;
+}
+
+// --- materials -------------------------------------------------------------------------
+
+UMaterialInterface* FMFImporter::GetMasterMaterial(const FString& Mode)
+{
+	if (UMaterialInterface** Found = MasterCache.Find(Mode))
+	{
+		return *Found;
+	}
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_") + Mode, bCreated);
+	if (bCreated)
+	{
+		// UE1 look: base texture, no specular, fully rough. Blend modes follow UE1 poly flags:
+		// Masked = alpha test, Additive = PF_Translucent, Modulated = PF_Modulated (x2), Unlit = PF_Unlit.
+		UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+		UMaterialExpressionTextureSampleParameter2D* Tex = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+		Tex->ParameterName = TEXT("Texture");
+		Tex->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+		M->GetExpressionCollection().AddExpression(Tex);
+		auto Const = [M](float V)
+		{
+			UMaterialExpressionConstant* C = NewObject<UMaterialExpressionConstant>(M);
+			C->R = V;
+			M->GetExpressionCollection().AddExpression(C);
+			return C;
+		};
+		const bool bLit = Mode == TEXT("Opaque") || Mode == TEXT("Masked");
+		if (bLit)
+		{
+			M->SetShadingModel(MSM_DefaultLit);
+			E->BaseColor.Connect(0, Tex);
+			E->Specular.Connect(0, Const(0.f));
+			E->Roughness.Connect(0, Const(1.f));
+		}
+		else
+		{
+			M->SetShadingModel(MSM_Unlit);
+			if (Mode == TEXT("Modulated"))
+			{
+				UMaterialExpressionMultiply* Mul = NewObject<UMaterialExpressionMultiply>(M);
+				Mul->A.Connect(0, Tex);
+				Mul->ConstB = 2.f;
+				M->GetExpressionCollection().AddExpression(Mul);
+				E->EmissiveColor.Connect(0, Mul);
+			}
+			else
+			{
+				E->EmissiveColor.Connect(0, Tex);
+			}
+		}
+		if (Mode == TEXT("Masked") || Mode == TEXT("MaskedUnlit"))
+		{
+			M->BlendMode = BLEND_Masked;
+			E->OpacityMask.Connect(4, Tex);   // alpha output
+		}
+		else if (Mode == TEXT("Additive"))
+		{
+			M->BlendMode = BLEND_Additive;
+		}
+		else if (Mode == TEXT("Modulated"))
+		{
+			M->BlendMode = BLEND_Modulate;
+		}
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+		UE_LOG(LogMFEditor, Display, TEXT("Created master material M_MF_%s"), *Mode);
+	}
+	MasterCache.Add(Mode, M);
+	return M;
+}
+
+UMaterialInterface* FMFImporter::GetMaterial(const FString& Key)
+{
+	if (UMaterialInterface** Found = MaterialCache.Find(Key))
+	{
+		return *Found;
+	}
+	FString TexKey, Mode;
+	if (!Key.Split(TEXT("|"), &TexKey, &Mode))
+	{
+		TexKey = Key;
+		Mode = TEXT("opaque");
+	}
+	if (Mode == TEXT("collision"))
+	{
+		MaterialCache.Add(Key, nullptr);
+		return nullptr;
+	}
+	const bool bTwoSided = Mode.Contains(TEXT("_2s"));
+	const bool bUnlit = Mode.Contains(TEXT("_unlit"));
+	FString Base;
+	Mode.Split(TEXT("_"), &Base, nullptr);
+	if (Base.IsEmpty())
+	{
+		Base = Mode;
+	}
+	FString Master = TEXT("Opaque");
+	if (Base == TEXT("sky"))            Master = TEXT("Unlit");
+	else if (Base == TEXT("additive"))  Master = TEXT("Additive");
+	else if (Base == TEXT("modulated")) Master = TEXT("Modulated");
+	else if (Base == TEXT("masked"))    Master = bUnlit ? TEXT("MaskedUnlit") : TEXT("Masked");
+	else if (bUnlit)                    Master = TEXT("Unlit");
+
+	FString Dir, Name;
+	SplitKey(TexKey, Dir, Name);
+	if (Dir.IsEmpty() || Dir.StartsWith(TEXT("Engine")))
+	{
+		// untextured surfaces: the master itself (engine default texture)
+		UMaterialInterface* M = GetMasterMaterial(Master);
+		MaterialCache.Add(Key, M);
+		return M;
+	}
+	UTexture2D* Tex = FindTexture(TexKey);
+	const FString MIName = FString::Printf(TEXT("MI_%s_%s"), *Name, *Mode);
+	bool bCreated = false;
+	UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(
+		FString::Printf(TEXT("%s/Materials/%s"), ImportRoot, *Dir), MIName, bCreated);
+	MIC->SetParentEditorOnly(GetMasterMaterial(Master));
+	if (Tex)
+	{
+		MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Tex);
+	}
+	else
+	{
+		UE_LOG(LogMFEditor, Warning, TEXT("Material %s: texture %s missing"), *Key, *TexKey);
+	}
+	if (bTwoSided)
+	{
+		FMaterialInstanceBasePropertyOverrides Overrides = MIC->BasePropertyOverrides;
+		Overrides.bOverride_TwoSided = true;
+		Overrides.TwoSided = true;
+		MIC->BasePropertyOverrides = Overrides;
+	}
+	MIC->PostEditChange();
+	SaveAsset(MIC);
+	MaterialCache.Add(Key, MIC);
+	return MIC;
+}
+
+// --- static meshes ---------------------------------------------------------------------
+
+UStaticMesh* FMFImporter::BuildStaticMesh(const FString& JsonFile, const FString& AssetPath)
+{
+	TSharedPtr<FJsonObject> J = LoadJson(JsonFile);
+	if (!J)
+	{
+		return nullptr;
+	}
+	TArray<uint8> Bin;
+	if (!FFileHelper::LoadFileToArray(Bin, *(FPaths::GetPath(JsonFile) / J->GetStringField(TEXT("bin")))))
+	{
+		UE_LOG(LogMFEditor, Error, TEXT("Missing mesh data for %s"), *JsonFile);
+		return nullptr;
+	}
+	const int32 NumVerts = J->GetIntegerField(TEXT("vertex_count"));
+	const int32 NumIndices = J->GetIntegerField(TEXT("index_count"));
+	const bool bRender = J->GetBoolField(TEXT("render"));
+	const FString Collision = J->GetStringField(TEXT("collision"));
+	const int32 LightmapRes = J->GetIntegerField(TEXT("lightmap_resolution"));
+	if (Bin.Num() < NumVerts * 32 + NumIndices * 4)
+	{
+		UE_LOG(LogMFEditor, Error, TEXT("Truncated mesh data for %s"), *JsonFile);
+		return nullptr;
+	}
+	const float* V = reinterpret_cast<const float*>(Bin.GetData());
+	const uint32* Idx = reinterpret_cast<const uint32*>(Bin.GetData() + NumVerts * 32);
+
+	FMeshDescription MD;
+	FStaticMeshAttributes Attr(MD);
+	Attr.Register();
+	TVertexAttributesRef<FVector3f> Positions = Attr.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> Normals = Attr.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector2f> UVs = Attr.GetVertexInstanceUVs();
+	TPolygonGroupAttributesRef<FName> SlotNames = Attr.GetPolygonGroupMaterialSlotNames();
+	UVs.SetNumChannels(1);
+
+	// Weld positions so lightmap UV generation sees connected surfaces
+	TMap<FVector3f, FVertexID> Welded;
+	TArray<FVertexInstanceID> Instances;
+	Instances.SetNum(NumVerts);
+	for (int32 i = 0; i < NumVerts; ++i)
+	{
+		const float* P = V + i * 8;
+		const FVector3f Pos(P[0], P[1], P[2]);
+		FVertexID* VID = Welded.Find(Pos);
+		if (!VID)
+		{
+			const FVertexID New = MD.CreateVertex();
+			Positions[New] = Pos;
+			VID = &Welded.Add(Pos, New);
+		}
+		const FVertexInstanceID VI = MD.CreateVertexInstance(*VID);
+		Normals[VI] = FVector3f(P[3], P[4], P[5]);
+		UVs.Set(VI, 0, FVector2f(P[6], P[7]));
+		Instances[i] = VI;
+	}
+
+	const TArray<TSharedPtr<FJsonValue>>& Materials = J->GetArrayField(TEXT("materials"));
+	TArray<FStaticMaterial> StaticMaterials;
+	for (const TSharedPtr<FJsonValue>& Sec : J->GetArrayField(TEXT("sections")))
+	{
+		const TSharedPtr<FJsonObject> S = Sec->AsObject();
+		const int32 MatIndex = S->GetIntegerField(TEXT("material"));
+		const int32 First = S->GetIntegerField(TEXT("first_index"));
+		const int32 NumTris = S->GetIntegerField(TEXT("num_triangles"));
+		const FString Key = Materials.IsValidIndex(MatIndex) ? Materials[MatIndex]->AsString() : FString();
+		const FName Slot(*FString::Printf(TEXT("M%d"), StaticMaterials.Num()));
+		const FPolygonGroupID PG = MD.CreatePolygonGroup();
+		SlotNames[PG] = Slot;
+		StaticMaterials.Add(FStaticMaterial(bRender ? GetMaterial(Key) : nullptr, Slot, Slot));
+		for (int32 t = 0; t < NumTris; ++t)
+		{
+			const uint32 A = Idx[First + t * 3], B = Idx[First + t * 3 + 1], C = Idx[First + t * 3 + 2];
+			// mfmesh triangles wind cross(v1-v0, v2-v0) along the normal; UE wants the opposite
+			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { Instances[A], Instances[C], Instances[B] };
+			MD.CreateTriangle(PG, Tri);
+		}
+	}
+
+	FString PackagePath, Name;
+	AssetPath.Split(TEXT("/"), &PackagePath, &Name, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	bool bCreated = false;
+	UStaticMesh* SM = FindOrCreateAsset<UStaticMesh>(PackagePath, Name, bCreated);
+	SM->PreEditChange(nullptr);
+	SM->GetStaticMaterials() = StaticMaterials;
+	SM->SetNumSourceModels(1);
+	FStaticMeshSourceModel& Src = SM->GetSourceModel(0);
+	Src.BuildSettings.bRecomputeNormals = false;
+	Src.BuildSettings.bRecomputeTangents = true;
+	Src.BuildSettings.bUseMikkTSpace = true;
+	Src.BuildSettings.bRemoveDegenerates = true;
+	Src.BuildSettings.bUseFullPrecisionUVs = true;     // world UVs tile far past 0..1
+	Src.BuildSettings.bGenerateLightmapUVs = bRender;
+	Src.BuildSettings.SrcLightmapIndex = 0;
+	Src.BuildSettings.DstLightmapIndex = 1;
+	Src.BuildSettings.MinLightmapResolution = FMath::Max(16, LightmapRes);
+	Src.BuildSettings.bBuildReversedIndexBuffer = false;
+	SM->CreateMeshDescription(0, MoveTemp(MD));
+	SM->CommitMeshDescription(0);
+	SM->SetLightMapResolution(bRender ? FMath::Max(16, LightmapRes) : 4);
+	SM->SetLightMapCoordinateIndex(bRender ? 1 : 0);
+	SM->CreateBodySetup();
+	UBodySetup* Body = SM->GetBodySetup();
+	Body->CollisionTraceFlag = Collision == TEXT("complex") ? CTF_UseComplexAsSimple : CTF_UseDefault;
+	if (Collision == TEXT("none"))
+	{
+		Body->bNeverNeedsCookedCollisionData = true;
+	}
+	SM->Build(true);
+	SM->PostEditChange();
+	SaveAsset(SM);
+	return SM;
+}
+
+UStaticMesh* FMFImporter::LoadOrBuildMesh(const FString& MapDir, const FString& MeshRel, const FString& MapName)
+{
+	const FString CacheKey = MapName + TEXT(":") + MeshRel;
+	if (UStaticMesh** Found = MeshCache.Find(CacheKey))
+	{
+		return *Found;
+	}
+	FString Sub, Name;
+	MeshRel.Split(TEXT("/"), &Sub, &Name);
+	const FString Folder = Sub == TEXT("geo") ? TEXT("Geo") : TEXT("Meshes");
+	const FString AssetPath = FString::Printf(TEXT("%s/Maps/%s/%s/%s"), ImportRoot, *MapName, *Folder, *Name);
+	UStaticMesh* SM = BuildStaticMesh(MapDir / (MeshRel + TEXT(".mfmesh.json")), AssetPath);
+	MeshCache.Add(CacheKey, SM);
+	return SM;
+}

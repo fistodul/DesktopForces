@@ -1,0 +1,40 @@
+# Source (VMF) material -> Mobile Forces texture key, for converting Mobile Forces Source maps.
+# HL2 materials must not ship; every one used by a map needs an entry here (or a
+# replacement texture under overrides/). Materials named like an MF texture
+# (WAREHOUSE/WARE_METAL_34 ...) are found automatically and need no entry.
+# First pass by eye for mf-warehouse - refine as the merge progresses.
+
+[materials]
+"CONCRETE/CONCRETEFLOOR009A" = "rage_warehouse.ground.ware_ground_1"
+"CONCRETE/CONCRETEFLOOR008A" = "rage_warehouse.ground.ware_ground_3"
+"CONCRETE/CONCRETEFLOOR011A_C17" = "rage_warehouse.ground.ware_ground_1"
+"CONCRETE/CONCRETECEILING001A" = "rage_warehouse.concrete.ware_concrete_2"
+"CONCRETE/CONCRETEWALL004B" = "rage_warehouse.concrete.ware_concrete_14"
+"CONCRETE/CONCRETEWALL009A" = "rage_warehouse.concrete.ware_concrete_8"
+"CONCRETE/CONCRETEWALL022A" = "rage_warehouse.concrete.ware_concrete_10"
+"CONCRETE/CONCRETEWALL036A" = "rage_warehouse.concrete.ware_concrete_14"
+"CONCRETE/CONCRETEWALL062A" = "rage_warehouse.concrete.ware_concrete_9"
+"CONCRETE/CONCRETEWALL065C" = "rage_warehouse.concrete.ware_concrete_10"
+"CONCRETE/CONCRETEWALL071A" = "rage_warehouse.concrete.ware_concrete_16"
+"BRICK/BRICKFLOOR001A" = "rage_warehouse.ground.ware_ground_4"
+"BRICK/BRICKWALL003A" = "rage_warehouse.Brick.ware_brick_3"
+"BRICK/BRICKWALL017B" = "rage_warehouse.Brick.ware_brick_8"
+"BRICK/BRICKWALL020A" = "rage_warehouse.Brick.ware_brick_11"
+"BRICK/BRICKWALL031A" = "rage_warehouse.Brick.ware_brick_10"
+"METAL/METALWALL018A_CHEAP" = "rage_warehouse.metal.ware_metal_30"
+"METAL/METALWALL032A" = "rage_warehouse.metal.ware_metal_29"
+"METAL/METALWALL032F" = "rage_warehouse.metal.ware_metal_29"
+"METAL/METALWALL035A" = "rage_warehouse.metal.ware_metal_35"
+"METAL/METALWALL062A" = "rage_warehouse.metal.ware_metal_24"
+"METAL/METALWALL087A" = "rage_warehouse.metal.ware_metal_23"
+"METAL/METALFLOOR003A" = "rage_warehouse.metal.ware_metal_38"
+"METAL/METALFLOOR007A" = "rage_warehouse.metal.ware_metal_39"
+"METAL/METALGRATE016A" = "rage_warehouse.metal.ware_metal_44"
+"METAL/METALSHUTTERS001A" = "rage_warehouse.Door.ware_door_1"
+"METAL/METALVENT001A" = "rage_warehouse.metal.ware_metal_41"
+"DEV/DEV_LOWERWALLMETAL01D" = "rage_warehouse.metal.ware_metal_25"
+"PROPS/METALDUCT004A" = "rage_warehouse.Object.ware_pipe_00"
+"NATURE/GRAVELFLOOR005A" = "rage_warehouse.ground.ware_ground_5"
+"WOOD/WOODFLOOR006A" = "rage_warehouse.Wood.ware_wood_3"
+"WOOD/WOODFLOOR006B" = "rage_warehouse.Wood.ware_wood_2"
+"GLASS/GLASSWINDOW048A" = "rage_warehouse.Window.ware_window_1"

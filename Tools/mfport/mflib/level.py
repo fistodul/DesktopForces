@@ -1,0 +1,301 @@
+"""Convert a Mobile Forces level (.umf) to the intermediate form the UE importer builds a map from.
+
+Output, under work/out/Maps/<map>/:
+  geo/World_<cx>_<cy>.mfmesh.*      world (BSP) geometry, chunked on a grid
+  geo/Collision_<cx>_<cy>.mfmesh.*  invisible-but-solid BSP surfaces (collision only)
+  meshes/<mesh>.mfmesh.*            the map's static meshes (props, terrain...)
+  level.json                        actors (converted transforms + raw MF properties),
+                                    zones, level info, list of used materials
+
+Geometry comes from the level's compiled BSP (see bsp.py); actors come from the
+UCC T3D export of the level (see t3d.py), because T3D already resolves every
+property to text.
+"""
+from __future__ import annotations
+
+import json
+import math
+from pathlib import Path
+
+from . import t3d, ucc
+from .actors import ActorMapper
+from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
+                  PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
+from .config import Config, UU_TO_CM
+from .mfmesh import MeshBuilder
+from .upkg import Package
+
+CHUNK_SIZE = 2048.0            # world geometry grid cell, in MF units (~46 m)
+LIGHTMAP_TEXEL = 16.0          # target lightmap texel size, MF units (36 cm)
+
+ROT_TO_DEG = 360.0 / 65536.0
+
+
+def material_key(texture: str | None, flags: int) -> str:
+    """Material identity = texture + blend mode + shading flags.
+
+    UE1 blend modes: PF_Translucent is *additive*, PF_Modulated multiplies (x2),
+    PF_Masked is alpha-test on palette index 0. PF_FakeBackdrop marks sky windows.
+    """
+    tex = texture if texture and texture != 'None' else 'Engine.DefaultTexture'
+    if flags & PF_FAKEBACKDROP:
+        return f'{tex}|sky'
+    mode = 'opaque'
+    if flags & PF_TRANSLUCENT:
+        mode = 'additive'
+    elif flags & PF_MODULATED:
+        mode = 'modulated'
+    elif flags & PF_MASKED:
+        mode = 'masked'
+    if flags & PF_UNLIT:
+        mode += '_unlit'
+    if flags & PF_TWOSIDED:
+        mode += '_2s'
+    return f'{tex}|{mode}'
+
+
+def _sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _scale(v, s=UU_TO_CM):
+    return (v[0] * s, v[1] * s, v[2] * s)
+
+
+def _area(verts) -> float:
+    a = 0.0
+    for i in range(1, len(verts) - 1):
+        c = _cross(_sub(verts[i], verts[0]), _sub(verts[i + 1], verts[0]))
+        a += math.sqrt(_dot(c, c)) * 0.5
+    return a
+
+
+def _next_pow2(x: float) -> int:
+    return 1 << max(0, math.ceil(math.log2(max(1.0, x))))
+
+
+class LevelConverter:
+    def __init__(self, cfg: Config, map_name: str):
+        self.cfg = cfg
+        self.map = map_name
+        self.umf = cfg.game_dir / 'Maps' / f'{map_name}.umf'
+        self.out = cfg.out_dir / 'Maps' / map_name
+        self.raw = cfg.raw_dir / 'Maps' / map_name
+        self.texture_sizes: dict[str, tuple[int, int]] = {}
+        self.usage: dict[str, set[str]] = {}     # texture key (lower) -> blend modes
+
+    # --- inputs -----------------------------------------------------------
+    def export_t3d(self) -> Path:
+        t3d_path = self.raw / 'MyLevel.t3d'
+        if not t3d_path.exists():
+            ucc.batch_export(self.cfg, f'Maps/{self.map}.umf', 'Level', 't3d', self.raw)
+        return t3d_path
+
+    def texture_size(self, key: str | None) -> tuple[int, int]:
+        """Original texture size (UV normalisation). Looked up lazily from the texture's package."""
+        if not key:
+            return (256, 256)
+        lk = key.lower()
+        if lk not in self.texture_sizes:
+            from .textures import texture_index
+            pkg = key.split('.')[0]
+            try:
+                for k, info in texture_index(self.cfg, pkg).items():
+                    self.texture_sizes[k] = (info['usize'] or 256, info['vsize'] or 256)
+            except FileNotFoundError:
+                pass
+            self.texture_sizes.setdefault(lk, (256, 256))
+        return self.texture_sizes[lk]
+
+    def _use(self, key: str):
+        tex, mode = key.split('|')
+        self.usage.setdefault(tex.lower(), set()).add(mode.split('_')[0])
+
+    # --- world geometry ---------------------------------------------------
+    def zone_bounds(self, model: LevelModel) -> dict[int, tuple]:
+        """Axis-aligned bounds (UE cm) of every BSP zone, from the polygons facing into it."""
+        lo: dict[int, list] = {}
+        hi: dict[int, list] = {}
+        for poly in model.polygons():
+            for z in {poly.zone}:
+                l = lo.setdefault(z, [1e18] * 3)
+                h = hi.setdefault(z, [-1e18] * 3)
+                for v in poly.vertices:
+                    for i in range(3):
+                        l[i] = min(l[i], v[i])
+                        h[i] = max(h[i], v[i])
+        return {z: (_scale(lo[z]), _scale(hi[z])) for z in lo}
+
+    def convert_world(self, model: LevelModel) -> list[dict]:
+        chunks: dict[tuple, MeshBuilder] = {}
+        coll: dict[tuple, MeshBuilder] = {}
+        areas: dict[tuple, float] = {}
+        skipped = 0
+        for poly in model.polygons():
+            f = poly.poly_flags
+            render = not f & PF_INVISIBLE
+            collide = not f & (PF_NOTSOLID | PF_PORTAL)
+            if not render and not collide:
+                skipped += 1
+                continue
+            c = tuple(sum(v[i] for v in poly.vertices) / len(poly.vertices) for i in range(3))
+            cell = (math.floor(c[0] / CHUNK_SIZE), math.floor(c[1] / CHUNK_SIZE))
+            if render:
+                key = material_key(poly.texture, f)
+                self._use(key)
+                mb = chunks.get(cell)
+                if mb is None:
+                    mb = chunks[cell] = MeshBuilder(f'World_{cell[0]}_{cell[1]}'.replace('-', 'm'))
+                    mb.collision = 'none'
+                self._emit_poly(mb, key, poly, cell)
+                areas[cell] = areas.get(cell, 0.0) + _area(poly.vertices)
+            if collide:
+                cb = coll.get(cell)
+                if cb is None:
+                    cb = coll[cell] = MeshBuilder(f'Collision_{cell[0]}_{cell[1]}'.replace('-', 'm'))
+                    cb.render = False
+                    cb.collision = 'complex'
+                self._emit_poly(cb, 'Engine.DefaultTexture|collision', poly, cell)
+        out = []
+        geo = self.out / 'geo'
+        for cell, mb in chunks.items():
+            texels = math.sqrt(areas[cell]) / LIGHTMAP_TEXEL
+            mb.lightmap_resolution = int(min(1024, max(64, _next_pow2(texels))))
+            out.append(self._chunk_entry(mb, cell, geo))
+        for cell, cb in coll.items():
+            out.append(self._chunk_entry(cb, cell, geo))
+        print(f'  world: {len(chunks)} render chunks, {len(coll)} collision chunks, {skipped} portal polys skipped')
+        return out
+
+    def _chunk_entry(self, mb: MeshBuilder, cell, geo: Path) -> dict:
+        pivot = self._cell_pivot(cell)
+        mb.write(geo)
+        return {'mesh': f'geo/{mb.name}', 'location': _scale(pivot), 'render': mb.render,
+                'triangles': mb.triangle_count, 'lightmap_resolution': mb.lightmap_resolution}
+
+    @staticmethod
+    def _cell_pivot(cell):
+        return ((cell[0] + 0.5) * CHUNK_SIZE, (cell[1] + 0.5) * CHUNK_SIZE, 0.0)
+
+    def _emit_poly(self, mb: MeshBuilder, key: str, poly, cell):
+        pivot = self._cell_pivot(cell)
+        usize, vsize = self.texture_size(poly.texture)
+        n = poly.normal
+        verts = poly.vertices
+        # orient fan triangles so cross(v1-v0, v2-v0) points along the normal
+        geo_n = _cross(_sub(verts[1], verts[0]), _sub(verts[2], verts[0]))
+        if _dot(geo_n, n) < 0:
+            verts = list(reversed(verts))
+
+        def vtx(p):
+            d = _sub(p, poly.base)
+            u = (_dot(d, poly.texture_u) + poly.pan_u) / usize
+            v = (_dot(d, poly.texture_v) + poly.pan_v) / vsize
+            return (_scale(_sub(p, pivot)), n, (u, v))
+
+        vs = [vtx(p) for p in verts]
+        for i in range(1, len(vs) - 1):
+            mb.add_triangle(key, vs[0], vs[i], vs[i + 1])
+
+    # --- static meshes ----------------------------------------------------
+    def convert_static_meshes(self, level: t3d.Block) -> dict[str, dict]:
+        meshes = {}
+        out = self.out / 'meshes'
+        for actor in level.children:
+            for blk in actor.find('StaticMesh'):
+                name = blk.name
+                if name in meshes:
+                    continue
+                mb = MeshBuilder(name)
+                mb.collision = 'complex'
+                area = 0.0
+                for tri in t3d.static_mesh_triangles(blk):
+                    tex = tri.texture
+                    key = material_key(tex, tri.poly_flags)
+                    self._use(key)
+                    p = [v[0] for v in tri.verts]
+                    vs = [(_scale(v[0]), v[1], v[2]) for v in tri.verts]
+                    geo_n = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
+                    avg_n = tuple(sum(v[1][i] for v in tri.verts) for i in range(3))
+                    if _dot(geo_n, avg_n) < 0:
+                        vs = [vs[0], vs[2], vs[1]]
+                    mb.add_triangle(key, *vs)
+                    area += _area(p)
+                mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / LIGHTMAP_TEXEL))))
+                mb.write(out)
+                meshes[name] = {'mesh': f'meshes/{name}', 'triangles': mb.triangle_count,
+                                'lightmap_resolution': mb.lightmap_resolution}
+        print(f'  static meshes: {len(meshes)}')
+        return meshes
+
+    # --- actors -------------------------------------------------------------
+    def convert_actors(self, level: t3d.Block) -> list[dict]:
+        actors = []
+        for a in level.children:
+            if a.kind != 'Actor' or a.cls in ('Brush',):
+                continue
+            loc = t3d.parse_vector(a.props.get('Location'))
+            pitch, yaw, roll = t3d.parse_rotator(a.props.get('Rotation'))
+            props = {k: v for k, v in a.props.items()
+                     if k not in ('Level', 'Region', 'OldLocation', 'ColLocation', 'Location', 'Rotation', 'Name')
+                     and not k.startswith('ZoneMask')}
+            entry = {
+                'class': a.cls,
+                'name': a.name,
+                'location': _scale(loc),
+                'rotation': {'pitch': pitch * ROT_TO_DEG, 'yaw': yaw * ROT_TO_DEG, 'roll': roll * ROT_TO_DEG},
+                'zone': _zone_number(a.props.get('Region')),
+                'props': props,
+            }
+            if a.cls == 'StaticMeshActor' or 'StaticMesh' in a.props:
+                ref = t3d.parse_object_ref(a.props.get('StaticMesh'))
+                if ref:
+                    entry['static_mesh'] = ref.split('.')[-1]
+            actors.append(entry)
+        return actors
+
+    # --- driver -------------------------------------------------------------
+    def run(self) -> Path:
+        print(f'[{self.map}]')
+        self.out.mkdir(parents=True, exist_ok=True)
+        pkg = Package(str(self.umf))
+        model = LevelModel(pkg)
+        world = self.convert_world(model)
+        level = t3d.parse(self.export_t3d().read_text(encoding='latin-1')).children[0]
+        meshes = self.convert_static_meshes(level)
+        actors = self.convert_actors(level)
+        mapper = ActorMapper(self.zone_bounds(model), meshes)
+        spawns = [rec for a in actors for rec in mapper.map(a)]
+        env_color, env_intensity = mapper.environment_color()
+        data = {
+            'map': self.map,
+            'uu_to_cm': UU_TO_CM,
+            'world': world,
+            'static_meshes': meshes,
+            'spawns': spawns,
+            'lightmass': {'environment_color': env_color, 'environment_intensity': env_intensity},
+            'actors': actors,
+            'zones': model.zones,
+            'texture_usage': {k: sorted(v) for k, v in sorted(self.usage.items())},
+        }
+        path = self.out / 'level.json'
+        path.write_text(json.dumps(data, indent=1))
+        from collections import Counter
+        kinds = Counter(r['type'] for r in spawns)
+        print(f'  actors: {len(actors)} -> spawns {dict(kinds)} -> {path}')
+        return path
+
+
+def _zone_number(region: str | None) -> int:
+    if not region:
+        return 0
+    d = t3d.parse_struct(region)
+    return int(d.get('ZoneNumber', 0))

@@ -1,0 +1,20 @@
+# mfport configuration. Copy to mfport.toml (git-ignored) and adjust.
+# Relative paths are relative to this folder (Tools/mfport).
+# Any key can also be set by an environment variable MFPORT_<KEY>, e.g. MFPORT_GAME_DIR.
+
+# Your Mobile Forces install (the folder holding System/, Maps/, Textures/ ...).
+game_dir = "../../../MoFo/MobileForces"
+
+# Scratch space for exported / converted files (never committed).
+work_dir = "work"
+
+# Unreal Engine 5 root (holding Engine/) and the project file.
+ue_root = "../../../Linux_Unreal_Engine_5.8.3"
+uproject = "../../MobileForces.uproject"
+
+# Wine command used to run the game's UCC.exe on Linux/macOS (ignored on Windows).
+wine = "wine"
+
+# Imported textures are downscaled to at most this many pixels per side.
+# Mobile Forces textures are mostly 256x256; 256 keeps them crisp-but-cheap.
+max_texture_size = 256
