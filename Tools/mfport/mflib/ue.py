@@ -21,7 +21,7 @@ def run_commandlet(cfg: Config, name: str, *args: str) -> int:
     return subprocess.run(cmd).returncode
 
 
-def run_importer(cfg: Config, steps: str = 'textures,sounds,music,maps', maps: list[str] | None = None) -> int:
+def run_importer(cfg: Config, steps: str = 'textures,sounds,music,plugins,maps', maps: list[str] | None = None) -> int:
     args = [f'-steps={steps}']
     default_out = (cfg.uproject.parent / 'Tools' / 'mfport' / 'work' / 'out').resolve()
     if cfg.out_dir.resolve() != default_out:

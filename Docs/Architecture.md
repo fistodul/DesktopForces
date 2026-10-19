@@ -6,19 +6,25 @@ Two C++ modules in one UE project, plus the Python pipeline.
 
 | Folder | Class | Original MF class(es) | Role |
 |---|---|---|---|
-| `Core/` | `MFTypes.h` | `Pawn.Team`, damage type names | `EMFTeam` (0 blue, 1 red, 255 none), `UMFDamageType` subclasses (`Bullet` = 'tracedshot', `Shotgun` = 'scattershot', `Knife` = 'ArmourPiercing', `Headshot` = 'Decapitated', `Explosion`, `Fell`, `Drowned`, `Crushed`, `Suicide`) |
-| `Core/` | `UMFGameInstance` | — | game-wide state (menus, settings later) |
+| `Core/` | `MFTypes.h` | `Pawn.Team`, damage type names | team ids are `uint8` (`MF::NoTeam` = 255; also `FGenericTeamId` for AI perception), `UMFDamageType` subclasses (`Bullet` = 'tracedshot', `Shotgun` = 'scattershot', `Knife` = 'ArmourPiercing', `Headshot` = 'Decapitated', `Explosion`, `Fell`, `Drowned`, `Crushed`, `Suicide`) |
+| `Core/` | `UMFGameSettings` | `RageTeamGame.TeamNames`, `RageBotA..P`, `LoadoutCrate.aWeaponsInStore` | `UDeveloperSettings` in `DefaultGame.ini`: any number of teams (name, colour), loadout list, bot roster (32 MF bots), team tint material |
+| `Core/` | `UMFGameInstance` | — | game-wide state; scripted smoke tests (`-MFExec`, `-MFAutoShot`, `-MFQuitAfter`) |
 | `Player/` | `AMFCharacter` | `Pawn` > `PlayerPawn` > `RPlayer` > `RagePlayer` | health, armour via inventory, carry blocks, inventory & weapon switching, fall damage, recoil, loadout visibility |
 | `Player/` | `UMFCharacterMovement` | UE1 `PHYS_Walking` / `PHYS_Ladder` | MF movement constants, carry/aim/walk speed scaling, ladder custom mode, walk flag in saved moves |
-| `Player/` | `AMFPlayerController` | `RagePlayer` input + loadout states | Enhanced Input built in code (original key map), loadout menu flow, weapon cycling, scoreboard |
+| `Player/` | `AMFPlayerController` | `RagePlayer` input + loadout states | Enhanced Input built in code (original key map), loadout menu flow, weapon cycling, scoreboard; console commands `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot name` |
+| `Player/` | `UMFCheatManager` | — | debug commands: `MFNavTest` (path report), `MFTopView X Y Width` (ortho camera) |
 | `Weapons/` | `AMFWeapon` | `Weapon` > `RageWeapon` | ammo (clip + spare clips), state machine (equip/idle/fire/reload/zoom/put down), MF `Finish()` logic, hitscan `TraceFire`, projectiles, replication |
 | `Weapons/` | `AMFWeapon_*` (`MFWeapons.h`) | `RageKnife`, `Pistol`, `MachineGun`, `shotgun`, `RageRifle`, `RocketLauncher`, `Grenades`, `AdrenalineShot`, `RageArmour` | per-weapon numbers and special behaviour (twin barrels, charge shots, throw power, injecting, armour absorption) |
 | `Weapons/` | `AMFProjectile_*` | `Rocket`, `Grenade1`, `Grenade2`, `Knife_Thrown` | `UProjectileMovementComponent`, MF HurtRadius (linear falloff) |
 | `Loadout/` | `AMFLoadoutSource`, `AMFLoadoutCrate`, `AMFLoadoutZone` | `LoadoutCrate*`, `LoadoutZone` | where players may open loadout; item list; team / game-type relevance |
-| `Game/` | `AMFGameMode` (+`_DM`, `_TDM`) | `RageGameInfo` > `RageDeathMatch` > `RageTeamGame` | rules, spawning (`FindPlayerStart`), damage modifiers, scoring, match end, respawn |
-| `Game/` | `AMFGameState`, `AMFPlayerState`, `AMFPlayerStart` | `RageGameRepInfo`, `PlayerReplicationInfo`, `PlayerStart` | replicated rules/clock/scores; team/frags/deaths; team spawn points |
+| `Game/` | `AMFGameMode` (+`_DM`, `_TDM`) | `RageGameInfo` > `RageDeathMatch` > `RageTeamGame` | on `AGameMode` (UE match states): N teams (`?Teams=`), spawning (`FindPlayerStart`), bots (`?Bots=`), damage modifiers, scoring, match end, respawn, `GetBotGoals` |
+| `Game/` | `AMFGameMode_Holdout`, `AMFHoldoutPoint` | `RageDomination`, `RageDominationTimer` | capture points; hold time per team; one point per map by default, subclasses spawn more (KOH plugin) |
+| `Game/` | `AMFGameState`, `AMFPlayerState`, `AMFPlayerStart` | `RageGameRepInfo`, `PlayerReplicationInfo`, `PlayerStart` | on `AGameState` (`ElapsedTime`); team scores array; team/frags/deaths; team spawn points |
+| `Game/` | `UMFDeathMessage`, `UMFAnnouncement` | `RageDeathMessage`, `RPlayer.spreenote` | `ULocalMessage`s: kill feed, first blood, sprees, captures, match end |
 | `UI/` | `AMFHUD` | `RageHUD` | Canvas HUD: crosshair/scope, health/armour/ammo, weapon strip, clock, kill feed, loadout menu, scoreboard |
 | `World/` | `AMFMapInfo`, `AMFLegacyActor` | `LevelInfo`, everything not ported yet | map title/music; preserved original actors (class, team, raw properties) for future game modes |
+| `World/` | `AMFLadderVolume` | `LadderClimber` | ladder movement trigger + two-way nav link (ends placed by the level builder) |
+| `AI/` | `AMFBotController` | `RageBot` | 5 Hz think: loadout, fight (skill-based aim), objectives from the game mode, roam; remembers unreachable goals |
 
 ### Networking
 Server-authoritative, UE replication from day one (listen and dedicated servers).
@@ -30,23 +36,33 @@ Server-authoritative, UE replication from day one (listen and dedicated servers)
 
 ### Adding a weapon
 1. Subclass `AMFWeapon` (or an existing weapon) in `MFWeapons.h/.cpp`; set the MF numbers
-   in the constructor with a comment naming the original value.
+   in the constructor with a comment naming the original value. Set `HUDIcon`/`HUDIconRect`.
 2. Override `FireShot`/`TryFire`/`StartFire` only for behaviour that differs.
-3. Add it to `UMFLoadoutLibrary::DefaultItems()` (or a crate's `Items`).
+3. Stock weapons: add to `LoadoutItems` in `Config/DefaultGame.ini`. Mod weapons: set
+   `bAddToLoadout = true` (see [Modding.md](Modding.md)).
 Blueprint subclasses work too for tuning (all numbers are `EditDefaultsOnly`).
 
 ### Adding a game mode
-Subclass `AMFGameMode` (see `AMFGameMode_TDM`): override `ScoreKill`,
-`CheckEndConditions`, `IsStartAllowed`, `OnTimeLimit`. Objectives from converted maps are
-`AMFLegacyActor`s: `AMFLegacyActor::FindAll(World, "RageFlagBase")` gives the flag bases
-with their `Team` and original properties — replace them with real actors in `BeginPlay`.
+Subclass the closest mode (`AMFGameMode_TDM`, `AMFGameMode_Holdout`): override `ScoreKill`,
+`CheckEndConditions`, `IsStartAllowed`, `OnTimeLimit`, `GetBotGoals`. Objectives from
+converted maps are `AMFLegacyActor`s: `AMFLegacyActor::FindAll(World, "RageFlagBase")` gives
+the flag bases with their `Team` and original properties — spawn real actors from them at
+match start (Holdout does this with `RageDominationTimer`). Mods do the same from a plugin.
+
+### Design rules
+- Shallow hierarchies: one stock class per concept, variations through properties,
+  config or components — not MF-style chains (`PlayerPawn > RagePlayerBase > RPlayer > ...`).
+- No fixed limits: teams, bots, loadout items and capture points are arrays.
+- Engine first: UE match states, `ULocalMessage`, `UDeveloperSettings`, `FGenericTeamId`,
+  `MaxWalkSpeed`, navmesh, plugins. Port MF behaviour only where the engine has no equivalent.
 
 ## `MobileForcesEditor` (editor module)
 - `UMFImportCommandlet` (`-run=MFImport`): runs the steps below.
 - `FMFImporter`: textures (AssetTools import + mobile settings), sounds, master materials
   (`/Game/MF/Materials/M_MF_*`, created in code), material instances per texture+mode,
-  static meshes from `.mfmesh` (MeshDescription, lightmap UVs, collision), and
-  `BuildMap()` (`MFLevelBuilder.cpp`) which spawns the `level.json` records into a new level.
+  static meshes from `.mfmesh` (MeshDescription, lightmap UVs, collision), mod plugin
+  art (`ImportPluginArt`), and `BuildMap()` (`MFLevelBuilder.cpp`) which spawns the
+  `level.json` records into a new level, places ladder nav links and bakes the navmesh.
 
 ## `Tools/mfport` (Python)
 See [Pipeline.md](Pipeline.md). MF-specific knowledge lives here (actor mapping, light

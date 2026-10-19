@@ -16,5 +16,7 @@ uproject = "../../MobileForces.uproject"
 wine = "wine"
 
 # Imported textures are downscaled to at most this many pixels per side.
-# Mobile Forces textures are mostly 256x256; 256 keeps them crisp-but-cheap.
-max_texture_size = 256
+# MF originals are 64-512 px, so 512 keeps them all at full resolution; mobile builds
+# cook World textures down to 256 (Config/DefaultDeviceProfiles.ini). Remastered
+# overrides can be larger - raise this to keep them.
+max_texture_size = 512

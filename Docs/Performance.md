@@ -5,9 +5,11 @@ build uses mobile-class settings too.
 
 ## Rendering (Config/DefaultEngine.ini)
 - **Forward shading**, MSAA (scaled by AA quality: off / 2× / 4×). No TAA/TSR.
-- **No post-processing**: bloom, AO, auto exposure, motion blur, lens flare, DOF off by
-  default and at every scalability level (`DefaultScalability.ini`). Cameras set post
-  process blend weight 0.
+- **No post-processing** by default: bloom, AO, auto exposure, motion blur, lens flare, DOF
+  off at Low/Medium/High (`DefaultScalability.ini`). Epic post quality adds a little bloom.
+- **Graphics headroom**: players can raise scalability (`scalability 0-3` or options):
+  higher levels add MSAA, anisotropic filtering (0/2/4/8×), view distance and Epic bloom.
+  The defaults stay potato.
 - **Static lighting only**: `r.AllowStaticLighting=1`, Lumen/MegaLights off, no virtual
   shadow maps, no ray tracing, no distance fields, no sky atmosphere / volumetric fog.
   Every light the pipeline places is Static; maps are baked with Lightmass
@@ -15,11 +17,13 @@ build uses mobile-class settings too.
 - Mobile: forward path, `r.MobileHDR=0` (LDR → no post-process pass at all), no local lights
   at runtime (`r.Mobile.Forward.EnableLocalLights=0`).
 - Nanite, virtual textures, Substrate off. Shader targets SM5 (DX11/Vulkan) + ES3.1 only.
-- Texture streaming off (textures are ≤ 256 px, `NeverStream`), no mip bias games needed.
+- Texture streaming off (textures are ≤ 512 px, `NeverStream`), no mip bias games needed.
 
 ## Content
-- Textures capped at 256 px by the pipeline (`max_texture_size`), no alpha channel unless
-  masked (half the memory with BC1/ETC2).
+- Textures imported at original resolution up to 512 px (`max_texture_size`); Android/iOS
+  device profiles cook World/UI textures down to 256 px. No alpha channel unless masked
+  (half the memory with BC1/ETC2).
+- Navmesh is baked into each map by the importer (no runtime generation).
 - Level geometry is merged into ~2048 uu (46 m) grid chunks, one draw per material per chunk;
   collision lives in separate invisible meshes so render meshes carry no physics.
 - Lightmap resolution follows surface area (16 uu texels), capped at 1024.

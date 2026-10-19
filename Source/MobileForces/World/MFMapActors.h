@@ -67,7 +67,7 @@ public:
 	FName MFName;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MF")
-	EMFTeam Team = EMFTeam::None;
+	uint8 Team = MF::NoTeam;
 
 	/** Raw T3D properties of the original actor (values as text, MF units). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MF")

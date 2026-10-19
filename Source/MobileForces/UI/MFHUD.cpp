@@ -1,26 +1,51 @@
 #include "UI/MFHUD.h"
+#include "Core/MFGameSettings.h"
+#include "Game/MFGameState.h"
+#include "Game/MFHoldout.h"
+#include "Game/MFPlayerState.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFPlayerController.h"
-#include "Game/MFGameState.h"
-#include "Game/MFPlayerState.h"
 #include "Weapons/MFWeapon.h"
+#include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 
 namespace
 {
 	const FLinearColor White(1.f, 1.f, 1.f);
 	const FLinearColor Yellow(1.f, 0.85f, 0.2f);
 	const FLinearColor Dim(0.f, 0.f, 0.f, 0.55f);
-	const FLinearColor Blue(0.3f, 0.5f, 1.f);
-	const FLinearColor Red(1.f, 0.3f, 0.25f);
+	const FLinearColor Grey(0.5f, 0.5f, 0.5f);
 }
 
 AMFHUD::AMFHUD()
 {
 	PrimaryActorTick.bCanEverTick = false;
+}
+
+void AMFHUD::AddKillMessage(const FString& Killer, const FString& Victim, const FString& Verb)
+{
+	KillFeed.Add({ Killer, Victim, Verb, GetWorld()->GetTimeSeconds() });
+	if (KillFeed.Num() > 4)
+	{
+		KillFeed.RemoveAt(0);
+	}
+}
+
+void AMFHUD::Announce(const FString& InText)
+{
+	Announcement = InText;
+	AnnouncementTime = GetWorld()->GetTimeSeconds();
+}
+
+void AMFHUD::NotifyWeaponSelected(const AMFWeapon* Weapon)
+{
+	SelectedName = Weapon ? Weapon->DisplayName.ToString() : FString();
+	SelectedTime = GetWorld()->GetTimeSeconds();
 }
 
 void AMFHUD::Text(const FString& S, float X, float Y, const FLinearColor& Color, float Scale, bool bCenter)
@@ -45,6 +70,32 @@ void AMFHUD::Box(float X, float Y, float W, float H, const FLinearColor& Color)
 	FCanvasTileItem Tile(FVector2D(X, Y), FVector2D(W, H), Color);
 	Tile.BlendMode = SE_BLEND_Translucent;
 	Canvas->DrawItem(Tile);
+}
+
+float AMFHUD::DrawWeaponIcon(const AMFWeapon* Weapon, float X, float Y, float Height, const FLinearColor& Tint)
+{
+	if (!Weapon)
+	{
+		return 0.f;
+	}
+	TObjectPtr<UTexture2D>& Tex = IconCache.FindOrAdd(Weapon->GetClass());
+	if (!Tex && !Weapon->HUDIcon.IsNull())
+	{
+		Tex = Weapon->HUDIcon.LoadSynchronous();
+	}
+	if (!Tex)
+	{
+		Text(Weapon->DisplayName.ToString(), X, Y + Height * 0.3f, Tint, 0.7f);
+		return 90.f * UIScale;
+	}
+	const FIntRect& R = Weapon->HUDIconRect;
+	const float TW = Tex->GetSizeX(), TH = Tex->GetSizeY();
+	const float W = Height * float(R.Width()) / FMath::Max(1, R.Height());
+	FCanvasTileItem Tile(FVector2D(X, Y), Tex->GetResource(), FVector2D(W, Height),
+		FVector2D(R.Min.X / TW, R.Min.Y / TH), FVector2D(R.Max.X / TW, R.Max.Y / TH), Tint);
+	Tile.BlendMode = SE_BLEND_Masked;
+	Canvas->DrawItem(Tile);
+	return W;
 }
 
 void AMFHUD::DrawHUD()
@@ -80,11 +131,11 @@ void AMFHUD::DrawHUD()
 	{
 		DrawDeadScreen(GS, PC);
 	}
+	DrawKillFeed();
 	if (GS)
 	{
 		DrawGameInfo(GS, PC);
-		DrawKillFeed(GS);
-		if ((PC && PC->IsScoreboardShown()) || GS->bMatchOver)
+		if ((PC && PC->IsScoreboardShown()) || GS->HasMatchEnded())
 		{
 			DrawScoreboard(GS);
 		}
@@ -101,7 +152,7 @@ void AMFHUD::DrawCrosshair(AMFCharacter* C)
 	const float CX = Canvas->ClipX * 0.5f, CY = Canvas->ClipY * 0.5f;
 	if (W && W->IsZoomed() && W->ZoomScale >= 3.f)
 	{
-		// Scope mask (MF RageWeapon.DrawScopeMask): black outside a circle-ish window
+		// Scope mask (MF RageWeapon.DrawScopeMask)
 		const float R = Canvas->ClipY * 0.45f;
 		Box(0, 0, CX - R, Canvas->ClipY, FLinearColor::Black);
 		Box(CX + R, 0, Canvas->ClipX - CX - R, Canvas->ClipY, FLinearColor::Black);
@@ -125,13 +176,11 @@ void AMFHUD::DrawStatus(AMFCharacter* C)
 	const float X = 20.f * UIScale;
 	const int32 Health = FMath::Max(0, C->GetHealth());
 	Box(X - 6, Y - 6, 230.f * UIScale, 52.f * UIScale, Dim);
-	Text(FString::Printf(TEXT("HEALTH %d"), Health), X, Y, Health > 25 ? White : Red, 1.2f);
-	const int32 Armour = C->GetArmourCharge();
-	if (Armour > 0)
+	Text(FString::Printf(TEXT("HEALTH %d"), Health), X, Y, Health > 25 ? White : FLinearColor(1.f, 0.3f, 0.25f), 1.2f);
+	if (const int32 Armour = C->GetArmourCharge(); Armour > 0)
 	{
-		Text(FString::Printf(TEXT("ARMOUR %d"), Armour), X, Y + 22.f * UIScale, Blue, 1.f);
+		Text(FString::Printf(TEXT("ARMOUR %d"), Armour), X, Y + 22.f * UIScale, FLinearColor(0.3f, 0.5f, 1.f), 1.f);
 	}
-
 	if (AMFWeapon* W = C->GetCurrentWeapon())
 	{
 		const float RX = Canvas->ClipX - 260.f * UIScale;
@@ -141,17 +190,13 @@ void AMFHUD::DrawStatus(AMFCharacter* C)
 			? FString::Printf(TEXT("%d / %d"), W->GetClipAmmo(), W->GetTotalAmmo())
 			: FString::Printf(TEXT("%d"), W->GetClipAmmo());
 		Text(Ammo, RX, Y + 22.f * UIScale, White, 1.2f);
-		const FString Status = W->GetHUDStatus();
-		if (!Status.IsEmpty())
-		{
-			Text(Status, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f, true);
-		}
+		Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f, true);
 	}
 }
 
 void AMFHUD::DrawWeaponBar(AMFCharacter* C)
 {
-	// Carried items by inventory group (number keys), like MF's inventory strip
+	// MF inventory strip: carried items by group, original icons, ammo badge under each
 	TArray<AMFWeapon*> Items;
 	for (AMFWeapon* W : C->GetInventory())
 	{
@@ -161,48 +206,81 @@ void AMFHUD::DrawWeaponBar(AMFCharacter* C)
 		}
 	}
 	Items.Sort([](const AMFWeapon& A, const AMFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
-	const float SlotW = 92.f * UIScale, SlotH = 30.f * UIScale;
-	float X = Canvas->ClipX * 0.5f - Items.Num() * SlotW * 0.5f;
-	const float Y = Canvas->ClipY - 46.f * UIScale;
+	const float H = 40.f * UIScale, Pad = 6.f * UIScale;
+	float Total = 0.f;
+	for (const AMFWeapon* W : Items)
+	{
+		Total += H * float(W->HUDIconRect.Width()) / FMath::Max(1, W->HUDIconRect.Height()) + Pad;
+	}
+	float X = Canvas->ClipX * 0.5f - Total * 0.5f;
+	const float Y = Canvas->ClipY - H - 26.f * UIScale;
 	for (AMFWeapon* W : Items)
 	{
 		const bool bCur = W == C->GetCurrentWeapon();
-		Box(X, Y, SlotW - 4, SlotH, bCur ? FLinearColor(0.9f, 0.7f, 0.1f, 0.6f) : Dim);
-		const FString Label = FString::Printf(TEXT("%d %s"), W->InventoryGroup % 10, *W->DisplayName.ToString().Left(8));
-		Text(Label, X + 4, Y + 2, bCur ? FLinearColor::Black : White, 0.7f);
-		X += SlotW;
+		const float IconW = H * float(W->HUDIconRect.Width()) / FMath::Max(1, W->HUDIconRect.Height());
+		Box(X - 2, Y - 2, IconW + 4, H + 18.f * UIScale, bCur ? FLinearColor(0.9f, 0.7f, 0.1f, 0.45f) : Dim);
+		DrawWeaponIcon(W, X, Y, H, W->bSelectable ? White : Grey);
+		Text(FString::FromInt(W->InventoryGroup % 10), X + 2, Y, Yellow, 0.6f);
+		if (W->MaxClipAmmo > 1 || W->MaxClips > 1 || W->bDestroyWhenEmpty)
+		{
+			Text(FString::FromInt(W->GetAmmoCount()), X + IconW * 0.5f, Y + H, White, 0.6f, true);
+		}
+		X += IconW + Pad;
 	}
 	Text(FString::Printf(TEXT("CARRY %d/%d"), C->GetCurrentCarry(), C->MaxCarry), Canvas->ClipX * 0.5f, Y - 18.f * UIScale, White, 0.7f, true);
+	if (GetWorld()->GetTimeSeconds() - SelectedTime < 1.5f)
+	{
+		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 40.f * UIScale, Yellow, 1.f, true);
+	}
 }
 
 void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 {
 	const float CX = Canvas->ClipX * 0.5f;
-	if (GS->TimeLimit > 0)
+	if (const int32 Left = GS->GetRemainingTime(); Left >= 0)
 	{
-		Text(FString::Printf(TEXT("%d:%02d"), GS->RemainingTime / 60, GS->RemainingTime % 60), CX, 10.f * UIScale, White, 1.2f, true);
+		Text(FString::Printf(TEXT("%d:%02d"), Left / 60, Left % 60), CX, 10.f * UIScale, White, 1.2f, true);
 	}
-	if (GS->bTeamGame)
+	if (GS->IsTeamGame())
 	{
-		Text(FString::Printf(TEXT("BLUE %d"), GS->TeamScores[0]), CX - 140.f * UIScale, 10.f * UIScale, Blue, 1.2f, true);
-		Text(FString::Printf(TEXT("RED %d"), GS->TeamScores[1]), CX + 140.f * UIScale, 10.f * UIScale, Red, 1.2f, true);
+		const UMFGameSettings& Settings = UMFGameSettings::Get();
+		const float Spacing = 140.f * UIScale;
+		float X = CX - Spacing * 0.5f * (GS->NumTeams - 1);
+		for (int32 T = 0; T < GS->NumTeams; ++T, X += Spacing)
+		{
+			Text(FString::Printf(TEXT("%s %d"), *Settings.GetTeamName(T).ToString().ToUpper(), GS->GetTeamScore(T)),
+				X, 36.f * UIScale, Settings.GetTeamColor(T), 1.1f, true);
+		}
+		// Capture points (Holdout / KOH), coloured by the team holding them
+		TArray<const AMFHoldoutPoint*> Points;
+		for (TActorIterator<AMFHoldoutPoint> It(GetWorld()); It; ++It)
+		{
+			Points.Add(*It);
+		}
+		const float PSpacing = 110.f * UIScale;
+		float PX = CX - PSpacing * 0.5f * (Points.Num() - 1);
+		for (const AMFHoldoutPoint* P : Points)
+		{
+			const FLinearColor Col = P->OwnerTeam == MF::NoTeam ? FLinearColor(0.6f, 0.6f, 0.6f) : Settings.GetTeamColor(P->OwnerTeam);
+			Text(P->PointName, PX, 60.f * UIScale, Col, 0.9f, true);
+			PX += PSpacing;
+		}
 	}
 	else if (PC && PC->PlayerState)
 	{
 		Text(FString::Printf(TEXT("FRAGS %d"), FMath::RoundToInt(PC->PlayerState->GetScore())), 20.f * UIScale, 10.f * UIScale, White, 1.f);
 	}
-	const float Now = GetWorld()->GetTimeSeconds();
-	if (Now - GS->AnnouncementTime < 4.f)
+	if (GetWorld()->GetTimeSeconds() - AnnouncementTime < 4.f)
 	{
-		Text(GS->Announcement, CX, Canvas->ClipY * 0.28f, Yellow, 1.5f, true);
+		Text(Announcement, CX, Canvas->ClipY * 0.28f, Yellow, 1.5f, true);
 	}
 }
 
-void AMFHUD::DrawKillFeed(AMFGameState* GS)
+void AMFHUD::DrawKillFeed()
 {
 	const float Now = GetWorld()->GetTimeSeconds();
 	float Y = 40.f * UIScale;
-	for (const FMFKillMessage& M : GS->KillFeed)
+	for (const FKill& M : KillFeed)
 	{
 		if (Now - M.Time > 6.f)
 		{
@@ -210,7 +288,7 @@ void AMFHUD::DrawKillFeed(AMFGameState* GS)
 		}
 		const FString Line = M.Killer.IsEmpty() ? FString::Printf(TEXT("%s %s"), *M.Victim, *M.Verb)
 			: FString::Printf(TEXT("%s %s %s"), *M.Killer, *M.Verb, *M.Victim);
-		Text(Line, Canvas->ClipX - 20.f * UIScale - 300.f * UIScale, Y, White, 0.8f);
+		Text(Line, Canvas->ClipX - 320.f * UIScale, Y, White, 0.8f);
 		Y += 18.f * UIScale;
 	}
 }
@@ -218,7 +296,7 @@ void AMFHUD::DrawKillFeed(AMFGameState* GS)
 void AMFHUD::DrawLoadout(AMFCharacter* C, AMFPlayerController* PC)
 {
 	const TArray<TSubclassOf<AMFWeapon>> Items = PC->GetLoadoutItems();
-	const float W = 420.f * UIScale, RowH = 28.f * UIScale;
+	const float W = 460.f * UIScale, RowH = 34.f * UIScale;
 	const float X = Canvas->ClipX * 0.5f - W * 0.5f;
 	float Y = Canvas->ClipY * 0.5f - (Items.Num() * RowH) * 0.5f - 40.f * UIScale;
 	Box(X - 10, Y - 10, W + 20, Items.Num() * RowH + 80.f * UIScale, FLinearColor(0.f, 0.f, 0.f, 0.75f));
@@ -237,9 +315,11 @@ void AMFHUD::DrawLoadout(AMFCharacter* C, AMFPlayerController* PC)
 		{
 			Box(X, Y - 2, W, RowH - 2, FLinearColor(0.9f, 0.7f, 0.1f, 0.5f));
 		}
-		const FLinearColor Col = Have > 0 ? Yellow : (bFits ? White : FLinearColor(0.5f, 0.5f, 0.5f));
-		Text(FString::Printf(TEXT("%s%s"), *CDO->DisplayName.ToString(), Have > 1 ? *FString::Printf(TEXT(" x%d"), Have) : (Have == 1 ? TEXT(" *") : TEXT(""))), X + 8, Y, Col, 1.f);
-		Text(FString::Printf(TEXT("%d"), CDO->CarrySize), X + W - 30.f * UIScale, Y, Col, 1.f);
+		const FLinearColor Col = Have > 0 ? Yellow : (bFits ? White : Grey);
+		const float IconW = DrawWeaponIcon(CDO, X + 6, Y, RowH - 6, bFits || Have > 0 ? White : Grey);
+		const FString Label = CDO->DisplayName.ToString() + (Have > 1 ? FString::Printf(TEXT(" x%d"), Have) : (Have == 1 ? TEXT(" *") : TEXT("")));
+		Text(Label, X + FMath::Max(IconW, 100.f * UIScale) + 16.f * UIScale, Y + 4.f * UIScale, Col, 1.f);
+		Text(FString::FromInt(CDO->CarrySize), X + W - 30.f * UIScale, Y + 4.f * UIScale, Col, 1.f);
 		Y += RowH;
 	}
 	Text(FString::Printf(TEXT("Carry %d / %d   -   Up/Down select, Fire/E take or return, Q leave"), C->GetCurrentCarry(), C->MaxCarry),
@@ -249,11 +329,12 @@ void AMFHUD::DrawLoadout(AMFCharacter* C, AMFPlayerController* PC)
 void AMFHUD::DrawScoreboard(AMFGameState* GS)
 {
 	const TArray<AMFPlayerState*> Players = GS->GetSortedPlayers();
+	const UMFGameSettings& Settings = UMFGameSettings::Get();
 	const float W = 520.f * UIScale, RowH = 22.f * UIScale;
 	const float X = Canvas->ClipX * 0.5f - W * 0.5f;
 	float Y = 90.f * UIScale;
 	Box(X - 10, Y - 10, W + 20, (Players.Num() + 2) * RowH + 20.f * UIScale, FLinearColor(0.f, 0.f, 0.f, 0.7f));
-	Text(GS->bMatchOver ? GS->WinnerText : GS->GameName, Canvas->ClipX * 0.5f, Y, Yellow, 1.2f, true);
+	Text(GS->HasMatchEnded() ? GS->WinnerText : GS->GameName, Canvas->ClipX * 0.5f, Y, Yellow, 1.2f, true);
 	Y += RowH * 1.5f;
 	Text(TEXT("PLAYER"), X, Y, Yellow, 0.8f);
 	Text(TEXT("FRAGS"), X + W * 0.6f, Y, Yellow, 0.8f);
@@ -262,18 +343,18 @@ void AMFHUD::DrawScoreboard(AMFGameState* GS)
 	Y += RowH;
 	for (const AMFPlayerState* PS : Players)
 	{
-		const FLinearColor Col = !GS->bTeamGame ? White : (PS->GetTeam() == EMFTeam::Blue ? Blue : Red);
+		const FLinearColor Col = PS->HasTeam() ? Settings.GetTeamColor(PS->GetTeam()) : White;
 		Text(PS->GetPlayerName(), X, Y, Col, 0.9f);
 		Text(FString::FromInt(FMath::RoundToInt(PS->GetScore())), X + W * 0.6f, Y, Col, 0.9f);
 		Text(FString::FromInt(PS->Deaths), X + W * 0.75f, Y, Col, 0.9f);
-		Text(FString::FromInt(PS->GetPingInMilliseconds()), X + W * 0.9f, Y, Col, 0.9f);
+		Text(PS->IsABot() ? TEXT("BOT") : FString::FromInt(PS->GetPingInMilliseconds()), X + W * 0.9f, Y, Col, 0.9f);
 		Y += RowH;
 	}
 }
 
 void AMFHUD::DrawDeadScreen(AMFGameState* GS, AMFPlayerController* PC)
 {
-	if (GS->bMatchOver || !PC)
+	if (GS->HasMatchEnded() || !PC)
 	{
 		return;
 	}

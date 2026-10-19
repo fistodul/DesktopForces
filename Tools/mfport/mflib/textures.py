@@ -23,6 +23,14 @@ from .upkg import Package
 
 OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
 
+# Textures the game code uses directly (HUD), converted even if no map references them.
+UI_TEXTURES = {
+    'rageweapons.weaponicons': {'masked'},       # weapon icon sheet (RageWeapon.WeaponIcon rects)
+    'rageweapons.icons.scopemask': {'masked'},
+    'rageweapons.icons.sniperrifleaim': {'masked'},
+    'rageweapons.icons.rocketlauncheraim': {'masked'},
+}
+
 
 def texture_index(cfg: Config, package: str) -> dict[str, dict]:
     """key -> {name, group, usize, vsize} for every Texture in Textures/<package>.utx (or a map/.u file)."""
@@ -44,10 +52,16 @@ def texture_index(cfg: Config, package: str) -> dict[str, dict]:
 
 
 def _package_path(cfg: Config, package: str) -> Path:
+    """Find a package file; UE1 names are case-insensitive, the file system may not be."""
+    want = package.lower()
     for sub, ext in (('Textures', '.utx'), ('System', '.u'), ('Maps', '.umf')):
-        p = cfg.game_dir / sub / f'{package}{ext}'
+        folder = cfg.game_dir / sub
+        p = folder / f'{package}{ext}'
         if p.exists():
             return p
+        for f in folder.glob(f'*{ext}'):
+            if f.stem.lower() == want:
+                return f
     raise FileNotFoundError(f'texture package {package} not found under {cfg.game_dir}')
 
 
@@ -66,6 +80,7 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
 
     Returns manifest entries key -> {file, usize, vsize, alpha, override}.
     """
+    package = _package_path(cfg, package).stem   # real spelling
     index = texture_index(cfg, package)
     raw = export_package(cfg, package)
     manifest = {}

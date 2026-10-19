@@ -35,13 +35,13 @@ SKIP_CLASSES = {'Brush', 'PathNode', 'RagePathNode', 'Camera', 'NavigationInclus
 
 # Loadout crate decorations: class -> (team, team games, non-team games)
 CRATES = {
-    'LoadoutCrate_Blue': ('Blue', True, False), 'LoadoutCrate_BlueOpen': ('Blue', True, False),
-    'LoadoutCrate_BlueSkewed': ('Blue', True, False),
-    'LoadoutCrate_Red': ('Red', True, False), 'LoadoutCrate_RedOpen': ('Red', True, False),
-    'LoadoutCrate_RedSkewed': ('Red', True, False),
-    'LoadoutCrate_DM': ('None', False, True), 'LoadoutCrate_DMOpen': ('None', False, True),
-    'LoadoutCrate_DMSkewed': ('None', False, True),
-    'LoadoutCrate': ('None', True, True),
+    'LoadoutCrate_Blue': ('0', True, False), 'LoadoutCrate_BlueOpen': ('0', True, False),
+    'LoadoutCrate_BlueSkewed': ('0', True, False),
+    'LoadoutCrate_Red': ('1', True, False), 'LoadoutCrate_RedOpen': ('1', True, False),
+    'LoadoutCrate_RedSkewed': ('1', True, False),
+    'LoadoutCrate_DM': ('255', False, True), 'LoadoutCrate_DMOpen': ('255', False, True),
+    'LoadoutCrate_DMSkewed': ('255', False, True),
+    'LoadoutCrate': ('255', True, True),
 }
 
 LIGHT_INTENSITY = 4.0       # UE unitless intensity for a full-brightness MF light (tuned by eye)
@@ -70,11 +70,12 @@ def _int(props: dict, key: str, defaults: dict) -> int:
 
 
 def _team(value) -> str:
+    """MF team number -> team id string ('0' blue, '1' red, ... ; '255' = no team)."""
     try:
         n = int(float(value))
     except (TypeError, ValueError):
-        return 'None'
-    return {0: 'Blue', 1: 'Red'}.get(n, 'None')
+        return '255'
+    return str(n) if 0 <= n < 255 else '255'
 
 
 class ActorMapper:
@@ -165,7 +166,7 @@ class ActorMapper:
         props = a['props']
         team = props.get('Team', props.get('TeamNumber'))
         return {'name': a['name'], 'location': a['location'], 'rotation': a['rotation'], 'type': 'legacy',
-                'mf_class': a['class'], 'mf_name': a['name'], 'team': _team(team) if team is not None else 'None',
+                'mf_class': a['class'], 'mf_name': a['name'], 'team': _team(team) if team is not None else '255',
                 'props': {k: (v if isinstance(v, str) else ' '.join(v)) for k, v in props.items()}}
 
     def _note_ambient(self, props: dict):

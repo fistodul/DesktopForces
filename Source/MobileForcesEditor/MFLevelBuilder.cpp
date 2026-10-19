@@ -4,6 +4,11 @@
 #include "Builders/CubeBuilder.h"
 #include "Components/AudioComponent.h"
 #include "Components/BoxComponent.h"
+#include "ActorFactories/ActorFactory.h"
+#include "World/MFLadder.h"
+#include "NavigationSystem.h"
+#include "NavMesh/RecastNavMesh.h"
+#include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
@@ -61,9 +66,10 @@ namespace
 		return FLinearColor(C.X, C.Y, C.Z);
 	}
 
-	EMFTeam Team(const FString& S)
+	/** Team id from level.json ("0", "1" ... ; anything else = no team). */
+	uint8 Team(const FString& S)
 	{
-		return S == TEXT("Blue") ? EMFTeam::Blue : (S == TEXT("Red") ? EMFTeam::Red : EMFTeam::None);
+		return S.IsNumeric() ? uint8(FMath::Clamp(FCString::Atoi(*S), 0, 255)) : MF::NoTeam;
 	}
 
 	/** Set UPROPERTYs from text (same syntax as copy/paste in the editor). */
@@ -86,13 +92,55 @@ namespace
 		}
 	}
 
-	void MakeBoxBrush(UWorld* World, ABrush* Brush, const FVector& Extent)
+	void MakeBoxBrush(UWorld* World, AVolume* Volume, const FVector& Extent)
 	{
 		UCubeBuilder* Builder = NewObject<UCubeBuilder>();
 		Builder->X = Extent.X * 2.f;
 		Builder->Y = Extent.Y * 2.f;
 		Builder->Z = Extent.Z * 2.f;
-		Builder->Build(World, Brush);
+		// Same path as dragging a volume into the editor: creates the brush model + body setup
+		UActorFactory::CreateBrushForVolumeActor(Volume, Builder);
+	}
+
+	/** Bake the navmesh into the level (bots need no runtime rebuild; mobile-friendly). */
+	void BuildNavigation(UWorld* World)
+	{
+		FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+		UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+		if (!Nav)
+		{
+			UE_LOG(LogMFEditor, Warning, TEXT("No navigation system - navmesh not built"));
+			return;
+		}
+		// Editor worlds start locked (AsyncLoadLock / InitialLock) - this world is complete
+		Nav->RemoveNavigationBuildLock(ENavigationBuildLock::AsyncLoadLock | ENavigationBuildLock::InitialLock, UNavigationSystemV1::ELockRemovalRebuildAction::NoRebuild);
+		Nav->Build();   // synchronous, like Build > Build Paths
+		// Ladder ends that missed the navmesh (top traced onto a beam, foot in a corner):
+		// snap them to the nearest walkable spot and build again so the links connect
+		int32 Snapped = 0;
+		for (TActorIterator<AMFLadderVolume> It(World); It; ++It)
+		{
+			const FTransform& T = It->GetActorTransform();
+			for (FVector* End : { &It->LinkBottom, &It->LinkTop })
+			{
+				FNavLocation Exact, Near;
+				const FVector W = T.TransformPosition(*End);
+				if (!Nav->ProjectPointToNavigation(W, Exact, FVector(40, 40, 100)) && Nav->ProjectPointToNavigation(W, Near, FVector(200, 200, 300)))
+				{
+					*End = T.InverseTransformPosition(Near.Location);
+					++Snapped;
+				}
+			}
+		}
+		if (Snapped > 0)
+		{
+			UE_LOG(LogMFEditor, Display, TEXT("Snapped %d ladder link ends to the navmesh, rebuilding"), Snapped);
+			Nav->Build();
+		}
+		for (TActorIterator<ARecastNavMesh> It(World); It; ++It)
+		{
+			UE_LOG(LogMFEditor, Display, TEXT("Navmesh %s: %d tiles"), *It->GetName(), It->GetNavMeshTilesCount());
+		}
 	}
 
 	/** Generated maps are rebuilt from scratch: drop the old level + its built data first. */
@@ -349,6 +397,12 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	}
 
 	World->UpdateWorldComponents(true, false);
+	// Ladder nav links need the collision that now exists
+	for (TActorIterator<AMFLadderVolume> It(World); It; ++It)
+	{
+		It->PlaceNavLinks();
+	}
+	BuildNavigation(World);
 	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Map %s: %d actors -> %s (%s)"), *MapName, Spawned, *PackageName, bSaved ? TEXT("saved") : TEXT("SAVE FAILED"));
 
@@ -412,18 +466,18 @@ bool FMFImporter::BuildTestMap()
 	Spawn(FVector(-2400, 600, 0), 0.f, 1);
 	Spawn(FVector(-2400, -600, 0), 0.f, 1);
 
-	auto Crate = [&](const FVector& Loc, EMFTeam Team)
+	auto Crate = [&](const FVector& Loc, uint8 Team)
 	{
 		AMFLoadoutCrate* C = World->SpawnActor<AMFLoadoutCrate>(Loc + FVector(0, 0, 60), FRotator::ZeroRotator, SP);
 		C->Team = Team;
-		C->bTeamPlay = Team != EMFTeam::None;
-		C->bNonTeamPlay = Team == EMFTeam::None;
+		C->bTeamPlay = Team != MF::NoTeam;
+		C->bNonTeamPlay = Team == MF::NoTeam;
 	};
-	Crate(FVector(2000, 1700, 0), EMFTeam::None);
-	Crate(FVector(-2000, 1700, 0), EMFTeam::None);
-	Crate(FVector(1500, 300, 0), EMFTeam::None);
-	Crate(FVector(2700, 0, 0), EMFTeam::Blue);
-	Crate(FVector(-2700, 0, 0), EMFTeam::Red);
+	Crate(FVector(2000, 1700, 0), MF::NoTeam);
+	Crate(FVector(-2000, 1700, 0), MF::NoTeam);
+	Crate(FVector(1500, 300, 0), MF::NoTeam);
+	Crate(FVector(2700, 0, 0), 0);
+	Crate(FVector(-2700, 0, 0), 1);
 
 	ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(FVector(0, 0, 1000), FRotator(-50.f, 30.f, 0), SP);
 	Sun->GetLightComponent()->SetMobility(EComponentMobility::Static);
@@ -440,12 +494,15 @@ bool FMFImporter::BuildTestMap()
 	WS->LightmassSettings.EnvironmentIntensity = 0.5f;
 	ALightmassImportanceVolume* Vol = World->SpawnActor<ALightmassImportanceVolume>(FVector(0, 0, 300), FRotator::ZeroRotator, SP);
 	MakeBoxBrush(World, Vol, FVector(3200, 3200, 500));
+	ANavMeshBoundsVolume* Nav = World->SpawnActor<ANavMeshBoundsVolume>(FVector(0, 0, 300), FRotator::ZeroRotator, SP);
+	MakeBoxBrush(World, Nav, FVector(3400, 3400, 700));
 
 	AMFMapInfo* Info = World->SpawnActor<AMFMapInfo>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
 	Info->Title = TEXT("Test Range");
 	Info->Author = TEXT("Mobile Forces UE5 project");
 
 	World->UpdateWorldComponents(true, false);
+	BuildNavigation(World);
 	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Test map -> %s (%s)"), *PackageName, bSaved ? TEXT("saved") : TEXT("SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);

@@ -30,6 +30,12 @@ public:
 	bool ImportSounds(const FString& SubDir = TEXT("Sounds"), bool bLooping = false);
 	bool BuildMap(const FString& MapName);
 
+	/** M_MF_TeamTint: unlit, colour from custom primitive data 0-3 (UMFGameSettings::TeamTintMaterial). */
+	void EnsureTeamTintMaterial();
+
+	/** Import mod plugins' converted SourceArt (work/out/Plugins/<Plugin>/...) into /<Plugin>/Generated/. */
+	bool ImportPluginArt();
+
 	/** Small blockout map from engine shapes only (no MF assets): /Game/MF/Maps/MF_TestRange. */
 	bool BuildTestMap();
 

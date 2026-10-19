@@ -47,6 +47,23 @@ public:
 
 	bool IsScoreboardShown() const { return bShowScores; }
 
+	// --- console commands (also used by automated smoke tests via -MFExec) ---
+	/** Take loadout item N (0-based, menu order). */
+	UFUNCTION(Exec)
+	void MFLoadoutPick(int32 Index);
+	/** Leave / enter the loadout screen. */
+	UFUNCTION(Exec)
+	void MFLoadout();
+	/** Select inventory group N (like the number keys). */
+	UFUNCTION(Exec)
+	void MFSelect(int32 Group);
+	/** Screenshot to Saved/Screenshots/<platform>/<Name>.png */
+	UFUNCTION(Exec)
+	void MFShot(const FString& Name);
+	/** Toggle the scoreboard. */
+	UFUNCTION(Exec)
+	void MFScores();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;

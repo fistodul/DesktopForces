@@ -24,13 +24,15 @@ class MOBILEFORCES_API AMFLoadoutSource : public AActor
 public:
 	AMFLoadoutSource();
 
-	/** Items on offer, in menu order (MF LoadoutCrate.aWeaponsInStore). */
+	/** Items on offer, in menu order. Empty = the game-wide list (UMFGameSettings::LoadoutItems). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
 	TArray<TSubclassOf<AMFWeapon>> Items;
 
-	/** Owning team; None = everyone (deathmatch crates). */
+	const TArray<TSubclassOf<AMFWeapon>>& GetItems() const;
+
+	/** Owning team id; 255 = everyone (deathmatch crates). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
-	EMFTeam Team = EMFTeam::None;
+	uint8 Team = MF::NoTeam;
 
 	/** Exists in team games (MF Actor.bTeamPlay). */
 	UPROPERTY(EditAnywhere, Category = "MF")
@@ -64,9 +66,11 @@ public:
 	AMFLoadoutCrate();
 	virtual bool IsInside(const AMFCharacter* Character) const override;
 
-	/** Visual style from the MF class name (Open / Skewed / closed). */
+	/** Visual style from the MF class name (Open / Skewed / Closed), or Hidden (trigger only). */
 	UPROPERTY(EditAnywhere, Category = "MF")
 	FName Variant;
+
+	bool IsVisibleCrate() const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& Event) override;
@@ -109,6 +113,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MF")
 	static AMFLoadoutSource* FindLoadoutSourceFor(const AMFCharacter* Character);
 
-	/** The standard MF item list (Pistol ... HMG). */
-	static TArray<TSubclassOf<AMFWeapon>> DefaultItems();
+	/** The game-wide item list (UMFGameSettings::LoadoutItems, mods can extend it). */
+	static const TArray<TSubclassOf<AMFWeapon>>& DefaultItems();
 };

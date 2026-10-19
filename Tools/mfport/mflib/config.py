@@ -60,5 +60,5 @@ def load() -> Config:
         ue_root=path('ue_root', '../../../Linux_Unreal_Engine_5.8.3'),
         uproject=path('uproject', str(PROJECT_DIR / 'MobileForces.uproject')),
         wine=str(get('wine', 'wine')),
-        max_texture_size=int(get('max_texture_size', 256)),
+        max_texture_size=int(get('max_texture_size', 512)),
     )

@@ -4,6 +4,7 @@
 #include "Weapons/MFWeapons.h"
 #include "Game/MFGameMode.h"
 #include "Game/MFPlayerState.h"
+#include "UI/MFHUD.h"
 #include "MobileForces.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -13,6 +14,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "Net/UnrealNetwork.h"
+#include "Scalability.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMFCharacter::AMFCharacter(const FObjectInitializer& ObjectInitializer)
@@ -83,6 +85,13 @@ void AMFCharacter::BeginPlay()
 	Super::BeginPlay();
 	Health = MaxHealth;
 	FirstPersonCamera->SetFieldOfView(DefaultFOV);
+	if (IsLocallyControlled() && Scalability::GetQualityLevels().PostProcessQuality >= 3)
+	{
+		// Epic settings: a little bloom; every lower level stays post-process free
+		FirstPersonCamera->PostProcessBlendWeight = 1.f;
+		FirstPersonCamera->PostProcessSettings.bOverride_BloomIntensity = true;
+		FirstPersonCamera->PostProcessSettings.BloomIntensity = 0.4f;
+	}
 	if (!IsLocallyControlled())
 	{
 		SetActorTickEnabled(false);   // only the local player needs per-frame camera work
@@ -112,10 +121,10 @@ void AMFCharacter::Destroyed()
 
 // --- team / camera -----------------------------------------------------------------
 
-EMFTeam AMFCharacter::GetTeam() const
+uint8 AMFCharacter::GetTeam() const
 {
 	const AMFPlayerState* PS = GetPlayerState<AMFPlayerState>();
-	return PS ? PS->GetTeam() : EMFTeam::None;
+	return PS ? PS->GetTeam() : MF::NoTeam;
 }
 
 float AMFCharacter::GetDesiredFOV() const
@@ -463,6 +472,16 @@ void AMFCharacter::SetCurrentWeapon(AMFWeapon* NewWeapon, AMFWeapon* OldWeapon)
 		OldWeapon->ForceInactive();
 	}
 	CurrentWeapon = NewWeapon;
+	if (NewWeapon && IsLocallyControlled())
+	{
+		if (const APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			if (AMFHUD* HUD = PC->GetHUD<AMFHUD>())
+			{
+				HUD->NotifyWeaponSelected(NewWeapon);
+			}
+		}
+	}
 	if (NewWeapon)
 	{
 		NewWeapon->OnEquip();

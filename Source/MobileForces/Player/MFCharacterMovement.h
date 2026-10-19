@@ -32,10 +32,6 @@ class MOBILEFORCES_API UMFCharacterMovement : public UCharacterMovementComponent
 public:
 	UMFCharacterMovement();
 
-	/** Run speed before modifiers (MF Pawn.BaseGroundSpeed 400 uu/s). */
-	UPROPERTY(EditDefaultsOnly, Category = "MF")
-	float BaseGroundSpeed;
-
 	/** Multiplier from carried inventory blocks: 1 - 0.05 * blocks, min 0.5. Replicated via the character. */
 	UPROPERTY(Transient)
 	float CarrySpeedScale = 1.f;
@@ -44,7 +40,7 @@ public:
 	UPROPERTY(Transient)
 	float AimSpeedScale = 1.f;
 
-	/** Walking (shift) and crouched speed fraction (UE1: 0.3). */
+	/** Walking (shift) speed fraction (UE1: 0.3). Crouching uses the engine's MaxWalkSpeedCrouched. */
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	float WalkSpeedFraction = 0.3f;
 

@@ -1,6 +1,9 @@
 #include "AI/MFBotController.h"
+#include "MobileForces.h"
 #include "Player/MFCharacter.h"
+#include "Game/MFGameMode.h"
 #include "Game/MFPlayerState.h"
+#include "Core/MFGameSettings.h"
 #include "Weapons/MFWeapons.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -15,43 +18,10 @@ AMFBotController::AMFBotController()
 	PrimaryActorTick.bCanEverTick = true;   // AAIController rotates towards the focus in Tick
 }
 
-const TArray<FMFBotProfile>& AMFBotController::Roster()
+FGenericTeamId AMFBotController::GetGenericTeamId() const
 {
-	// Rage/Classes/RageBotA..P: BotName, aFavouriteLoadout, PreferedTeam (0 blue / 1 red)
-	static TArray<FMFBotProfile> R;
-	if (R.Num() == 0)
-	{
-		auto Add = [](const TCHAR* Name, EMFTeam Team, std::initializer_list<TSubclassOf<AMFWeapon>> Items)
-		{
-			FMFBotProfile P;
-			P.Name = Name;
-			P.PreferredTeam = Team;
-			P.Loadout = Items;
-			R.Add(P);
-		};
-		using B = EMFTeam;
-		const TSubclassOf<AMFWeapon> MG = AMFWeapon_MachineGun::StaticClass(), Gren = AMFWeapon_Grenades::StaticClass(),
-			Arm = AMFWeapon_Armour::StaticClass(), Rifle = AMFWeapon_Rifle::StaticClass(), HMG = AMFWeapon_HeavyMachineGun::StaticClass(),
-			SG = AMFWeapon_Shotgun::StaticClass(), Trip = AMFWeapon_TripBombs::StaticClass(), RL = AMFWeapon_RocketLauncher::StaticClass(),
-			Pistol = AMFWeapon_Pistol::StaticClass();
-		Add(TEXT("Heywood"), B::Blue, { MG, Gren, Arm });
-		Add(TEXT("Coffey"), B::Red, { MG, Gren, Arm });
-		Add(TEXT("Jackson"), B::Blue, { Rifle, Arm });
-		Add(TEXT("Dillon"), B::Red, { Rifle, Arm });
-		Add(TEXT("Lydecker"), B::Blue, { HMG, Arm });
-		Add(TEXT("Carter"), B::Red, { HMG, Arm });
-		Add(TEXT("Gorman"), B::Blue, { SG, Trip, Arm });
-		Add(TEXT("Powell"), B::Red, { SG, Trip, Arm });
-		Add(TEXT("Sanchez"), B::Blue, { RL, Arm });
-		Add(TEXT("Bennings"), B::Red, { RL, Arm });
-		Add(TEXT("Bowman"), B::Blue, { SG, Trip, Trip, Arm });
-		Add(TEXT("Wychek"), B::Red, { SG, Trip, Trip, Arm });
-		Add(TEXT("Scagnetti"), B::Blue, { Pistol, Gren, Gren, Gren });
-		Add(TEXT("Kurtz"), B::Red, { Pistol, Gren, Gren, Gren });
-		Add(TEXT("Harris"), B::Blue, { SG, Arm });
-		Add(TEXT("Palmer"), B::Red, { SG, Arm });
-	}
-	return R;
+	const AMFPlayerState* PS = GetPlayerState<AMFPlayerState>();
+	return FGenericTeamId(PS ? PS->GetTeam() : MF::NoTeam);
 }
 
 void AMFBotController::OnPossess(APawn* InPawn)
@@ -70,9 +40,12 @@ void AMFBotController::OnUnPossess()
 
 void AMFBotController::DoLoadout(AMFCharacter* C)
 {
-	for (const TSubclassOf<AMFWeapon>& Item : Profile.Loadout)
+	for (const TSoftClassPtr<AMFWeapon>& Item : Profile.Loadout)
 	{
-		C->GiveWeapon(Item, false);
+		if (UClass* Class = Item.LoadSynchronous())
+		{
+			C->GiveWeapon(Class, false);
+		}
 	}
 	C->SetInLoadout(false);
 	C->SwitchToBestWeapon();
@@ -80,7 +53,7 @@ void AMFBotController::DoLoadout(AMFCharacter* C)
 
 AMFCharacter* AMFBotController::FindEnemy(AMFCharacter* C) const
 {
-	const bool bTeams = C->GetTeam() != EMFTeam::None;
+	const bool bTeams = C->GetTeam() != MF::NoTeam;
 	AMFCharacter* Best = nullptr;
 	float BestDist = 9225.f;   // MF PlayerPawn.SightRadius 4100 uu
 	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
@@ -206,6 +179,21 @@ void AMFBotController::Fight(AMFCharacter* C, AMFCharacter* Target)
 	}
 }
 
+bool AMFBotController::TryGoal(AActor* G)
+{
+	// bStopOnOverlap off: walk onto the goal (capture triggers), not just up to its edge
+	const EPathFollowingRequestResult::Type R = MoveToActor(G, 30.f, false);
+	if (R == EPathFollowingRequestResult::Failed || (R == EPathFollowingRequestResult::RequestSuccessful && GetPathFollowingComponent()->HasPartialPath()))
+	{
+		UE_LOG(LogMF, Verbose, TEXT("%s: no full path to %s"), *GetName(), *G->GetName());
+		BlockedGoals.Add(G, GetWorld()->GetTimeSeconds() + 30.f);
+		StopMovement();
+		return false;
+	}
+	CurrentGoal = G;
+	return true;
+}
+
 void AMFBotController::Roam(AMFCharacter* C)
 {
 	const float Now = GetWorld()->GetTimeSeconds();
@@ -213,13 +201,56 @@ void AMFBotController::Roam(AMFCharacter* C)
 	{
 		return;
 	}
+	if (AActor* Prev = CurrentGoal.Get())
+	{
+		if (LingerUntil == 0.f)
+		{
+			// Arrived (or gave up) far from the goal: the navmesh doesn't really get there
+			const FVector D = Prev->GetActorLocation() - C->GetActorLocation();
+			if (D.Size2D() > 150.f || FMath::Abs(D.Z) > 250.f)
+			{
+				UE_LOG(LogMF, Verbose, TEXT("%s: %s out of reach (%.0f / z %.0f)"), *GetName(), *Prev->GetName(), D.Size2D(), D.Z);
+				BlockedGoals.Add(Prev, Now + 30.f);
+			}
+			else
+			{
+				LingerUntil = Now + FMath::FRandRange(3.f, 8.f);   // hold it a moment
+			}
+		}
+		if (Now < LingerUntil)
+		{
+			return;
+		}
+	}
+	CurrentGoal = nullptr;
+	LingerUntil = 0.f;
 	NextRoam = Now + 15.f;
+	// Objective modes hand out goals; once there, linger a little then ask again
+	if (const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+	{
+		TArray<AActor*> Goals;
+		GM->GetBotGoals(this, Goals);
+		for (AActor* G : Goals)
+		{
+			const float* Until = BlockedGoals.Find(G);
+			if ((!Until || Now >= *Until) && TryGoal(G))
+			{
+				NextRoam = Now + 30.f;   // travel budget before re-planning
+				return;
+			}
+		}
+	}
 	if (UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
 	{
 		FNavLocation Out;
 		if (Nav->GetRandomReachablePointInRadius(C->GetActorLocation(), 4500.f, Out))
 		{
-			MoveToLocation(Out.Location, 100.f);
+			const EPathFollowingRequestResult::Type R = MoveToLocation(Out.Location, 100.f);
+			UE_CLOG(R == EPathFollowingRequestResult::Failed, LogMF, Verbose, TEXT("%s: roam move failed"), *GetName());
+		}
+		else
+		{
+			UE_LOG(LogMF, Verbose, TEXT("%s: no random reachable point near %s"), *GetName(), *C->GetActorLocation().ToCompactString());
 		}
 	}
 }

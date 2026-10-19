@@ -40,19 +40,26 @@ void UMFGameInstance::ScheduleAutoTest()
 	{
 		return;
 	}
-	if (AutoExec.Num() > 0)
+	// Each command may start with "@<seconds>:" to run later (default 1 s), e.g.
+	//   -MFExec="@3:MFLoadoutPick 1|@4:MFLoadout|@20:MFShot fight"
+	for (const FString& Entry : AutoExec)
 	{
+		FString Cmd = Entry;
+		float Delay = 1.f;
+		FString Time, Rest;
+		if (Cmd.StartsWith(TEXT("@")) && Cmd.Mid(1).Split(TEXT(":"), &Time, &Rest))
+		{
+			Delay = FMath::Max(0.1f, FCString::Atof(*Time));
+			Cmd = Rest;
+		}
 		FTimerHandle H;
-		World->GetTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this]()
+		World->GetTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this, Cmd]()
 		{
 			if (APlayerController* PC = GetFirstLocalPlayerController())
 			{
-				for (const FString& Cmd : AutoExec)
-				{
-					PC->ConsoleCommand(Cmd);
-				}
+				PC->ConsoleCommand(Cmd);
 			}
-		}), 1.f, false);
+		}), Delay, false);
 	}
 	if (ShotAt > 0.f)
 	{

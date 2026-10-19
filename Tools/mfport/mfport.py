@@ -6,6 +6,7 @@ Steps (run alone or chained with `all`):
   textures             export + convert every texture the converted maps use
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
+  mods                 convert mod plugins' SourceArt (Plugins/Mods/*/SourceArt)
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + sounds + import + light
@@ -47,6 +48,8 @@ def collect_usage(cfg) -> dict[str, set[str]]:
 def cmd_textures(cfg):
     from mflib import textures
     usage = collect_usage(cfg)
+    for k, modes in textures.UI_TEXTURES.items():
+        usage.setdefault(k, set()).update(modes)
     packages = sorted({k.split('.')[0] for k in usage} - {'engine', 'none'})
     manifest = {}
     for pkg in packages:
@@ -88,9 +91,9 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'mods', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
-    ap.add_argument('--steps', default='textures,sounds,music,maps', help='importer steps for `import`')
+    ap.add_argument('--steps', default='textures,sounds,music,plugins,maps', help='importer steps for `import`')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -103,6 +106,9 @@ def main():
         cmd_sounds(cfg, a.names)
     if a.step == 'music':
         cmd_music(cfg, a.names)
+    if a.step in ('mods', 'all'):
+        from mflib import mods
+        mods.convert(cfg)
     if a.step == 'all':
         cmd_sounds(cfg, [])
         cmd_music(cfg, [])

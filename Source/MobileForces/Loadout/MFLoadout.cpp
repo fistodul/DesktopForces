@@ -1,7 +1,8 @@
 #include "Loadout/MFLoadout.h"
 #include "Game/MFGameState.h"
 #include "Player/MFCharacter.h"
-#include "Weapons/MFWeapons.h"
+#include "Weapons/MFWeapon.h"
+#include "Core/MFGameSettings.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -11,21 +12,9 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
-TArray<TSubclassOf<AMFWeapon>> UMFLoadoutLibrary::DefaultItems()
+const TArray<TSubclassOf<AMFWeapon>>& UMFLoadoutLibrary::DefaultItems()
 {
-	// LoadoutCrate.aWeaponsInStore order
-	return {
-		AMFWeapon_Pistol::StaticClass(),
-		AMFWeapon_MachineGun::StaticClass(),
-		AMFWeapon_Shotgun::StaticClass(),
-		AMFWeapon_Rifle::StaticClass(),
-		AMFWeapon_TripBombs::StaticClass(),
-		AMFWeapon_RocketLauncher::StaticClass(),
-		AMFWeapon_Grenades::StaticClass(),
-		AMFWeapon_AdrenalineShot::StaticClass(),
-		AMFWeapon_Armour::StaticClass(),
-		AMFWeapon_HeavyMachineGun::StaticClass(),
-	};
+	return UMFGameSettings::Get().GetLoadoutItems();
 }
 
 AMFLoadoutSource* UMFLoadoutLibrary::FindLoadoutSourceFor(const AMFCharacter* Character)
@@ -50,7 +39,11 @@ AMFLoadoutSource::AMFLoadoutSource()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = false;   // static map actors exist on every machine already
-	Items = UMFLoadoutLibrary::DefaultItems();
+}
+
+const TArray<TSubclassOf<AMFWeapon>>& AMFLoadoutSource::GetItems() const
+{
+	return Items.Num() > 0 ? Items : UMFLoadoutLibrary::DefaultItems();
 }
 
 void AMFLoadoutSource::BeginPlay()
@@ -61,7 +54,7 @@ void AMFLoadoutSource::BeginPlay()
 bool AMFLoadoutSource::IsRelevantNow() const
 {
 	const AMFGameState* GS = GetWorld() ? GetWorld()->GetGameState<AMFGameState>() : nullptr;
-	const bool bTeamGame = GS && GS->bTeamGame;
+	const bool bTeamGame = GS && GS->IsTeamGame();
 	return bTeamGame ? bTeamPlay : bNonTeamPlay;
 }
 
@@ -71,7 +64,7 @@ bool AMFLoadoutSource::IsUsableBy(const AMFCharacter* Character) const
 	{
 		return false;
 	}
-	return Team == EMFTeam::None || Character->GetTeam() == Team;
+	return Team == MF::NoTeam || Character->GetTeam() == Team;
 }
 
 bool AMFLoadoutSource::IsInside(const AMFCharacter* Character) const
@@ -120,6 +113,12 @@ void AMFLoadoutCrate::BeginPlay()
 	}
 }
 
+bool AMFLoadoutCrate::IsVisibleCrate() const
+{
+	// MF maps hide team crates on PlayerStarts (bHidden, bCollideActors=False): loadout trigger only
+	return Variant != TEXT("Hidden");
+}
+
 void AMFLoadoutCrate::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
@@ -136,13 +135,21 @@ void AMFLoadoutCrate::PostEditChangeProperty(FPropertyChangedEvent& Event)
 
 void AMFLoadoutCrate::UpdateLook()
 {
+	if (Mesh)
+	{
+		Mesh->SetVisibility(IsVisibleCrate());
+		Mesh->SetCollisionEnabled(IsVisibleCrate() ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+	}
 	// Team colour on the placeholder box until the MF crate meshes are converted
 	if (!Mesh || !Mesh->GetStaticMesh())
 	{
 		return;
 	}
-	const FLinearColor Color = Team == EMFTeam::Blue ? FLinearColor(0.1f, 0.2f, 0.8f)
-		: Team == EMFTeam::Red ? FLinearColor(0.8f, 0.1f, 0.1f) : FLinearColor(0.6f, 0.45f, 0.1f);
+	const FLinearColor Color = Team == MF::NoTeam ? FLinearColor(0.6f, 0.45f, 0.1f) : UMFGameSettings::Get().GetTeamColor(Team);
+	if (UMaterialInterface* M = UMFGameSettings::Get().GetTeamTintMaterial())
+	{
+		Mesh->SetMaterial(0, M);
+	}
 	Mesh->SetCustomPrimitiveDataVector4(0, Color);
 }
 

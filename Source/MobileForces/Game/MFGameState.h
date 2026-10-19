@@ -1,40 +1,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/GameStateBase.h"
-#include "Core/MFTypes.h"
+#include "GameFramework/GameState.h"
 #include "MFGameState.generated.h"
 
 class AMFPlayerState;
 
-/** One line of the kill feed. */
-USTRUCT()
-struct FMFKillMessage
-{
-	GENERATED_BODY()
-	UPROPERTY() FString Killer;
-	UPROPERTY() FString Victim;
-	UPROPERTY() FString Verb;
-	UPROPERTY() float Time = 0.f;
-};
-
-DECLARE_MULTICAST_DELEGATE_OneParam(FMFOnMessage, const FString&);
-
 /**
- * MF GameReplicationInfo (RageGameRepInfo / RageTeamReplicationInfo): rules, clock,
- * team scores, end-of-match state. The server ticks the clock once per second (timer),
- * clients count down locally between updates.
+ * Replicated match info (MF RageGameRepInfo / RageTeamReplicationInfo).
+ * Built on AGameState: MatchState (WaitingToStart / InProgress / WaitingPostMatch) and
+ * ElapsedTime come from the engine; this adds the MF rules and team scores.
  */
 UCLASS()
-class MOBILEFORCES_API AMFGameState : public AGameStateBase
+class MOBILEFORCES_API AMFGameState : public AGameState
 {
 	GENERATED_BODY()
 
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/** 0 = free-for-all; otherwise how many teams play (ids 0..NumTeams-1). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
-	bool bTeamGame = false;
+	int32 NumTeams = 0;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 FragLimit = 0;
@@ -47,16 +34,10 @@ public:
 	int32 GoalTeamScore = 0;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
-	int32 RemainingTime = 0;
-
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 RespawnWait = 1;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
-	TArray<int32> TeamScores = { 0, 0 };
-
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
-	bool bMatchOver = false;
+	TArray<int32> TeamScores;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	FString WinnerText;
@@ -64,17 +45,12 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	FString GameName;
 
-	/** Broadcast a kill to everyone (kill feed). */
-	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastKill(const FString& Killer, const FString& Victim, const FString& Verb);
+	bool IsTeamGame() const { return NumTeams > 0; }
 
-	/** Broadcast a centre-screen announcement (first blood, sprees, match end). */
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastAnnounce(const FString& Text);
+	/** Seconds left (TimeLimit minus the engine's ElapsedTime); -1 without a limit. */
+	int32 GetRemainingTime() const { return TimeLimit > 0 ? FMath::Max(0, TimeLimit * 60 - ElapsedTime) : -1; }
 
-	TArray<FMFKillMessage> KillFeed;
-	FString Announcement;
-	float AnnouncementTime = -100.f;
+	int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }
 
 	TArray<AMFPlayerState*> GetSortedPlayers() const;
 };

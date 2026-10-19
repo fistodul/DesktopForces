@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GenericTeamAgentInterface.h"
 #include "Core/MFTypes.h"
 #include "MFCharacter.generated.h"
 
@@ -23,7 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMFOnInventoryChanged, AMFCharacter*
  *   hidden, no collision, can't be damaged.
  */
 UCLASS(Config = Game)
-class MOBILEFORCES_API AMFCharacter : public ACharacter
+class MOBILEFORCES_API AMFCharacter : public ACharacter, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -119,8 +120,12 @@ public:
 	void SetInLoadout(bool bNewInLoadout);
 
 	// --- team -------------------------------------------------------------------------
+	/** Team id from the player state (MF::NoTeam in deathmatch). */
 	UFUNCTION(BlueprintPure, Category = "MF")
-	EMFTeam GetTeam() const;
+	uint8 GetTeam() const;
+
+	// IGenericTeamAgentInterface (AI perception, team checks)
+	virtual FGenericTeamId GetGenericTeamId() const override { return FGenericTeamId(GetTeam()); }
 
 	/** Field of view the camera should use (default FOV, divided by weapon zoom). */
 	float GetDesiredFOV() const;

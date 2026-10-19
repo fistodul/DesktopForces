@@ -44,6 +44,8 @@ AMFWeapon::AMFWeapon()
 
 	DamageType = UMFDamage_Bullet::StaticClass();
 	HeadshotDamageType = UMFDamage_Headshot::StaticClass();
+	// MF's shared icon sheet (converted by Tools/mfport); each weapon sets its rect
+	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MFImported/Textures/RageWeapons/WeaponIcons.WeaponIcons")));
 	SetActorHiddenInGame(true);
 }
 

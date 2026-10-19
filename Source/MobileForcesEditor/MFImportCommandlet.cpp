@@ -31,6 +31,7 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 
 	FMFImporter Importer(Work);
 	int32 Errors = 0;
+	Importer.EnsureTeamTintMaterial();   // shared runtime material, cheap no-op once it exists
 	if (Steps.Contains(TEXT("textures")) && !Importer.ImportTextures())
 	{
 		++Errors;
@@ -42,6 +43,10 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 	if (Steps.Contains(TEXT("music")))
 	{
 		Importer.ImportSounds(TEXT("Music"), true);
+	}
+	if (Steps.Contains(TEXT("plugins")))
+	{
+		Importer.ImportPluginArt();
 	}
 	if (Steps.Contains(TEXT("testmap")))
 	{

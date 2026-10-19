@@ -10,6 +10,7 @@ class AMFProjectile;
 class UCanvas;
 class USoundBase;
 class UStaticMeshComponent;
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class EMFWeaponState : uint8
@@ -69,6 +70,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	bool bLoadoutSelectable = true;
+
+	/** Append to the game-wide loadout list when this class is loaded (mods set this). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	bool bAddToLoadout = false;
 
 	/** Can be held in hands (armour can't). */
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
@@ -216,6 +221,14 @@ public:
 	FString MFReloadSound;
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FString MFSelectSound;
+
+	/** HUD / loadout icon: texture + pixel rect inside it (MF RageWeapon.WeaponIcon TexRect). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	TSoftObjectPtr<UTexture2D> HUDIcon;
+
+	/** X, Y, W, H in texture pixels. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FIntRect HUDIconRect = FIntRect(0, 0, 64, 64);
 
 	/** First-person model (placeholder until the MF weapon meshes are converted). */
 	UPROPERTY(VisibleAnywhere, Category = "MF|FX")

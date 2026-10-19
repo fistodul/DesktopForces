@@ -4,9 +4,8 @@
 
 UMFCharacterMovement::UMFCharacterMovement()
 {
-	BaseGroundSpeed = 900.f;                   // MF Pawn.BaseGroundSpeed 400 uu/s
-	MaxWalkSpeed = BaseGroundSpeed;
-	MaxWalkSpeedCrouched = BaseGroundSpeed * WalkSpeedFraction;
+	MaxWalkSpeed = 900.f;                      // MF Pawn.BaseGroundSpeed 400 uu/s
+	MaxWalkSpeedCrouched = 270.f;              // UE1 crouch: 0.3 x ground speed
 	MaxSwimSpeed = 450.f;                      // MF Pawn.WaterSpeed 200
 	MaxFlySpeed = 900.f;                       // MF RPlayer.AirSpeed 400
 	MaxAcceleration = 4608.f;                  // MF RPlayer.AccelRate 2048
@@ -29,6 +28,8 @@ UMFCharacterMovement::UMFCharacterMovement()
 	FallingLateralFriction = 0.f;
 
 	LadderSpeed = 450.f;                        // MF Pawn.LadderSpeed 200
+	// Bots steer through acceleration like players, so ladder physics (which reads it) works for them
+	NavMovementProperties.bUseAccelerationForPaths = true;
 
 	NavAgentProps.bCanCrouch = true;
 	NavAgentProps.bCanJump = true;
@@ -49,8 +50,9 @@ float UMFCharacterMovement::GetMaxSpeed() const
 	float Speed = Super::GetMaxSpeed();
 	if (MovementMode == MOVE_Walking || MovementMode == MOVE_NavWalking)
 	{
-		Speed = BaseGroundSpeed * CarrySpeedScale * AimSpeedScale;
-		if (IsCrouching() || bWantsToWalk)
+		// Engine speeds, scaled by carried weight and aiming (both predicted on client and server)
+		Speed = (IsCrouching() ? MaxWalkSpeedCrouched : MaxWalkSpeed) * CarrySpeedScale * AimSpeedScale;
+		if (bWantsToWalk && !IsCrouching())
 		{
 			Speed *= WalkSpeedFraction;
 		}

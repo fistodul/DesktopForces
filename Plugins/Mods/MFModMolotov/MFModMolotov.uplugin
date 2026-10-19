@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Molotov Cocktail",
+	"Description": "Mobile Forces mod: a grenade that leaves a burning patch (port of the MF-mods Molotov package).",
+	"Category": "Mobile Forces Mods",
+	"CreatedBy": "Original UnrealScript mod: fistodul (MF-mods, MIT). UE5 port: Mobile Forces UE5 project.",
+	"CanContainContent": true,
+	"EnabledByDefault": true,
+	"Modules": [
+		{
+			"Name": "MFModMolotov",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

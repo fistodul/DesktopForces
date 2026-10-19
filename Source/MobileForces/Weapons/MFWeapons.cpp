@@ -17,6 +17,7 @@
 
 AMFWeapon_Knife::AMFWeapon_Knife()
 {
+	HUDIconRect = FIntRect(96, 0, 144, 64);   // WeaponIcon X=96 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Knife", "Knife");
 	InventoryGroup = 1;
 	CarrySize = 0;
@@ -94,6 +95,7 @@ void AMFWeapon_Knife::KnifeReturned()
 
 AMFWeapon_Pistol::AMFWeapon_Pistol()
 {
+	HUDIconRect = FIntRect(0, 0, 48, 64);   // WeaponIcon X=0 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Pistol", "Pistol");
 	InventoryGroup = 2;
 	CarrySize = 1;
@@ -124,6 +126,7 @@ AMFWeapon_Pistol::AMFWeapon_Pistol()
 
 AMFWeapon_MachineGun::AMFWeapon_MachineGun()
 {
+	HUDIconRect = FIntRect(0, 192, 104, 256);   // WeaponIcon X=0 Y=192 W=104 H=64
 	DisplayName = LOCTEXT("MachineGun", "Machine Gun");
 	InventoryGroup = 3;
 	CarrySize = 2;
@@ -153,6 +156,7 @@ AMFWeapon_MachineGun::AMFWeapon_MachineGun()
 
 AMFWeapon_Shotgun::AMFWeapon_Shotgun()
 {
+	HUDIconRect = FIntRect(160, 128, 256, 192);   // WeaponIcon X=160 Y=128 W=96 H=64
 	DisplayName = LOCTEXT("Shotgun", "Shotgun");
 	InventoryGroup = 4;
 	CarrySize = 2;
@@ -237,6 +241,7 @@ void AMFWeapon_Shotgun::FireShot(bool bAlt)
 
 AMFWeapon_Rifle::AMFWeapon_Rifle()
 {
+	HUDIconRect = FIntRect(104, 192, 248, 256);   // WeaponIcon X=104 Y=192 W=144 H=64
 	DisplayName = LOCTEXT("Rifle", "Sniper Rifle");
 	InventoryGroup = 5;
 	CarrySize = 3;
@@ -375,6 +380,7 @@ FString AMFWeapon_Rifle::GetHUDStatus() const
 
 AMFWeapon_RocketLauncher::AMFWeapon_RocketLauncher()
 {
+	HUDIconRect = FIntRect(0, 128, 160, 192);   // WeaponIcon X=0 Y=128 W=160 H=64
 	DisplayName = LOCTEXT("RocketLauncher", "Rocket Launcher");
 	InventoryGroup = 7;
 	CarrySize = 4;
@@ -404,6 +410,7 @@ AMFWeapon_RocketLauncher::AMFWeapon_RocketLauncher()
 
 AMFWeapon_Grenades::AMFWeapon_Grenades()
 {
+	HUDIconRect = FIntRect(48, 0, 96, 64);   // WeaponIcon X=48 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Grenades", "Grenades");
 	InventoryGroup = 8;
 	CarrySize = 1;
@@ -494,6 +501,7 @@ FString AMFWeapon_Grenades::GetHUDStatus() const
 
 AMFWeapon_HeavyMachineGun::AMFWeapon_HeavyMachineGun()
 {
+	HUDIconRect = FIntRect(64, 64, 256, 128);   // WeaponIcon X=64 Y=64 W=192 H=64
 	DisplayName = LOCTEXT("HMG", "Heavy Machine Gun");
 	InventoryGroup = 6;
 	CarrySize = 4;
@@ -614,6 +622,7 @@ FString AMFWeapon_HeavyMachineGun::GetHUDStatus() const
 
 AMFWeapon_TripBombs::AMFWeapon_TripBombs()
 {
+	HUDIconRect = FIntRect(192, 0, 256, 64);   // WeaponIcon X=192 Y=0 W=64 H=64
 	DisplayName = LOCTEXT("TripBombs", "Trip Bombs");
 	InventoryGroup = 9;
 	CarrySize = 1;
@@ -759,6 +768,7 @@ FString AMFWeapon_TripBombs::GetHUDStatus() const
 
 AMFWeapon_AdrenalineShot::AMFWeapon_AdrenalineShot()
 {
+	HUDIconRect = FIntRect(144, 0, 192, 64);   // WeaponIcon X=144 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Adrenaline", "Adrenaline Shot");
 	InventoryGroup = 10;
 	CarrySize = 1;
@@ -812,6 +822,7 @@ bool AMFWeapon_AdrenalineShot::TryFire(bool bAlt)
 
 AMFWeapon_Armour::AMFWeapon_Armour()
 {
+	HUDIconRect = FIntRect(0, 64, 64, 128);   // WeaponIcon X=0 Y=64 W=64 H=64
 	DisplayName = LOCTEXT("Armour", "Body Armour");
 	InventoryGroup = 11;
 	CarrySize = 1;

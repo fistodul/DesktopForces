@@ -1,4 +1,5 @@
 #include "Player/MFPlayerController.h"
+#include "Player/MFCheatManager.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFCharacterMovement.h"
 #include "Weapons/MFWeapons.h"
@@ -9,9 +10,13 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "UnrealClient.h"
+#include "EngineUtils.h"
+#include "MobileForces.h"
 
 AMFPlayerController::AMFPlayerController()
 {
+	CheatClass = UMFCheatManager::StaticClass();
 	PrimaryActorTick.bCanEverTick = true;
 }
 
@@ -361,7 +366,7 @@ TArray<TSubclassOf<AMFWeapon>> AMFPlayerController::GetLoadoutItems() const
 {
 	if (const AMFLoadoutSource* Src = UMFLoadoutLibrary::FindLoadoutSourceFor(GetMFCharacter()))
 	{
-		return Src->Items;
+		return Src->GetItems();
 	}
 	return UMFLoadoutLibrary::DefaultItems();
 }
@@ -450,7 +455,7 @@ void AMFPlayerController::ServerLoadoutPick_Implementation(TSubclassOf<AMFWeapon
 {
 	AMFCharacter* C = GetMFCharacter();
 	const AMFLoadoutSource* Src = C ? UMFLoadoutLibrary::FindLoadoutSourceFor(C) : nullptr;
-	if (!C || !C->IsInLoadout() || !Src || !Src->Items.Contains(Item))
+	if (!C || !C->IsInLoadout() || !Src || !Src->GetItems().Contains(Item))
 	{
 		return;
 	}
@@ -473,6 +478,36 @@ void AMFPlayerController::ServerLoadoutPick_Implementation(TSubclassOf<AMFWeapon
 			return;
 		}
 	}
+}
+
+void AMFPlayerController::MFLoadoutPick(int32 Index)
+{
+	const TArray<TSubclassOf<AMFWeapon>> Items = GetLoadoutItems();
+	if (Items.IsValidIndex(Index))
+	{
+		LoadoutCursor = Index;
+		ServerLoadoutPick(Items[Index]);
+	}
+}
+
+void AMFPlayerController::MFLoadout()
+{
+	OnLoadout();
+}
+
+void AMFPlayerController::MFSelect(int32 Group)
+{
+	OnWeaponSlot(Group);
+}
+
+void AMFPlayerController::MFShot(const FString& Name)
+{
+	FScreenshotRequest::RequestScreenshot(Name.IsEmpty() ? TEXT("mf_shot") : Name, false, false);
+}
+
+void AMFPlayerController::MFScores()
+{
+	bShowScores = !bShowScores;
 }
 
 void AMFPlayerController::ServerDropWeapon_Implementation()

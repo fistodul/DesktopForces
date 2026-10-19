@@ -314,6 +314,6 @@ class VmfConverter:
                                 cone=float(ent.keys.get('_cone', 45))))
             elif cls.startswith(('npc_', 'prop_vehicle', 'prop_holdout', 'item_', 'weapon_')):
                 # kept as data for the merge (zombie easter eggs, buggy spawns, holdout ...)
-                out.append(dict(base, type='legacy', mf_class=f'MFS:{cls}', mf_name=base['name'], team='None',
+                out.append(dict(base, type='legacy', mf_class=f'MFS:{cls}', mf_name=base['name'], team='255',
                                 props={k: v for k, v in ent.keys.items() if k not in ('origin', 'angles')}))
         return out

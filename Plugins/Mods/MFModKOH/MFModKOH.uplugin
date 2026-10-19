@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "King of the Hill",
+	"Description": "Mobile Forces mod: several capture points picked from the map's objectives; teams score per second per point held (port of the MF-mods KOH package).",
+	"Category": "Mobile Forces Mods",
+	"CreatedBy": "Original UnrealScript mod: fistodul (MF-mods, MIT). UE5 port: Mobile Forces UE5 project.",
+	"CanContainContent": false,
+	"EnabledByDefault": true,
+	"Modules": [
+		{
+			"Name": "MFModKOH",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

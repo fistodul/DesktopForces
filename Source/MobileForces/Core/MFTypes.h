@@ -4,19 +4,14 @@
 #include "GameFramework/DamageType.h"
 #include "MFTypes.generated.h"
 
-/** Team numbers as used by Mobile Forces maps (PlayerStart.TeamNumber, RageFlagBase.Team ...). */
-UENUM(BlueprintType)
-enum class EMFTeam : uint8
-{
-	Blue = 0,
-	Red = 1,
-	None = 255 UMETA(DisplayName = "None / Neutral"),
-};
-
 namespace MF
 {
-	inline int32 TeamIndex(EMFTeam Team) { return Team == EMFTeam::None ? INDEX_NONE : static_cast<int32>(Team); }
-	inline EMFTeam OtherTeam(EMFTeam Team) { return Team == EMFTeam::Blue ? EMFTeam::Red : (Team == EMFTeam::Red ? EMFTeam::Blue : EMFTeam::None); }
+	/**
+	 * Teams are plain ids: an index into UMFGameSettings::Teams (0 blue, 1 red, ... as many
+	 * as configured). 255 means "no team" - the same value as MF's neutral PlayerStart
+	 * TeamNumber and UE's FGenericTeamId::NoTeam, so AI perception understands it too.
+	 */
+	inline constexpr uint8 NoTeam = 255;
 }
 
 /**

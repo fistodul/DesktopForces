@@ -6,7 +6,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ UE 5.8 project: forward/mobile rendering, no post, static lighting, ~80 plugins off, Low scalability defaults
 - ✅ Git repo, open-source layout (code/tools/docs tracked, original assets generated locally)
 - ✅ Docs for the team (this folder)
-- ⬜ Licence choice for the public repo (MF-mods uses MIT)
+- 🟡 Licence: LGPL-3.0-or-later + drafted Unreal Engine linking permission ([LICENSE.md](../LICENSE.md)) — permission text to be confirmed by the copyright holders
 - ⬜ CI build (Linux + Windows), automated import test on a small map
 
 ## Pipeline (`Tools/mfport`)
@@ -18,7 +18,10 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ⬜ Skeletal meshes + animations (soldiers, first-person weapons): MeshAnimation parses; SkeletalMesh reader + PSK/glTF export
 - ⬜ `DeviceMesh` / `LodMesh` (crates, pickups, effects)
-- ⬜ Movers (doors/lifts are brushes with keyframes), water zones → volumes, ladders → ladder volumes
+- ⬜ Movers (doors/lifts are brushes with keyframes), water zones → volumes
+- ✅ Ladders → `AMFLadderVolume` with nav links
+- ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes
+- ✅ Mod plugin art: `Plugins/Mods/*/SourceArt` → `mfport.py mods` → `import --steps plugins`
 - ⬜ Sky: capture each map's SkyZone into a cubemap for the sky material
 - ⬜ Minimap textures (MiniMapInfo)
 - ⬜ Texture arrays / trim sheets per map to cut draw calls
@@ -33,14 +36,18 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Loadout crates/zones, carry blocks, refill on entering
 - ⬜ Weapon drops as pickups, death drops
 - ✅ Deathmatch, Team Deathmatch
-- ⬜ CTF, Holdout (Domination), Captains, Detonation, Safe Cracker, Trailer — data already in converted maps as `AMFLegacyActor`
-- 🟡 Bots: MF roster (16 named bots, favourite loadouts), roam/aim/strafe/fire on navmesh (`?Bots=N?BotSkill=0.7`); needs nav data built + in-game testing
+- ✅ Holdout (Domination): `AMFGameMode_Holdout` + `AMFHoldoutPoint`, captures, hold-time scoring, HUD readout, bot attack/guard goals
+- ⬜ CTF, Captains, Detonation, Safe Cracker, Trailer — data already in converted maps as `AMFLegacyActor`
+- ✅ N teams (`UMFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
+- 🟡 Bots: MF roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). **mf-warehouse navmesh is split into islands** (bots reach only parts of the map; ladders 6, 8–13 had bad ends): needs a look in the editor navmesh view (`P`) — candidates: railings/props, step/ledge heights, missing jump-up links. `MFNavTest` cheat prints the reachability report.
 - ⬜ Vehicles: Buggy, Humma, Truck, APC (reverse `handling.hnd2` / `.COL`; Chaos Vehicles or a light custom raycast model)
 - 🟡 Ladders (LadderClimber → `AMFLadderVolume`, untested in game); ⬜ swimming/drowning, water zones
-- ⬜ Community mods: ZombieGame, KOH, TugGame, CoopMode, arenaMode … (source in MF-mods)
+- ✅ Mods as plugins ([Modding.md](Modding.md)): `MFModMolotov` (weapon), `MFModKOH` (game mode)
+- ⬜ More MF-mods: Totem, ZombieGame (as components, not player subclasses), TugGame, CoopMode, arenaMode, SentryGun, SeekerMines, TripLasers, PredatorMissile …
 
 ## Presentation
-- 🟡 Canvas HUD (functional, plain shapes) → MF HUD textures / icons
+- 🟡 Canvas HUD with MF weapon icons (strip + loadout), team colours, capture points; ⬜ rest of MF HUD art
+- ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom)
 - ⬜ First-person weapon models + animations, third-person soldiers, team skins
 - ⬜ Effects: muzzle flash, tracers, impacts, explosions, blood (cheap sprite particles)
 - ⬜ Menus: main menu, server browser (master server: 333networks protocol used by MF), options

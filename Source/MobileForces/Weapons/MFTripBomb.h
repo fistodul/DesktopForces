@@ -26,7 +26,7 @@ public:
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 	float MaxLaserDistance = 2304.f;
-	EMFTeam Team = EMFTeam::None;
+	uint8 Team = MF::NoTeam;
 
 protected:
 	virtual void BeginPlay() override;

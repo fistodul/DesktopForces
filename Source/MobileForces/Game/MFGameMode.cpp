@@ -1,17 +1,17 @@
 #include "Game/MFGameMode.h"
 #include "Game/MFGameState.h"
+#include "Game/MFMessages.h"
 #include "Game/MFPlayerState.h"
 #include "Game/MFPlayerStart.h"
+#include "AI/MFBotController.h"
+#include "Core/MFGameSettings.h"
+#include "Loadout/MFLoadout.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFPlayerController.h"
-#include "Loadout/MFLoadout.h"
-#include "AI/MFBotController.h"
 #include "UI/MFHUD.h"
-#include "MobileForces.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
@@ -22,17 +22,19 @@ AMFGameMode::AMFGameMode()
 	PlayerStateClass = AMFPlayerState::StaticClass();
 	GameStateClass = AMFGameState::StaticClass();
 	HUDClass = AMFHUD::StaticClass();
+	bDelayedStart = false;
 	bUseSeamlessTravel = false;
-	bStartPlayersAsSpectators = false;
 }
 
 void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
+	NumTeams = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("Teams"), NumTeams));
 	FragLimit = UGameplayStatics::GetIntOption(Options, TEXT("FragLimit"), FragLimit);
 	TimeLimit = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), TimeLimit);
+	GoalTeamScore = UGameplayStatics::GetIntOption(Options, TEXT("GoalTeamScore"), GoalTeamScore);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
-	NumBots = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), NumBots);
+	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 	{
@@ -45,85 +47,86 @@ void AMFGameMode::InitGameState()
 	Super::InitGameState();
 	if (AMFGameState* GS = GetGameState<AMFGameState>())
 	{
-		GS->bTeamGame = IsTeamGame();
+		GS->NumTeams = NumTeams;
+		GS->TeamScores.Init(0, NumTeams);
 		GS->FragLimit = FragLimit;
 		GS->TimeLimit = TimeLimit;
-		GS->RemainingTime = TimeLimit * 60;
+		GS->GoalTeamScore = GoalTeamScore;
 		GS->RespawnWait = FMath::Max(1, RespawnWait);
 		GS->GameName = GameName;
 	}
 }
 
-void AMFGameMode::StartPlay()
-{
-	Super::StartPlay();
-	GetWorldTimerManager().SetTimer(ClockTimer, this, &AMFGameMode::ClockTick, 1.f, true);
-	AddBots(NumBots);
-}
-
-void AMFGameMode::AddBots(int32 Count)
-{
-	const TArray<FMFBotProfile>& Roster = AMFBotController::Roster();
-	for (int32 i = 0; i < Count; ++i)
-	{
-		FActorSpawnParameters SP;
-		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		AMFBotController* Bot = GetWorld()->SpawnActor<AMFBotController>(SP);
-		if (!Bot)
-		{
-			continue;
-		}
-		Bot->Profile = Roster[BotsAdded % Roster.Num()];
-		Bot->Skill = BotSkill;
-		++BotsAdded;
-		if (AMFPlayerState* PS = Bot->GetPlayerState<AMFPlayerState>())
-		{
-			PS->SetPlayerName(Bot->Profile.Name);
-			PS->SetIsABot(true);
-			AssignTeam(PS, Bot->Profile.PreferredTeam);
-		}
-		RestartPlayer(Bot);
-	}
-}
-
 void AMFGameMode::PostLogin(APlayerController* NewPlayer)
 {
+	if (AMFPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<AMFPlayerState>() : nullptr)
+	{
+		PS->SetTeam(IsTeamGame() ? PickTeam() : MF::NoTeam);
+	}
 	Super::PostLogin(NewPlayer);
 }
 
-void AMFGameMode::ClockTick()
+void AMFGameMode::HandleMatchHasStarted()
 {
-	AMFGameState* GS = GetGameState<AMFGameState>();
-	if (!GS || GS->bMatchOver || TimeLimit <= 0)
-	{
-		return;
-	}
-	GS->RemainingTime = FMath::Max(0, GS->RemainingTime - 1);
-	if (GS->RemainingTime == 0)
+	Super::HandleMatchHasStarted();
+	AddBots(BotCount);
+	GetWorldTimerManager().SetTimer(TimeLimitTimer, this, &AMFGameMode::CheckTimeLimit, 1.f, true);
+}
+
+void AMFGameMode::CheckTimeLimit()
+{
+	const AMFGameState* GS = GetGameState<AMFGameState>();
+	if (GS && IsMatchInProgress() && GS->GetRemainingTime() == 0)
 	{
 		OnTimeLimit();
 	}
 }
 
-void AMFGameMode::OnTimeLimit()
+uint8 AMFGameMode::PickTeam(uint8 Preferred) const
 {
-	AMFGameState* GS = GetGameState<AMFGameState>();
-	TArray<AMFPlayerState*> Sorted = GS->GetSortedPlayers();
-	EndMatch(Sorted.Num() > 0 ? FString::Printf(TEXT("%s Wins!"), *Sorted[0]->GetPlayerName()) : TEXT("Time up"));
+	TArray<int32> Count;
+	Count.Init(0, NumTeams);
+	if (const AMFGameState* GS = GetGameState<AMFGameState>())
+	{
+		for (APlayerState* PS : GS->PlayerArray)
+		{
+			if (const AMFPlayerState* M = Cast<AMFPlayerState>(PS); M && Count.IsValidIndex(M->GetTeam()))
+			{
+				Count[M->GetTeam()]++;
+			}
+		}
+	}
+	int32 Best = Count.IsValidIndex(Preferred) ? Preferred : 0;
+	for (int32 T = 0; T < Count.Num(); ++T)
+	{
+		if (Count[T] < Count[Best])
+		{
+			Best = T;
+		}
+	}
+	return uint8(Best);
 }
 
 // --- spawning ----------------------------------------------------------------------
 
 bool AMFGameMode::IsStartAllowed(const AMFPlayerStart* Start, AController* Player) const
 {
-	return Start->bEnabled && Start->IsNeutral();
+	if (!Start->bEnabled)
+	{
+		return false;
+	}
+	if (!IsTeamGame())
+	{
+		return Start->IsNeutral();
+	}
+	const AMFPlayerState* PS = Player ? Player->GetPlayerState<AMFPlayerState>() : nullptr;
+	return PS && Start->TeamNumber == PS->GetTeam();
 }
 
 AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
 	// RageDeathMatch.FindPlayerStart: random score, avoid the last spot, avoid other players
-	TArray<AMFPlayerStart*> Candidates;
-	TArray<AMFPlayerStart*> All;
+	TArray<AMFPlayerStart*> Candidates, All;
 	for (TActorIterator<AMFPlayerStart> It(GetWorld()); It; ++It)
 	{
 		All.Add(*It);
@@ -134,13 +137,12 @@ AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	}
 	if (Candidates.Num() == 0)
 	{
-		Candidates = All;
+		Candidates = All;   // e.g. team 3 on a map built for 2 teams
 	}
 	if (Candidates.Num() == 0)
 	{
-		return Super::ChoosePlayerStart_Implementation(Player);   // plain APlayerStart (test maps)
+		return Super::ChoosePlayerStart_Implementation(Player);
 	}
-
 	AActor* Best = nullptr;
 	float BestScore = -FLT_MAX;
 	for (AMFPlayerStart* Start : Candidates)
@@ -148,19 +150,18 @@ AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 		float Score = Start == LastStartSpot.Get() ? -10000.f : 3000.f * FMath::FRand();
 		for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
 		{
-			const AMFCharacter* Other = *It;
-			if (!Other->IsAlive() || Other->GetController() == Player)
+			if (!It->IsAlive() || It->GetController() == Player)
 			{
 				continue;
 			}
-			const float Dist = FVector::Dist(Other->GetActorLocation(), Start->GetActorLocation());
-			if (Dist < 126.f)                      // MF: CollisionRadius + CollisionHeight (56 uu)
+			const float Dist = FVector::Dist(It->GetActorLocation(), Start->GetActorLocation());
+			if (Dist < 126.f)               // MF: CollisionRadius + CollisionHeight (56 uu)
 			{
 				Score -= 1000000.f;
 			}
-			else if (Dist < 4500.f)                // MF: 2000 uu
+			else if (Dist < 4500.f)         // MF: 2000 uu
 			{
-				Score -= 22500.f - Dist;           // MF: 10000 - dist (in uu)
+				Score -= 22500.f - Dist;
 			}
 		}
 		if (Score > BestScore)
@@ -175,8 +176,7 @@ AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 
 bool AMFGameMode::PlayerCanRestart_Implementation(APlayerController* Player)
 {
-	const AMFGameState* GS = GetGameState<AMFGameState>();
-	return (!GS || !GS->bMatchOver) && Super::PlayerCanRestart_Implementation(Player);
+	return IsMatchInProgress() && Super::PlayerCanRestart_Implementation(Player);
 }
 
 void AMFGameMode::RestartPlayer(AController* NewPlayer)
@@ -197,7 +197,6 @@ void AMFGameMode::SetPlayerDefaults(APawn* PlayerPawn)
 	{
 		C->GiveWeapon(W, true);
 	}
-	// Spawning next to a loadout crate / inside a loadout zone opens the loadout screen
 	if (CanUseLoadout(C))
 	{
 		if (AMFPlayerController* PC = Cast<AMFPlayerController>(C->GetController()))
@@ -212,6 +211,38 @@ bool AMFGameMode::CanUseLoadout(AMFCharacter* Character) const
 	return UMFLoadoutLibrary::FindLoadoutSourceFor(Character) != nullptr;
 }
 
+void AMFGameMode::AddBots(int32 Count)
+{
+	const TArray<FMFBotDef>& Roster = UMFGameSettings::Get().Bots;
+	for (int32 i = 0; i < Count; ++i)
+	{
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AMFBotController* Bot = GetWorld()->SpawnActor<AMFBotController>(SP);
+		if (!Bot)
+		{
+			continue;
+		}
+		// Roster in order; past its end, recycle profiles with numbered names (no cap)
+		FMFBotDef Def = Roster.Num() > 0 ? Roster[BotsAdded % Roster.Num()] : FMFBotDef();
+		if (Roster.Num() == 0 || BotsAdded >= Roster.Num())
+		{
+			Def.Name = FString::Printf(TEXT("%s%d"), Def.Name.IsEmpty() ? TEXT("Bot") : *Def.Name, BotsAdded / FMath::Max(1, Roster.Num()) + 1);
+		}
+		++BotsAdded;
+		Bot->Profile = Def;
+		Bot->Skill = BotSkill;
+		if (AMFPlayerState* PS = Bot->GetPlayerState<AMFPlayerState>())
+		{
+			PS->SetPlayerName(Def.Name);
+			PS->SetIsABot(true);
+			PS->SetTeam(IsTeamGame() ? PickTeam(Def.PreferredTeam) : MF::NoTeam);
+		}
+		++NumBots;
+		RestartPlayer(Bot);
+	}
+}
+
 // --- damage & kills ----------------------------------------------------------------
 
 float AMFGameMode::ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator) const
@@ -220,7 +251,16 @@ float AMFGameMode::ModifyDamage(float Damage, AMFCharacter* Victim, AController*
 	{
 		return Damage;
 	}
-	return bHardCoreMode ? Damage * 1.5f : Damage;
+	if (bHardCoreMode)
+	{
+		Damage *= 1.5f;
+	}
+	const AMFPlayerState* InstPS = Instigator->GetPlayerState<AMFPlayerState>();
+	if (IsTeamGame() && InstPS && Victim && Victim->GetController() != Instigator && InstPS->GetTeam() == Victim->GetTeam())
+	{
+		Damage *= FriendlyFireScale;
+	}
+	return Damage;
 }
 
 void AMFGameMode::Killed(AController* Killer, AController* Victim, AMFCharacter* VictimPawn, TSubclassOf<UDamageType> DamageType)
@@ -233,31 +273,17 @@ void AMFGameMode::Killed(AController* Killer, AController* Victim, AMFCharacter*
 	}
 	ScoreKill(KillerPS, VictimPS);
 
-	if (AMFGameState* GS = GetGameState<AMFGameState>())
+	BroadcastLocalized(this, UMFDeathMessage::StaticClass(), 0, KillerPS, VictimPS, DamageType.Get());
+	if (KillerPS && KillerPS != VictimPS)
 	{
-		const UMFDamageType* MFType = DamageType ? Cast<UMFDamageType>(DamageType->GetDefaultObject()) : nullptr;
-		const FString Verb = MFType ? MFType->DeathVerb.ToString() : TEXT("killed");
-		const FString VictimName = VictimPS ? VictimPS->GetPlayerName() : TEXT("Someone");
-		if (KillerPS && KillerPS != VictimPS)
+		if (!bFirstBlood)
 		{
-			GS->MulticastKill(KillerPS->GetPlayerName(), VictimName, Verb);
-			if (!bFirstBlood)
-			{
-				bFirstBlood = true;
-				GS->MulticastAnnounce(FString::Printf(TEXT("%s drew first blood!"), *KillerPS->GetPlayerName()));
-			}
-			// Killing sprees (RageDeathMatch.NotifySpree, RPlayer.spreenote)
-			static const TCHAR* Sprees[] = { TEXT("is on a killing spree!"), TEXT("is on a rampage!"), TEXT("is dominating!"),
-				TEXT("is brutalizing the competition!"), TEXT("is unstoppable!"), TEXT("owns you!") };
-			if (KillerPS->Spree >= 5 && KillerPS->Spree % 5 == 0)
-			{
-				const int32 Idx = FMath::Min(KillerPS->Spree / 5 - 1, 5);
-				GS->MulticastAnnounce(FString::Printf(TEXT("%s %s"), *KillerPS->GetPlayerName(), Sprees[Idx]));
-			}
+			bFirstBlood = true;
+			BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::FirstBlood, KillerPS);
 		}
-		else
+		if (KillerPS->Spree >= 5 && KillerPS->Spree % 5 == 0)
 		{
-			GS->MulticastKill(FString(), VictimName, TEXT("died"));
+			BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::Spree + FMath::Min(KillerPS->Spree / 5 - 1, 5), KillerPS);
 		}
 	}
 
@@ -270,36 +296,95 @@ void AMFGameMode::Killed(AController* Killer, AController* Victim, AMFCharacter*
 
 void AMFGameMode::ScoreKill(AMFPlayerState* Killer, AMFPlayerState* Victim)
 {
+	AMFGameState* GS = GetGameState<AMFGameState>();
+	const bool bSuicide = !Killer || Killer == Victim;
+	const bool bTeamKill = !bSuicide && IsTeamGame() && Victim && Killer->GetTeam() == Victim->GetTeam();
 	if (Victim)
 	{
 		Victim->Deaths++;
 		Victim->Spree = 0;
 	}
-	if (!Killer || Killer == Victim)
+	if (bSuicide)
 	{
 		if (Victim)
 		{
-			Victim->SetScore(Victim->GetScore() - 1.f);
+			Victim->SetScore(Victim->GetScore() - 1.f);   // GameInfo.ScoreKill
 		}
+	}
+	else if (!bTeamKill)
+	{
+		Killer->Kills++;
+		Killer->Spree++;
+		Killer->SetScore(Killer->GetScore() + 1.f);
+	}
+	// Team scores (RageTeamGame.ScoreKill, bScoreTeamKills)
+	if (!bScoreTeamKills || !GS || !Victim || !GS->TeamScores.IsValidIndex(Victim->GetTeam()))
+	{
 		return;
 	}
-	Killer->Kills++;
-	Killer->Spree++;
-	Killer->SetScore(Killer->GetScore() + 1.f);
+	if (bSuicide)
+	{
+		GS->TeamScores[Victim->GetTeam()] -= 1;
+	}
+	else if (!bTeamKill)
+	{
+		if (GS->TeamScores.IsValidIndex(Killer->GetTeam()))
+		{
+			GS->TeamScores[Killer->GetTeam()] += 1;
+		}
+	}
+	else if (FriendlyFireScale > 0.f)
+	{
+		GS->TeamScores[Victim->GetTeam()] -= 1;
+		Killer->SetScore(Killer->GetScore() - 1.f);
+	}
 }
 
 void AMFGameMode::CheckEndConditions(AMFPlayerState* LastKiller)
 {
-	if (FragLimit > 0 && LastKiller && LastKiller->GetScore() >= FragLimit)
+	const AMFGameState* GS = GetGameState<AMFGameState>();
+	if (IsTeamGame())
 	{
-		EndMatch(FString::Printf(TEXT("%s Wins!"), *LastKiller->GetPlayerName()));
+		if (GS && GoalTeamScore > 0)
+		{
+			for (int32 T = 0; T < GS->TeamScores.Num(); ++T)
+			{
+				if (GS->TeamScores[T] >= GoalTeamScore)
+				{
+					FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *UMFGameSettings::Get().GetTeamName(T).ToString()));
+					return;
+				}
+			}
+		}
 	}
+	else if (FragLimit > 0 && LastKiller && LastKiller->GetScore() >= FragLimit)
+	{
+		FinishMatch(FString::Printf(TEXT("%s Wins!"), *LastKiller->GetPlayerName()));
+	}
+}
+
+void AMFGameMode::OnTimeLimit()
+{
+	const AMFGameState* GS = GetGameState<AMFGameState>();
+	if (IsTeamGame())
+	{
+		int32 Best = 0;
+		bool bTie = false;
+		for (int32 T = 1; T < GS->TeamScores.Num(); ++T)
+		{
+			if (GS->TeamScores[T] > GS->TeamScores[Best]) { Best = T; bTie = false; }
+			else if (GS->TeamScores[T] == GS->TeamScores[Best]) { bTie = true; }
+		}
+		FinishMatch(bTie ? TEXT("DRAW") : FString::Printf(TEXT("%s Team Wins!"), *UMFGameSettings::Get().GetTeamName(Best).ToString()));
+		return;
+	}
+	const TArray<AMFPlayerState*> Sorted = GS->GetSortedPlayers();
+	FinishMatch(Sorted.Num() > 0 ? FString::Printf(TEXT("%s Wins!"), *Sorted[0]->GetPlayerName()) : TEXT("Time up"));
 }
 
 void AMFGameMode::ScheduleRespawn(AController* Victim)
 {
-	const AMFGameState* GS = GetGameState<AMFGameState>();
-	if (GS && GS->bMatchOver)
+	if (!IsMatchInProgress())
 	{
 		return;
 	}
@@ -307,23 +392,30 @@ void AMFGameMode::ScheduleRespawn(AController* Victim)
 	TWeakObjectPtr<AController> Weak(Victim);
 	GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this, Weak]()
 	{
-		if (AController* C = Weak.Get(); C && !C->GetPawn())
+		if (AController* C = Weak.Get(); C && !C->GetPawn() && IsMatchInProgress())
 		{
 			RestartPlayer(C);
 		}
 	}), float(FMath::Max(1, RespawnWait)), false);
 }
 
-void AMFGameMode::EndMatch(const FString& WinnerText)
+void AMFGameMode::FinishMatch(const FString& Winner)
 {
-	AMFGameState* GS = GetGameState<AMFGameState>();
-	if (!GS || GS->bMatchOver)
+	if (!IsMatchInProgress())
 	{
 		return;
 	}
-	GS->bMatchOver = true;
-	GS->WinnerText = WinnerText;
-	GS->MulticastAnnounce(WinnerText);
+	if (AMFGameState* GS = GetGameState<AMFGameState>())
+	{
+		GS->WinnerText = Winner;
+	}
+	EndMatch();
+}
+
+void AMFGameMode::HandleMatchHasEnded()
+{
+	Super::HandleMatchHasEnded();
+	GetWorldTimerManager().ClearTimer(TimeLimitTimer);
 	for (auto& Pair : RespawnTimers)
 	{
 		GetWorldTimerManager().ClearTimer(Pair.Value);
@@ -334,135 +426,15 @@ void AMFGameMode::EndMatch(const FString& WinnerText)
 		It->StopFire(true);
 		It->GetCharacterMovement()->DisableMovement();
 	}
+	BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::MatchEnd);
 	FTimerHandle H;
-	GetWorldTimerManager().SetTimer(H, this, &AMFGameMode::RestartMap, float(RestartWait), false);
+	GetWorldTimerManager().SetTimer(H, this, &AMFGameMode::RestartGame, float(RestartWait), false);
 }
-
-void AMFGameMode::RestartMap()
-{
-	GetWorld()->ServerTravel(TEXT("?Restart"), false);
-}
-
-// ---------------------------------------------------------------------------------------
-// Team deathmatch
-// ---------------------------------------------------------------------------------------
 
 AMFGameMode_TDM::AMFGameMode_TDM()
 {
 	GameName = TEXT("Team DM");
+	NumTeams = 2;
 	FragLimit = 0;
 	TimeLimit = 12;
-}
-
-void AMFGameMode_TDM::InitGameState()
-{
-	Super::InitGameState();
-	if (AMFGameState* GS = GetGameState<AMFGameState>())
-	{
-		GS->GoalTeamScore = GoalTeamScore;
-	}
-}
-
-EMFTeam AMFGameMode_TDM::PickTeam() const
-{
-	int32 Count[2] = { 0, 0 };
-	if (const AMFGameState* GS = GetGameState<AMFGameState>())
-	{
-		for (APlayerState* PS : GS->PlayerArray)
-		{
-			if (const AMFPlayerState* M = Cast<AMFPlayerState>(PS); M && M->GetTeam() != EMFTeam::None)
-			{
-				Count[uint8(M->GetTeam())]++;
-			}
-		}
-	}
-	return Count[0] <= Count[1] ? EMFTeam::Blue : EMFTeam::Red;
-}
-
-void AMFGameMode_TDM::AssignTeam(AMFPlayerState* PS, EMFTeam Preferred)
-{
-	// Always balance; MF's per-bot PreferedTeam only mattered for its fixed mission rosters
-	PS->SetTeam(PickTeam());
-}
-
-void AMFGameMode_TDM::PostLogin(APlayerController* NewPlayer)
-{
-	if (AMFPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<AMFPlayerState>() : nullptr)
-	{
-		PS->SetTeam(PickTeam());
-	}
-	Super::PostLogin(NewPlayer);
-}
-
-bool AMFGameMode_TDM::IsStartAllowed(const AMFPlayerStart* Start, AController* Player) const
-{
-	const AMFPlayerState* PS = Player ? Player->GetPlayerState<AMFPlayerState>() : nullptr;
-	return Start->bEnabled && PS && Start->TeamNumber == uint8(PS->GetTeam());
-}
-
-float AMFGameMode_TDM::ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator) const
-{
-	Damage = Super::ModifyDamage(Damage, Victim, Instigator);
-	const AMFPlayerState* InstPS = Instigator ? Instigator->GetPlayerState<AMFPlayerState>() : nullptr;
-	if (InstPS && Victim && Victim->GetController() != Instigator && InstPS->GetTeam() == Victim->GetTeam())
-	{
-		return Damage * FriendlyFireScale;
-	}
-	return Damage;
-}
-
-void AMFGameMode_TDM::ScoreKill(AMFPlayerState* Killer, AMFPlayerState* Victim)
-{
-	AMFGameState* GS = GetGameState<AMFGameState>();
-	const bool bTeamKill = Killer && Victim && Killer != Victim && Killer->GetTeam() == Victim->GetTeam();
-	if (!bTeamKill)
-	{
-		Super::ScoreKill(Killer, Victim);
-	}
-	else if (Victim)
-	{
-		Victim->Deaths++;
-	}
-	// RageTeamGame.ScoreKill (bScoreTeamKills)
-	if (!GS || !Victim || Victim->GetTeam() == EMFTeam::None)
-	{
-		return;
-	}
-	if (!Killer || Killer == Victim)
-	{
-		GS->TeamScores[uint8(Victim->GetTeam())] -= 1;
-	}
-	else if (!bTeamKill)
-	{
-		GS->TeamScores[uint8(Killer->GetTeam())] += 1;
-	}
-	else if (FriendlyFireScale > 0.f)
-	{
-		GS->TeamScores[uint8(Victim->GetTeam())] -= 1;
-		Killer->SetScore(Killer->GetScore() - 1.f);
-	}
-}
-
-void AMFGameMode_TDM::CheckEndConditions(AMFPlayerState* LastKiller)
-{
-	const AMFGameState* GS = GetGameState<AMFGameState>();
-	if (!GS || GoalTeamScore <= 0)
-	{
-		return;
-	}
-	for (int32 T = 0; T < 2; ++T)
-	{
-		if (GS->TeamScores[T] >= GoalTeamScore)
-		{
-			EndMatch(T == 0 ? TEXT("Blue Team Wins!") : TEXT("Red Team Wins!"));
-			return;
-		}
-	}
-}
-
-void AMFGameMode_TDM::OnTimeLimit()
-{
-	const AMFGameState* GS = GetGameState<AMFGameState>();
-	const int32 B = GS->TeamScores[0], R = GS->TeamScores[1];
-	EndMatch(B == R ? TEXT("DRAW - Neither team wins") : (B > R ? TEXT("Blue Team Wins!") : TEXT("Red Team Wins!")));
 }

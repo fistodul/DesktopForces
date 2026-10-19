@@ -39,3 +39,8 @@ __pycache__/
 # --- Epic template content (UE EULA: not for public redistribution); local placeholders only ---
 /Content/Characters/
 /Content/LevelPrototyping/
+
+# --- Mod plugins: assets generated from each plugin's SourceArt ---
+/Plugins/*/*/Content/Generated/
+/Plugins/*/*/Binaries/
+/Plugins/*/*/Intermediate/

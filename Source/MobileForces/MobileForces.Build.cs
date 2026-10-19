@@ -20,7 +20,8 @@ public class MobileForces : ModuleRules
 			"Slate",
 			"SlateCore",
 			"NetCore",
-			"PhysicsCore"
+			"PhysicsCore",
+			"DeveloperSettings"
 		});
 
 		PublicIncludePaths.Add(ModuleDirectory);

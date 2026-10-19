@@ -10,6 +10,7 @@
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Misc/FileHelper.h"
@@ -224,7 +225,61 @@ bool FMFImporter::ImportSounds(const FString& SubDir, bool bLooping)
 	return true;
 }
 
+// --- mod plugin art --------------------------------------------------------------------
+
+bool FMFImporter::ImportPluginArt()
+{
+	const FString Root = WorkDir / TEXT("Plugins");
+	TArray<FString> Plugins;
+	IFileManager::Get().FindFiles(Plugins, *(Root / TEXT("*")), false, true);
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	for (const FString& Plugin : Plugins)
+	{
+		TArray<FString> Files;
+		IFileManager::Get().FindFilesRecursive(Files, *(Root / Plugin), TEXT("*.*"), true, false);
+		TArray<UAssetImportTask*> Tasks;
+		for (const FString& File : Files)
+		{
+			FString Rel = File;
+			FPaths::MakePathRelativeTo(Rel, *(Root / Plugin + TEXT("/")));
+			UAssetImportTask* Task = NewObject<UAssetImportTask>();
+			Task->Filename = File;
+			Task->DestinationPath = FString::Printf(TEXT("/%s/Generated/%s"), *Plugin, *FPaths::GetPath(Rel));
+			Task->DestinationName = FPaths::GetBaseFilename(Rel);
+			Task->bAutomated = true;
+			Task->bReplaceExisting = true;
+			Task->bSave = true;
+			Tasks.Add(Task);
+		}
+		UE_LOG(LogMFEditor, Display, TEXT("Plugin %s: importing %d files"), *Plugin, Tasks.Num());
+		AssetTools.ImportAssetTasks(Tasks);
+	}
+	return true;
+}
+
 // --- materials -------------------------------------------------------------------------
+
+void FMFImporter::EnsureTeamTintMaterial()
+{
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_TeamTint"), bCreated);
+	if (!bCreated)
+	{
+		return;
+	}
+	UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(M);
+	Color->ParameterName = TEXT("Color");
+	Color->DefaultValue = FLinearColor(0.7f, 0.7f, 0.7f);
+	Color->bUseCustomPrimitiveData = true;
+	Color->PrimitiveDataIndex = 0;
+	M->GetExpressionCollection().AddExpression(Color);
+	M->SetShadingModel(MSM_Unlit);
+	M->GetEditorOnlyData()->EmissiveColor.Connect(0, Color);
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	UE_LOG(LogMFEditor, Display, TEXT("Created M_MF_TeamTint"));
+}
 
 UMaterialInterface* FMFImporter::GetMasterMaterial(const FString& Mode)
 {

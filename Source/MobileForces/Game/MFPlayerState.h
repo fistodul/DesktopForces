@@ -2,12 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "GenericTeamAgentInterface.h"
 #include "Core/MFTypes.h"
 #include "MFPlayerState.generated.h"
 
-/** MF PlayerReplicationInfo: team, frags (APlayerState::Score), deaths, killing spree. */
+/**
+ * Per-player replicated state: team, frags (APlayerState::Score), deaths, spree.
+ * The team lives here (not on the pawn) so it survives respawns; pawns and bot
+ * controllers forward IGenericTeamAgentInterface to it.
+ */
 UCLASS()
-class MOBILEFORCES_API AMFPlayerState : public APlayerState
+class MOBILEFORCES_API AMFPlayerState : public APlayerState, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -15,9 +20,14 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void CopyProperties(APlayerState* PlayerState) override;
 
+	// IGenericTeamAgentInterface
+	virtual FGenericTeamId GetGenericTeamId() const override { return FGenericTeamId(Team); }
+	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamId) override { Team = NewTeamId.GetId(); }
+
 	UFUNCTION(BlueprintPure, Category = "MF")
-	EMFTeam GetTeam() const { return Team; }
-	void SetTeam(EMFTeam NewTeam) { Team = NewTeam; }
+	uint8 GetTeam() const { return Team; }
+	void SetTeam(uint8 NewTeam) { Team = NewTeam; }
+	bool HasTeam() const { return Team != MF::NoTeam; }
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 Kills = 0;
@@ -25,7 +35,7 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 Deaths = 0;
 
-	/** Kills since last death (MF Pawn.Spree; announcements from 5). */
+	/** Kills since last death (announcements every 5). */
 	int32 Spree = 0;
 
 	/** Server time of the last death (respawn countdown). */
@@ -34,5 +44,5 @@ public:
 
 protected:
 	UPROPERTY(Replicated)
-	EMFTeam Team = EMFTeam::None;
+	uint8 Team = MF::NoTeam;
 };

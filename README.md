@@ -32,8 +32,9 @@ python3 Tools/mfport/mfport.py all mf-warehouse
 ```
 
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,
-C crouch, Shift walk, F1/Tab scores). Map URL options: `?game=/Script/MobileForces.MFGameMode_TDM`,
-`?FragLimit=10?TimeLimit=5`.
+C crouch, Shift walk, F1/Tab scores). Map URL options: `?game=/Script/MobileForces.MFGameMode_TDM`
+(also `MFGameMode_Holdout`, `/Script/MFModKOH.MFGameMode_KOH`), `?Bots=8?BotSkill=0.7`,
+`?Teams=4`, `?FragLimit=10?TimeLimit=5`.
 
 ## Layout
 
@@ -43,6 +44,7 @@ C crouch, Shift walk, F1/Tab scores). Map URL options: `?game=/Script/MobileForc
 | `Source/MobileForcesEditor/` | Editor module: importer commandlet (`-run=MFImport`) that builds assets and maps from the pipeline output |
 | `Tools/mfport/` | Python pipeline: reads the original packages (`.umf/.utx/.uax/.u`), exports with UCC, converts BSP/meshes/textures/sounds |
 | `Tools/mfport/overrides/` | Replacement textures/sounds (committed; take precedence over the originals) |
+| `Plugins/Mods/` | Mods as UE plugins (Molotov, King of the Hill, …) — see [Docs/Modding.md](Docs/Modding.md) |
 | `Content/MF/` | Our own assets (master materials, ...) — committed |
 | `Content/MFImported/`, `Content/MFMaps/Generated/` | Generated from the original game — **never committed** |
 | `Docs/` | How everything works |
@@ -53,12 +55,19 @@ C crouch, Shift walk, F1/Tab scores). Map URL options: `?game=/Script/MobileForc
 - [Pipeline](Docs/Pipeline.md) — asset conversion, file formats, overrides
 - [Gameplay reference](Docs/Gameplay.md) — every number taken from the original game
 - [Performance rules](Docs/Performance.md) — mobile-first rendering and code rules
+- [Modding](Docs/Modding.md) — mods as plugins, examples, data formats
 - [Roadmap](Docs/Roadmap.md) — what's done and what's next
 
 ## Status
 
-Early but playable: deathmatch / team deathmatch on converted original maps with the
-core arsenal and the loadout system. See the roadmap for game modes, vehicles and bots.
+Early but playable: deathmatch, team deathmatch, Holdout and King of the Hill on converted
+original maps with the full stock arsenal, the loadout system and bots. See the roadmap for
+the rest.
+
+## Licence
+
+Code, tools and docs: GNU LGPL v3 or later, with an additional permission for linking with
+Unreal Engine — see [LICENSE.md](LICENSE.md). Mods keep their own licences.
 
 Mobile Forces is © Rage Software / Majesco. This project is a non-commercial fan remake;
 it ships no original game data.
