@@ -14,7 +14,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ UE importer commandlet, map builder, Lightmass bake step
 - ✅ Override folders for clean replacement textures/sounds
 - ✅ Lightmass on Linux (UE 5.8.3): 6-byte patch of the shipped library (once per machine) + `-messaging` for the bake commandlet ([Pipeline.md](Pipeline.md#baking-on-linux-ue-583))
-- 🟡 Light intensity tuning against the original look (compare screenshots in-game)
+- 🟡 Light intensity tuning against the original look: baked warehouse now shows its textures (0.35 per light); spawn rooms still blow out where many lights overlap - compare with MF screenshots, maybe per-light radius/brightness curve
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ⬜ Skeletal meshes + animations (soldiers, first-person weapons): MeshAnimation parses; SkeletalMesh reader + PSK/glTF export
 - ⬜ `DeviceMesh` / `LodMesh` (crates, pickups, effects)
