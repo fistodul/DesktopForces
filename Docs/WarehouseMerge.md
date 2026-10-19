@@ -1,5 +1,13 @@
 # mf-warehouse merge plan
 
+> **2026-10-19 decision: the automatic merge is dropped.** Played in game, the merged map had
+> too many black holes seen from one side, pieces in the wrong places and centimetre gaps.
+> The original mf-warehouse stays the map; Mobile Forces Source features (secrets,
+> `func_breakable` doors and passages, props) get added to it by hand later. What is below
+> is kept as a record and because the alignment (`vmf_maps.toml`) and the prop converter
+> (`mflib/sourcemdl.py`) make it easy to bring individual MFS pieces over in the right place.
+
+
 Goal: **one** mf-warehouse that combines the original map (Billy Thomson, Rage) with the
 extended Mobile Forces Source remake (`MoFo/Mobile-Forces-Source/mp/game/mobileforcessource/mapsrc/mf-warehouse.vmf`):
 MFS's extra geometry, details and secrets, matched area by area to the original layout,

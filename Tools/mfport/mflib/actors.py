@@ -44,8 +44,8 @@ CRATES = {
     'LoadoutCrate': ('255', True, True),
 }
 
-LIGHT_INTENSITY = 4.0       # UE unitless intensity for a full-brightness MF light (tuned by eye)
-SUN_INTENSITY = 2.5
+LIGHT_INTENSITY = 0.35      # UE unitless intensity for a full-brightness MF light (baked, fixed exposure; tuned 2026-10-20)
+SUN_INTENSITY = 0.4
 
 
 def ue1_hsv(hue: int, sat: int, bright: int) -> tuple[float, float, float]:

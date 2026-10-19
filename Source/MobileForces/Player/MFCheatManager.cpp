@@ -1,5 +1,13 @@
 #include "Player/MFCheatManager.h"
 #include "MobileForces.h"
+#include "Core/MFTypes.h"
+#include "Game/MFGameMode.h"
+#include "Game/MFGameState.h"
+#include "Game/MFPlayerState.h"
+#include "Player/MFCharacter.h"
+#include "Player/MFCharacterMovement.h"
+#include "Weapons/MFWeapon.h"
+#include "UObject/UObjectIterator.h"
 #include "World/MFLadder.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -98,4 +106,197 @@ void UMFCheatManager::MFTopView(float X, float Y, float Width, float Z)
 	CC->SetOrthoNearClipPlane(0.f);
 	CC->SetOrthoFarClipPlane(Z != 0.f ? 6000.f : 40000.f);
 	GetPlayerController()->SetViewTarget(Cam);
+}
+
+// --- Mobile Forces cheats ---------------------------------------------------------------
+// MF allowed these only with cheats on and in single player (bGreatDane, NM_Standalone);
+// UE's cheat manager has the same rule (standalone, or `EnableCheats` on a listen server).
+
+namespace
+{
+	TSubclassOf<AMFWeapon> FindWeaponClass(const FString& Name)
+	{
+		// "Shotgun", "MFWeapon_Shotgun" or a full path
+		if (UClass* C = LoadClass<AMFWeapon>(nullptr, *Name, nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			return C;
+		}
+		UClass* Best = nullptr;
+		for (TObjectIterator<UClass> It; It; ++It)
+		{
+			if (!It->IsChildOf(AMFWeapon::StaticClass()) || It->HasAnyClassFlags(CLASS_Abstract))
+			{
+				continue;
+			}
+			const FString N = It->GetName();
+			if (N.Equals(Name, ESearchCase::IgnoreCase) || N.Equals(TEXT("MFWeapon_") + Name, ESearchCase::IgnoreCase))
+			{
+				return *It;
+			}
+			if (!Best && N.Contains(Name))
+			{
+				Best = *It;
+			}
+		}
+		return Best;
+	}
+}
+
+void UMFCheatManager::SetTeam(int32 N)
+{
+	APlayerController* PC = GetPlayerController();
+	AMFPlayerState* PS = PC ? PC->GetPlayerState<AMFPlayerState>() : nullptr;
+	AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	if (!PS || !GM || !GS || !GS->IsTeamGame() || N < 0 || N >= GS->NumTeams)
+	{
+		return;
+	}
+	// RagePlayer.SetTeam -> ChangeTeam: new team, fresh spawn on its side
+	PS->SetTeam(uint8(N));
+	if (APawn* P = PC->GetPawn())
+	{
+		P->Destroy();
+	}
+	GM->RestartPlayer(PC);
+}
+
+void UMFCheatManager::KillEnemy()
+{
+	const AMFCharacter* Me = Cast<AMFCharacter>(GetPlayerController()->GetPawn());
+	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+	{
+		if (*It != Me && It->IsAlive() && (!Me || It->GetTeam() == MF::NoTeam || It->GetTeam() != Me->GetTeam()))
+		{
+			It->Die(GetPlayerController(), UMFDamage_Suicide::StaticClass(), nullptr);
+		}
+	}
+}
+
+void UMFCheatManager::KillPawns()
+{
+	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+	{
+		if (It->IsAlive() && !It->IsPlayerControlled())
+		{
+			It->Die(nullptr, UMFDamage_Suicide::StaticClass(), nullptr);
+		}
+	}
+}
+
+void UMFCheatManager::KillAll(const FString& ClassName)
+{
+	UClass* Class = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::NativeFirst);
+	if (!Class)
+	{
+		Class = FindFirstObject<UClass>(*(TEXT("MF") + ClassName), EFindFirstObjectOptions::NativeFirst);
+	}
+	if (!Class || !Class->IsChildOf(AActor::StaticClass()))
+	{
+		return;
+	}
+	for (TActorIterator<AActor> It(GetWorld(), Class); It; ++It)
+	{
+		if (AMFCharacter* C = Cast<AMFCharacter>(*It))
+		{
+			if (C->IsAlive() && C != GetPlayerController()->GetPawn())
+			{
+				C->Die(nullptr, UMFDamage_Suicide::StaticClass(), nullptr);
+			}
+		}
+		else if (*It != GetPlayerController())
+		{
+			It->Destroy();
+		}
+	}
+}
+
+void UMFCheatManager::TeamGod()
+{
+	const AMFCharacter* Me = Cast<AMFCharacter>(GetPlayerController()->GetPawn());
+	if (!Me)
+	{
+		return;
+	}
+	const bool bGod = Me->CanBeDamaged();   // toggle from the player's own state
+	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+	{
+		if (It->GetTeam() == Me->GetTeam())
+		{
+			It->SetCanBeDamaged(!bGod);
+		}
+	}
+	GetPlayerController()->ClientMessage(bGod ? TEXT("Team god mode on") : TEXT("Team god mode off"));
+}
+
+void UMFCheatManager::AllAmmo()
+{
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()))
+	{
+		C->RefillAmmo();
+	}
+}
+
+void UMFCheatManager::SetTime(int32 Seconds)
+{
+	if (AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>(); GS && GS->TimeLimit > 0)
+	{
+		GS->ElapsedTime = FMath::Max(0, GS->TimeLimit * 60 - Seconds);   // RagePlayer.settime
+	}
+}
+
+void UMFCheatManager::SetWeapons(const FString& WeaponName)
+{
+	const TSubclassOf<AMFWeapon> Class = FindWeaponClass(WeaponName);
+	if (!Class)
+	{
+		return;
+	}
+	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsPlayerControlled() && It->IsAlive())
+		{
+			if (AMFWeapon* W = It->GiveWeapon(Class, false))
+			{
+				It->EquipWeapon(W);
+			}
+		}
+	}
+}
+
+void UMFCheatManager::GiveWeapon(const FString& WeaponName)
+{
+	AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn());
+	const TSubclassOf<AMFWeapon> Class = FindWeaponClass(WeaponName);
+	if (C && Class)
+	{
+		if (AMFWeapon* W = C->GiveWeapon(Class, false))
+		{
+			C->EquipWeapon(W);
+		}
+	}
+}
+
+void UMFCheatManager::SetSpeed(float Multiplier)
+{
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()))
+	{
+		UCharacterMovementComponent* M = C->GetCharacterMovement();
+		const UCharacterMovementComponent* Def = GetDefault<UMFCharacterMovement>();
+		M->MaxWalkSpeed = Def->MaxWalkSpeed * Multiplier;
+		M->MaxWalkSpeedCrouched = Def->MaxWalkSpeedCrouched * Multiplier;
+	}
+}
+
+void UMFCheatManager::SetJumpZ(float Velocity)
+{
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()))
+	{
+		C->GetCharacterMovement()->JumpZVelocity = Velocity;
+	}
+}
+
+void UMFCheatManager::ViewMe()
+{
+	ViewSelf();
 }

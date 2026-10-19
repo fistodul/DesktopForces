@@ -32,6 +32,7 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 	FMFImporter Importer(Work);
 	int32 Errors = 0;
 	Importer.EnsureTeamTintMaterial();   // shared runtime material, cheap no-op once it exists
+	Importer.FixMasterMaterialUsage();
 	if (Steps.Contains(TEXT("textures")) && !Importer.ImportTextures())
 	{
 		++Errors;

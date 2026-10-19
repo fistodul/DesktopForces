@@ -40,7 +40,15 @@ public:
 	bool IsLoadoutOpen() const;
 	/** Items shown in the menu: the source's items, ordered by slot key (menu rows). */
 	TArray<TSubclassOf<AMFWeapon>> GetLoadoutItems() const;
+	/** Carried items the cursor can reach to put back (MF LoadoutInventory; never the knife). */
+	TArray<AMFWeapon*> GetLoadoutInventory() const;
+	/**
+	 * MF loadout cursor: 0 .. store-1 = a store item you can take, then the carried items
+	 * (selecting one puts it back). W/S, Up/Down and the mouse wheel walk through both.
+	 */
 	int32 LoadoutCursor = 0;
+	/** Carried item under the cursor (cursor in the inventory part), else null. */
+	AMFWeapon* GetLoadoutCursorWeapon() const;
 	/**
 	 * Slot key whose row is waiting for the second key press (0 = none). A row with one
 	 * item is picked by its key directly (MF); a row with more opens and the next number
@@ -52,6 +60,51 @@ public:
 	float MouseSensitivity = 1.f;
 
 	bool IsScoreboardShown() const { return bShowScores; }
+
+	// --- Mobile Forces console commands (same names as the original game) ---
+	/** Kill yourself and respawn (stuck somewhere, wrong spot ...). */
+	UFUNCTION(Exec)
+	void Suicide();
+	UFUNCTION(Exec)
+	void TryLoadout();
+	UFUNCTION(Exec)
+	void LoadoutNext();
+	UFUNCTION(Exec)
+	void LoadoutPrev();
+	UFUNCTION(Exec)
+	void LoadoutSelect();
+	/** Select inventory group: 1-9, 10 = key 0, 11 = X. */
+	UFUNCTION(Exec)
+	void SwitchWeapon(int32 Group);
+	UFUNCTION(Exec)
+	void NextWeapon();
+	UFUNCTION(Exec)
+	void PrevWeapon();
+	/** Drop the held weapon (MF ThrowWeapon / Drop). */
+	UFUNCTION(Exec)
+	void ThrowWeapon();
+	UFUNCTION(Exec)
+	void Drop();
+	UFUNCTION(Exec)
+	void ShowScores();
+	UFUNCTION(Exec)
+	void SShot();
+	/** Add bots (host or single player only): normal, good, bad skill. */
+	UFUNCTION(Exec)
+	void AddBots(int32 N);
+	UFUNCTION(Exec)
+	void GoodBot(int32 N);
+	UFUNCTION(Exec)
+	void BadBot(int32 N);
+	UFUNCTION(Exec)
+	void ListBots();
+	/** HUD size 0-4 (MF HUDSize: 32, 48, 64, 96, 128 px blocks). */
+	UFUNCTION(Exec)
+	void GrowHUD();
+	UFUNCTION(Exec)
+	void ShrinkHUD();
+	UFUNCTION(Exec)
+	void ChangeCrosshair();
 
 	// --- console commands (also used by automated smoke tests via -MFExec) ---
 	/** Take loadout item N (0-based, menu order). */
@@ -72,6 +125,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
 
@@ -81,6 +135,12 @@ protected:
 	void ServerLoadoutPick(TSubclassOf<AMFWeapon> Item);
 	UFUNCTION(Server, Reliable)
 	void ServerDropWeapon();
+	UFUNCTION(Server, Reliable)
+	void ServerLoadoutDrop(AMFWeapon* Item);
+	UFUNCTION(Server, Reliable)
+	void ServerSuicide();
+	UFUNCTION(Server, Reliable)
+	void ServerAddBots(int32 N, float SkillOffset);
 
 	// input handlers
 	void OnMove(const FInputActionValue& Value);
@@ -117,6 +177,10 @@ protected:
 	bool bShowScores = false;
 
 	void LoadoutKey(int32 Slot);
+	bool IsLoadoutEntryValid(int32 Index) const;
+	void LoadoutMove(int32 Dir);
+	void PlayUISound(const TCHAR* Path);
+	bool bLoadoutWasOpen = false;
 	int32 LoadoutOpenSlot = 0;
 	float LoadoutOpenTime = 0.f;
 };

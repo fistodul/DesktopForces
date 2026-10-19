@@ -32,6 +32,11 @@ public:
 
 	/** M_MF_TeamTint: unlit, colour from custom primitive data 0-3 (UMFGameSettings::TeamTintMaterial). */
 	void EnsureTeamTintMaterial();
+	/**
+	 * Our master materials must allow static lighting (UE 5.8: MATUSAGE_StaticLighting),
+	 * otherwise every lightmapped surface falls back to the default checker material.
+	 */
+	void FixMasterMaterialUsage();
 
 	/** Import mod plugins' converted SourceArt (work/out/Plugins/<Plugin>/...) into /<Plugin>/Generated/. */
 	bool ImportPluginArt();

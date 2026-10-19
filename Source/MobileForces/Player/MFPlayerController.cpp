@@ -1,4 +1,10 @@
 #include "Player/MFPlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Core/MFTypes.h"
+#include "UI/MFHUD.h"
+#include "Game/MFGameMode.h"
+#include "AI/MFBotController.h"
+#include "Kismet/GameplayStatics.h"
 #include "Player/MFCheatManager.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFCharacterMovement.h"
@@ -90,14 +96,18 @@ void AMFPlayerController::BuildInput()
 		{ TEXT("Reload"), EKeys::R, EKeys::Gamepad_FaceButton_Left },
 		{ TEXT("Loadout"), EKeys::Q, EKeys::Gamepad_Special_Right },
 		{ TEXT("Use"), EKeys::E, EKeys::Gamepad_FaceButton_Top },
-		{ TEXT("NextWeapon"), EKeys::MouseScrollUp, EKeys::Gamepad_RightShoulder },
-		{ TEXT("PrevWeapon"), EKeys::MouseScrollDown, EKeys::Gamepad_LeftShoulder },
-		{ TEXT("NextWeaponKey"), EKeys::LeftBracket, FKey() },
-		{ TEXT("PrevWeaponKey"), EKeys::RightBracket, FKey() },
+		// MF DefUser.ini: MouseWheelDown / ] = NextWeapon, MouseWheelUp / [ = PrevWeapon
+		{ TEXT("NextWeapon"), EKeys::MouseScrollDown, EKeys::Gamepad_RightShoulder },
+		{ TEXT("PrevWeapon"), EKeys::MouseScrollUp, EKeys::Gamepad_LeftShoulder },
+		{ TEXT("NextWeaponKey"), EKeys::RightBracket, FKey() },
+		{ TEXT("PrevWeaponKey"), EKeys::LeftBracket, FKey() },
+		{ TEXT("Throw"), EKeys::Semicolon, FKey() },
+		{ TEXT("LoadoutAlt"), EKeys::BackSpace, FKey() },
 		{ TEXT("Scores"), EKeys::F1, EKeys::Gamepad_Special_Left },
 		{ TEXT("ScoresTab"), EKeys::Tab, FKey() },
-		{ TEXT("MenuUp"), EKeys::Up, EKeys::Gamepad_DPad_Up },
-		{ TEXT("MenuDown"), EKeys::Down, EKeys::Gamepad_DPad_Down },
+		// in loadout W/S walk the cursor too (MF MoveForward = LoadoutPrev, MoveBackward = LoadoutNext)
+		{ TEXT("MenuUp"), EKeys::Up, EKeys::W },
+		{ TEXT("MenuDown"), EKeys::Down, EKeys::S },
 		{ TEXT("MenuSelect"), EKeys::Enter, FKey() },
 	};
 	for (const FBind& B : Buttons)
@@ -155,6 +165,8 @@ void AMFPlayerController::SetupInputComponent()
 	EIC->BindAction(A(TEXT("AltFire")), ETriggerEvent::Completed, this, &AMFPlayerController::OnAltFireReleased);
 	EIC->BindAction(A(TEXT("Reload")), ETriggerEvent::Started, this, &AMFPlayerController::OnReload);
 	EIC->BindAction(A(TEXT("Loadout")), ETriggerEvent::Started, this, &AMFPlayerController::OnLoadout);
+	EIC->BindAction(A(TEXT("LoadoutAlt")), ETriggerEvent::Started, this, &AMFPlayerController::OnLoadout);
+	EIC->BindAction(A(TEXT("Throw")), ETriggerEvent::Started, this, &AMFPlayerController::ThrowWeapon);
 	EIC->BindAction(A(TEXT("NextWeapon")), ETriggerEvent::Started, this, &AMFPlayerController::OnNextWeapon);
 	EIC->BindAction(A(TEXT("PrevWeapon")), ETriggerEvent::Started, this, &AMFPlayerController::OnPrevWeapon);
 	EIC->BindAction(A(TEXT("NextWeaponKey")), ETriggerEvent::Started, this, &AMFPlayerController::OnNextWeapon);
@@ -190,6 +202,10 @@ void AMFPlayerController::OnMove(const FInputActionValue& Value)
 
 void AMFPlayerController::OnLook(const FInputActionValue& Value)
 {
+	if (IsLoadoutOpen())
+	{
+		return;   // MF: the view is frozen in the loadout screen
+	}
 	const FVector2D V = Value.Get<FVector2D>();
 	// Slower look while zoomed, like MF (FOV-scaled mouse)
 	float Scale = MouseSensitivity;
@@ -306,12 +322,12 @@ void AMFPlayerController::OnNextWeapon()
 	}
 	if (C->IsInLoadout())
 	{
-		OnMenuUp();
+		LoadoutNext();
 		return;
 	}
 	if (AMFWeapon_Rifle* Rifle = Cast<AMFWeapon_Rifle>(C->GetCurrentWeapon()); Rifle && Rifle->IsZoomed())
 	{
-		Rifle->AdjustZoom(+1);   // MF: mouse wheel changes sniper magnification while zoomed
+		Rifle->AdjustZoom(-1);   // MF NextWeapon alias: ZoomOutScope
 		return;
 	}
 	C->CycleWeapon(+1);
@@ -326,12 +342,12 @@ void AMFPlayerController::OnPrevWeapon()
 	}
 	if (C->IsInLoadout())
 	{
-		OnMenuDown();
+		LoadoutPrev();
 		return;
 	}
 	if (AMFWeapon_Rifle* Rifle = Cast<AMFWeapon_Rifle>(C->GetCurrentWeapon()); Rifle && Rifle->IsZoomed())
 	{
-		Rifle->AdjustZoom(-1);
+		Rifle->AdjustZoom(+1);   // MF PrevWeapon alias: ZoomInScope
 		return;
 	}
 	C->CycleWeapon(-1);
@@ -490,23 +506,90 @@ void AMFPlayerController::ExitLoadout()
 
 void AMFPlayerController::OnMenuUp()
 {
-	if (IsLoadoutOpen())
-	{
-		const int32 N = GetLoadoutItems().Num();
-		LoadoutCursor = N > 0 ? (LoadoutCursor - 1 + N) % N : 0;
-	}
+	LoadoutPrev();
 }
 
 void AMFPlayerController::OnMenuDown()
 {
-	if (IsLoadoutOpen())
-	{
-		const int32 N = GetLoadoutItems().Num();
-		LoadoutCursor = N > 0 ? (LoadoutCursor + 1) % N : 0;
-	}
+	LoadoutNext();
 }
 
 void AMFPlayerController::OnMenuSelect()
+{
+	LoadoutSelect();
+}
+
+TArray<AMFWeapon*> AMFPlayerController::GetLoadoutInventory() const
+{
+	TArray<AMFWeapon*> Out;
+	if (const AMFCharacter* C = GetMFCharacter())
+	{
+		for (AMFWeapon* W : C->GetInventory())
+		{
+			if (W && W->bLoadoutSelectable && W->InventoryGroup != 1)   // MF: SwitchWeapon F != 1
+			{
+				Out.Add(W);
+			}
+		}
+	}
+	Out.StableSort([](const AMFWeapon& A, const AMFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
+	return Out;
+}
+
+AMFWeapon* AMFPlayerController::GetLoadoutCursorWeapon() const
+{
+	const TArray<AMFWeapon*> Inv = GetLoadoutInventory();
+	const int32 i = LoadoutCursor - GetLoadoutItems().Num();
+	return Inv.IsValidIndex(i) ? Inv[i] : nullptr;
+}
+
+bool AMFPlayerController::IsLoadoutEntryValid(int32 Index) const
+{
+	const AMFCharacter* C = GetMFCharacter();
+	if (!C)
+	{
+		return false;
+	}
+	const TArray<TSubclassOf<AMFWeapon>> Items = GetLoadoutItems();
+	if (Items.IsValidIndex(Index))
+	{
+		return C->CanCarry(Items[Index]);   // RagePlayer LoadoutAvailable.IsSelectionValid: CanIPickup
+	}
+	return GetLoadoutInventory().IsValidIndex(Index - Items.Num());
+}
+
+void AMFPlayerController::LoadoutMove(int32 Dir)
+{
+	const int32 N = GetLoadoutItems().Num() + GetLoadoutInventory().Num();
+	for (int32 Step = 0; Step < N; ++Step)
+	{
+		LoadoutCursor = ((LoadoutCursor + Dir) % N + N) % N;
+		if (IsLoadoutEntryValid(LoadoutCursor))
+		{
+			return;
+		}
+	}
+}
+
+void AMFPlayerController::LoadoutNext()
+{
+	if (IsLoadoutOpen())
+	{
+		LoadoutOpenSlot = 0;
+		LoadoutMove(+1);
+	}
+}
+
+void AMFPlayerController::LoadoutPrev()
+{
+	if (IsLoadoutOpen())
+	{
+		LoadoutOpenSlot = 0;
+		LoadoutMove(-1);
+	}
+}
+
+void AMFPlayerController::LoadoutSelect()
 {
 	if (!IsLoadoutOpen())
 	{
@@ -515,7 +598,170 @@ void AMFPlayerController::OnMenuSelect()
 	const TArray<TSubclassOf<AMFWeapon>> Items = GetLoadoutItems();
 	if (Items.IsValidIndex(LoadoutCursor))
 	{
-		ServerLoadoutPick(Items[LoadoutCursor]);
+		if (IsLoadoutEntryValid(LoadoutCursor))
+		{
+			ServerLoadoutPick(Items[LoadoutCursor]);
+			PlayUISound(TEXT("/Game/MFImported/Sounds/MiscSFX/LoadoutGet.LoadoutGet"));
+		}
+	}
+	else if (AMFWeapon* W = GetLoadoutCursorWeapon())
+	{
+		ServerLoadoutDrop(W);
+		PlayUISound(TEXT("/Game/MFImported/Sounds/MiscSFX/LoadoutDrop.LoadoutDrop"));
+	}
+}
+
+void AMFPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+	// RagePlayer Loadout.PlayerTick -> CheckLoadoutState: keep the cursor on something usable
+	const bool bOpen = IsLoadoutOpen();
+	if (bOpen && (!bLoadoutWasOpen || !IsLoadoutEntryValid(LoadoutCursor)))
+	{
+		if (!bLoadoutWasOpen)
+		{
+			LoadoutCursor = -1;   // StartLoadout: LoadoutCurrent = 0 -> first usable entry
+			LoadoutOpenSlot = 0;
+		}
+		LoadoutMove(+1);
+	}
+	bLoadoutWasOpen = bOpen;
+}
+
+void AMFPlayerController::PlayUISound(const TCHAR* Path)
+{
+	UGameplayStatics::PlaySound2D(this, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
+}
+
+void AMFPlayerController::ServerLoadoutDrop_Implementation(AMFWeapon* Item)
+{
+	AMFCharacter* C = GetMFCharacter();
+	if (!C || !C->IsInLoadout() || !Item || !Item->bLoadoutSelectable || !C->GetInventory().Contains(Item))
+	{
+		return;
+	}
+	const bool bWasCurrent = C->GetCurrentWeapon() == Item;
+	C->RemoveWeapon(Item, true);
+	if (bWasCurrent)
+	{
+		C->SwitchToBestWeapon();
+	}
+}
+
+// --- MF console commands -------------------------------------------------------------
+
+void AMFPlayerController::Suicide()
+{
+	ServerSuicide();
+}
+
+void AMFPlayerController::ServerSuicide_Implementation()
+{
+	if (AMFCharacter* C = GetMFCharacter(); C && C->IsAlive())
+	{
+		C->Die(this, UMFDamage_Suicide::StaticClass(), nullptr);   // PlayerPawn.Suicide: KilledBy(None)
+	}
+}
+
+void AMFPlayerController::TryLoadout()
+{
+	OnLoadout();
+}
+
+void AMFPlayerController::SwitchWeapon(int32 Group)
+{
+	OnWeaponSlot(Group);
+}
+
+void AMFPlayerController::NextWeapon()
+{
+	OnNextWeapon();
+}
+
+void AMFPlayerController::PrevWeapon()
+{
+	OnPrevWeapon();
+}
+
+void AMFPlayerController::ThrowWeapon()
+{
+	if (!IsLoadoutOpen())
+	{
+		ServerDropWeapon();
+	}
+}
+
+void AMFPlayerController::Drop()
+{
+	ThrowWeapon();
+}
+
+void AMFPlayerController::ShowScores()
+{
+	bShowScores = !bShowScores;
+}
+
+void AMFPlayerController::SShot()
+{
+	FScreenshotRequest::RequestScreenshot(false);
+}
+
+void AMFPlayerController::AddBots(int32 N)
+{
+	ServerAddBots(N, 0.f);
+}
+
+void AMFPlayerController::GoodBot(int32 N)
+{
+	ServerAddBots(N, 0.3f);
+}
+
+void AMFPlayerController::BadBot(int32 N)
+{
+	ServerAddBots(N, -0.3f);
+}
+
+void AMFPlayerController::ServerAddBots_Implementation(int32 N, float SkillOffset)
+{
+	// PlayerPawn.ServerAddBots: admin or single player only; here: the host
+	AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	if (!GM || (GetNetMode() != NM_Standalone && !IsLocalController()))
+	{
+		return;
+	}
+	GM->AddBots(FMath::Clamp(N, 1, 64), FMath::Clamp(GM->BotSkill + SkillOffset, 0.f, 1.f));
+}
+
+void AMFPlayerController::ListBots()
+{
+	for (TActorIterator<AMFBotController> It(GetWorld()); It; ++It)
+	{
+		const APlayerState* PS = It->PlayerState;
+		ClientMessage(FString::Printf(TEXT("%s skill %.2f"), PS ? *PS->GetPlayerName() : TEXT("?"), It->Skill));
+	}
+}
+
+void AMFPlayerController::GrowHUD()
+{
+	if (AMFHUD* HUD = GetHUD<AMFHUD>())
+	{
+		HUD->ChangeHUDSize(+1);
+	}
+}
+
+void AMFPlayerController::ChangeCrosshair()
+{
+	if (AMFHUD* HUD = GetHUD<AMFHUD>())
+	{
+		HUD->ChangeCrosshair(+1);
+	}
+}
+
+void AMFPlayerController::ShrinkHUD()
+{
+	if (AMFHUD* HUD = GetHUD<AMFHUD>())
+	{
+		HUD->ChangeHUDSize(-1);
 	}
 }
 

@@ -57,6 +57,7 @@ number picks a row, a second number the item in it. Map URL options: `?game=/Scr
 - [Gameplay reference](Docs/Gameplay.md) — every number taken from the original game
 - [Performance rules](Docs/Performance.md) — mobile-first rendering and code rules
 - [Modding](Docs/Modding.md) — mods as plugins, examples, data formats
+- [Console commands](Docs/Commands.md) — MF commands, cheats, test helpers
 - [Roadmap](Docs/Roadmap.md) — what's done and what's next
 
 ## Status
@@ -67,8 +68,7 @@ the rest.
 
 ## Licence
 
-Code, tools and docs: GNU LGPL v3 or later, with an additional permission for linking with
-Unreal Engine — see [LICENSE.md](LICENSE.md). Mods keep their own licences.
+Code, tools and docs: Mozilla Public License 2.0 — see [LICENSE.md](LICENSE.md).
 
 Mobile Forces is © Rage Software / Majesco. This project is a non-commercial fan remake;
 it ships no original game data.

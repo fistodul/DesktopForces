@@ -65,7 +65,8 @@ public:
 	void FinishMatch(const FString& Winner);
 
 	/** Spawn bots from the configured roster (UMFGameSettings::Bots, then numbered extras). */
-	void AddBots(int32 Count);
+	/** Add bots from the roster; Skill < 0 = the match's BotSkill (MF AddBots / GoodBot / BadBot). */
+	void AddBots(int32 Count, float Skill = -1.f);
 
 	/** Teams playing (0 = free-for-all). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
@@ -115,6 +116,7 @@ protected:
 	virtual bool IsStartAllowed(const AMFPlayerStart* Start, AController* Player) const;
 	/** Team for a joining player / bot (smallest team; Preferred breaks ties). */
 	virtual uint8 PickTeam(uint8 Preferred = MF::NoTeam) const;
+	void EnsureKillZ();
 
 	void CheckTimeLimit();
 	void ScheduleRespawn(AController* Victim);

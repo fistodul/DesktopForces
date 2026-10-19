@@ -92,6 +92,23 @@ radius = 25 × (LightRadius + 1) uu. Converted to static UE lights with non-inve
 falloff (exponent 2). Zone ambient light → Lightmass environment colour.
 `LIGHT_INTENSITY` / `SUN_INTENSITY` in `actors.py` are tuning knobs.
 
+### Baking on Linux (UE 5.8.3)
+Only whoever bakes needs this; players get the baked result inside the map.
+
+1. The shipped `UnrealLightmass` asserts at start-up ("The Gamethread can only be tagged on
+   the inital thread"). Patch your engine's copy once (keeps a backup, refuses other builds):
+   ```
+   cd <UE>/Engine/Binaries/Linux && cp -n libUnrealLightmass-Core.so libUnrealLightmass-Core.so.orig && \
+   python3 -c "p='libUnrealLightmass-Core.so';o=0x91b851;b=bytearray(open(p,'rb').read());assert b[o:o+6]==bytes.fromhex('0f853f010000'),'different engine build';b[o:o+6]=b'\x90'*6;open(p,'wb').write(b);print('patched')"
+   ```
+   Undo: `cp libUnrealLightmass-Core.so.orig libUnrealLightmass-Core.so`.
+2. `mfport.py light` passes `-messaging` to the editor: commandlets keep UdpMessaging off,
+   and Lightmass reports to the editor through it (otherwise: "Timed out waiting for the
+   recipient", then Lightmass crashes). It also fails loudly if Lightmass crashes.
+3. Stuck runs: kill leftover `UnrealLightmass` processes before baking again.
+
+Windows bakes without any of this.
+
 ## Overrides
 
 The way out of depending on the original art:

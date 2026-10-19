@@ -1,4 +1,6 @@
 #include "Game/MFGameMode.h"
+#include "GameFramework/WorldSettings.h"
+#include "Engine/StaticMeshActor.h"
 #include "Game/MFGameState.h"
 #include "Game/MFMessages.h"
 #include "Game/MFPlayerState.h"
@@ -29,6 +31,7 @@ AMFGameMode::AMFGameMode()
 void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
+	EnsureKillZ();
 	NumTeams = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("Teams"), NumTeams));
 	FragLimit = UGameplayStatics::GetIntOption(Options, TEXT("FragLimit"), FragLimit);
 	TimeLimit = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), TimeLimit);
@@ -201,8 +204,31 @@ void AMFGameMode::SetPlayerDefaults(APawn* PlayerPawn)
 	{
 		if (AMFPlayerController* PC = Cast<AMFPlayerController>(C->GetController()))
 		{
+			C->BeginStartupLoadout();
 			PC->EnterLoadout();
 		}
+	}
+}
+
+void AMFGameMode::EnsureKillZ()
+{
+	// Maps built before KillZ was set (engine default: never) - 20 m under the lowest geometry
+	AWorldSettings* WS = GetWorldSettings();
+	if (!WS || WS->KillZ > -1.0e6f)
+	{
+		return;
+	}
+	float MinZ = TNumericLimits<float>::Max();
+	for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
+	{
+		FVector Origin, Extent;
+		It->GetActorBounds(false, Origin, Extent);
+		MinZ = FMath::Min(MinZ, float(Origin.Z - Extent.Z));
+	}
+	if (MinZ < TNumericLimits<float>::Max())
+	{
+		WS->bEnableWorldBoundsChecks = true;
+		WS->KillZ = MinZ - 2000.f;
 	}
 }
 
@@ -211,7 +237,7 @@ bool AMFGameMode::CanUseLoadout(AMFCharacter* Character) const
 	return UMFLoadoutLibrary::FindLoadoutSourceFor(Character) != nullptr;
 }
 
-void AMFGameMode::AddBots(int32 Count)
+void AMFGameMode::AddBots(int32 Count, float Skill)
 {
 	const TArray<FMFBotDef>& Roster = UMFGameSettings::Get().Bots;
 	for (int32 i = 0; i < Count; ++i)
@@ -231,7 +257,7 @@ void AMFGameMode::AddBots(int32 Count)
 		}
 		++BotsAdded;
 		Bot->Profile = Def;
-		Bot->Skill = BotSkill;
+		Bot->Skill = Skill >= 0.f ? Skill : BotSkill;
 		if (AMFPlayerState* PS = Bot->GetPlayerState<AMFPlayerState>())
 		{
 			PS->SetPlayerName(Def.Name);

@@ -374,12 +374,19 @@ bool FMFImporter::BuildMap(const FString& MapName)
 		// MF zone ambient light -> Lightmass environment colour
 		const TArray<TSharedPtr<FJsonValue>>& C = (*LM)->GetArrayField(TEXT("environment_color"));
 		WS->LightmassSettings.EnvironmentColor = FLinearColor(C[0]->AsNumber(), C[1]->AsNumber(), C[2]->AsNumber()).ToFColor(true);
-		WS->LightmassSettings.EnvironmentIntensity = (*LM)->GetNumberField(TEXT("environment_intensity")) * 2.f;
+		WS->LightmassSettings.EnvironmentIntensity = (*LM)->GetNumberField(TEXT("environment_intensity"));
 	}
-	WS->LightmassSettings.NumIndirectLightingBounces = 2;
+	WS->LightmassSettings.NumIndirectLightingBounces = 1;   // UE1 had no bounce light; one keeps corners from going black
 	WS->LightmassSettings.bUseAmbientOcclusion = false;
 	WS->LightmassSettings.StaticLightingLevelScale = 1.f;
 	WS->bPrecomputeVisibility = true;   // cheap occlusion for mobile, built with lighting
+	if (WorldBounds.IsValid)
+	{
+		// Falling out of the map kills (AMFCharacter::FellOutOfWorld -> respawn) instead of
+		// falling for ever: 20 m below the lowest geometry
+		WS->bEnableWorldBoundsChecks = true;
+		WS->KillZ = WorldBounds.Min.Z - 2000.f;
+	}
 
 	if (WorldBounds.IsValid)
 	{

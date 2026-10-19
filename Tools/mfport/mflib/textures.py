@@ -29,6 +29,19 @@ UI_TEXTURES = {
     'rageweapons.icons.scopemask': {'masked'},
     'rageweapons.icons.sniperrifleaim': {'masked'},
     'rageweapons.icons.rocketlauncheraim': {'masked'},
+    # RageHUD atlases (TexRects in RageHUD defaultproperties): item boxes per colour set,
+    # translucent backs + ammo bars, health/armour/loadout icons per team, loadout screen
+    # tint, pain flash, scoreboard bits
+    'rage.boxes': {'masked'},
+    'rage.backs': {'masked'},
+    'rage.icons': {'masked'},
+    'rage.loadoutbackblue': set(),
+    'rage.loadoutbackred': set(),
+    'rage.owblue': set(),
+    'rage.owred': set(),
+    'rage.scoreboardbits': {'masked'},
+    # RageHUD.CrosshairGraphic(0..23) = CrossHairA..X
+    **{f'rage.crosshair{c}': {'masked'} for c in 'abcdefghijklmnopqrstuvwx'},
 }
 
 

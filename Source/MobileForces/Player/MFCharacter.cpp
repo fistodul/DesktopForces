@@ -14,6 +14,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
 #include "Scalability.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -222,7 +223,8 @@ int32 AMFCharacter::AbsorbWithArmour(int32 Damage, const UMFDamageType* Type)
 
 float AMFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (!HasAuthority() || !IsAlive() || bInLoadout || Damage <= 0.f)
+	// CanBeDamaged: UE's `God` cheat; spawn protection: MF startup loadout + 5 s
+	if (!HasAuthority() || !IsAlive() || bInLoadout || Damage <= 0.f || !CanBeDamaged() || IsSpawnProtected())
 	{
 		return 0.f;
 	}
@@ -238,6 +240,11 @@ float AMFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AC
 	const int32 Applied = AbsorbWithArmour(FMath::RoundToInt(Damage), Type);
 	Health -= Applied;
 	Super::TakeDamage(float(Applied), DamageEvent, EventInstigator, DamageCauser);
+	if (Applied > 0)
+	{
+		const AActor* Source = DamageCauser ? DamageCauser : (EventInstigator ? EventInstigator->GetPawn() : nullptr);
+		ClientHitFlash(Source && Source != this ? (Source->GetActorLocation() - GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector);
+	}
 	if (Health <= 0)
 	{
 		Die(EventInstigator, DamageEvent.DamageTypeClass, DamageCauser);
@@ -314,6 +321,17 @@ int32 AMFCharacter::GetCurrentCarry() const
 		}
 	}
 	return Total;
+}
+
+void AMFCharacter::ClientHitFlash_Implementation(FVector_NetQuantizeNormal FromDir)
+{
+	if (const APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (AMFHUD* HUD = PC->GetHUD<AMFHUD>())
+		{
+			HUD->NotifyPain(FromDir);
+		}
+	}
 }
 
 AMFWeapon* AMFCharacter::FindWeaponOfClass(TSubclassOf<AMFWeapon> WeaponClass) const
@@ -446,6 +464,17 @@ void AMFCharacter::EquipWeapon(AMFWeapon* Weapon)
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		ServerEquipWeapon(Weapon);
+	}
+	if (IsLocallyControlled())
+	{
+		// Feedback on the key press: the put-down / bring-up (MF anim lengths) runs after
+		if (const APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			if (AMFHUD* HUD = PC->GetHUD<AMFHUD>())
+			{
+				HUD->NotifyWeaponSelected(Weapon);
+			}
+		}
 	}
 	if (CurrentWeapon && CurrentWeapon->GetState() != EMFWeaponState::Inactive)
 	{
@@ -641,7 +670,17 @@ void AMFCharacter::SetInLoadout(bool bNewInLoadout)
 		return;
 	}
 	bInLoadout = bNewInLoadout;
+	if (!bInLoadout && bStartupLoadout)
+	{
+		bStartupLoadout = false;
+		SpawnProtectedUntil = GetWorld()->GetTimeSeconds() + 5.f;   // RagePlayer.EndLoadout SetAltTimer(5.0)
+	}
 	ApplyLoadoutVisibility();
+}
+
+bool AMFCharacter::IsSpawnProtected() const
+{
+	return GetWorld()->GetTimeSeconds() < SpawnProtectedUntil;
 }
 
 void AMFCharacter::OnRep_InLoadout()
@@ -656,8 +695,16 @@ void AMFCharacter::ApplyLoadoutVisibility()
 	GetCapsuleComponent()->SetCollisionEnabled(bInLoadout ? ECollisionEnabled::QueryOnly : ECollisionEnabled::QueryAndPhysics);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel2, bInLoadout ? ECR_Ignore : ECR_Block);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, bInLoadout ? ECR_Ignore : ECR_Block);
+	if (IsLocallyControlled())
+	{
+		// MF StartLoadout / EndLoadout sounds
+		const TCHAR* Path = bInLoadout ? TEXT("/Game/MFImported/Sounds/MiscSFX/LoadoutEnter.LoadoutEnter")
+			: TEXT("/Game/MFImported/Sounds/MiscSFX/LoadoutExit.LoadoutExit");
+		UGameplayStatics::PlaySound2D(this, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
+	}
 	if (bInLoadout)
 	{
+		// MF StartLoadout: SetPhysics(PHYS_None), Velocity = 0 - the soldier stands still
 		GetCharacterMovement()->StopMovementImmediately();
 		if (CurrentWeapon)
 		{

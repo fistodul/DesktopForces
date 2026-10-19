@@ -259,6 +259,23 @@ bool FMFImporter::ImportPluginArt()
 
 // --- materials -------------------------------------------------------------------------
 
+void FMFImporter::FixMasterMaterialUsage()
+{
+	for (const TCHAR* Mode : { TEXT("Opaque"), TEXT("Masked"), TEXT("MaskedUnlit"), TEXT("Unlit"), TEXT("Additive"),
+		TEXT("Modulated"), TEXT("TeamTint") })
+	{
+		const FString Path = FString::Printf(TEXT("/Game/MF/Materials/M_MF_%s.M_MF_%s"), Mode, Mode);
+		UMaterial* M = LoadObject<UMaterial>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (M && !M->GetUsageByFlag(MATUSAGE_StaticLighting))
+		{
+			M->SetMaterialUsage(MATUSAGE_StaticLighting);
+			M->PostEditChange();
+			SaveAsset(M);
+			UE_LOG(LogMFEditor, Display, TEXT("%s: static lighting usage set"), *M->GetName());
+		}
+	}
+}
+
 void FMFImporter::EnsureTeamTintMaterial()
 {
 	bool bCreated = false;
@@ -274,6 +291,7 @@ void FMFImporter::EnsureTeamTintMaterial()
 	Color->PrimitiveDataIndex = 0;
 	M->GetExpressionCollection().AddExpression(Color);
 	M->SetShadingModel(MSM_Unlit);
+	M->SetMaterialUsage(MATUSAGE_StaticLighting);
 	M->GetEditorOnlyData()->EmissiveColor.Connect(0, Color);
 	M->PreEditChange(nullptr);
 	M->PostEditChange();
@@ -342,6 +360,7 @@ UMaterialInterface* FMFImporter::GetMasterMaterial(const FString& Mode)
 		{
 			M->BlendMode = BLEND_Modulate;
 		}
+		M->SetMaterialUsage(MATUSAGE_StaticLighting);   // lightmapped level geometry
 		M->PreEditChange(nullptr);
 		M->PostEditChange();
 		SaveAsset(M);

@@ -93,6 +93,14 @@ public:
 
 	/** Switch to a weapon (local input path; forwards to the server). */
 	void EquipWeapon(AMFWeapon* Weapon);
+	/** Server: kill this soldier (damage, suicide, cheats, falling out of the world). */
+	virtual void Die(AController* Killer, TSubclassOf<UDamageType> DamageType, AActor* DamageCauser);
+	/** Owning client: you were hit; FromDir = towards the attacker (zero: no direction, e.g. a fall). */
+	UFUNCTION(Client, Unreliable)
+	void ClientHitFlash(FVector_NetQuantizeNormal FromDir);
+
+	/** Weapon being switched to (current one still putting down), else null. */
+	AMFWeapon* GetPendingWeapon() const { return PendingWeapon; }
 	void SelectInventoryGroup(int32 Group);
 	void CycleWeapon(int32 Direction);
 	/** Pick the best weapon to hold (after the current one ran dry / was dropped). */
@@ -119,6 +127,12 @@ public:
 	bool IsInLoadout() const { return bInLoadout; }
 	/** Server: enter/leave the loadout screen state. */
 	void SetInLoadout(bool bNewInLoadout);
+	/**
+	 * Server: this loadout is the one a soldier spawns into (MF StartupInLoadout): no damage
+	 * while in it and for 5 s after leaving (RagePlayer ReducedDamageType 'All' + AltTimer).
+	 */
+	void BeginStartupLoadout() { bStartupLoadout = true; }
+	bool IsSpawnProtected() const;
 
 	// --- team -------------------------------------------------------------------------
 	/** Team id from the player state (MF::NoTeam in deathmatch). */
@@ -169,6 +183,8 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_InLoadout)
 	bool bInLoadout = false;
+	bool bStartupLoadout = false;
+	float SpawnProtectedUntil = 0.f;
 
 	bool bWantsFire = false;
 	bool bWantsAltFire = false;
@@ -188,8 +204,6 @@ protected:
 	void SetCurrentWeapon(AMFWeapon* NewWeapon, AMFWeapon* OldWeapon);
 	void ApplyLoadoutVisibility();
 
-	/** Kill this pawn. Server only. */
-	virtual void Die(AController* Killer, TSubclassOf<UDamageType> DamageType, AActor* DamageCauser);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastOnDeath(FVector_NetQuantizeNormal Direction);

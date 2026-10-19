@@ -6,14 +6,14 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ UE 5.8 project: forward/mobile rendering, no post, static lighting, ~80 plugins off, Low scalability defaults
 - ✅ Git repo, open-source layout (code/tools/docs tracked, original assets generated locally)
 - ✅ Docs for the team (this folder)
-- 🟡 Licence: LGPL-3.0-or-later + drafted Unreal Engine linking permission ([LICENSE.md](../LICENSE.md)) — permission text to be confirmed by the copyright holders
+- ✅ Licence: MPL-2.0 ([LICENSE.md](../LICENSE.md))
 - ⬜ CI build (Linux + Windows), automated import test on a small map
 
 ## Pipeline (`Tools/mfport`)
 - ✅ Package reader (v83), BSP world geometry, static meshes, actors, lights, textures, sounds
 - ✅ UE importer commandlet, map builder, Lightmass bake step
 - ✅ Override folders for clean replacement textures/sounds
-- ⚠️ **Lightmass is broken on Linux in UE 5.8.3**: the shipped `UnrealLightmass` binary asserts at startup ("The Gamethread can only be tagged on the inital thread"), so `mfport.py light` bakes nothing on Linux. Plan: own UE1-style lightmap baker in MobileForcesEditor (raycast shadows, MF falloff + zone ambient, unlit runtime materials). Baking on Windows should work meanwhile.
+- ✅ Lightmass on Linux (UE 5.8.3): 6-byte patch of the shipped library (once per machine) + `-messaging` for the bake commandlet ([Pipeline.md](Pipeline.md#baking-on-linux-ue-583))
 - 🟡 Light intensity tuning against the original look (compare screenshots in-game)
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ⬜ Skeletal meshes + animations (soldiers, first-person weapons): MeshAnimation parses; SkeletalMesh reader + PSK/glTF export
@@ -46,7 +46,9 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ⬜ More MF-mods: Totem, ZombieGame (as components, not player subclasses), TugGame, CoopMode, arenaMode, SentryGun, SeekerMines, TripLasers, PredatorMissile …
 
 ## Presentation
-- ✅ MF-style Canvas HUD: loadout grid by key rows (two-key picking, X for group 11), carry-block strip, team colours, capture points; ⬜ MF HUD textures (frames, soldier/armour icons)
+- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; ⬜ minimap, pain flash, MF fonts
+- ✅ MF loadout behaviour: frozen soldier and view, one cursor through store and carried items (put back from the inventory), W/S/wheel/Fire/E, number rows + X, sounds, spawn protection
+- ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom)
 - ⬜ First-person weapon models + animations, third-person soldiers, team skins
 - ⬜ Effects: muzzle flash, tracers, impacts, explosions, blood (cheap sprite particles)
@@ -56,4 +58,5 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 ## Maps
 - ✅ mf-warehouse converts and builds
 - ⬜ All stock maps (airport, carpark, dockyard, ghetto, hydroworks, polar, prehistoric, rail quarry, sawmill, space station, toreford, tropics, waterfront, western …)
-- 🟡 **mf-warehouse merge** with the Mobile Forces Source version ([WarehouseMerge.md](WarehouseMerge.md)): aligned (scale 1.48, 91.4°), MF-derived props converted, comparison sheets ready — waiting for the team's per-area picks
+- ✅ mf-warehouse (original) is the map to play and build on
+- ⬜ Add Mobile Forces Source features onto it by hand (secrets, `func_breakable` doors and passages, props) — the automatic geometry merge was tried and dropped: seams, holes and misaligned pieces ([WarehouseMerge.md](WarehouseMerge.md); the alignment and prop converter stay useful for placing MFS pieces)
