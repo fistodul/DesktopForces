@@ -20,6 +20,12 @@ namespace
 	const FLinearColor Yellow(1.f, 0.85f, 0.2f);
 	const FLinearColor Dim(0.f, 0.f, 0.f, 0.55f);
 	const FLinearColor Grey(0.5f, 0.5f, 0.5f);
+	// MF HUD palette: blue boxes with light borders
+	const FLinearColor MFBlue(0.05f, 0.12f, 0.75f, 0.7f);
+	const FLinearColor MFBlueDark(0.03f, 0.06f, 0.28f, 0.6f);
+	const FLinearColor MFBar(0.1f, 0.25f, 1.f, 0.85f);
+	const FLinearColor MFGreyFill(0.12f, 0.12f, 0.12f, 0.5f);
+	const FLinearColor MFBorder(0.55f, 0.7f, 1.f, 0.9f);
 }
 
 AMFHUD::AMFHUD()
@@ -170,33 +176,77 @@ void AMFHUD::DrawCrosshair(AMFCharacter* C)
 	Box(CX - 1, CY + G, 2, S, Col);
 }
 
+void AMFHUD::Frame(float X, float Y, float W, float H, const FLinearColor& Fill, const FLinearColor& Border)
+{
+	Box(X, Y, W, H, Fill);
+	const float T = FMath::Max(1.f, UIScale);
+	Box(X, Y, W, T, Border);
+	Box(X, Y + H - T, W, T, Border);
+	Box(X, Y, T, H, Border);
+	Box(X + W - T, Y, T, H, Border);
+}
+
+FString AMFHUD::AmmoText(const AMFWeapon* W, bool bLive)
+{
+	// MF HUD badge: total / clip size ("210/30"); single-shot items show their count
+	if (!W || (W->MaxClipAmmo <= 1 && W->MaxClips <= 1 && !W->bDestroyWhenEmpty))
+	{
+		return FString();
+	}
+	if (W->MaxClipAmmo <= 1)
+	{
+		return FString::FromInt(bLive ? W->GetAmmoCount() : W->MaxClips);
+	}
+	const int32 Total = bLive ? W->GetAmmoCount() : W->MaxClipAmmo * W->MaxClips;
+	return FString::Printf(TEXT("%d/%d"), Total, bLive ? W->GetClipAmmo() : W->MaxClipAmmo);
+}
+
+void AMFHUD::DrawItemCell(const AMFWeapon* W, float X, float Y, float CellW, float CellH, EMFCellState State, const FString& Ammo, const FString& Corner)
+{
+	// MF inventory box: icon on blue, key number top-left, ammo on a bar underneath
+	const float BarH = 13.f * UIScale;
+	const FLinearColor Fill = State == EMFCellState::Owned ? MFBlue : State == EMFCellState::Available ? MFBlueDark : MFGreyFill;
+	const FLinearColor Border = State == EMFCellState::Unavailable ? Grey : MFBorder;
+	Frame(X, Y, CellW, CellH, Fill, Border);
+	const FIntRect& R = W->HUDIconRect;
+	const float Aspect = float(R.Width()) / FMath::Max(1, R.Height());
+	const float IH = FMath::Min(CellH - 4.f * UIScale, (CellW - 6.f * UIScale) / FMath::Max(0.1f, Aspect));
+	const float IW = IH * Aspect;
+	DrawWeaponIcon(W, X + (CellW - IW) * 0.5f, Y + (CellH - IH) * 0.5f, IH, State == EMFCellState::Unavailable ? Grey : White);
+	Text(Corner, X + 3.f * UIScale, Y + 1.f * UIScale, White, 0.55f);
+	Frame(X, Y + CellH + 2.f * UIScale, CellW, BarH, State == EMFCellState::Owned ? MFBar : MFGreyFill, Border);
+	if (!Ammo.IsEmpty())
+	{
+		float TW = 0.f, TH = 0.f;
+		Canvas->TextSize(Font, Ammo, TW, TH, 0.6f * UIScale, 0.6f * UIScale);
+		Text(Ammo, X + CellW - TW - 4.f * UIScale, Y + CellH + 1.f * UIScale, White, 0.6f);
+	}
+}
+
 void AMFHUD::DrawStatus(AMFCharacter* C)
 {
-	const float Y = Canvas->ClipY - 60.f * UIScale;
-	const float X = 20.f * UIScale;
+	// Bottom left like MF: health and armour numbers
+	const float X = 16.f * UIScale, Y = Canvas->ClipY - 66.f * UIScale;
 	const int32 Health = FMath::Max(0, C->GetHealth());
-	Box(X - 6, Y - 6, 230.f * UIScale, 52.f * UIScale, Dim);
-	Text(FString::Printf(TEXT("HEALTH %d"), Health), X, Y, Health > 25 ? White : FLinearColor(1.f, 0.3f, 0.25f), 1.2f);
+	Frame(X, Y, 120.f * UIScale, 28.f * UIScale, MFBlueDark, MFBorder);
+	Text(TEXT("HEALTH"), X + 6.f * UIScale, Y + 7.f * UIScale, White, 0.55f);
+	Text(FString::FromInt(Health), X + 64.f * UIScale, Y + 2.f * UIScale, Health > 25 ? White : FLinearColor(1.f, 0.3f, 0.25f), 1.3f);
 	if (const int32 Armour = C->GetArmourCharge(); Armour > 0)
 	{
-		Text(FString::Printf(TEXT("ARMOUR %d"), Armour), X, Y + 22.f * UIScale, FLinearColor(0.3f, 0.5f, 1.f), 1.f);
+		Frame(X, Y + 32.f * UIScale, 120.f * UIScale, 28.f * UIScale, MFBlueDark, MFBorder);
+		Text(TEXT("ARMOUR"), X + 6.f * UIScale, Y + 39.f * UIScale, White, 0.55f);
+		Text(FString::FromInt(Armour), X + 64.f * UIScale, Y + 34.f * UIScale, FLinearColor(0.5f, 0.7f, 1.f), 1.3f);
 	}
 	if (AMFWeapon* W = C->GetCurrentWeapon())
 	{
-		const float RX = Canvas->ClipX - 260.f * UIScale;
-		Box(RX - 6, Y - 6, 250.f * UIScale, 52.f * UIScale, Dim);
-		Text(W->DisplayName.ToString(), RX, Y, Yellow, 1.f);
-		const FString Ammo = W->MaxClipAmmo > 1 || W->MaxClips > 1
-			? FString::Printf(TEXT("%d / %d"), W->GetClipAmmo(), W->GetTotalAmmo())
-			: FString::Printf(TEXT("%d"), W->GetClipAmmo());
-		Text(Ammo, RX, Y + 22.f * UIScale, White, 1.2f);
 		Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f, true);
 	}
 }
 
 void AMFHUD::DrawWeaponBar(AMFCharacter* C)
 {
-	// MF inventory strip: carried items by group, original icons, ammo badge under each
+	// MF carry strip (bottom centre): one box per carried item, as wide as the carry blocks
+	// it uses; free blocks stay as empty frames so you see what still fits
 	TArray<AMFWeapon*> Items;
 	for (AMFWeapon* W : C->GetInventory())
 	{
@@ -205,32 +255,34 @@ void AMFHUD::DrawWeaponBar(AMFCharacter* C)
 			Items.Add(W);
 		}
 	}
-	Items.Sort([](const AMFWeapon& A, const AMFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
-	const float H = 40.f * UIScale, Pad = 6.f * UIScale;
-	float Total = 0.f;
+	Items.StableSort([](const AMFWeapon& A, const AMFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
+	const float Block = 44.f * UIScale, Gap = 3.f * UIScale, CellH = 30.f * UIScale;
+	auto WidthOf = [&](int32 Blocks) { return Blocks * Block + (Blocks - 1) * Gap; };
+	const int32 FreeBlocks = FMath::Max(0, C->MaxCarry - C->GetCurrentCarry());
+	float Total = FreeBlocks > 0 ? WidthOf(FreeBlocks) : 0.f;
 	for (const AMFWeapon* W : Items)
 	{
-		Total += H * float(W->HUDIconRect.Width()) / FMath::Max(1, W->HUDIconRect.Height()) + Pad;
+		Total += WidthOf(FMath::Max(1, W->CarrySize)) + Gap;
 	}
 	float X = Canvas->ClipX * 0.5f - Total * 0.5f;
-	const float Y = Canvas->ClipY - H - 26.f * UIScale;
+	const float Y = Canvas->ClipY - CellH - 22.f * UIScale;
 	for (AMFWeapon* W : Items)
 	{
-		const bool bCur = W == C->GetCurrentWeapon();
-		const float IconW = H * float(W->HUDIconRect.Width()) / FMath::Max(1, W->HUDIconRect.Height());
-		Box(X - 2, Y - 2, IconW + 4, H + 18.f * UIScale, bCur ? FLinearColor(0.9f, 0.7f, 0.1f, 0.45f) : Dim);
-		DrawWeaponIcon(W, X, Y, H, W->bSelectable ? White : Grey);
-		Text(FString::FromInt(W->InventoryGroup % 10), X + 2, Y, Yellow, 0.6f);
-		if (W->MaxClipAmmo > 1 || W->MaxClips > 1 || W->bDestroyWhenEmpty)
+		const float CW = WidthOf(FMath::Max(1, W->CarrySize));
+		DrawItemCell(W, X, Y, CW, CellH, EMFCellState::Owned, AmmoText(W, true), AMFWeapon::SlotKeyName(W->GetSlotKey()));
+		if (W == C->GetCurrentWeapon())
 		{
-			Text(FString::FromInt(W->GetAmmoCount()), X + IconW * 0.5f, Y + H, White, 0.6f, true);
+			Frame(X - 2.f, Y - 2.f, CW + 4.f, CellH + 4.f, FLinearColor::Transparent, Yellow);
 		}
-		X += IconW + Pad;
+		X += CW + Gap;
 	}
-	Text(FString::Printf(TEXT("CARRY %d/%d"), C->GetCurrentCarry(), C->MaxCarry), Canvas->ClipX * 0.5f, Y - 18.f * UIScale, White, 0.7f, true);
+	if (FreeBlocks > 0)
+	{
+		Frame(X, Y, WidthOf(FreeBlocks), CellH, FLinearColor(0.f, 0.f, 0.f, 0.25f), Grey);
+	}
 	if (GetWorld()->GetTimeSeconds() - SelectedTime < 1.5f)
 	{
-		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 40.f * UIScale, Yellow, 1.f, true);
+		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 26.f * UIScale, Yellow, 1.f, true);
 	}
 }
 
@@ -295,35 +347,49 @@ void AMFHUD::DrawKillFeed()
 
 void AMFHUD::DrawLoadout(AMFCharacter* C, AMFPlayerController* PC)
 {
+	// MF loadout grid (top left): one row per key, every item of that key in the row.
+	// Bright = carried, dark = fits, grey = doesn't fit. Rows with several items are
+	// opened with their key; then the item's number (shown in yellow) picks it.
 	const TArray<TSubclassOf<AMFWeapon>> Items = PC->GetLoadoutItems();
-	const float W = 460.f * UIScale, RowH = 34.f * UIScale;
-	const float X = Canvas->ClipX * 0.5f - W * 0.5f;
-	float Y = Canvas->ClipY * 0.5f - (Items.Num() * RowH) * 0.5f - 40.f * UIScale;
-	Box(X - 10, Y - 10, W + 20, Items.Num() * RowH + 80.f * UIScale, FLinearColor(0.f, 0.f, 0.f, 0.75f));
-	Text(TEXT("LOADOUT"), Canvas->ClipX * 0.5f, Y, Yellow, 1.4f, true);
-	Y += 36.f * UIScale;
+	const int32 OpenSlot = PC->GetLoadoutOpenSlot();
+	const float CellH = 34.f * UIScale, RowH = CellH + 20.f * UIScale, Gap = 4.f * UIScale;
+	const float X0 = 10.f * UIScale;
+	float Y = 10.f * UIScale, X = X0;
+	int32 RowKey = -1, InRow = 0;
 	for (int32 i = 0; i < Items.Num(); ++i)
 	{
-		const AMFWeapon* CDO = Items[i] ? Items[i]->GetDefaultObject<AMFWeapon>() : nullptr;
-		if (!CDO)
+		const AMFWeapon* CDO = Items[i]->GetDefaultObject<AMFWeapon>();
+		const int32 Key = CDO->GetSlotKey();
+		if (Key != RowKey)
 		{
-			continue;
+			if (RowKey != -1)
+			{
+				Y += RowH;
+			}
+			X = X0;
+			RowKey = Key;
+			InRow = 0;
 		}
-		const int32 Have = C->CountOfClass(Items[i]);
-		const bool bFits = C->CanCarry(Items[i]);
+		++InRow;
+		const AMFWeapon* Have = C->FindWeaponOfClass(Items[i]);
+		const EMFCellState State = Have ? EMFCellState::Owned : (C->CanCarry(Items[i]) ? EMFCellState::Available : EMFCellState::Unavailable);
+		const FIntRect& R = CDO->HUDIconRect;
+		const float CellW = FMath::Max(CellH * 1.25f, FMath::Min(CellH * 4.f, CellH * float(R.Width()) / FMath::Max(1, R.Height())));
+		DrawItemCell(CDO, X, Y, CellW, CellH, State, AmmoText(Have ? Have : CDO, Have != nullptr), AMFWeapon::SlotKeyName(Key));
+		if (Key == OpenSlot)
+		{
+			Text(FString::FromInt(InRow % 10), X + CellW - 14.f * UIScale, Y, Yellow, 1.1f);
+		}
 		if (i == PC->LoadoutCursor)
 		{
-			Box(X, Y - 2, W, RowH - 2, FLinearColor(0.9f, 0.7f, 0.1f, 0.5f));
+			Frame(X - 2.f, Y - 2.f, CellW + 4.f, CellH + 4.f, FLinearColor::Transparent, Yellow);
 		}
-		const FLinearColor Col = Have > 0 ? Yellow : (bFits ? White : Grey);
-		const float IconW = DrawWeaponIcon(CDO, X + 6, Y, RowH - 6, bFits || Have > 0 ? White : Grey);
-		const FString Label = CDO->DisplayName.ToString() + (Have > 1 ? FString::Printf(TEXT(" x%d"), Have) : (Have == 1 ? TEXT(" *") : TEXT("")));
-		Text(Label, X + FMath::Max(IconW, 100.f * UIScale) + 16.f * UIScale, Y + 4.f * UIScale, Col, 1.f);
-		Text(FString::FromInt(CDO->CarrySize), X + W - 30.f * UIScale, Y + 4.f * UIScale, Col, 1.f);
-		Y += RowH;
+		X += CellW + Gap;
 	}
-	Text(FString::Printf(TEXT("Carry %d / %d   -   Up/Down select, Fire/E take or return, Q leave"), C->GetCurrentCarry(), C->MaxCarry),
-		Canvas->ClipX * 0.5f, Y + 6.f * UIScale, White, 0.75f, true);
+	const FString Hint = OpenSlot
+		? FString::Printf(TEXT("Row %s: press the item's number"), *AMFWeapon::SlotKeyName(OpenSlot))
+		: TEXT("Press Q to exit loadout   -   1-0 / X pick a row, again for an item   -   Up/Down + Fire also work");
+	Text(Hint, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.72f, White, 1.f, true);
 }
 
 void AMFHUD::DrawScoreboard(AMFGameState* GS)

@@ -316,6 +316,18 @@ int32 AMFCharacter::GetCurrentCarry() const
 	return Total;
 }
 
+AMFWeapon* AMFCharacter::FindWeaponOfClass(TSubclassOf<AMFWeapon> WeaponClass) const
+{
+	for (AMFWeapon* W : Inventory)
+	{
+		if (W && W->GetClass() == WeaponClass)
+		{
+			return W;
+		}
+	}
+	return nullptr;
+}
+
 int32 AMFCharacter::CountOfClass(TSubclassOf<AMFWeapon> WeaponClass) const
 {
 	int32 N = 0;
@@ -525,7 +537,7 @@ void AMFCharacter::SelectInventoryGroup(int32 Group)
 	TArray<AMFWeapon*> InGroup;
 	for (AMFWeapon* W : Inventory)
 	{
-		if (W && W->bSelectable && W->InventoryGroup == Group)
+		if (W && W->bSelectable && W->GetSlotKey() == Group)
 		{
 			InGroup.Add(W);
 		}

@@ -46,7 +46,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ⬜ More MF-mods: Totem, ZombieGame (as components, not player subclasses), TugGame, CoopMode, arenaMode, SentryGun, SeekerMines, TripLasers, PredatorMissile …
 
 ## Presentation
-- 🟡 Canvas HUD with MF weapon icons (strip + loadout), team colours, capture points; ⬜ rest of MF HUD art
+- ✅ MF-style Canvas HUD: loadout grid by key rows (two-key picking, X for group 11), carry-block strip, team colours, capture points; ⬜ MF HUD textures (frames, soldier/armour icons)
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom)
 - ⬜ First-person weapon models + animations, third-person soldiers, team skins
 - ⬜ Effects: muzzle flash, tracers, impacts, explosions, blood (cheap sprite particles)
@@ -56,4 +56,4 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 ## Maps
 - ✅ mf-warehouse converts and builds
 - ⬜ All stock maps (airport, carpark, dockyard, ghetto, hydroworks, polar, prehistoric, rail quarry, sawmill, space station, toreford, tropics, waterfront, western …)
-- ⬜ **mf-warehouse merge** with the Mobile Forces Source version (see [WarehouseMerge.md](WarehouseMerge.md))
+- 🟡 **mf-warehouse merge** with the Mobile Forces Source version ([WarehouseMerge.md](WarehouseMerge.md)): aligned (scale 1.48, 91.4°), MF-derived props converted, comparison sheets ready — waiting for the team's per-area picks

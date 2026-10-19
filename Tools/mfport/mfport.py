@@ -7,6 +7,7 @@ Steps (run alone or chained with `all`):
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
   mods                 convert mod plugins' SourceArt (Plugins/Mods/*/SourceArt)
+  vmf <name...>        convert a Source (Hammer) map listed in vmf_maps.toml, aligned to its MF map
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + sounds + import + light
@@ -35,6 +36,17 @@ def cmd_map(cfg, names):
     from mflib.level import LevelConverter
     for n in names:
         LevelConverter(cfg, n).run()
+
+
+def cmd_vmf(cfg, names):
+    import tomllib
+    from mflib.vmf import VmfConverter
+    presets = tomllib.loads((Path(__file__).resolve().parent / 'vmf_maps.toml').read_text())
+    for n in names:
+        p = presets[n]
+        src = Path(__file__).resolve().parent / p["vmf"]
+        VmfConverter(cfg, src, n, scale=p.get('scale', 1.0), offset=tuple(p.get('offset', (0, 0, 0))),
+                     yaw=p.get('yaw', 0.0)).run()
 
 
 def collect_usage(cfg) -> dict[str, set[str]]:
@@ -91,7 +103,7 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'mods', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'mods', 'vmf', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
     ap.add_argument('--steps', default='textures,sounds,music,plugins,maps', help='importer steps for `import`')
     a = ap.parse_args()
@@ -100,6 +112,8 @@ def main():
 
     if a.step in ('map', 'all'):
         cmd_map(cfg, a.names or ['mf-warehouse'])
+    if a.step == 'vmf':
+        cmd_vmf(cfg, a.names or ['mfs-warehouse'])
     if a.step in ('textures', 'all'):
         cmd_textures(cfg)
     if a.step == 'sounds':

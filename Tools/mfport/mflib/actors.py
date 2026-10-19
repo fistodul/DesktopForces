@@ -69,6 +69,12 @@ def _int(props: dict, key: str, defaults: dict) -> int:
     return int(float(v)) if v is not None else int(defaults.get(key, 0))
 
 
+# Legacy classes whose Team defaults to 0 in UnrealScript (checked in the decompiled .uc);
+# others with a Team default it to 255 in their defaultproperties (e.g. RageDominationTimer).
+TEAM_DEFAULT_ZERO = {'RageFlagBase', 'RageSafe', 'RageDetonationLock', 'TrailerPark', 'TrailerDelivery',
+                     'LoadoutBlocker', 'CaptainStart'}
+
+
 def _team(value) -> str:
     """MF team number -> team id string ('0' blue, '1' red, ... ; '255' = no team)."""
     try:
@@ -165,6 +171,8 @@ class ActorMapper:
     def _legacy(self, a: dict) -> dict:
         props = a['props']
         team = props.get('Team', props.get('TeamNumber'))
+        if team is None and a['class'] in TEAM_DEFAULT_ZERO:
+            team = 0   # T3D omits defaults: these classes declare `var() byte Team` (default 0 = blue)
         return {'name': a['name'], 'location': a['location'], 'rotation': a['rotation'], 'type': 'legacy',
                 'mf_class': a['class'], 'mf_name': a['name'], 'team': _team(team) if team is not None else '255',
                 'props': {k: (v if isinstance(v, str) else ' '.join(v)) for k, v in props.items()}}

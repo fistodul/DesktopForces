@@ -272,7 +272,8 @@ class LevelConverter:
         level = t3d.parse(self.export_t3d().read_text(encoding='latin-1')).children[0]
         meshes = self.convert_static_meshes(level)
         actors = self.convert_actors(level)
-        mapper = ActorMapper(self.zone_bounds(model), meshes)
+        bounds = self.zone_bounds(model)
+        mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         env_color, env_intensity = mapper.environment_color()
         data = {
@@ -284,6 +285,7 @@ class LevelConverter:
             'lightmass': {'environment_color': env_color, 'environment_intensity': env_intensity},
             'actors': actors,
             'zones': model.zones,
+            'zone_bounds': {str(z): [list(lo), list(hi)] for z, (lo, hi) in bounds.items()},
             'texture_usage': {k: sorted(v) for k, v in sorted(self.usage.items())},
         }
         path = self.out / 'level.json'

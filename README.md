@@ -32,7 +32,8 @@ python3 Tools/mfport/mfport.py all mf-warehouse
 ```
 
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,
-C crouch, Shift walk, F1/Tab scores). Map URL options: `?game=/Script/MobileForces.MFGameMode_TDM`
+C crouch, Shift walk, F1/Tab scores), plus X for armour/gadgets; in the loadout screen a
+number picks a row, a second number the item in it. Map URL options: `?game=/Script/MobileForces.MFGameMode_TDM`
 (also `MFGameMode_Holdout`, `/Script/MFModKOH.MFGameMode_KOH`), `?Bots=8?BotSkill=0.7`,
 `?Teams=4`, `?FragLimit=10?TimeLimit=5`.
 

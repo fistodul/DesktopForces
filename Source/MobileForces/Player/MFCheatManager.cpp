@@ -66,7 +66,7 @@ void UMFCheatManager::MFNavTest()
 	}
 }
 
-void UMFCheatManager::MFTopView(float X, float Y, float Width)
+void UMFCheatManager::MFTopView(float X, float Y, float Width, float Z)
 {
 	if (Width <= 0.f)
 	{
@@ -75,9 +75,17 @@ void UMFCheatManager::MFTopView(float X, float Y, float Width)
 	}
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ACameraActor* Cam = GetWorld()->SpawnActor<ACameraActor>(FVector(X, Y, 20000.f), FRotator(-90.f, 0.f, 0.f), SP);
-	Cam->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Orthographic);
-	Cam->GetCameraComponent()->SetOrthoWidth(Width);
-	Cam->GetCameraComponent()->SetConstraintAspectRatio(false);
+	ACameraActor* Cam = GetWorld()->SpawnActor<ACameraActor>(FVector(X, Y, Z != 0.f ? Z : 20000.f), FRotator(-90.f, 0.f, 0.f), SP);
+	UCameraComponent* CC = Cam->GetCameraComponent();
+	CC->SetProjectionMode(ECameraProjectionMode::Orthographic);
+	CC->SetOrthoWidth(Width);
+	CC->SetConstraintAspectRatio(false);
+	// Fixed planes: roofs above a low camera disappear (UE5 otherwise fits the planes to the
+	// whole scene). Note: the cut isn't exactly at the camera height in 5.8, so use it to
+	// remove roofs, not to slice storeys.
+	CC->SetAutoCalculateOrthoPlanes(false);
+	CC->SetUpdateOrthoPlanes(false);
+	CC->SetOrthoNearClipPlane(0.f);
+	CC->SetOrthoFarClipPlane(Z != 0.f ? 6000.f : 40000.f);
 	GetPlayerController()->SetViewTarget(Cam);
 }

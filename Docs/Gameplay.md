@@ -44,6 +44,14 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
   Trip Bombs, Rocket Launcher, Grenades, Adrenaline, Armour, Heavy Machine Gun.
 - Entering loadout refills ammo of everything carried. Loadout key away from loadout drops
   the held weapon. Loadout only while walking on the ground.
+- Keys: MF picked an item with its group key (1-9, 0). Groups now hold any number of
+  items (mods), so the loadout screen shows **one row per key**: a row with one item is
+  picked by its key directly; otherwise the key opens the row and the next number picks
+  the item in it (e.g. `8` `2` = Molotov). Group 11 (armour, mod gadgets) had no key in MF;
+  it's on **X** here, in loadout and in game. Up/Down + Fire still work.
+- HUD layout follows MF: loadout grid top left (bright = carried, dark = fits, grey = no
+  room), carry strip bottom centre with each item as wide as its carry blocks plus the free
+  blocks, health/armour bottom left.
 
 ## Weapons
 Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.

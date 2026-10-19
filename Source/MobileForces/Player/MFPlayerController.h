@@ -38,9 +38,15 @@ public:
 
 	// --- loadout (client UI state, drawn by AMFHUD) ---------------------------------------
 	bool IsLoadoutOpen() const;
-	/** Items shown in the menu: the source's items. */
+	/** Items shown in the menu: the source's items, ordered by slot key (menu rows). */
 	TArray<TSubclassOf<AMFWeapon>> GetLoadoutItems() const;
 	int32 LoadoutCursor = 0;
+	/**
+	 * Slot key whose row is waiting for the second key press (0 = none). A row with one
+	 * item is picked by its key directly (MF); a row with more opens and the next number
+	 * picks the item in it, e.g. 3 then 2 = second item of row 3.
+	 */
+	int32 GetLoadoutOpenSlot() const;
 
 	UPROPERTY(Config, EditAnywhere, Category = "MF")
 	float MouseSensitivity = 1.f;
@@ -109,4 +115,8 @@ protected:
 	TMap<FName, TObjectPtr<UInputAction>> Actions;
 
 	bool bShowScores = false;
+
+	void LoadoutKey(int32 Slot);
+	int32 LoadoutOpenSlot = 0;
+	float LoadoutOpenTime = 0.f;
 };

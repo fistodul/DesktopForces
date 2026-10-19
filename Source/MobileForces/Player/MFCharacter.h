@@ -77,6 +77,7 @@ public:
 	AMFWeapon* GetCurrentWeapon() const { return CurrentWeapon; }
 	int32 GetCurrentCarry() const;
 	int32 CountOfClass(TSubclassOf<AMFWeapon> WeaponClass) const;
+	AMFWeapon* FindWeaponOfClass(TSubclassOf<AMFWeapon> WeaponClass) const;
 
 	/** Pawn.CanIPickup: carry blocks + MaxCanCarry of this class. */
 	bool CanCarry(TSubclassOf<AMFWeapon> WeaponClass) const;

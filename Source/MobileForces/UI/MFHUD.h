@@ -10,9 +10,12 @@ class AMFPlayerController;
 class AMFWeapon;
 class UTexture2D;
 
+enum class EMFCellState : uint8 { Owned, Available, Unavailable };
+
 /**
- * Canvas HUD (like MF's RageHUD): crosshair/scope, health/armour, weapon strip with the
- * original icons, clock and team scores, kill feed, announcements, loadout menu, scoreboard.
+ * Canvas HUD laid out like MF's RageHUD: loadout grid top left (a row per key), carry
+ * strip bottom centre (boxes as wide as their carry blocks), health/armour bottom left,
+ * clock + team scores + capture points top centre, kill feed, announcements, scoreboard.
  * Canvas drawing is a handful of draw calls with no widget tree to tick - good for low-end
  * and mobile. Messages arrive through UMFDeathMessage / UMFAnnouncement.
  */
@@ -45,6 +48,10 @@ protected:
 
 	void Text(const FString& S, float X, float Y, const FLinearColor& Color, float Scale = 1.f, bool bCenter = false);
 	void Box(float X, float Y, float W, float H, const FLinearColor& Color);
+	void Frame(float X, float Y, float W, float H, const FLinearColor& Fill, const FLinearColor& Border);
+	/** One MF inventory box: icon, key in the corner, ammo bar below. */
+	void DrawItemCell(const AMFWeapon* W, float X, float Y, float CellW, float CellH, EMFCellState State, const FString& Ammo, const FString& Corner);
+	static FString AmmoText(const AMFWeapon* W, bool bLive);
 
 	struct FKill { FString Killer, Victim, Verb; float Time; };
 	TArray<FKill> KillFeed;

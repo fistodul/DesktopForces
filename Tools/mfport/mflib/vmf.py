@@ -19,12 +19,18 @@ from __future__ import annotations
 import json
 import math
 import re
+import struct
 import tomllib
 from collections import Counter
 from pathlib import Path
 
 from .config import Config, TOOL_DIR, UU_TO_CM
 from .mfmesh import MeshBuilder
+from .sourcemdl import read_model
+
+# Prop models we may use: MF meshes recompiled for Source by the MFS team. Valve/HL2
+# models (props_c17, props_junk, ...) are skipped and listed for replacement.
+PROP_MODEL_DIRS = ('models/warehouse/',)
 
 DROP_TOOLS = ('TOOLS/TOOLSNODRAW', 'TOOLS/TOOLSSKIP', 'TOOLS/TOOLSHINT', 'TOOLS/TOOLSAREAPORTAL',
               'TOOLS/TOOLSOCCLUDER', 'TOOLS/TOOLSTRIGGER', 'TOOLS/TOOLSFOG', 'TOOLS/TOOLSLIGHT',
@@ -186,6 +192,8 @@ class VmfConverter:
         self.texture_index: dict[str, dict] = {}
         self.unmapped: Counter = Counter()
         self.usage: dict[str, set] = {}
+        self.models: dict[str, str | None] = {}
+        self.skipped_models: Counter = Counter()
 
     # MF texture lookup by bare name (WAREHOUSE/WARE_METAL_34 -> rage_warehouse.metal.ware_metal_34)
     def _mf_textures(self):
@@ -273,12 +281,46 @@ class VmfConverter:
                 'world': world_out, 'static_meshes': {}, 'spawns': spawns, 'actors': [],
                 'lightmass': {'environment_color': [0.3, 0.3, 0.32], 'environment_intensity': 0.4},
                 'texture_usage': {k: sorted(v) for k, v in self.usage.items()},
-                'unmapped_materials': dict(self.unmapped.most_common())}
+                'unmapped_materials': dict(self.unmapped.most_common()),
+                'skipped_models': dict(self.skipped_models.most_common())}
         path = self.out / 'level.json'
         path.write_text(json.dumps(data, indent=1))
         print(f'[{self.name}] {len(solids)} solids, {nfaces} faces, {len(chunks)} chunks, '
-              f'{len(spawns)} spawns, {len(self.unmapped)} unmapped materials ({sum(self.unmapped.values())} faces)')
+              f'{len(spawns)} spawns, {len(self.unmapped)} unmapped materials ({sum(self.unmapped.values())} faces), '
+              f'{sum(1 for m in self.models.values() if m)} props converted, '
+              f'{sum(self.skipped_models.values())} Valve props skipped')
         return path
+
+    def convert_model(self, model: str) -> str | None:
+        """Source prop model -> meshes/<name>.mfmesh (Source units as MF uu, Y mirrored)."""
+        key = model.lower()
+        if key in self.models:
+            return self.models[key]
+        game = self.path.parents[1]                      # .../mobileforcessource/mapsrc/x.vmf
+        mdl = game / model
+        if not mdl.exists():
+            mdl = next((p for p in mdl.parent.glob('*') if p.name.lower() == mdl.name.lower()), mdl)
+        try:
+            sm = read_model(mdl)
+        except (OSError, ValueError, struct.error) as e:
+            print(f'  ! {model}: {e}')
+            self.models[key] = None
+            return None
+        name = Path(key).stem
+        mb = MeshBuilder(name)
+        keys = []
+        for tex in sm.textures:
+            target, _ = self.material_key(f'{(sm.tex_dirs or [""])[0]}{tex}')
+            keys.append(f'{target or "Engine.DefaultTexture"}|opaque')
+            self.usage.setdefault((target or 'Engine.DefaultTexture').lower(), set()).add('opaque')
+        for tex, tri in sm.triangles:
+            vs = [((p[0] * UU_TO_CM, -p[1] * UU_TO_CM, p[2] * UU_TO_CM), (n[0], -n[1], n[2]), uv) for p, n, uv in tri]
+            nrm = _norm(tuple(sum(v[1][i] for v in vs) for i in range(3)))
+            self._fan(mb, keys[tex] if tex < len(keys) else 'Engine.DefaultTexture|opaque', vs, nrm)
+        mb.lightmap_resolution = 64
+        mb.write(self.out / 'meshes')
+        self.models[key] = f'meshes/{name}'
+        return self.models[key]
 
     @staticmethod
     def _fan(mb: MeshBuilder, key, vs, n):
@@ -312,6 +354,16 @@ class VmfConverter:
                            radius=float(ent.keys.get('_distance', 0) or 0) * self.scale * UU_TO_CM or 1500.0)
                 out.append(dict(rec, type='spot_light' if cls == 'light_spot' else 'point_light',
                                 cone=float(ent.keys.get('_cone', 45))))
+            elif cls.startswith('prop_') and not cls.startswith(('prop_vehicle', 'prop_holdout')) \
+                    and ent.keys.get('model', '').lower().startswith(PROP_MODEL_DIRS):
+                mesh = self.convert_model(ent.keys['model'])
+                if mesh:
+                    s = self.scale * float(ent.keys.get('modelscale', 1) or 1)
+                    out.append(dict(base, type='static_mesh', mesh=mesh, scale=[s, s, s],
+                                    collision=ent.keys.get('solid', '6') != '0'))
+            elif cls.startswith('prop_') and 'model' in ent.keys and not cls.startswith(('prop_vehicle', 'prop_holdout')):
+                # HL2 / Valve model: not usable, listed for replacement with MF or new art
+                self.skipped_models[ent.keys['model'].lower()] += 1
             elif cls.startswith(('npc_', 'prop_vehicle', 'prop_holdout', 'item_', 'weapon_')):
                 # kept as data for the merge (zombie easter eggs, buggy spawns, holdout ...)
                 out.append(dict(base, type='legacy', mf_class=f'MFS:{cls}', mf_name=base['name'], team='255',

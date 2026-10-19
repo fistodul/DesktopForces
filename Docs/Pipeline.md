@@ -24,7 +24,10 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | `mfport.py map mf-warehouse` | BSP world geometry → chunked `.mfmesh`; static meshes → `.mfmesh`; actors → `level.json` |
 | `mfport.py textures` | exports every texture used by converted maps, BMP → PNG (≤ `max_texture_size`), alpha for masked |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
-| `mfport.py import [map…]` | runs the UE importer (`--steps textures,sounds,maps`) |
+| `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
+| `mfport.py mods` | mod plugins' `SourceArt/` → PNG/WAV for `import --steps plugins` |
+| `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
+| `mfport.py import [map…]` | runs the UE importer (`--steps textures,sounds,music,plugins,maps`; maps also get their navmesh baked) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 

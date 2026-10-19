@@ -1,0 +1,15 @@
+# Source (Hammer) maps to convert with `mfport.py vmf <name>`, and how they line up with the
+# original MF map. `vmf` is relative to this folder (Tools/mfport).
+# Transform: Hammer XY scaled, rotated by `yaw` (deg), mirrored (Source is right-handed),
+# then offset (MF uu). Fitted by least squares on landmarks found in both maps.
+
+[mfs-warehouse]
+vmf = "../../../MoFo/Mobile-Forces-Source/mp/game/mobileforcessource/mapsrc/mf-warehouse.vmf"
+# Landmarks (2026-10-19, from the team's Hammer screenshots): blue spawn room
+# (1006,-1000) <-> MF team 0 starts, red spawn room (1072,-1455) <-> team 1 starts,
+# prop_holdout (-6420,-1521) <-> RageDominationTimer. Residuals 75 / 74 / 5 uu.
+# MFS is ~0.68x the size of the original, rotated 90 degrees.
+scale = 1.4797
+yaw = -91.40
+# Z: MFS spawn floors at 56 (x1.48 = 83) vs MF 72 + rooms' floor; tune per area later
+offset = [7499.9, 1948.5, -11.0]

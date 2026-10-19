@@ -60,6 +60,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	int32 InventoryGroup = 1;
 
+	/**
+	 * Key that selects this item: 1-9, 0 for groups 1-10, X for every group above
+	 * (armour, mod gadgets). MF had 11 groups but no key for the 11th.
+	 */
+	int32 GetSlotKey() const { return FMath::Clamp(InventoryGroup, 1, 11); }
+	static FString SlotKeyName(int32 Key) { return Key >= 11 ? TEXT("X") : FString::FromInt(Key % 10); }
+
 	/** Inventory blocks used (MF CarrySize); a soldier carries 6. */
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	int32 CarrySize = 0;

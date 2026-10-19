@@ -109,10 +109,11 @@ void AMFPlayerController::BuildInput()
 			MappingContext->MapKey(A, B.Alt);
 		}
 	}
-	// Number keys 1..9, 0 -> inventory groups 1..10 (knife .. adrenaline)
+	// Number keys 1..9, 0 -> inventory groups 1..10 (knife .. adrenaline); X -> everything
+	// above (armour and mod gadgets; unbound in MF's default controls)
 	const FKey Numbers[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five,
-		EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine, EKeys::Zero };
-	for (int32 i = 0; i < 10; ++i)
+		EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine, EKeys::Zero, EKeys::X };
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Numbers); ++i)
 	{
 		UInputAction* A = Make(*FString::Printf(TEXT("Slot%d"), i + 1), EInputActionValueType::Boolean);
 		MappingContext->MapKey(A, Numbers[i]);
@@ -166,7 +167,7 @@ void AMFPlayerController::SetupInputComponent()
 	EIC->BindAction(A(TEXT("MenuDown")), ETriggerEvent::Started, this, &AMFPlayerController::OnMenuDown);
 	EIC->BindAction(A(TEXT("MenuSelect")), ETriggerEvent::Started, this, &AMFPlayerController::OnMenuSelect);
 	EIC->BindAction(A(TEXT("Use")), ETriggerEvent::Started, this, &AMFPlayerController::OnMenuSelect);
-	for (int32 i = 1; i <= 10; ++i)
+	for (int32 i = 1; i <= 11; ++i)
 	{
 		EIC->BindAction(A(*FString::Printf(TEXT("Slot%d"), i)), ETriggerEvent::Started, this, &AMFPlayerController::OnWeaponSlot, i);
 	}
@@ -338,9 +339,66 @@ void AMFPlayerController::OnPrevWeapon()
 
 void AMFPlayerController::OnWeaponSlot(int32 Slot)
 {
-	if (AMFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout())
+	if (AMFCharacter* C = GetMFCharacter())
 	{
-		C->SelectInventoryGroup(Slot);
+		if (C->IsInLoadout())
+		{
+			LoadoutKey(Slot);
+		}
+		else
+		{
+			C->SelectInventoryGroup(Slot);
+		}
+	}
+}
+
+int32 AMFPlayerController::GetLoadoutOpenSlot() const
+{
+	return LoadoutOpenSlot != 0 && GetWorld()->GetRealTimeSeconds() - LoadoutOpenTime < 4.f ? LoadoutOpenSlot : 0;
+}
+
+void AMFPlayerController::LoadoutKey(int32 Slot)
+{
+	const TArray<TSubclassOf<AMFWeapon>> Items = GetLoadoutItems();
+	auto RowOf = [&Items](int32 Key)
+	{
+		TArray<int32> Row;
+		for (int32 i = 0; i < Items.Num(); ++i)
+		{
+			if (Items[i] && Items[i]->GetDefaultObject<AMFWeapon>()->GetSlotKey() == Key)
+			{
+				Row.Add(i);
+			}
+		}
+		return Row;
+	};
+	auto Pick = [this, &Items](int32 Index)
+	{
+		LoadoutCursor = Index;
+		LoadoutOpenSlot = 0;
+		ServerLoadoutPick(Items[Index]);
+	};
+	if (const int32 Open = GetLoadoutOpenSlot())
+	{
+		// Second key: item number inside the open row (1..9, 0 = 10th)
+		const TArray<int32> Row = RowOf(Open);
+		if (Slot <= 10 && Row.IsValidIndex(Slot - 1))
+		{
+			Pick(Row[Slot - 1]);
+			return;
+		}
+		LoadoutOpenSlot = 0;   // not an item of the row: treat it as a new row key
+	}
+	const TArray<int32> Row = RowOf(Slot);
+	if (Row.Num() == 1)
+	{
+		Pick(Row[0]);
+	}
+	else if (Row.Num() > 1)
+	{
+		LoadoutOpenSlot = Slot;
+		LoadoutOpenTime = GetWorld()->GetRealTimeSeconds();
+		LoadoutCursor = Row[0];
 	}
 }
 
@@ -364,11 +422,21 @@ bool AMFPlayerController::IsLoadoutOpen() const
 
 TArray<TSubclassOf<AMFWeapon>> AMFPlayerController::GetLoadoutItems() const
 {
+	TArray<TSubclassOf<AMFWeapon>> Items;
 	if (const AMFLoadoutSource* Src = UMFLoadoutLibrary::FindLoadoutSourceFor(GetMFCharacter()))
 	{
-		return Src->GetItems();
+		Items = Src->GetItems();
 	}
-	return UMFLoadoutLibrary::DefaultItems();
+	else
+	{
+		Items = UMFLoadoutLibrary::DefaultItems();
+	}
+	Items.RemoveAll([](const TSubclassOf<AMFWeapon>& W) { return !W; });
+	Items.StableSort([](const TSubclassOf<AMFWeapon>& A, const TSubclassOf<AMFWeapon>& B)
+	{
+		return A->GetDefaultObject<AMFWeapon>()->GetSlotKey() < B->GetDefaultObject<AMFWeapon>()->GetSlotKey();
+	});
+	return Items;
 }
 
 void AMFPlayerController::OnLoadout()

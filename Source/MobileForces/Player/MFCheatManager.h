@@ -18,7 +18,11 @@ public:
 	UFUNCTION(Exec)
 	void MFNavTest();
 
-	/** Orthographic top-down view centred at X,Y covering Width cm (0 = back to the pawn). */
+	/**
+	 * Orthographic top-down view centred at X,Y covering Width cm (0 = back to the pawn),
+	 * camera at height Z (0 = high above the map). A camera under the roofs cuts them away,
+	 * for textured floor plans (Tools/mfport/debug/merge_shots.py).
+	 */
 	UFUNCTION(Exec)
-	void MFTopView(float X, float Y, float Width);
+	void MFTopView(float X, float Y, float Width, float Z);
 };

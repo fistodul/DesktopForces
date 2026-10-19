@@ -13,23 +13,58 @@ with no Valve/HL2 content.
 | Game modes | all 8 (flags, safes, det locks, trailer parks/delivery, holdout, captain starts, crates, vehicle generators, road points) | DM/TDM/captains/holdout entities, MFS-specific |
 | Content to drop | — | HL2 materials (`BRICK/…`), HL2 NPCs (zombies, Alyx, combine, hunter), `prop_vehicle_jeep` |
 
+## Status (2026-10-19)
+
+| Step | State |
+|---|---|
+| VMF converter (`mfport.py vmf mfs-warehouse`) | ✅ brushes → `.mfmesh`, MF textures by name, entities |
+| MFS props | ✅ 820 MF props (`models/warehouse/*`, MF meshes recompiled by the MFS team) read from compiled `.mdl/.vvd/.vtx` (`mflib/sourcemdl.py`) · 459 Valve props left out (listed in `level.json` → `skipped_models`) |
+| Alignment | ✅ see below |
+| Per-area comparison | ✅ tools ready, **team decision needed** |
+| Merge build | ⬜ after the decisions |
+
+### Alignment
+Landmarks from the team's Hammer screenshots: blue spawn room (1006, −1000), red spawn
+room (1072, −1455), `prop_holdout` (−6420, −1521) ↔ the original's team 0 / team 1 starts
+and `RageDominationTimer`. Least-squares similarity (with a mirror, because Hammer is
+right-handed):
+
+- **scale 1.48** (MFS is ~0.68× the original), **rotation 91.4°**, offset (7500, 1949) uu
+- residuals: 75 / 74 / 5 uu; outer walls and catwalks line up across most of the map
+- MFS props were scaled ~0.75 when the team recompiled them, so they come out ~1.1×
+  after the map scale — close enough, tune per prop if needed
+
+Stored in `Tools/mfport/vmf_maps.toml`; both maps share one frame after conversion.
+
+### Tools
+| Tool | Output |
+|---|---|
+| `debug/overlay.py A B out.png [--zmin --zmax]` | both maps' walkable floors in one image (blue / orange) |
+| `debug/merge_areas.py mf-warehouse mfs-warehouse work/merge` | `areas.md`: per original zone, triangles + props of both, floor-plan crops |
+| `debug/merge_shots.py mf-warehouse mfs-warehouse work/merge/shots` | in-engine textured top views of every zone, same camera in both maps, side by side |
+
+Outputs stay in `Tools/mfport/work/` (git-ignored: they are renders of the original game).
+
+### Choosing areas
+Fill the **Use** column of `work/merge/areas.md` with `MF`, `MFS` or `both` (e.g. MFS
+interior + MF gameplay actors). Rule of thumb from the team: take the version with more
+detail / geometry / smoother shapes; keep MFS secrets, `func_breakable` doors and passages.
+Gameplay actors (spawns, crates, objectives, vehicles) always come from the original so
+every game mode works; MFS extras (secrets, buggy spots, zombie easter eggs) are added.
+
 ## Steps
-1. **VMF converter** (`Tools/mfport/mflib/vmf.py`, todo): solids → convex polyhedra by plane
-   intersection, Valve `uaxis/vaxis` → UVs, displacements, `func_detail` merged into world.
-   Output the same `.mfmesh` + `level.json` as the UMF path so the importer is shared.
-2. **Material mapping table** (`Tools/mfport/vmf_materials.toml`): every VMF material → an MF
-   texture key (`rage_warehouse.*`), a CC0 replacement, or a team-made texture. `materials/warehouse/*`
-   in MFS are MF textures already; HL2 ones (`BRICK/BRICKFLOOR001A`, `metalwall030a` …) must be remapped.
-3. **Props**: MFS models in `models/warehouse/*.mdl` → decompile (Crowbar) → SMD → `.mfmesh`.
-   HL2 props are replaced by MF static meshes or new CC0/team models.
-4. **Alignment**: pick ~10 landmarks present in both (flag bases, holdout, locker rooms,
-   canal, containers), solve scale + 90° rotation + offset by least squares. Expected scale
-   ≈ MF uu / Source unit ≈ 1.0–1.1 (both games size players ~72–78 units).
-5. **Area by area**: split both maps by MF zone (the BSP gives zone bounds). For each area
-   choose MFS geometry (extended/more detail) or original, fix seams with new brushwork.
-   The team decides per area — a side-by-side screenshot sheet per zone will be generated
-   to make the choices.
-6. **Gameplay actors** come from the original map (every mode works), plus MFS extras:
-   secrets, `item_*` → MF pickups, `prop_vehicle_jeep` → MF Buggy generator,
-   `npc_zombie*` → ZombieGame easter-egg spawns (own models).
-7. Lighting re-baked with Lightmass; result saved as the canonical `mf-warehouse`.
+1. ✅ **VMF converter** (`Tools/mfport/mflib/vmf.py`): solids → convex polyhedra by plane
+   intersection, Valve `uaxis/vaxis` → UVs, `func_detail` merged into world.
+   Output: the same `.mfmesh` + `level.json` as the UMF path, so the importer is shared.
+   Todo: displacements, `func_breakable` → breakable actor.
+2. 🟡 **Material mapping** (`Tools/mfport/vmf_materials.toml`): MF texture names resolve
+   automatically; 57 materials (906 faces) still unmapped (HL2 `BRICK/…`, `metalwall…`) →
+   MF texture, CC0 replacement or team texture.
+3. 🟡 **Props**: MF-derived props done. Valve props (`props_c17` handrails, `props_junk`
+   pallets, lab lights, vents, `models/props/box` …) → MF statics or new CC0/team models.
+4. ✅ **Alignment** (above).
+5. ⬜ **Area by area**: team fills `areas.md`; then a merge step copies the chosen version's
+   geometry per zone box and new brushwork fixes the seams.
+6. ⬜ **Gameplay actors** from the original + MFS extras: `prop_vehicle_jeep` → MF Buggy
+   generator, `npc_zombie*` → ZombieGame easter-egg spawns (own models), `item_*` → MF pickups.
+7. ⬜ Lighting re-baked; result saved as the canonical `mf-warehouse`.
