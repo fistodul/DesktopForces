@@ -8,6 +8,7 @@ Steps (run alone or chained with `all`):
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
   mods                 convert mod plugins' SourceArt (Plugins/Mods/*/SourceArt)
   vmf <name...>        convert a Source (Hammer) map listed in vmf_maps.toml, aligned to its MF map
+  merge <preset...>    merge two aligned maps area by area (merge/<preset>.toml)
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + sounds + import + light
@@ -46,7 +47,7 @@ def cmd_vmf(cfg, names):
         p = presets[n]
         src = Path(__file__).resolve().parent / p["vmf"]
         VmfConverter(cfg, src, n, scale=p.get('scale', 1.0), offset=tuple(p.get('offset', (0, 0, 0))),
-                     yaw=p.get('yaw', 0.0)).run()
+                     yaw=p.get('yaw', 0.0), zscale=p.get('zscale'), prop_scale=p.get('prop_scale')).run()
 
 
 def collect_usage(cfg) -> dict[str, set[str]]:
@@ -103,7 +104,7 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'mods', 'vmf', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'mods', 'vmf', 'merge', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
     ap.add_argument('--steps', default='textures,sounds,music,plugins,maps', help='importer steps for `import`')
     a = ap.parse_args()
@@ -114,6 +115,10 @@ def main():
         cmd_map(cfg, a.names or ['mf-warehouse'])
     if a.step == 'vmf':
         cmd_vmf(cfg, a.names or ['mfs-warehouse'])
+    if a.step == 'merge':
+        from mflib.merge import Merger
+        for n in a.names or ['mf-warehouse']:
+            Merger(cfg, n).run()
     if a.step in ('textures', 'all'):
         cmd_textures(cfg)
     if a.step == 'sounds':

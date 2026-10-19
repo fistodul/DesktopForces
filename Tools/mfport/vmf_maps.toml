@@ -11,5 +11,9 @@ vmf = "../../../MoFo/Mobile-Forces-Source/mp/game/mobileforcessource/mapsrc/mf-w
 # MFS is ~0.68x the size of the original, rotated 90 degrees.
 scale = 1.4797
 yaw = -91.40
-# Z: MFS spawn floors at 56 (x1.48 = 83) vs MF 72 + rooms' floor; tune per area later
-offset = [7499.9, 1948.5, -11.0]
+# Heights: MFS squashed the map less vertically. Two storeys pin it: ground -48 / base
+# floor 64 (Hammer) -> MF -97.8 / 32 uu. The deck (MFS ~312) lands on MF's 320 uu.
+zscale = 1.159
+offset = [7499.9, 1948.5, -42.2]
+# MF props were recompiled for MFS at 0.75 scale: 1/0.75 brings them back to MF size
+prop_scale = 1.3333

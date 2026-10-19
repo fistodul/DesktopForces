@@ -21,14 +21,14 @@ to run the original `UCC.exe` exporter), ffmpeg (optional, sounds), a Mobile For
 # 1. point the pipeline at your game (optional if the default path fits)
 cp Tools/mfport/mfport.example.toml Tools/mfport/mfport.toml && $EDITOR Tools/mfport/mfport.toml
 
-# 2. build the editor
-<UE>/Engine/Build/BatchFiles/Linux/Build.sh MobileForcesEditor Linux Development -project="$PWD/MobileForces.uproject"
+# 2. build the C++ modules
+Tools/play.sh build
 
-# 3. convert + import + light a map (warehouse ~10 min the first time; shaders compile once)
+# 3. convert + import a map (warehouse ~10 min the first time; shaders compile once)
 python3 Tools/mfport/mfport.py all mf-warehouse
 
-# 4. play
-<UE>/Engine/Binaries/Linux/UnrealEditor MobileForces.uproject /Game/MFMaps/Generated/mf-warehouse -game
+# 4. play (map, mode dm|tdm|holdout|koh, bots) - or `Tools/play.sh editor`
+Tools/play.sh mf-warehouse tdm 8
 ```
 
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,

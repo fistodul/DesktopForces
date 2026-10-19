@@ -1,0 +1,39 @@
+# mf-warehouse merge: which version each original zone comes from (MF = original,
+# MFS = Mobile Forces Source remake). Picked by the team 2026-10-19 as a guideline:
+# fix seams / holes / misalignment where needed. Zones overlap (they are bounding boxes);
+# the smallest box containing a point wins. Outside every box: `default`.
+
+[map]
+name = "mf-warehouse-merged"
+base = "mf-warehouse"
+remake = "mfs-warehouse"
+default = "MFS"
+# zone boxes grow by this many cm, so walls between two zones belong to one of them
+margin = 100
+# smooth local alignment of the remake onto the original (mflib/warp.py)
+warp = false   # experimental: did not reduce seams on 2026-10-19 (3921 vs 3883 cells)
+
+[zones]
+zone0 = "MFS"
+ZoneInfo28 = "MF"
+ZoneInfo7 = "MFS"
+ZoneInfo6 = "MF"
+ZoneInfo33 = "MFS"
+zone5 = "MFS"
+ZoneInfo27 = "MF"
+ZoneInfo34 = "MFS"
+ZoneInfo32 = "MFS"
+ZoneInfo37 = "MF"
+LoadoutZone0 = "MF"
+LoadoutZone2 = "MF"
+ZoneInfo38 = "MF"
+ZoneInfo17 = "MF"
+ZoneInfo29 = "MFS"
+ZoneInfo30 = "MFS"
+ZoneInfo26 = "MF"
+ZoneInfo4 = "MF"
+ZoneInfo5 = "MFS"
+zone30 = "MF"
+ZoneInfo31 = "MFS"
+zone32 = "MF"
+ZoneInfo24 = "MF"

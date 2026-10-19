@@ -56,6 +56,10 @@ def main():
     src_props = [(s['location'], s['mesh']) for s in lvls[1]['spawns'] if s['type'] == 'static_mesh']
     src_skipped = sum(lvls[1].get('skipped_models', {}).values())
 
+    # the team's picks live in merge/<map>.toml; the table only shows them
+    import tomllib
+    preset = Path(__file__).resolve().parents[1] / 'merge' / f'{a.mf}.toml'
+    picks = tomllib.loads(preset.read_text()).get('zones', {}) if preset.exists() else {}
     rows = []
     names = lvls[0]['zones']
     for z, (lo, hi) in sorted(lvls[0]['zone_bounds'].items(), key=lambda kv: int(kv[0])):
@@ -86,6 +90,7 @@ def main():
 
     with open(out / 'areas.md', 'w') as f:
         f.write(f'# {a.mf} vs {a.src}, per original zone\n\n')
+        f.write(f'Picks ("Use") are read from `Tools/mfport/merge/{a.mf}.toml` - edit them there.\n\n')
         f.write('Bounds in m. "tris" = visible world triangles in the zone box (BSP cuts inflate the\n'
                 'original\'s count); MF props = static mesh triangles; remake props = converted MF props\n'
                 f'({src_skipped} Valve props are left out map-wide). Shots: textured top views from\n'
@@ -94,7 +99,7 @@ def main():
         for name, z, lo, hi, c, p in rows:
             b = f'{lo[0]/100:.0f},{lo[1]/100:.0f} – {hi[0]/100:.0f},{hi[1]/100:.0f}'
             shot = f'[shot](shots/{name}_1000.png)' if (out / 'shots' / f'{name}_1000.png').exists() else ''
-            f.write(f'| {name} | {b} | {c[0]} | {c[1]} | {p[0]} | {p[1]} | [plan]({name}.png) | {shot} | ? |\n')
+            f.write(f'| {name} | {b} | {c[0]} | {c[1]} | {p[0]} | {p[1]} | [plan]({name}.png) | {shot} | {picks.get(name, '?')} |\n')
     print(f'{len(rows)} areas -> {out}/areas.md')
 
 

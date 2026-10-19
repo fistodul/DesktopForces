@@ -180,11 +180,14 @@ def load_material_map() -> dict[str, str]:
 
 class VmfConverter:
     def __init__(self, cfg: Config, vmf_path: Path, name: str, scale: float = 1.0,
-                 offset=(0.0, 0.0, 0.0), yaw: float = 0.0):
+                 offset=(0.0, 0.0, 0.0), yaw: float = 0.0, zscale: float | None = None,
+                 prop_scale: float | None = None):
         self.cfg = cfg
         self.path = vmf_path
         self.name = name
         self.scale = scale
+        self.zscale = scale if zscale is None else zscale          # remakes may squash height differently
+        self.prop_scale = scale if prop_scale is None else prop_scale
         self.offset = offset
         self.yaw = math.radians(yaw)
         self.out = cfg.out_dir / 'Maps' / name
@@ -220,7 +223,7 @@ class VmfConverter:
 
     def xform(self, p):
         c, s = math.cos(self.yaw), math.sin(self.yaw)
-        x, y, z = p[0] * self.scale, p[1] * self.scale, p[2] * self.scale
+        x, y, z = p[0] * self.scale, p[1] * self.scale, p[2] * self.zscale
         x, y = x * c - y * s, x * s + y * c
         # Hammer is right-handed (Y left); Unreal is left-handed (Y right): mirror Y
         return ((x + self.offset[0]) * UU_TO_CM, (-y + self.offset[1]) * UU_TO_CM, (z + self.offset[2]) * UU_TO_CM)
@@ -358,7 +361,7 @@ class VmfConverter:
                     and ent.keys.get('model', '').lower().startswith(PROP_MODEL_DIRS):
                 mesh = self.convert_model(ent.keys['model'])
                 if mesh:
-                    s = self.scale * float(ent.keys.get('modelscale', 1) or 1)
+                    s = self.prop_scale * float(ent.keys.get('modelscale', 1) or 1)
                     out.append(dict(base, type='static_mesh', mesh=mesh, scale=[s, s, s],
                                     collision=ent.keys.get('solid', '6') != '0'))
             elif cls.startswith('prop_') and 'model' in ent.keys and not cls.startswith(('prop_vehicle', 'prop_holdout')):

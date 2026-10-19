@@ -27,6 +27,7 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py mods` | mod plugins' `SourceArt/` → PNG/WAV for `import --steps plugins` |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
+| `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
 | `mfport.py import [map…]` | runs the UE importer (`--steps textures,sounds,music,plugins,maps`; maps also get their navmesh baked) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |

@@ -115,3 +115,20 @@ class MeshBuilder:
                 n += 3
         path.write_text('\n'.join(lines))
         path.with_suffix('.mtl').write_text('\n'.join(mtl))
+
+
+def read(json_path: Path) -> MeshBuilder:
+    """Load a written .mfmesh back into a builder (for tools that edit converted meshes)."""
+    meta = json.loads(Path(json_path).read_text())
+    data = Path(json_path).parent.joinpath(meta['bin']).read_bytes()
+    n = meta['vertex_count']
+    verts = [struct.unpack_from('<8f', data, i * 32) for i in range(n)]
+    idx = struct.unpack_from(f"<{meta['index_count']}I", data, n * 32)
+    mb = MeshBuilder(meta['name'], materials=list(meta['materials']), collision=meta.get('collision', 'complex'),
+                     lightmap_resolution=meta.get('lightmap_resolution', 64), render=meta.get('render', True))
+    for sec in meta['sections']:
+        tris = mb.tris.setdefault(sec['material'], [])
+        for t in range(sec['num_triangles']):
+            i0 = sec['first_index'] + 3 * t
+            tris.append(tuple((v[0:3], v[3:6], v[6:8]) for v in (verts[idx[i0 + k]] for k in range(3))))
+    return mb

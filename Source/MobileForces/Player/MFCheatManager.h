@@ -25,4 +25,8 @@ public:
 	 */
 	UFUNCTION(Exec)
 	void MFTopView(float X, float Y, float Width, float Z);
+
+	/** Perspective camera at X,Y,Z looking towards yaw/pitch (degrees); for scripted shots. */
+	UFUNCTION(Exec)
+	void MFCam(float X, float Y, float Z, float Yaw, float Pitch);
 };

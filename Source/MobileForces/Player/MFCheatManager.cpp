@@ -66,6 +66,16 @@ void UMFCheatManager::MFNavTest()
 	}
 }
 
+void UMFCheatManager::MFCam(float X, float Y, float Z, float Yaw, float Pitch)
+{
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ACameraActor* Cam = GetWorld()->SpawnActor<ACameraActor>(FVector(X, Y, Z), FRotator(Pitch, Yaw, 0.f), SP);
+	Cam->GetCameraComponent()->SetFieldOfView(80.f);
+	Cam->GetCameraComponent()->SetConstraintAspectRatio(false);
+	GetPlayerController()->SetViewTarget(Cam);
+}
+
 void UMFCheatManager::MFTopView(float X, float Y, float Width, float Z)
 {
 	if (Width <= 0.f)
