@@ -93,6 +93,10 @@ lets go (no regrab for 0.5 s).
   to your team on the spot (full health). A team with nobody left loses the round (+2 to the
   converter); the bigger team wins a round that runs out of time (8 min). 3 rounds; every
   round starts with the original teams and fresh loadouts.
+- **Arena** (`arena`, MF-mods arenaMode by Gregaras, `Mods/Arena`): rounds without respawning.
+  The map's Holdout point is locked for 50 s ("Get ready" at 10, a countdown from 5); then a team
+  that stands on it alone for 10 s takes the round; stepping off, or an enemy stepping on, starts
+  the count over. Wiping out the other team takes the round too. 5 rounds, 10 min.
 - **Coop mode** (`coop`, MF-mods CoopMode, `Mods/Coop`): capture the flag with every human on
   red against a blue team of bots (12 by default, `?Bots=N`); 3 captures, no time limit.
   `?Weapons=N` limits the humans' loadout: 0 none ("Nice try, human!"), 1-2 only weapons on the

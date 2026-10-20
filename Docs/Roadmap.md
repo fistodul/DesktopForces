@@ -25,7 +25,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes
 - ✅ Our own art: `SourceArt/` (menu pictures, start-up theme, mod icons) + procedural textures → `Tools/artgen` → `/Game/MF/...`
 - ✅ Content packs: classic (plugin) / core / replaced roots from `packs.toml`; core maps own their material instances (replacement art needs no re-bake)
-- 🟡 Replacement art for the textures core maps still borrow (`mfport.py packs`: Toreford 1, MF-Filip 43)
+- 🟡 Replacement art for the textures core maps borrow: generated stand-ins for ~850 (`Tools/artgen/lookalike.py --auto`); see-through ones (foliage, decals) still original
 - ✅ Sky: each map's SkyZone captured into a cubemap for the sky material
 - ✅ Minimap textures (MiniMapInfo)
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
@@ -49,9 +49,9 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `MFNavTest` / `MFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
 - 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret; ⬜ bots driving / riding, wheel blow-outs
 - ✅ Ladders: grab when close / falling in, climb down from the top, floor walks again; ⬜ swimming/drowning, water zones
-- ✅ MF-mods, part of the game (`Source/DesktopForces/Mods`, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC
+- ✅ MF-mods, part of the game (`Source/DesktopForces/Mods`, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
-- ⬜ More MF-mods: jeep, boat, heli, arenaMode, battleRoyale, MoBall, mutPack, vote, TurboCars
+- ⬜ More MF-mods: jeep, boat, heli, battleRoyale, MoBall, mutPack, vote, TurboCars
 
 ## Presentation
 - ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars, minimap (MF MiniMapInfo texture, team border, team-mates, objectives); ⬜ MF scoreboard

@@ -23,6 +23,7 @@ added build steps). They are still the best examples of how to extend the game:
 | `Mods/Deagle`, `Mods/GrenadeLauncher` | `deagle`, `grenLaunch` | stock weapon subclasses; models from the mod packages when converted, stock fallbacks |
 | `Mods/PredatorMissile` | `PredatorMissile` | a player-guided missile actor, view-target switching, a weapon HUD overlay (`DrawHUD`) |
 | `Mods/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat (`PassengerEntered` / `Left`), a turret, a hidden seat "weapon" |
+| `Mods/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
 | `Mods/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`AMFGameState::LoadoutAccess`, `LoadoutDenied`) |
 | `Mods/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`AMFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
 
