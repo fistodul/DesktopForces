@@ -8,7 +8,7 @@
 
 #define LOCTEXT_NAMESPACE "MFModTripLasers"
 
-namespace
+namespace MFTripLasersLocal
 {
 	/** MF GetDamageInstigator: in team games the planter only gets the kill while still on the planting team. */
 	AController* Credit(const AActor* Device, uint8 PlacedTeam)
@@ -78,7 +78,7 @@ void AMFTripLaser::CheckBeam()
 	if (C && C->IsAlive() && !IsFriendlyTo(C))
 	{
 		FDamageEvent Ev(UMFDamage_TripLaser::StaticClass());
-		C->TakeDamage(bAnchored ? 280.f : 185.f, Ev, Credit(this, Team), this);
+		C->TakeDamage(bAnchored ? 280.f : 185.f, Ev, MFTripLasersLocal::Credit(this, Team), this);
 		Destroy();
 	}
 }
@@ -117,7 +117,7 @@ void AMFTripLaserMine::Trigger(AMFCharacter* Who)
 {
 	// TripLaserOnGround.Touch: 280 to whoever stepped on it, no blast
 	FDamageEvent Ev(UMFDamage_TripLaser::StaticClass());
-	Who->TakeDamage(280.f, Ev, Credit(this, PlacedTeam), this);
+	Who->TakeDamage(280.f, Ev, MFTripLasersLocal::Credit(this, PlacedTeam), this);
 	Destroy();
 }
 

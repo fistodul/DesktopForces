@@ -151,6 +151,17 @@ void AMFBotController::Fight(AMFCharacter* C, AMFCharacter* Target)
 		C->StopFire(true);
 		return;
 	}
+	if (W->IsMeleeWeapon())
+	{
+		// knives (zombies): run at them, slash when in reach
+		MoveToActor(Target, 60.f, true, true, false);
+		if (Dist < 260.f && Now >= ReactionDue)
+		{
+			C->StartFire(false);
+			C->StopFire(false);
+		}
+		return;
+	}
 	if (Now >= ReactionDue)
 	{
 		if (!W->HasAmmoInClip() && W->CanReload())

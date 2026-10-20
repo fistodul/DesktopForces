@@ -575,6 +575,15 @@ void AMFPlayerController::ServerToggleLoadout_Implementation()
 	{
 		// MF: "Can only get loadout when walking". Away from crates and loadout zones it still
 		// opens: take weapons lying around, put carried ones down (MF only opened it there).
+		const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+		if (GS && GS->GetLoadoutAccess(C->GetTeam()) <= 0)
+		{
+			if (const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+			{
+				GM->LoadoutDenied(this);
+			}
+			return;
+		}
 		EnterLoadout();
 	}
 }

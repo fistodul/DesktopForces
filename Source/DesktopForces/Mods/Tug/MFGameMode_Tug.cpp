@@ -68,7 +68,7 @@ bool AMFGameMode_Tug::PreventDeath(AMFCharacter* Victim, AController* Killer, TS
 	VPS->SetTeam(KPS->GetTeam());
 	Victim->Heal(Victim->MaxHealth);
 	BroadcastChat(nullptr, FString::Printf(TEXT("%s joined the %s team"), *VPS->GetPlayerName(),
-		*UMFGameSettings::Get().GetTeamName(KPS->GetTeam()).ToString().ToLower()), false);
+		*GetGameState<AMFGameState>()->GetTeamName(KPS->GetTeam()).ToString().ToLower()), false);
 	// TugGame.MovedTeam: their old team is gone -> round to the converter's team
 	if (TeamSize(OldTeam) == 0)
 	{
@@ -100,7 +100,7 @@ void AMFGameMode_Tug::RoundEnded(int32 Winner)
 	}
 	bRoundOver = true;
 	GS->TeamScores[Winner] += 1;
-	const FString Team = UMFGameSettings::Get().GetTeamName(Winner).ToString();
+	const FString Team = GS->GetTeamName(Winner).ToString();
 	if (GoalTeamScore > 0 && GS->TeamScores[Winner] >= GoalTeamScore)
 	{
 		FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *Team));

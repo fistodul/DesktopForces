@@ -333,7 +333,7 @@ class LevelConverter:
         self.out.mkdir(parents=True, exist_ok=True)
         pkg = Package(str(self.umf))
         model = LevelModel(pkg)
-        level = t3d.parse(self.export_t3d().read_text(encoding='latin-1')).children[0]
+        level = t3d.parse(t3d.read_text(self.export_t3d())).children[0]
         actors = self.convert_actors(level)
         ambients = self.zone_ambients(model, actors)
         world = self.convert_world(model, ambients)

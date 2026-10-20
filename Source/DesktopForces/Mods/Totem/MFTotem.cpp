@@ -9,7 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "MFModTotem"
 
-namespace
+namespace MFTotemLocal
 {
 	void PlayAt(const AActor* Where, const TCHAR* Path)
 	{
@@ -141,7 +141,7 @@ int32 AMFWeapon_Totem::AbsorbDamage(int32 Damage, const UMFDamageType* Type)
 	const int32 Allowed = FMath::Max(0, Me->GetHealth() - SurviveHealth);
 	UMFTotemHealComponent::Apply(Me, ReviveHealPerTick, ReviveTicks, HealInterval, ReviveGrace);
 	Message(TEXT("Totem of Undying triggered! Death prevented."));
-	PlayAt(Me, TotemSound);
+	MFTotemLocal::PlayAt(Me, MFTotemLocal::TotemSound);
 	ClipAmmo = 0;
 	OnDepleted();   // gone at once, it may not be the held item
 	return Allowed;
@@ -186,7 +186,7 @@ bool AMFWeapon_Totem::TryFire(bool bAlt)
 			return false;
 		}
 		Message(FString::Printf(TEXT("AoE Pulse Heal activated! (%d healed)"), Healed));
-		PlayAt(Me, TotemSound);
+		MFTotemLocal::PlayAt(Me, MFTotemLocal::TotemSound);
 	}
 	else
 	{

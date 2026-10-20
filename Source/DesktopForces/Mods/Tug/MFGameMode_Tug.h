@@ -29,8 +29,8 @@ protected:
 	virtual void CheckEndConditions(AMFPlayerState* LastKiller) override {}
 	virtual void OnTimeLimit() override;
 	/** Winner < 0: the bigger team (coin toss on a tie). */
-	void RoundEnded(int32 Winner);
-	void NextRound();
+	virtual void RoundEnded(int32 Winner);
+	virtual void NextRound();
 	int32 TeamSize(uint8 Team) const;
 
 	TMap<TWeakObjectPtr<AController>, uint8> InitialTeams;

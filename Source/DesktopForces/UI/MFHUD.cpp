@@ -473,7 +473,7 @@ void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 		float X = CX - Spacing * 0.5f * (GS->NumTeams - 1);
 		for (int32 T = 0; T < GS->NumTeams && !bMFPanels; ++T, X += Spacing)
 		{
-			Text(FString::Printf(TEXT("%s %d"), *Settings.GetTeamName(T).ToString().ToUpper(), GS->GetTeamScore(T)),
+			Text(FString::Printf(TEXT("%s %d"), *GS->GetTeamName(T).ToString().ToUpper(), GS->GetTeamScore(T)),
 				X, 36.f * UIScale, Settings.GetTeamColor(T), 1.1f, true);
 		}
 		// Capture points (Holdout / KOH), coloured by the team holding them
@@ -814,7 +814,7 @@ void AMFHUD::DrawScoreboardMF(AMFGameState* GS)
 		const UMFGameSettings& Settings = UMFGameSettings::Get();
 		for (int32 T = 0; T < FMath::Min(GS->NumTeams, 2); ++T)
 		{
-			FString Name = Settings.GetTeamName(T).ToString();
+			FString Name = GS->GetTeamName(T).ToString();
 			if (!Name.Contains(TEXT("Squad")))
 			{
 				Name += TEXT(" Squad");

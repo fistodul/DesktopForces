@@ -35,6 +35,15 @@ class Block:
         return [c for c in self.children if c.kind == kind]
 
 
+def read_text(path) -> str:
+    """UCC writes T3D as Latin-1, or as UTF-16 (with a BOM) when a name or text in the map
+    needs characters outside Latin-1 (Polish map titles, for example)."""
+    data = path.read_bytes()
+    if data[:2] in (b'\xff\xfe', b'\xfe\xff'):
+        return data.decode('utf-16')
+    return data.decode('latin-1')
+
+
 def parse(text: str) -> Block:
     root = Block('Root', {})
     stack = [root]

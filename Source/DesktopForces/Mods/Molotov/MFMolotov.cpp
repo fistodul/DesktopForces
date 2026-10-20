@@ -6,7 +6,7 @@
 
 #define LOCTEXT_NAMESPACE "MFModMolotov"
 
-namespace
+namespace MFMolotovLocal
 {
 	void SpawnFire(AActor* From, const FVector& Location)
 	{
@@ -88,7 +88,7 @@ void AMFProjectile_Molotov::Explode(const FVector& Location, const FVector& Norm
 {
 	if (!bExploded)
 	{
-		SpawnFire(this, Location);
+		MFMolotovLocal::SpawnFire(this, Location);
 	}
 	Super::Explode(Location, Normal);
 }
@@ -103,7 +103,7 @@ void AMFProjectile_MolotovImpact::Explode(const FVector& Location, const FVector
 {
 	if (!bExploded)
 	{
-		SpawnFire(this, Location);
+		MFMolotovLocal::SpawnFire(this, Location);
 	}
 	Super::Explode(Location, Normal);
 }

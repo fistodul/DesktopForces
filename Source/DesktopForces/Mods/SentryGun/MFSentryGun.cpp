@@ -18,7 +18,7 @@
 
 #define LOCTEXT_NAMESPACE "MFModSentryGun"
 
-namespace
+namespace MFSentryLocal
 {
 	void PlayAt(const AActor* A, const TCHAR* Path)
 	{
@@ -107,7 +107,7 @@ void AMFSentryTurret::BeginPlay()
 	if (HasAuthority())
 	{
 		Ammo = MaxAmmo;
-		PlayAt(this, ActivatingSound);
+		MFSentryLocal::PlayAt(this, MFSentryLocal::ActivatingSound);
 		// state Deploying: 0.4 s, then Scanning at 5 Hz
 		GetWorldTimerManager().SetTimer(Timer, this, &AMFSentryTurret::Scan, 0.2f, true, 0.4f);
 	}
@@ -187,7 +187,7 @@ void AMFSentryTurret::Scan()
 	if (AActor* T = FindBestTarget())
 	{
 		Target = T;
-		PlayAt(this, ActivatingSound);
+		MFSentryLocal::PlayAt(this, MFSentryLocal::ActivatingSound);
 		CurrentInterval = InitialFireInterval;
 		NextShot = 0.f;
 		GetWorldTimerManager().SetTimer(Timer, this, &AMFSentryTurret::FireTick, 0.05f, true);
@@ -206,7 +206,7 @@ void AMFSentryTurret::FireTick()
 			// back to scanning; it winds down if it had spun up
 			if (CurrentInterval < InitialFireInterval)
 			{
-				PlayAt(this, SpinDownSound);
+				MFSentryLocal::PlayAt(this, MFSentryLocal::SpinDownSound);
 			}
 			GetWorldTimerManager().SetTimer(Timer, this, &AMFSentryTurret::Scan, 0.2f, true);
 			return;
@@ -251,7 +251,7 @@ void AMFSentryTurret::FireShot()
 		+ (FMath::FRand() - 0.5f) * Spread * M.GetUnitAxis(EAxis::Z)).GetSafeNormal();
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFSentryShot), false, this);
-	PlayAt(this, FireSound);
+	MFSentryLocal::PlayAt(this, MFSentryLocal::FireSound);
 	MakeNoise(1.f, GetInstigator());
 	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * ScanRange, ECC_GameTraceChannel2, Params))
 	{
@@ -270,7 +270,7 @@ void AMFSentryTurret::OutOfAmmo()
 {
 	// state OutOfAmmo: spin down, gone 0.7 s later
 	GetWorldTimerManager().ClearTimer(Timer);
-	PlayAt(this, SpinDownSound);
+	MFSentryLocal::PlayAt(this, MFSentryLocal::SpinDownSound);
 	SetLifeSpan(0.7f);
 }
 
@@ -295,7 +295,7 @@ void AMFSentryTurret::BlowUp()
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 85.f, 0.f, At, 0.f, 562.5f, 1.f,
 		UMFDamage_Sentry::StaticClass(), Ignore, this, Credit(), ECC_Visibility);   // MF HurtRadius(85, 250)
-	PlayAt(this, ExplodeSound);
+	MFSentryLocal::PlayAt(this, MFSentryLocal::ExplodeSound);
 	Destroy();
 }
 

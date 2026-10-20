@@ -43,6 +43,8 @@ public:
 	bool bNonTeamPlay = true;
 
 	virtual bool IsUsableBy(const AMFCharacter* Character) const;
+	/** AMFGameState::LoadoutAccess this kind of source needs (crate 3, zone 4). */
+	virtual int32 GetRequiredAccess() const { return 3; }
 	virtual bool IsInside(const AMFCharacter* Character) const;
 
 	/** Relevant in the current game type (works on clients through the game state). */
@@ -96,6 +98,7 @@ class DESKTOPFORCES_API AMFLoadoutZone : public AMFLoadoutSource
 	GENERATED_BODY()
 
 public:
+	virtual int32 GetRequiredAccess() const override { return 4; }
 	AMFLoadoutZone();
 	virtual bool IsInside(const AMFCharacter* Character) const override;
 

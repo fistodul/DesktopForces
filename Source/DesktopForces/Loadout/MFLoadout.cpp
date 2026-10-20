@@ -64,6 +64,11 @@ bool AMFLoadoutSource::IsUsableBy(const AMFCharacter* Character) const
 	{
 		return false;
 	}
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	if (GS && GS->GetLoadoutAccess(Character->GetTeam()) < GetRequiredAccess())
+	{
+		return false;
+	}
 	return Team == MF::NoTeam || Character->GetTeam() == Team;
 }
 

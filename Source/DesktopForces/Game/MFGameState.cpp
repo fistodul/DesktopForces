@@ -1,4 +1,5 @@
 #include "Game/MFGameState.h"
+#include "Core/MFGameSettings.h"
 #include "Game/MFPlayerState.h"
 #include "Net/UnrealNetwork.h"
 
@@ -6,6 +7,9 @@ void AMFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMFGameState, NumTeams);
+	DOREPLIFETIME(AMFGameState, LoadoutAccess);
+	DOREPLIFETIME(AMFGameState, TeamLoadoutAccess);
+	DOREPLIFETIME(AMFGameState, TeamNameOverrides);
 	DOREPLIFETIME(AMFGameState, FragLimit);
 	DOREPLIFETIME(AMFGameState, TimeLimit);
 	DOREPLIFETIME(AMFGameState, TimeLimitSeconds);
@@ -32,4 +36,13 @@ TArray<AMFPlayerState*> AMFGameState::GetSortedPlayers() const
 		return A.GetScore() != B.GetScore() ? A.GetScore() > B.GetScore() : A.Deaths < B.Deaths;
 	});
 	return Out;
+}
+
+FText AMFGameState::GetTeamName(uint8 Team) const
+{
+	if (TeamNameOverrides.IsValidIndex(Team) && !TeamNameOverrides[Team].IsEmpty())
+	{
+		return FText::FromString(TeamNameOverrides[Team]);
+	}
+	return UMFGameSettings::Get().GetTeamName(Team);
 }

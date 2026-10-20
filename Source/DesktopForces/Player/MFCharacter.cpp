@@ -76,6 +76,9 @@ void AMFCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMFCharacter, Health);
+	DOREPLIFETIME(AMFCharacter, MaxHealth);
+	DOREPLIFETIME(AMFCharacter, MaxCarry);
+	DOREPLIFETIME(AMFCharacter, BodyScale);
 	DOREPLIFETIME(AMFCharacter, bDying);
 	DOREPLIFETIME(AMFCharacter, Inventory);
 	DOREPLIFETIME(AMFCharacter, CurrentWeapon);
@@ -294,13 +297,35 @@ void AMFCharacter::Landed(const FHitResult& Hit)
 	Super::Landed(Hit);
 	// Pawn.TakeFallingDamage: threshold -750, death -1200 uu/s; 100 * ratio^2
 	const float VZ = GetCharacterMovement()->Velocity.Z;
-	constexpr float Threshold = -1687.5f;   // MF FallDamageThreshold -750
-	constexpr float Death = -2700.f;        // MF FallDeathThreshold -1200
+	const float Threshold = -1687.5f * BodyScale.FallDamage;   // MF FallDamageThreshold -750
+	const float Death = -2700.f * BodyScale.FallDeath;         // MF FallDeathThreshold -1200
 	if (HasAuthority() && VZ <= Threshold)
 	{
 		const float Ratio = (VZ - Threshold) / (Death - Threshold);
 		FDamageEvent Ev(UMFDamage_Fell::StaticClass());
 		TakeDamage(100.f * Ratio * Ratio, Ev, nullptr, nullptr);
+	}
+}
+
+void AMFCharacter::SetBodyScale(const FMFBodyScale& NewScale)
+{
+	if (HasAuthority())
+	{
+		BodyScale = NewScale;
+		ApplyBodyScale();
+	}
+}
+
+void AMFCharacter::ApplyBodyScale()
+{
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	const UCharacterMovementComponent* Def = GetDefault<AMFCharacter>(GetClass())->GetCharacterMovement();
+	if (Move && Def)
+	{
+		Move->MaxWalkSpeed = Def->MaxWalkSpeed * BodyScale.Speed;
+		Move->JumpZVelocity = Def->JumpZVelocity * BodyScale.Jump;
+		Move->MaxAcceleration = Def->MaxAcceleration * BodyScale.Accel;
+		Move->MaxStepHeight = Def->MaxStepHeight * BodyScale.Step;
 	}
 }
 
@@ -413,6 +438,10 @@ bool AMFCharacter::CanCarry(TSubclassOf<AMFWeapon> WeaponClass) const
 
 AMFWeapon* AMFCharacter::GiveWeapon(TSubclassOf<AMFWeapon> WeaponClass, bool bEquip)
 {
+	if (const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>(); GM && WeaponClass)
+	{
+		WeaponClass = GM->GetWeaponClassFor(this, WeaponClass);   // a mode's own variant (Zombie mode)
+	}
 	if (!HasAuthority() || !CanCarry(WeaponClass))
 	{
 		return nullptr;

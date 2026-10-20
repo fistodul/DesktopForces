@@ -19,7 +19,7 @@
 
 #define LOCTEXT_NAMESPACE "MFModSeekerMines"
 
-namespace
+namespace MFSeekerLocal
 {
 	USoundBase* Sound(const TCHAR* Path)
 	{
@@ -91,7 +91,7 @@ void AMFSeekerMine::BeginPlay()
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AMFSeekerMine::OnOverlap);
 	if (HasAuthority())
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, Sound(ActivatingSound), GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, MFSeekerLocal::Sound(MFSeekerLocal::ActivatingSound), GetActorLocation());
 		// state Deploying: 0.35 s, then hunt
 		GetWorldTimerManager().SetTimer(ThinkTimer, this, &AMFSeekerMine::Think, 0.2f, true, 0.35f);
 	}
@@ -196,7 +196,7 @@ void AMFSeekerMine::StartDetonating()
 		return;
 	}
 	bDetonating = true;
-	UGameplayStatics::PlaySoundAtLocation(this, Sound(ActivatingSound), GetActorLocation());
+	UGameplayStatics::PlaySoundAtLocation(this, MFSeekerLocal::Sound(MFSeekerLocal::ActivatingSound), GetActorLocation());
 	GetWorldTimerManager().SetTimer(ThinkTimer, this, &AMFSeekerMine::BlowUp, 0.12f, false);
 }
 
@@ -227,7 +227,7 @@ void AMFSeekerMine::BlowUp()
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, DamageRadius, 1.f,
 		UMFDamage_SeekerMine::StaticClass(), Ignore, this, Credit, ECC_Visibility);
-	UGameplayStatics::PlaySoundAtLocation(this, Sound(ExplodeSound), At);
+	UGameplayStatics::PlaySoundAtLocation(this, MFSeekerLocal::Sound(MFSeekerLocal::ExplodeSound), At);
 	Destroy();
 }
 

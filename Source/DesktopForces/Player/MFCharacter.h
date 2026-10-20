@@ -23,6 +23,20 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMFOnInventoryChanged, AMFCharacter*
  * - While in the loadout screen the player is not "in the level" for anyone else:
  *   hidden, no collision, can't be damaged.
  */
+/** Multipliers on a soldier's body (class defaults x these). */
+USTRUCT(BlueprintType)
+struct FMFBodyScale
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MF") float Speed = 1.f;        // MaxWalkSpeed
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MF") float Jump = 1.f;         // JumpZVelocity
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MF") float Accel = 1.f;        // MaxAcceleration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MF") float Step = 1.f;         // MaxStepHeight
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MF") float FallDamage = 1.f;   // MF FallDamageThreshold
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MF") float FallDeath = 1.f;    // MF FallDeathThreshold
+};
+
 UCLASS(Config = Game)
 class DESKTOPFORCES_API AMFCharacter : public ACharacter, public IGenericTeamAgentInterface
 {
@@ -46,7 +60,7 @@ public:
 	USceneComponent* GetWeaponAttachPoint() const { return WeaponAttach; }
 
 	// --- health ---------------------------------------------------------------------
-	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	UPROPERTY(EditDefaultsOnly, Replicated, Category = "MF")
 	int32 MaxHealth = 100;
 
 	UFUNCTION(BlueprintPure, Category = "MF")
@@ -66,8 +80,13 @@ public:
 	bool IsHeadshot(const FVector& HitLocation) const;
 
 	// --- inventory ------------------------------------------------------------------
-	UPROPERTY(EditDefaultsOnly, Category = "MF|Inventory")
+	UPROPERTY(EditDefaultsOnly, Replicated, Category = "MF|Inventory")
 	int32 MaxCarry = 6;
+
+	/** Server: scale this soldier's body (modes / mods: zombies, survivors); replicated so the
+	 *  owner predicts the same movement. Multiplies the class defaults, never stacks. */
+	void SetBodyScale(const FMFBodyScale& NewScale);
+	const FMFBodyScale& GetBodyScale() const { return BodyScale; }
 
 	/** Weapon given on spawn and never lost (MF: knife, InventoryGroup 1). */
 	UPROPERTY(EditDefaultsOnly, Category = "MF|Inventory")
@@ -175,6 +194,12 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Health, BlueprintReadOnly, Category = "MF")
 	int32 Health = 100;
+
+	UPROPERTY(ReplicatedUsing = OnRep_BodyScale)
+	FMFBodyScale BodyScale;
+	UFUNCTION()
+	void OnRep_BodyScale() { ApplyBodyScale(); }
+	void ApplyBodyScale();
 
 	UPROPERTY(Replicated)
 	bool bDying = false;

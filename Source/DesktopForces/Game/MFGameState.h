@@ -49,6 +49,28 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	FString GameName;
 
+	/**
+	 * Where players may open the loadout (MF-mods CoopMode "weapons"): 0 nowhere, 1-2 only
+	 * weapons lying on the ground, 3 + loadout crates, 4 + loadout zones (everything, default).
+	 */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	int32 LoadoutAccess = 4;
+
+	/** Per team overrides of LoadoutAccess (index = team; Zombie mode limits the zombies). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	TArray<int32> TeamLoadoutAccess;
+
+	int32 GetLoadoutAccess(uint8 Team) const
+	{
+		return TeamLoadoutAccess.IsValidIndex(Team) ? TeamLoadoutAccess[Team] : LoadoutAccess;
+	}
+
+	/** Mode-specific team names ("Human", "Zombie"); empty = UMFGameSettings::Teams. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	TArray<FString> TeamNameOverrides;
+
+	FText GetTeamName(uint8 Team) const;
+
 	/** ElapsedTime when the current round began (round-based modes restart the clock). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 RoundStartTime = 0;

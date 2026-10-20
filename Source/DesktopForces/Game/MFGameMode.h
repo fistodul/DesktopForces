@@ -8,6 +8,7 @@
 class AMFCharacter;
 class AMFPlayerState;
 class AMFPlayerStart;
+class AMFWeapon;
 
 /**
  * Base rules for every Mobile Forces mode (MF RageGameInfo + RageDeathMatch + RageTeamGame
@@ -64,6 +65,10 @@ public:
 
 	/** Loadout: can this player use the crate / zone they're standing in? */
 	virtual bool CanUseLoadout(AMFCharacter* Character) const;
+	/** The weapon a soldier really gets when given WeaponClass (modes with their own variants). */
+	virtual TSubclassOf<AMFWeapon> GetWeaponClassFor(const AMFCharacter* Character, TSubclassOf<AMFWeapon> WeaponClass) const { return WeaponClass; }
+	/** The loadout key was pressed where it can't open (AMFGameState::LoadoutAccess 0). */
+	virtual void LoadoutDenied(APlayerController* PC) const;
 
 	/**
 	 * Where a bot with nothing to shoot at should go, best first (objective modes); empty =
@@ -150,6 +155,8 @@ protected:
 	virtual bool IsStartAllowed(const AMFPlayerStart* Start, AController* Player) const;
 	/** Team for a joining player / bot (smallest team; Preferred breaks ties). */
 	virtual uint8 PickTeam(uint8 Preferred = MF::NoTeam) const;
+	/** Team for this player or bot; modes that put humans and bots apart override it. */
+	virtual uint8 ChooseTeam(AController* Who, uint8 Preferred) const { return PickTeam(Preferred); }
 	void EnsureKillZ();
 
 	void CheckTimeLimit();

@@ -74,7 +74,7 @@ void AMFGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	if (AMFPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<AMFPlayerState>() : nullptr)
 	{
-		PS->SetTeam(IsTeamGame() ? PickTeam() : MF::NoTeam);
+		PS->SetTeam(IsTeamGame() ? ChooseTeam(NewPlayer, MF::NoTeam) : MF::NoTeam);
 	}
 	Super::PostLogin(NewPlayer);
 }
@@ -253,6 +253,14 @@ bool AMFGameMode::CanUseLoadout(AMFCharacter* Character) const
 	return UMFLoadoutLibrary::FindLoadoutSourceFor(Character) != nullptr;
 }
 
+void AMFGameMode::LoadoutDenied(APlayerController* PC) const
+{
+	if (PC)
+	{
+		PC->ClientMessage(NSLOCTEXT("MF", "NoLoadout", "No loadout in this game").ToString());
+	}
+}
+
 void AMFGameMode::AddBots(int32 Count, float Skill)
 {
 	const TArray<FMFBotDef>& Roster = UMFGameSettings::Get().Bots;
@@ -278,7 +286,7 @@ void AMFGameMode::AddBots(int32 Count, float Skill)
 		{
 			PS->SetPlayerName(Def.Name);
 			PS->SetIsABot(true);
-			PS->SetTeam(IsTeamGame() ? PickTeam(Def.PreferredTeam) : MF::NoTeam);
+			PS->SetTeam(IsTeamGame() ? ChooseTeam(Bot, Def.PreferredTeam) : MF::NoTeam);
 		}
 		++NumBots;
 		RestartPlayer(Bot);
@@ -393,7 +401,7 @@ void AMFGameMode::CheckEndConditions(AMFPlayerState* LastKiller)
 			{
 				if (GS->TeamScores[T] >= GoalTeamScore)
 				{
-					FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *UMFGameSettings::Get().GetTeamName(T).ToString()));
+					FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GetGameState<AMFGameState>()->GetTeamName(T).ToString()));
 					return;
 				}
 			}
@@ -417,7 +425,7 @@ void AMFGameMode::OnTimeLimit()
 			if (GS->TeamScores[T] > GS->TeamScores[Best]) { Best = T; bTie = false; }
 			else if (GS->TeamScores[T] == GS->TeamScores[Best]) { bTie = true; }
 		}
-		FinishMatch(bTie ? TEXT("DRAW") : FString::Printf(TEXT("%s Team Wins!"), *UMFGameSettings::Get().GetTeamName(Best).ToString()));
+		FinishMatch(bTie ? TEXT("DRAW") : FString::Printf(TEXT("%s Team Wins!"), *GetGameState<AMFGameState>()->GetTeamName(Best).ToString()));
 		return;
 	}
 	const TArray<AMFPlayerState*> Sorted = GS->GetSortedPlayers();

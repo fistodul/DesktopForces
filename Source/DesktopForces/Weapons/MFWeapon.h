@@ -288,6 +288,8 @@ public:
 	static constexpr int32 MaxDropped = 32;
 
 	virtual void StartFire(bool bAlt);
+	/** Close-combat weapon: bots run at the target instead of shooting from range. */
+	virtual bool IsMeleeWeapon() const { return false; }
 	virtual void StopFire(bool bAlt);
 	virtual void StartReload();
 

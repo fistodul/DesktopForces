@@ -12,6 +12,7 @@ class DESKTOPFORCES_API AMFWeapon_Knife : public AMFWeapon
 public:
 	AMFWeapon_Knife();
 	virtual bool DrawHUD(UCanvas* Canvas) override { return false; }
+	virtual bool IsMeleeWeapon() const override { return HasAmmoInClip(); }   // thrown away: not any more
 protected:
 	virtual void FireShot(bool bAlt) override;
 	virtual void Finish() override;
