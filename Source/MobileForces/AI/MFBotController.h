@@ -30,6 +30,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MF")
 	float Skill = 0.5f;
 
+	/** Team order (MF orders menu / RageBot SetOrders). */
+	void SetOrder(EMFBotOrder NewOrder, APawn* Giver);
+	EMFBotOrder GetOrder() const { return Order; }
+
 	/** Name, loadout, preferred team (from UMFGameSettings::Bots). */
 	FMFBotDef Profile;
 
@@ -47,6 +51,12 @@ protected:
 	void Roam(AMFCharacter* C);
 
 	FTimerHandle ThinkTimer;
+	EMFBotOrder Order = EMFBotOrder::Freelance;
+	TWeakObjectPtr<APawn> OrderGiver;
+	FVector OrderSpot = FVector::ZeroVector;
+	/** Hold / Follow: move there instead of roaming. True if the order decided the move. */
+	bool FollowOrder(AMFCharacter* C);
+
 	TWeakObjectPtr<AMFCharacter> Enemy;
 	float LastSeenEnemy = -100.f;
 	float NextStrafe = 0.f;

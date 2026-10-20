@@ -41,6 +41,9 @@ public:
 	UMaterialInterface* EnsureSkyMaterial();
 	/** Adds the UE1 zone ambient term to a lit master (once). True if it changed. */
 	bool AddZoneAmbient(UMaterial* M);
+	/** HUD art / fonts (Rage, RageWeapons, MobileForceFonts packages). */
+	static bool IsUITexture(const FString& Key);
+	void ImportFonts();
 
 	/** Import mod plugins' converted SourceArt (work/out/Plugins/<Plugin>/...) into /<Plugin>/Generated/. */
 	bool ImportPluginArt();

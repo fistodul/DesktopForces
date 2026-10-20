@@ -7,6 +7,19 @@
 
 class UInputAction;
 class UInputMappingContext;
+
+/** A key that runs a console command (MF User.ini [Engine.Input] style). */
+USTRUCT()
+struct FMFCommandBind
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Config, EditAnywhere, Category = "MF")
+	FKey Key;
+
+	UPROPERTY(Config, EditAnywhere, Category = "MF")
+	FString Command;
+};
 class AMFCharacter;
 class AMFWeapon;
 
@@ -40,6 +53,10 @@ public:
 	bool IsLoadoutOpen() const;
 	/** Items shown in the menu: the source's items, ordered by slot key (menu rows). */
 	TArray<TSubclassOf<AMFWeapon>> GetLoadoutItems() const;
+	/** Away from crates and loadout zones the loadout offers the weapons lying around
+	 *  (MF Loadout_Ground / TryLoadoutDropped, 250 uu). Sorted like GetLoadoutItems. */
+	TArray<AMFWeapon*> GetGroundWeapons() const;
+	bool IsGroundLoadout() const;
 	/** Carried items the cursor can reach to put back (MF LoadoutInventory; never the knife). */
 	TArray<AMFWeapon*> GetLoadoutInventory() const;
 	/**
@@ -58,6 +75,22 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "MF")
 	float MouseSensitivity = 1.f;
+
+	/**
+	 * Keys that run console commands, like MF's User.ini (F9=SShot, T=Talk, V=ShowCommandMenu
+	 * ...). Defaults in DefaultGame.ini; players and mods add or change lines there.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "MF")
+	TArray<FMFCommandBind> CommandBindings;
+
+	// --- orders menu (MF OrdersMainWindow / TargetChildWindow), drawn by AMFHUD -----------
+	/** 0 closed, 1 choosing the order, 2 choosing who gets it. */
+	int32 GetCommandMenuStage() const { return CommandMenuStage; }
+	int32 GetCommandMenuOrder() const { return CommandMenuOrder; }
+	/** Orders offered in this game type (MF RageVoicePack.GetOrderString 0-4). */
+	TArray<FString> GetCommandMenuOrders() const;
+	/** Team-mates that can be given an order (after "All"). */
+	TArray<APlayerState*> GetCommandTargets() const;
 
 	bool IsScoreboardShown() const { return bShowScores; }
 
@@ -105,6 +138,26 @@ public:
 	void ShrinkHUD();
 	UFUNCTION(Exec)
 	void ChangeCrosshair();
+	/** Open / close the orders menu (MF V; C here too). Number keys pick. */
+	UFUNCTION(Exec)
+	void ShowCommandMenu();
+	/** Chat: type a line to everyone / your team (MF T / Y). */
+	UFUNCTION(Exec)
+	void Talk();
+	UFUNCTION(Exec)
+	void TeamTalk();
+	UFUNCTION(Exec)
+	void Say(const FString& Msg);
+	UFUNCTION(Exec)
+	void TeamSay(const FString& Msg);
+	/** Watch the next team-mate (MF F5 ViewTeam); ViewPlayerNum N = the Nth (MF NumPad1-8). */
+	UFUNCTION(Exec)
+	void ViewTeam();
+	UFUNCTION(Exec)
+	void ViewPlayerNum(int32 N);
+	/** Level the view (MF End). */
+	UFUNCTION(Exec)
+	void CenterView();
 
 	// --- console commands (also used by automated smoke tests via -MFExec) ---
 	/** Take loadout item N (0-based, menu order). */
@@ -141,6 +194,21 @@ protected:
 	void ServerSuicide();
 	UFUNCTION(Server, Reliable)
 	void ServerAddBots(int32 N, float SkillOffset);
+	UFUNCTION(Server, Reliable)
+	void ServerSay(const FString& Msg, bool bTeam);
+	UFUNCTION(Server, Reliable)
+	void ServerGiveOrder(int32 Order, APlayerState* Target);
+
+	virtual void ClientMessage_Implementation(const FString& S, FName Type, float MsgLifeTime) override;
+	virtual void ClientTeamMessage_Implementation(APlayerState* SenderPlayerState, const FString& S, FName Type, float MsgLifeTime) override;
+
+	int32 CommandMenuStage = 0;
+	int32 CommandMenuOrder = 0;
+	void CommandMenuKey(int32 Slot);
+	/** Watched team-mate index for ViewTeam (-1 = yourself). */
+	int32 ViewedTeammate = -1;
+	void ViewTeammate(int32 Index);
+	void StartTyping(const TCHAR* Prefix);
 
 	// input handlers
 	void OnMove(const FInputActionValue& Value);

@@ -425,6 +425,77 @@ void AMFGameMode::ScheduleRespawn(AController* Victim)
 	}), float(FMath::Max(1, RespawnWait)), false);
 }
 
+void AMFGameMode::BroadcastChat(AController* Sender, const FString& Msg, bool bTeam)
+{
+	APlayerState* SenderPS = Sender ? Sender->PlayerState : nullptr;
+	const AMFPlayerState* MFS = Cast<AMFPlayerState>(SenderPS);
+	const bool bTeamOnly = bTeam && IsTeamGame() && MFS && MFS->HasTeam();
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		const AMFPlayerState* PS = PC ? PC->GetPlayerState<AMFPlayerState>() : nullptr;
+		if (PC && (!bTeamOnly || (PS && PS->GetTeam() == MFS->GetTeam())))
+		{
+			PC->ClientTeamMessage(SenderPS, Msg, bTeamOnly ? FName(TEXT("TeamSay")) : FName(TEXT("Say")));
+		}
+	}
+}
+
+void AMFGameMode::Say(const FString& Msg)
+{
+	BroadcastChat(GetWorld()->GetFirstPlayerController(), Msg.Left(128), false);
+}
+
+FString AMFGameMode::GetOrderAbbrev(int32 Order)
+{
+	// Rage.int OrderAbbrev / OrderString 0-4 (the menu)
+	static const TCHAR* Abbrev[] = { TEXT("Defend!"), TEXT("Defend this area."), TEXT("Attack!"), TEXT("Cover me."), TEXT("Improvise!") };
+	return Order >= 0 && Order < 5 ? Abbrev[Order] : FString();
+}
+
+FString AMFGameMode::GetOrderString(int32 Order) const
+{
+	static const TCHAR* Lines[] = { TEXT("Defend the command post."), TEXT("Defend this area."),
+		TEXT("Attack the enemy base."), TEXT("Cover me."), TEXT("Improvise, you're on your own.") };
+	if (Order == 4 && FMath::FRand() < 0.4f)
+	{
+		return TEXT("Fire at will.");   // RageVoicePack.SetOrderMessage: OrderString[15] 40% of the time
+	}
+	return Order >= 0 && Order < 5 ? Lines[Order] : FString();
+}
+
+void AMFGameMode::GiveOrder(AController* Giver, int32 Order, APlayerState* Target)
+{
+	const AMFPlayerState* GiverPS = Giver ? Giver->GetPlayerState<AMFPlayerState>() : nullptr;
+	if (!GiverPS)
+	{
+		return;
+	}
+	// MF chat line: "Sender: Heywood, Defend this area." (to the team)
+	const FString Line = GetOrderString(Order);
+	BroadcastChat(Giver, Target ? FString::Printf(TEXT("%s, %s"), *Target->GetPlayerName(), *Line) : Line, true);
+	static const TCHAR* Acks[] = { TEXT("Acknowledged"), TEXT("Roger that"), TEXT("Moving out"), TEXT("I'm on my way") };
+	for (TActorIterator<AMFBotController> It(GetWorld()); It; ++It)
+	{
+		const AMFPlayerState* PS = It->GetPlayerState<AMFPlayerState>();
+		if (!PS || PS == GiverPS || (IsTeamGame() && PS->GetTeam() != GiverPS->GetTeam()) || (Target && PS != Target))
+		{
+			continue;
+		}
+		It->SetOrder(static_cast<EMFBotOrder>(Order), Giver->GetPawn());
+		// RageVoicePack ack (Rage.int AckString), from the bot to its team, a moment later
+		TWeakObjectPtr<AMFBotController> Bot = *It;
+		FTimerHandle H;
+		GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this, Bot]()
+		{
+			if (Bot.IsValid())
+			{
+				BroadcastChat(Bot.Get(), Acks[FMath::RandRange(0, 3)], true);
+			}
+		}), FMath::FRandRange(0.6f, 1.5f), false);
+	}
+}
+
 void AMFGameMode::FinishMatch(const FString& Winner)
 {
 	if (!IsMatchInProgress())

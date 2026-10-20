@@ -288,6 +288,11 @@ void AMFCharacter::Die(AController* Killer, TSubclassOf<UDamageType> DamageType,
 	{
 		GM->Killed(Killer, Victim, this, DamageType);
 	}
+	// GameInfo.DiscardInventory: the weapon in hand falls to the ground if it has ammo left
+	if (CurrentWeapon && CurrentWeapon->GetAmmoCount() > 0)
+	{
+		DropWeapon(CurrentWeapon);
+	}
 	ClearInventory(false);
 	DetachFromControllerPendingDestroy();
 	MulticastOnDeath(GetVelocity().GetSafeNormal());
@@ -393,6 +398,38 @@ AMFWeapon* AMFCharacter::GiveWeapon(TSubclassOf<AMFWeapon> WeaponClass, bool bEq
 		EquipWeapon(W);
 	}
 	return W;
+}
+
+void AMFCharacter::DropWeapon(AMFWeapon* Weapon)
+{
+	if (!HasAuthority() || !Weapon || Weapon->bUndroppable || !Inventory.Contains(Weapon))
+	{
+		return;
+	}
+	const bool bWasCurrent = CurrentWeapon == Weapon;
+	RemoveWeapon(Weapon, false);
+	Weapon->DropFrom(GetActorLocation(), GetActorRotation());
+	if (bWasCurrent && IsAlive())
+	{
+		SwitchToBestWeapon();
+	}
+}
+
+bool AMFCharacter::PickupWeapon(AMFWeapon* Weapon)
+{
+	if (!HasAuthority() || !Weapon || !Weapon->IsDropped() || !CanCarry(Weapon->GetClass()))
+	{
+		return false;
+	}
+	Weapon->OnPickedUp(this);
+	Inventory.Add(Weapon);
+	UpdateCarrySpeed();
+	OnInventoryChanged.Broadcast(this);
+	if (!CurrentWeapon)
+	{
+		EquipWeapon(Weapon);
+	}
+	return true;
 }
 
 void AMFCharacter::RemoveWeapon(AMFWeapon* Weapon, bool bDestroy)

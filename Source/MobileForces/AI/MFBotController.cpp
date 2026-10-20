@@ -194,8 +194,55 @@ bool AMFBotController::TryGoal(AActor* G)
 	return true;
 }
 
+void AMFBotController::SetOrder(EMFBotOrder NewOrder, APawn* Giver)
+{
+	Order = NewOrder;
+	OrderGiver = Giver;
+	OrderSpot = Giver ? Giver->GetActorLocation() : (GetPawn() ? GetPawn()->GetActorLocation() : FVector::ZeroVector);
+	// drop the current plan so the order takes effect on the next think
+	CurrentGoal = nullptr;
+	LingerUntil = 0.f;
+	NextRoam = 0.f;
+	StopMovement();
+}
+
+bool AMFBotController::FollowOrder(AMFCharacter* C)
+{
+	switch (Order)
+	{
+	case EMFBotOrder::Hold:
+		// "Defend this area": go back to the spot, then stay and watch
+		if (FVector::Dist2D(C->GetActorLocation(), OrderSpot) > 250.f)
+		{
+			if (GetMoveStatus() != EPathFollowingStatus::Moving)
+			{
+				MoveToLocation(OrderSpot, 100.f);
+			}
+		}
+		return true;
+	case EMFBotOrder::Follow:
+		// "Cover me": keep close to whoever asked
+		if (const APawn* G = OrderGiver.Get())
+		{
+			if (FVector::Dist(C->GetActorLocation(), G->GetActorLocation()) > 450.f)
+			{
+				MoveToActor(const_cast<APawn*>(G), 250.f);
+			}
+			return true;
+		}
+		Order = EMFBotOrder::Freelance;   // giver gone
+		return false;
+	default:
+		return false;   // Defend / Attack: the game mode's goals take the order into account
+	}
+}
+
 void AMFBotController::Roam(AMFCharacter* C)
 {
+	if (FollowOrder(C))
+	{
+		return;
+	}
 	const float Now = GetWorld()->GetTimeSeconds();
 	if (GetMoveStatus() == EPathFollowingStatus::Moving && Now < NextRoam)
 	{

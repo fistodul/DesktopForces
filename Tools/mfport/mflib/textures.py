@@ -40,8 +40,9 @@ UI_TEXTURES = {
     'rage.owblue': set(),
     'rage.owred': set(),
     'rage.scoreboardbits': {'masked'},
-    # RageHUD.CrosshairGraphic(0..23) = CrossHairA..X
-    **{f'rage.crosshair{c}': {'masked'} for c in 'abcdefghijklmnopqrstuvwx'},
+    # RageHUD.CrosshairGraphic(0..23) = CrossHairA..X; drawn subtractive + additive in MF, so
+    # black means "nothing": alpha from brightness lets the HUD darken only the shape
+    **{f'rage.crosshair{c}': {'lumalpha'} for c in 'abcdefghijklmnopqrstuvwx'},
 }
 
 
@@ -106,7 +107,7 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
         rel = Path(*parts)          # package/group/name
         dst = cfg.out_dir / 'Textures' / rel.with_suffix('.png')
         dst.parent.mkdir(parents=True, exist_ok=True)
-        needs_alpha = bool(modes & {'masked'}) or info['masked']
+        needs_alpha = bool(modes & {'masked', 'lumalpha', 'fontalpha'}) or info['masked']
         override = OVERRIDE_DIR / rel.with_suffix('.png')
         if override.exists():
             img = Image.open(override).convert('RGBA' if needs_alpha else 'RGB')
@@ -116,6 +117,15 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
                 print(f'  ! missing export for {key}')
                 continue
             img = _load_bmp(src, needs_alpha)
+        if 'lumalpha' in modes:
+            rgb = img.convert('RGB')
+            img = rgb.convert('RGBA')
+            img.putalpha(Image.merge('RGB', rgb.split()).convert('L').point(lambda v: min(255, v * 2)))
+        if 'fontalpha' in modes:
+            # bitmap font page: white glyphs, anti-aliasing as coverage
+            lum = img.convert('L')
+            img = Image.new('RGBA', img.size, (255, 255, 255, 0))
+            img.putalpha(lum)
         img = _limit_size(img, cfg.max_texture_size)
         img.save(dst, optimize=True)
         manifest[key] = {

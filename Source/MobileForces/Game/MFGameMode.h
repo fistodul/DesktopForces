@@ -64,6 +64,18 @@ public:
 	/** End the match with this winner line (also announced). */
 	void FinishMatch(const FString& Winner);
 
+	// --- chat and team orders (MF Say / TeamSay, RageVoicePack orders) -----------------------
+	/** A chat line to everyone, or to the sender's team (team games). */
+	void BroadcastChat(AController* Sender, const FString& Msg, bool bTeam);
+	/** AGameMode's own "Say" exec runs first on a host: send it as the local player's chat. */
+	virtual void Say(const FString& Msg) override;
+	/** MF orders menu entry 0-4: Defend! / Defend this area. / Attack! / Cover me. / Improvise! */
+	static FString GetOrderAbbrev(int32 Order);
+	/** The spoken order line; modes rename Defend / Attack (MF OrderString 5-14). */
+	virtual FString GetOrderString(int32 Order) const;
+	/** Order a team-mate (Target) or the whole team (null): message + bots follow it. */
+	void GiveOrder(AController* Giver, int32 Order, APlayerState* Target);
+
 	/** Spawn bots from the configured roster (UMFGameSettings::Bots, then numbered extras). */
 	/** Add bots from the roster; Skill < 0 = the match's BotSkill (MF AddBots / GoodBot / BadBot). */
 	void AddBots(int32 Count, float Skill = -1.f);

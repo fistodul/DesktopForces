@@ -98,3 +98,14 @@ class MOBILEFORCES_API UMFDamage_Suicide : public UMFDamageType
 public:
 	UMFDamage_Suicide() { bBypassArmour = true; }
 };
+
+/** Team orders, in MF orders menu order (Rage.int OrderAbbrev 0-4; RageBot orders). */
+UENUM(BlueprintType)
+enum class EMFBotOrder : uint8
+{
+	Defend,     // guard the team's objective / base
+	Hold,       // "Defend this area": stay where the order was given
+	Attack,     // go for the enemy objective / base
+	Follow,     // "Cover me": stay with whoever gave the order
+	Freelance,  // "Improvise": do what bots do
+};

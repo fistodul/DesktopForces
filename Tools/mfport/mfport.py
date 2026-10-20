@@ -63,6 +63,10 @@ def cmd_textures(cfg):
     usage = collect_usage(cfg)
     for k, modes in textures.UI_TEXTURES.items():
         usage.setdefault(k, set()).update(modes)
+    from mflib import fonts
+    for k, modes in fonts.texture_usage(cfg).items():   # MF bitmap fonts' pages
+        usage.setdefault(k, set()).update(modes)
+    fonts.write(cfg)
     packages = sorted({k.split('.')[0] for k in usage} - {'engine', 'none'})
     manifest = {}
     for pkg in packages:

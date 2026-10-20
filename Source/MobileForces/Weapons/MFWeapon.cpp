@@ -6,6 +6,7 @@
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Sound/SoundBase.h"
@@ -55,6 +56,7 @@ void AMFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 	DOREPLIFETIME_CONDITION(AMFWeapon, ClipAmmo, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AMFWeapon, TotalAmmo, COND_OwnerOnly);
 	DOREPLIFETIME(AMFWeapon, ZoomLevel);
+	DOREPLIFETIME(AMFWeapon, bDropped);
 	DOREPLIFETIME_CONDITION(AMFWeapon, BurstCounter, COND_SkipOwner);
 }
 
@@ -554,6 +556,85 @@ void AMFWeapon::OnPutDown()
 		}
 	}
 	SetState(EMFWeaponState::PuttingDown, PutDownTime);
+}
+
+void AMFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	ForceInactive();
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	SetOwner(nullptr);
+	SetInstigator(nullptr);
+	// MF Pawn.DropItem: 4 collision radii (17 uu) out, yaw +-13000 of 65536 around the facing,
+	// then PHYS_Falling until it lands
+	const FRotator Dir(0.f, Facing.Yaw + FMath::FRandRange(-71.4f, 71.4f), 0.f);
+	FCollisionQueryParams Params(TEXT("MFDrop"), false, this);
+	FHitResult Hit;
+	FVector Spot = From + Dir.Vector() * 153.f;   // 4 x 17 uu
+	if (GetWorld()->LineTraceSingleByChannel(Hit, From, Spot, ECC_WorldStatic, Params))
+	{
+		Spot = Hit.Location - Dir.Vector() * 20.f;
+	}
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Spot, Spot - FVector(0, 0, 5000.f), ECC_WorldStatic, Params))
+	{
+		Spot = Hit.Location + FVector(0, 0, 5.f);
+	}
+	SetActorLocationAndRotation(Spot, Dir);
+	bDropped = true;
+	DroppedTime = GetWorld()->GetTimeSeconds();
+	SetReplicatingMovement(true);
+	UpdateDroppedLook();
+	ForceNetUpdate();
+
+	// keep the world tidy: the oldest dropped weapon goes beyond MaxDropped
+	AMFWeapon* Oldest = nullptr;
+	int32 Count = 0;
+	for (TActorIterator<AMFWeapon> It(GetWorld()); It; ++It)
+	{
+		if (It->IsDropped())
+		{
+			++Count;
+			if (!Oldest || It->DroppedTime < Oldest->DroppedTime)
+			{
+				Oldest = *It;
+			}
+		}
+	}
+	if (Count > MaxDropped && Oldest)
+	{
+		Oldest->Destroy();
+	}
+}
+
+void AMFWeapon::OnPickedUp(AMFCharacter* NewOwner)
+{
+	bDropped = false;
+	SetReplicatingMovement(false);
+	UpdateDroppedLook();
+	OnGiven(NewOwner);
+	ForceNetUpdate();
+}
+
+void AMFWeapon::OnRep_Dropped()
+{
+	UpdateDroppedLook();
+}
+
+void AMFWeapon::UpdateDroppedLook()
+{
+	// placeholder model on the floor for everyone; in hand only the owner sees it
+	Mesh1P->SetOnlyOwnerSee(!bDropped);
+	if (bDropped)
+	{
+		SetActorHiddenInGame(false);
+	}
+	else if (State == EMFWeaponState::Inactive)
+	{
+		SetActorHiddenInGame(true);
+	}
 }
 
 void AMFWeapon::ForceInactive()

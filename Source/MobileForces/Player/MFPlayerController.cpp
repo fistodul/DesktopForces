@@ -1,6 +1,12 @@
 #include "Player/MFPlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Core/MFTypes.h"
+#include "Core/MFGameSettings.h"
+#include "Game/MFGameState.h"
+#include "Game/MFPlayerState.h"
+#include "Engine/Console.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
 #include "UI/MFHUD.h"
 #include "Game/MFGameMode.h"
 #include "AI/MFBotController.h"
@@ -74,6 +80,21 @@ void AMFPlayerController::BuildInput()
 	}
 	MappingContext->MapKey(Move, EKeys::A).Modifiers.Add(Negate());
 	MappingContext->MapKey(Move, EKeys::D);
+	// MF DefUser.ini: arrows move and strafe, , and . strafe too
+	MappingContext->MapKey(Move, EKeys::Up).Modifiers.Add(Swizzle());
+	{
+		FEnhancedActionKeyMapping& M = MappingContext->MapKey(Move, EKeys::Down);
+		M.Modifiers.Add(Swizzle());
+		M.Modifiers.Add(Negate());
+	}
+	MappingContext->MapKey(Move, EKeys::Left).Modifiers.Add(Negate());
+	MappingContext->MapKey(Move, EKeys::Right);
+	MappingContext->MapKey(Move, EKeys::Comma).Modifiers.Add(Negate());
+	MappingContext->MapKey(Move, EKeys::Period);
+	// MF Delete = LookUp, PageDown = LookDown (aLookUp, held)
+	UInputAction* LookKey = Make(TEXT("LookKey"), EInputActionValueType::Axis1D);
+	MappingContext->MapKey(LookKey, EKeys::Delete);
+	MappingContext->MapKey(LookKey, EKeys::PageDown).Modifiers.Add(Negate());
 	MappingContext->MapKey(Move, EKeys::Gamepad_Left2D);
 	{
 		FEnhancedActionKeyMapping& M = MappingContext->MapKey(Look, EKeys::Mouse2D);
@@ -91,7 +112,9 @@ void AMFPlayerController::BuildInput()
 		{ TEXT("Fire"), EKeys::LeftMouseButton, EKeys::Gamepad_RightTrigger },
 		{ TEXT("AltFire"), EKeys::RightMouseButton, EKeys::Gamepad_LeftTrigger },
 		{ TEXT("Jump"), EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom },
-		{ TEXT("Crouch"), EKeys::C, EKeys::Gamepad_FaceButton_Right },
+		// MF DefUser.ini has Ctrl and C = Duck; C opens the orders menu here (with V, MF's key)
+		{ TEXT("Crouch"), EKeys::LeftControl, EKeys::Gamepad_FaceButton_Right },
+		{ TEXT("CrouchAlt"), EKeys::RightControl, FKey() },
 		{ TEXT("Walk"), EKeys::LeftShift, FKey() },
 		{ TEXT("Reload"), EKeys::R, EKeys::Gamepad_FaceButton_Left },
 		{ TEXT("Loadout"), EKeys::Q, EKeys::Gamepad_Special_Right },
@@ -128,6 +151,15 @@ void AMFPlayerController::BuildInput()
 		UInputAction* A = Make(*FString::Printf(TEXT("Slot%d"), i + 1), EInputActionValueType::Boolean);
 		MappingContext->MapKey(A, Numbers[i]);
 	}
+	MappingContext->MapKey(Actions.FindRef(TEXT("Jump")), EKeys::NumPadZero);   // MF NumPad0 = Jump
+	// keys that run console commands (config, MF User.ini style)
+	for (int32 i = 0; i < CommandBindings.Num(); ++i)
+	{
+		if (CommandBindings[i].Key.IsValid() && !CommandBindings[i].Command.IsEmpty())
+		{
+			MappingContext->MapKey(Make(*FString::Printf(TEXT("Cmd%d"), i), EInputActionValueType::Boolean), CommandBindings[i].Key);
+		}
+	}
 }
 
 void AMFPlayerController::SetupInputComponent()
@@ -157,6 +189,26 @@ void AMFPlayerController::SetupInputComponent()
 	EIC->BindAction(A(TEXT("Jump")), ETriggerEvent::Completed, this, &AMFPlayerController::OnJumpReleased);
 	EIC->BindAction(A(TEXT("Crouch")), ETriggerEvent::Started, this, &AMFPlayerController::OnCrouch);
 	EIC->BindAction(A(TEXT("Crouch")), ETriggerEvent::Completed, this, &AMFPlayerController::OnCrouchReleased);
+	EIC->BindAction(A(TEXT("CrouchAlt")), ETriggerEvent::Started, this, &AMFPlayerController::OnCrouch);
+	EIC->BindAction(A(TEXT("CrouchAlt")), ETriggerEvent::Completed, this, &AMFPlayerController::OnCrouchReleased);
+	EIC->BindActionValueLambda(A(TEXT("LookKey")), ETriggerEvent::Triggered, [this](const FInputActionValue& V)
+	{
+		if (!IsLoadoutOpen())
+		{
+			// UE1 PlayerPawn.UpdateRotation: 32 * aLookUp (100) uu/s = 17.6 deg/s
+			FRotator R = GetControlRotation();
+			R.Pitch = FMath::Clamp(FRotator::NormalizeAxis(R.Pitch + V.Get<float>() * 17.6f * GetWorld()->GetDeltaSeconds()), -89.f, 89.f);
+			SetControlRotation(R);
+		}
+	});
+	for (int32 i = 0; i < CommandBindings.Num(); ++i)
+	{
+		if (UInputAction* Cmd = A(*FString::Printf(TEXT("Cmd%d"), i)))
+		{
+			const FString Command = CommandBindings[i].Command;
+			EIC->BindActionValueLambda(Cmd, ETriggerEvent::Started, [this, Command](const FInputActionValue&) { ConsoleCommand(Command); });
+		}
+	}
 	EIC->BindAction(A(TEXT("Walk")), ETriggerEvent::Started, this, &AMFPlayerController::OnWalk);
 	EIC->BindAction(A(TEXT("Walk")), ETriggerEvent::Completed, this, &AMFPlayerController::OnWalkReleased);
 	EIC->BindAction(A(TEXT("Fire")), ETriggerEvent::Started, this, &AMFPlayerController::OnFire);
@@ -355,6 +407,11 @@ void AMFPlayerController::OnPrevWeapon()
 
 void AMFPlayerController::OnWeaponSlot(int32 Slot)
 {
+	if (CommandMenuStage > 0)
+	{
+		CommandMenuKey(Slot);
+		return;
+	}
 	if (AMFCharacter* C = GetMFCharacter())
 	{
 		if (C->IsInLoadout())
@@ -436,6 +493,31 @@ bool AMFPlayerController::IsLoadoutOpen() const
 	return C && C->IsInLoadout();
 }
 
+bool AMFPlayerController::IsGroundLoadout() const
+{
+	return !UMFLoadoutLibrary::FindLoadoutSourceFor(GetMFCharacter());
+}
+
+TArray<AMFWeapon*> AMFPlayerController::GetGroundWeapons() const
+{
+	TArray<AMFWeapon*> Out;
+	const AMFCharacter* C = GetMFCharacter();
+	if (!C)
+	{
+		return Out;
+	}
+	const float Radius = 562.5f;   // MF TryLoadoutDropped: 250 uu
+	for (TActorIterator<AMFWeapon> It(GetWorld()); It; ++It)
+	{
+		if (It->IsDropped() && FVector::DistSquared(It->GetActorLocation(), C->GetActorLocation()) < Radius * Radius)
+		{
+			Out.Add(*It);
+		}
+	}
+	Out.StableSort([](const AMFWeapon& A, const AMFWeapon& B) { return A.GetSlotKey() < B.GetSlotKey(); });
+	return Out;
+}
+
 TArray<TSubclassOf<AMFWeapon>> AMFPlayerController::GetLoadoutItems() const
 {
 	TArray<TSubclassOf<AMFWeapon>> Items;
@@ -445,7 +527,10 @@ TArray<TSubclassOf<AMFWeapon>> AMFPlayerController::GetLoadoutItems() const
 	}
 	else
 	{
-		Items = UMFLoadoutLibrary::DefaultItems();
+		for (const AMFWeapon* W : GetGroundWeapons())
+		{
+			Items.Add(W->GetClass());
+		}
 	}
 	Items.RemoveAll([](const TSubclassOf<AMFWeapon>& W) { return !W; });
 	Items.StableSort([](const TSubclassOf<AMFWeapon>& A, const TSubclassOf<AMFWeapon>& B)
@@ -471,13 +556,11 @@ void AMFPlayerController::ServerToggleLoadout_Implementation()
 	{
 		ExitLoadout();
 	}
-	else if (UMFLoadoutLibrary::FindLoadoutSourceFor(C) && C->GetCharacterMovement()->IsMovingOnGround())
+	else if (C->GetCharacterMovement()->IsMovingOnGround())
 	{
-		EnterLoadout();   // MF: "Can only get loadout when walking"
-	}
-	else
-	{
-		ServerDropWeapon_Implementation();
+		// MF: "Can only get loadout when walking". Away from crates and loadout zones it still
+		// opens: take weapons lying around, put carried ones down (MF only opened it there).
+		EnterLoadout();
 	}
 }
 
@@ -489,7 +572,10 @@ void AMFPlayerController::EnterLoadout()
 		return;
 	}
 	C->SetInLoadout(true);
-	C->RefillAmmo();   // MF: entering loadout replenishes the ammunition of carried weapons
+	if (!IsGroundLoadout())
+	{
+		C->RefillAmmo();   // MF ServerTryLoadout: a crate or zone refills carried weapons
+	}
 }
 
 void AMFPlayerController::ExitLoadout()
@@ -640,6 +726,12 @@ void AMFPlayerController::ServerLoadoutDrop_Implementation(AMFWeapon* Item)
 	{
 		return;
 	}
+	if (IsGroundLoadout())
+	{
+		C->DropWeapon(Item);   // RagePlayer.DropItem: away from loadout it lands on the ground
+		return;
+	}
+	// at a crate or in a loadout zone it goes back into the store
 	const bool bWasCurrent = C->GetCurrentWeapon() == Item;
 	C->RemoveWeapon(Item, true);
 	if (bWasCurrent)
@@ -757,6 +849,189 @@ void AMFPlayerController::ChangeCrosshair()
 	}
 }
 
+// --- chat, orders, views (MF T / Y / V / F5 / NumPad) ----------------------------------
+
+void AMFPlayerController::StartTyping(const TCHAR* Prefix)
+{
+	// UE1 Console.Talk: the console's typing line with "Say " filled in
+	if (const ULocalPlayer* LP = GetLocalPlayer(); LP && LP->ViewportClient && LP->ViewportClient->ViewportConsole)
+	{
+		LP->ViewportClient->ViewportConsole->StartTyping(Prefix);
+	}
+}
+
+void AMFPlayerController::Talk()
+{
+	StartTyping(TEXT("Say "));
+}
+
+void AMFPlayerController::TeamTalk()
+{
+	StartTyping(TEXT("TeamSay "));
+}
+
+void AMFPlayerController::Say(const FString& Msg)
+{
+	if (!Msg.TrimStartAndEnd().IsEmpty())
+	{
+		ServerSay(Msg.Left(128), false);
+	}
+}
+
+void AMFPlayerController::TeamSay(const FString& Msg)
+{
+	if (!Msg.TrimStartAndEnd().IsEmpty())
+	{
+		ServerSay(Msg.Left(128), true);
+	}
+}
+
+void AMFPlayerController::ServerSay_Implementation(const FString& Msg, bool bTeam)
+{
+	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+	{
+		GM->BroadcastChat(this, Msg.Left(128), bTeam);
+	}
+}
+
+void AMFPlayerController::ClientMessage_Implementation(const FString& S, FName Type, float MsgLifeTime)
+{
+	Super::ClientMessage_Implementation(S, Type, MsgLifeTime);
+	if (AMFHUD* HUD = GetHUD<AMFHUD>())
+	{
+		HUD->AddMessage(S, FLinearColor::White);
+	}
+}
+
+void AMFPlayerController::ClientTeamMessage_Implementation(APlayerState* SenderPlayerState, const FString& S, FName Type, float MsgLifeTime)
+{
+	Super::ClientTeamMessage_Implementation(SenderPlayerState, S, Type, MsgLifeTime);
+	if (AMFHUD* HUD = GetHUD<AMFHUD>())
+	{
+		const FString Line = SenderPlayerState ? FString::Printf(TEXT("%s: %s"), *SenderPlayerState->GetPlayerName(), *S) : S;
+		// MF: team chat in the team colour, everything else white
+		const AMFPlayerState* PS = Cast<AMFPlayerState>(SenderPlayerState);
+		const FLinearColor Col = Type == TEXT("TeamSay") && PS && PS->HasTeam() ? UMFGameSettings::Get().GetTeamColor(PS->GetTeam()) : FLinearColor::White;
+		HUD->AddMessage(Line, Col);
+	}
+}
+
+TArray<FString> AMFPlayerController::GetCommandMenuOrders() const
+{
+	TArray<FString> Out;
+	if (const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>())
+	{
+		for (int32 i = 0; i < 5; ++i)
+		{
+			Out.Add(AMFGameMode::GetOrderAbbrev(i));
+		}
+	}
+	return Out;
+}
+
+TArray<APlayerState*> AMFPlayerController::GetCommandTargets() const
+{
+	TArray<APlayerState*> Out;
+	const AMFPlayerState* Me = GetPlayerState<AMFPlayerState>();
+	if (const AGameStateBase* GS = GetWorld()->GetGameState(); GS && Me)
+	{
+		for (APlayerState* PS : GS->PlayerArray)
+		{
+			const AMFPlayerState* P = Cast<AMFPlayerState>(PS);
+			if (P && P != Me && !P->IsSpectator() && P->GetTeam() == Me->GetTeam())
+			{
+				Out.Add(PS);
+			}
+		}
+	}
+	Out.Sort([](const APlayerState& A, const APlayerState& B) { return A.GetPlayerName() < B.GetPlayerName(); });
+	return Out;
+}
+
+void AMFPlayerController::ShowCommandMenu()
+{
+	CommandMenuStage = CommandMenuStage > 0 ? 0 : 1;
+	PlayUISound(TEXT("/Game/MFImported/Sounds/RageMenuSFX/click.click"));
+}
+
+void AMFPlayerController::CommandMenuKey(int32 Slot)
+{
+	// MF OrdersWindow.KeyEvent: 1-9 pick, 0 = the tenth
+	const int32 Index = Slot - 1;
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	if (CommandMenuStage == 1)
+	{
+		if (!GetCommandMenuOrders().IsValidIndex(Index))
+		{
+			return;
+		}
+		CommandMenuOrder = Index;
+		if (GS && GS->IsTeamGame())
+		{
+			CommandMenuStage = 2;   // TargetChildWindow: All, then each team-mate
+		}
+		else
+		{
+			ServerGiveOrder(Index, nullptr);
+			CommandMenuStage = 0;
+		}
+	}
+	else if (CommandMenuStage == 2)
+	{
+		const TArray<APlayerState*> Targets = GetCommandTargets();
+		if (Index == 0 || Targets.IsValidIndex(Index - 1))
+		{
+			ServerGiveOrder(CommandMenuOrder, Index == 0 ? nullptr : Targets[Index - 1]);
+			CommandMenuStage = 0;
+		}
+	}
+	PlayUISound(TEXT("/Game/MFImported/Sounds/RageMenuSFX/click.click"));
+}
+
+void AMFPlayerController::ServerGiveOrder_Implementation(int32 Order, APlayerState* Target)
+{
+	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>(); GM && Order >= 0 && Order < 5)
+	{
+		GM->GiveOrder(this, Order, Target);
+	}
+}
+
+void AMFPlayerController::ViewTeam()
+{
+	ViewTeammate(ViewedTeammate + 1);
+}
+
+void AMFPlayerController::ViewPlayerNum(int32 N)
+{
+	// MF: NumPad1 = ViewPlayerNum 0 = back to yourself, NumPad2.. = team-mates
+	ViewTeammate(N - 1);
+}
+
+void AMFPlayerController::ViewTeammate(int32 Index)
+{
+	const TArray<APlayerState*> Mates = GetCommandTargets();
+	if (!Mates.IsValidIndex(Index) || !Mates[Index]->GetPawn())
+	{
+		ViewedTeammate = -1;
+		SetViewTargetWithBlend(GetPawn());
+		if (Index >= 0)
+		{
+			ClientMessage(TEXT("Now viewing from own camera"));
+		}
+		return;
+	}
+	ViewedTeammate = Index;
+	SetViewTargetWithBlend(Mates[Index]->GetPawn());
+	ClientMessage(FString::Printf(TEXT("Now viewing from %s"), *Mates[Index]->GetPlayerName()));
+}
+
+void AMFPlayerController::CenterView()
+{
+	FRotator R = GetControlRotation();
+	R.Pitch = 0.f;
+	SetControlRotation(R);
+}
+
 void AMFPlayerController::ShrinkHUD()
 {
 	if (AMFHUD* HUD = GetHUD<AMFHUD>())
@@ -769,7 +1044,23 @@ void AMFPlayerController::ServerLoadoutPick_Implementation(TSubclassOf<AMFWeapon
 {
 	AMFCharacter* C = GetMFCharacter();
 	const AMFLoadoutSource* Src = C ? UMFLoadoutLibrary::FindLoadoutSourceFor(C) : nullptr;
-	if (!C || !C->IsInLoadout() || !Src || !Src->GetItems().Contains(Item))
+	if (!C || !C->IsInLoadout() || !Item)
+	{
+		return;
+	}
+	if (!Src)
+	{
+		// ground loadout: take the nearest one of that kind lying around
+		for (AMFWeapon* W : GetGroundWeapons())
+		{
+			if (W->GetClass() == Item && C->PickupWeapon(W))
+			{
+				return;
+			}
+		}
+		return;
+	}
+	if (!Src->GetItems().Contains(Item))
 	{
 		return;
 	}
@@ -830,8 +1121,6 @@ void AMFPlayerController::ServerDropWeapon_Implementation()
 	AMFWeapon* W = C ? C->GetCurrentWeapon() : nullptr;
 	if (W && !W->bUndroppable)
 	{
-		// TODO: spawn a pickup others can grab (MF DropFrom); for now the item is discarded.
-		C->RemoveWeapon(W, true);
-		C->SwitchToBestWeapon();
+		C->DropWeapon(W);   // lands on the ground; anyone takes it through their loadout
 	}
 }

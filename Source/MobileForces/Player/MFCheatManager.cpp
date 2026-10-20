@@ -80,6 +80,14 @@ void UMFCheatManager::MFNavTest()
 	}
 }
 
+void UMFCheatManager::MFTeleport(float X, float Y, float Z)
+{
+	if (APawn* P = GetPlayerController()->GetPawn())
+	{
+		P->TeleportTo(FVector(X, Y, Z), P->GetActorRotation());
+	}
+}
+
 void UMFCheatManager::MFTraceMat()
 {
 	FVector Loc;

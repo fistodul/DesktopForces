@@ -17,6 +17,10 @@ public:
 	// --- Mobile Forces cheats (same names as the original; UE adds God, Ghost, Fly, Walk,
 	//     Slomo, Summon, Teleport, PlayersOnly, ViewSelf, DestroyAll ...) ---------------
 	/** Join team N and respawn there. */
+	/** Developer: move your pawn to X Y Z (scripted tests). */
+	UFUNCTION(Exec)
+	void MFTeleport(float X, float Y, float Z);
+
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)
 	void MFTraceMat();

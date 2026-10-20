@@ -37,10 +37,17 @@ AMFHUD::AMFHUD()
 
 void AMFHUD::AddKillMessage(const FString& Killer, const FString& Victim, const FString& Verb)
 {
-	KillFeed.Add({ Killer, Victim, Verb, GetWorld()->GetTimeSeconds() });
-	if (KillFeed.Num() > 4)
+	// RageMessageDeath: red
+	AddMessage(Killer.IsEmpty() ? FString::Printf(TEXT("%s %s"), *Victim, *Verb)
+		: FString::Printf(TEXT("%s %s %s"), *Killer, *Verb, *Victim), FLinearColor(1.f, 0.f, 0.f));
+}
+
+void AMFHUD::AddMessage(const FString& Line, const FLinearColor& Color)
+{
+	Messages.Add({ Line, Color, GetWorld()->GetTimeSeconds() });
+	if (Messages.Num() > 6)   // RageHUD.DrawSmallMessages: 6 lines
 	{
-		KillFeed.RemoveAt(0);
+		Messages.RemoveAt(0);
 	}
 }
 
@@ -70,6 +77,46 @@ void AMFHUD::Text(const FString& S, float X, float Y, const FLinearColor& Color,
 	FCanvasTextItem Item(FVector2D(X - W * 0.5f, Y), FText::FromString(S), Font, Color);
 	Item.Scale = FVector2D(Scale * UIScale);
 	Item.EnableShadow(FLinearColor::Black);
+	Canvas->DrawItem(Item);
+}
+
+UFont* AMFHUD::MFFont(int32 Kind)
+{
+	static const int32 Sizes[3][5] = { { 7, 11, 14, 21, 28 }, { 9, 14, 18, 27, 36 }, { 12, 18, 24, 36, 48 } };
+	const int32 Pt = Sizes[FMath::Clamp(Kind, 0, 2)][FMath::Clamp(SizeIndex, 0, 4)];
+	if (const TObjectPtr<UFont>* Found = MFFonts.Find(Pt))
+	{
+		return *Found;
+	}
+	UFont* F = LoadObject<UFont>(nullptr, *FString::Printf(TEXT("/Game/MFImported/Fonts/MF%d.MF%d"), Pt, Pt), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	MFFonts.Add(Pt, F);
+	return F;
+}
+
+FVector2D AMFHUD::MFTextSize(const FString& S, int32 Kind)
+{
+	float W = 0.f, H = 0.f;
+	if (UFont* F = MFFont(Kind))
+	{
+		Canvas->TextSize(F, S, W, H);
+	}
+	else
+	{
+		Canvas->TextSize(Font, S, W, H, UIScale, UIScale);
+	}
+	return FVector2D(W, H);
+}
+
+void AMFHUD::MFText(const FString& S, float X, float Y, const FLinearColor& Color, int32 Kind)
+{
+	UFont* F = MFFont(Kind);
+	if (!F)
+	{
+		Text(S, X, Y, Color, Kind == 2 ? 1.f : 0.8f);
+		return;
+	}
+	FCanvasTextItem Item(FVector2D(FMath::RoundToFloat(X), FMath::RoundToFloat(Y)), FText::FromString(S), F, Color);
+	Item.BlendMode = SE_BLEND_Translucent;
 	Canvas->DrawItem(Item);
 }
 
@@ -129,6 +176,7 @@ void AMFHUD::DrawHUD()
 		--Size;
 	}
 	Block = BlockSizes[Size];
+	SizeIndex = Size;
 	RS = Block / 64.f;
 	const bool bArt = LoadMFArt();
 
@@ -162,7 +210,11 @@ void AMFHUD::DrawHUD()
 	{
 		DrawDeadScreen(GS, PC);
 	}
-	DrawKillFeed();
+	DrawMessages();
+	if (PC)
+	{
+		DrawCommandMenu(PC);
+	}
 	if (GS)
 	{
 		DrawGameInfo(GS, PC);
@@ -195,10 +247,11 @@ void AMFHUD::DrawCrosshair(AMFCharacter* C)
 	}
 	if (UTexture2D* X = TexCrosshair[FMath::Clamp(Crosshair, 0, 23)])
 	{
-		// RageHUD.DrawCrossHair: 32 px at 640 wide, darkened then the team colour added twice
+		// RageHUD.DrawCrossHair: 32 px at 640 wide; STY_Subtractive GreyColor (only the shape:
+		// the texture alpha is its brightness), then the team colour added twice
 		const float Size = 32.f * Canvas->ClipX / 640.f;
 		const float PX = FMath::RoundToFloat(CX - Size * 0.5f), PY = FMath::RoundToFloat(CY - Size * 0.5f);
-		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, FLinearColor(0.f, 0.f, 0.f, 0.6f), SE_BLEND_Translucent);
+		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
 		const FLinearColor Team = SetColour(TeamSet());
 		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, Team, SE_BLEND_Additive);
 		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, Team, SE_BLEND_Additive);
@@ -365,20 +418,55 @@ void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 	}
 }
 
-void AMFHUD::DrawKillFeed()
+void AMFHUD::DrawMessages()
 {
+	// RageHUD.DrawSmallMessages: top left right of the minimap (3.5 blocks), newest last
 	const float Now = GetWorld()->GetTimeSeconds();
-	float Y = 40.f * UIScale;
-	for (const FKill& M : KillFeed)
+	Messages.RemoveAll([Now](const FMessage& M) { return Now - M.Time > 6.f; });
+	// PromptAndChatFontSize 3 = GetHUDBigFont; line height from "TEST"
+	const float X = Block * 3.5f, LineH = MFTextSize(TEXT("TEST"), 2).Y;
+	float Y = 2.f;
+	for (const FMessage& M : Messages)
 	{
-		if (Now - M.Time > 6.f)
+		MFText(M.Text, X, Y, M.Color, 2);
+		Y += LineH;
+	}
+}
+
+void AMFHUD::DrawCommandMenu(AMFPlayerController* PC)
+{
+	// MF OrdersMainWindow / TargetChildWindow: below the minimap at the left, 32 px rows
+	// (on a 1024x768 reference), orders in one column, then who gets it in the next.
+	const int32 Stage = PC->GetCommandMenuStage();
+	if (Stage == 0)
+	{
+		return;
+	}
+	const float Ref = FMath::Min(Canvas->ClipX / 4.f, 256.f) / 256.f;
+	const float RowH = 32.f * Ref, ColW = 256.f * Ref, Top = Block * 3.25f;
+	const FLinearColor Team = SetColour(TeamSet());
+	const FLinearColor Fill(Team.R * 0.25f, Team.G * 0.25f, Team.B * 0.25f, 0.6f);
+	auto Column = [&](float X, float Y0, const TArray<FString>& Items, int32 Highlight)
+	{
+		Frame(X, Y0, ColW, RowH * (Items.Num() + 1), Fill, Team);
+		for (int32 i = 0; i < Items.Num(); ++i)
 		{
-			continue;
+			const float Y = Y0 + RowH * (i + 0.5f);
+			const float TY = Y - MFTextSize(TEXT("TEST"), 1).Y * 0.5f + RowH * 0.5f;
+			MFText(FString::Printf(TEXT("%d"), (i + 1) % 10), X + 6.f * Ref, TY, FLinearColor(0.6f, 0.7f, 1.f), 0);
+			MFText(Items[i], X + 26.f * Ref, TY, i == Highlight ? Yellow : White, 1);
 		}
-		const FString Line = M.Killer.IsEmpty() ? FString::Printf(TEXT("%s %s"), *M.Victim, *M.Verb)
-			: FString::Printf(TEXT("%s %s %s"), *M.Killer, *M.Verb, *M.Victim);
-		Text(Line, Canvas->ClipX - 320.f * UIScale, Y, White, 0.8f);
-		Y += 18.f * UIScale;
+	};
+	const TArray<FString> Orders = PC->GetCommandMenuOrders();
+	Column(0.f, Top, Orders, Stage == 2 ? PC->GetCommandMenuOrder() : -1);
+	if (Stage == 2)
+	{
+		TArray<FString> Names = { TEXT("All") };
+		for (const APlayerState* PS : PC->GetCommandTargets())
+		{
+			Names.Add(PS->GetPlayerName());
+		}
+		Column(ColW, Top + RowH * PC->GetCommandMenuOrder(), Names, -1);
 	}
 }
 
@@ -719,14 +807,10 @@ void AMFHUD::DrawHealthMF(AMFCharacter* C)
 	const float Lvl = 128.f * Health / 100.f;
 	DrawTexRect(TexBacks, HX, HY + (128.f - Lvl) * RS, 64.f * RS, Lvl * RS, 0.f, 64.f + 128.f - Lvl, 64.f, Lvl, Fill, SE_BLEND_Additive);
 	DrawTexRect(TexIcons, HX, HY, 64.f * RS, 128.f * RS, T == 1 ? 128.f : 192.f, 0.f, 64.f, 128.f, FLinearColor::White, SE_BLEND_Translucent);
+	// RageHUD.DrawHealth: GetHUDMedFont, at ((64 + 8) * RS / 2 - W * 0.75, 48 * RS - H / 2)
 	const FString HS = FString::FromInt(Health);
-	float TW = 0.f, TH = 0.f;
-	Canvas->TextSize(GEngine->GetMediumFont(), HS, TW, TH, RS, RS);
-	FCanvasTextItem HT(FVector2D(HX + 72.f * RS * 0.5f - TW * 0.75f, HY + 48.f * RS - TH * 0.5f), FText::FromString(HS),
-		GEngine->GetMediumFont(), FLinearColor::White);
-	HT.Scale = FVector2D(RS);
-	HT.EnableShadow(FLinearColor::Black);
-	Canvas->DrawItem(HT);
+	FVector2D TS = MFTextSize(HS, 1);
+	MFText(HS, HX + 72.f * RS * 0.5f - TS.X * 0.75f, HY + 48.f * RS - TS.Y * 0.5f, FLinearColor::White, 1);
 	// Armour: vest next to it, only while carrying armour (RageHUD.DrawArmour)
 	if (const int32 Armour = C->GetArmourCharge(); Armour > 0)
 	{
@@ -735,12 +819,8 @@ void AMFHUD::DrawHealthMF(AMFCharacter* C)
 		DrawTexRect(TexBacks, AX, AY + (56.f - AL) * RS, 68.f * RS, AL * RS, 0.f, 192.f + 56.f - AL, 64.f, AL, Fill, SE_BLEND_Additive);
 		DrawTexRect(TexIcons, AX, AY, 64.f * RS, 56.f * RS, T == 1 ? 128.f : 192.f, 128.f, 64.f, 56.f, FLinearColor::White, SE_BLEND_Translucent);
 		const FString AS = FString::FromInt(Armour);
-		Canvas->TextSize(GEngine->GetMediumFont(), AS, TW, TH, RS, RS);
-		FCanvasTextItem AT(FVector2D(AX + 32.f * RS - TW * 0.75f, AY + 28.f * RS - TH * 0.5f), FText::FromString(AS),
-			GEngine->GetMediumFont(), FLinearColor::White);
-		AT.Scale = FVector2D(RS);
-		AT.EnableShadow(FLinearColor::Black);
-		Canvas->DrawItem(AT);
+		TS = MFTextSize(AS, 1);
+		MFText(AS, AX + 32.f * RS - TS.X * 0.75f, AY + 28.f * RS - TS.Y * 0.5f, FLinearColor::White, 1);
 	}
 	// Loadout available here (RageHUD: CanDoLoadout -> Loadout_Back + Loadout_Team)
 	if (!C->IsInLoadout() && UMFLoadoutLibrary::FindLoadoutSourceFor(C))

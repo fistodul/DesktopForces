@@ -79,6 +79,11 @@ public:
 	int32 CountOfClass(TSubclassOf<AMFWeapon> WeaponClass) const;
 	AMFWeapon* FindWeaponOfClass(TSubclassOf<AMFWeapon> WeaponClass) const;
 
+	/** Server: put a carried weapon on the ground (MF Pawn.DropItem); it keeps its ammo. */
+	void DropWeapon(AMFWeapon* Weapon);
+	/** Server: take a weapon lying on the ground (MF loadout from dropped weapons). */
+	bool PickupWeapon(AMFWeapon* Weapon);
+
 	/** Pawn.CanIPickup: carry blocks + MaxCanCarry of this class. */
 	bool CanCarry(TSubclassOf<AMFWeapon> WeaponClass) const;
 

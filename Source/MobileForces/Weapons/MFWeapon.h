@@ -253,6 +253,17 @@ public:
 	/** Immediately holster without animation (death, loadout). */
 	virtual void ForceInactive();
 
+	// --- on the ground (MF RageWeapon state Pickup) -------------------------------------
+	/** Lying in the world without an owner; players take it through their loadout
+	 *  (MF TryLoadoutDropped: no touch pickup). Keeps its ammo. */
+	bool IsDropped() const { return bDropped; }
+	/** Server: leave the owner and come to rest on the floor near From (MF Pawn.DropItem). */
+	virtual void DropFrom(const FVector& From, const FRotator& Facing);
+	/** Server: taken from the ground by NewOwner (before AMFCharacter adds it to the inventory). */
+	virtual void OnPickedUp(AMFCharacter* NewOwner);
+	/** Most weapons lying around per map; the oldest disappears beyond it. */
+	static constexpr int32 MaxDropped = 32;
+
 	virtual void StartFire(bool bAlt);
 	virtual void StopFire(bool bAlt);
 	virtual void StartReload();
@@ -275,6 +286,13 @@ protected:
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_ZoomLevel)
 	uint8 ZoomLevel = 0;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_Dropped)
+	bool bDropped = false;
+	float DroppedTime = 0.f;
+	UFUNCTION()
+	void OnRep_Dropped();
+	void UpdateDroppedLook();
 
 	/** Incremented per shot; simulated proxies play effects on change. */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_BurstCounter)

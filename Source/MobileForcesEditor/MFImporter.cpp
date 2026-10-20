@@ -14,6 +14,7 @@
 #include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
 #include "Engine/TextureRenderTargetCube.h"
+#include "Engine/Font.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Misc/FileHelper.h"
@@ -175,11 +176,76 @@ bool FMFImporter::ImportTextures()
 		Tex->CompressionSettings = TC_Default;
 		Tex->CompressionNoAlpha = !Keys[i].Value;
 		Tex->MipGenSettings = TMGS_FromTextureGroup;
+		if (IsUITexture(Keys[i].Key))
+		{
+			// HUD art and bitmap fonts: drawn 1:1 or scaled like MF (point sampled), never mipped
+			Tex->LODGroup = TEXTUREGROUP_UI;
+			Tex->CompressionSettings = TC_EditorIcon;
+			Tex->MipGenSettings = TMGS_NoMipmaps;
+			Tex->Filter = TF_Nearest;
+		}
 		Tex->PostEditChange();
 		Ok += SaveAsset(Tex) ? 1 : 0;
 	}
 	UE_LOG(LogMFEditor, Display, TEXT("Textures: %d / %d imported"), Ok, Tasks.Num());
+	ImportFonts();
 	return Ok > 0;
+}
+
+bool FMFImporter::IsUITexture(const FString& Key)
+{
+	return Key.StartsWith(TEXT("Rage."), ESearchCase::IgnoreCase) || Key.StartsWith(TEXT("RageWeapons."), ESearchCase::IgnoreCase)
+		|| Key.StartsWith(TEXT("MobileForceFonts."), ESearchCase::IgnoreCase);
+}
+
+void FMFImporter::ImportFonts()
+{
+	// MF bitmap fonts (fonts.json from mflib/fonts.py): offline-cache UFonts over the page textures
+	TSharedPtr<FJsonObject> Fonts = LoadJson(WorkDir / TEXT("fonts.json"));
+	if (!Fonts)
+	{
+		return;
+	}
+	int32 Count = 0;
+	for (const auto& Pair : Fonts->Values)
+	{
+		const TSharedPtr<FJsonObject> Info = Pair.Value->AsObject();
+		bool bCreated = false;
+		UFont* Font = FindOrCreateAsset<UFont>(FString::Printf(TEXT("%s/Fonts"), ImportRoot), FString(Pair.Key), bCreated);
+		Font->FontCacheType = EFontCacheType::Offline;
+		Font->Textures.Reset();
+		Font->Characters.Reset();
+		Font->IsRemapped = 0;
+		Font->Kerning = 0;
+		Font->ScalingFactor = 1.f;
+		const int32 PerPage = Info->GetIntegerField(TEXT("chars_per_page"));
+		const TArray<TSharedPtr<FJsonValue>>& Pages = Info->GetArrayField(TEXT("pages"));
+		for (int32 PageIndex = 0; PageIndex < Pages.Num(); ++PageIndex)
+		{
+			const TSharedPtr<FJsonObject> Page = Pages[PageIndex]->AsObject();
+			Font->Textures.Add(FindTexture(Page->GetStringField(TEXT("texture"))));
+			const TArray<TSharedPtr<FJsonValue>>& Chars = Page->GetArrayField(TEXT("chars"));
+			for (int32 i = 0; i < PerPage; ++i)
+			{
+				FFontCharacter Ch;
+				if (Chars.IsValidIndex(i))
+				{
+					const TArray<TSharedPtr<FJsonValue>>& R = Chars[i]->AsArray();
+					Ch.StartU = R[0]->AsNumber();
+					Ch.StartV = R[1]->AsNumber();
+					Ch.USize = R[2]->AsNumber();
+					Ch.VSize = R[3]->AsNumber();
+				}
+				Ch.TextureIndex = PageIndex;
+				Ch.VerticalOffset = 0;
+				Font->Characters.Add(Ch);
+			}
+		}
+		Font->CacheCharacterCountAndMaxCharHeight();
+		Font->PostEditChange();
+		Count += SaveAsset(Font) ? 1 : 0;
+	}
+	UE_LOG(LogMFEditor, Display, TEXT("Fonts: %d imported"), Count);
 }
 
 // --- sounds ----------------------------------------------------------------------------
