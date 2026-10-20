@@ -44,8 +44,8 @@ CRATES = {
     'LoadoutCrate': ('255', True, True),
 }
 
-LIGHT_INTENSITY = 0.35      # UE unitless intensity for a full-brightness MF light (baked, fixed exposure; tuned 2026-10-20)
-SUN_INTENSITY = 0.4
+LIGHT_INTENSITY = 3.0       # UE unitless intensity of a full-brightness MF light: UE's Lambert divides by pi, so ~pi shows the texture at its own brightness
+SUN_INTENSITY = 3.0         # lux, same reasoning
 
 
 def ue1_hsv(hue: int, sat: int, bright: int) -> tuple[float, float, float]:
@@ -64,6 +64,13 @@ def ue1_hsv(hue: int, sat: int, bright: int) -> tuple[float, float, float]:
     return tuple((c + s * (1.0 - c)) * b for c in base)
 
 
+def zone_ambient(props: dict) -> tuple[float, float, float]:
+    """UE1 ZoneInfo ambient light: FGetHSV(AmbientHue, AmbientSaturation, AmbientBrightness)."""
+    return ue1_hsv(_int(props, 'AmbientHue', {'AmbientHue': 0}),
+                   _int(props, 'AmbientSaturation', {'AmbientSaturation': 255}),
+                   _int(props, 'AmbientBrightness', {'AmbientBrightness': 0}))
+
+
 def _int(props: dict, key: str, defaults: dict) -> int:
     v = props.get(key)
     return int(float(v)) if v is not None else int(defaults.get(key, 0))
@@ -73,6 +80,16 @@ def _int(props: dict, key: str, defaults: dict) -> int:
 # others with a Team default it to 255 in their defaultproperties (e.g. RageDominationTimer).
 TEAM_DEFAULT_ZERO = {'RageFlagBase', 'RageSafe', 'RageDetonationLock', 'TrailerPark', 'TrailerDelivery',
                      'LoadoutBlocker', 'CaptainStart'}
+
+
+def rotate(v, rot: dict) -> tuple:
+    """Rotate a vector like UE's FRotationMatrix(FRotator(Pitch, Yaw, Roll)) (degrees)."""
+    p, y, r = (math.radians(rot.get(k, 0.0)) for k in ('pitch', 'yaw', 'roll'))
+    sp, cp, sy, cy, sr, cr = math.sin(p), math.cos(p), math.sin(y), math.cos(y), math.sin(r), math.cos(r)
+    ax = (cp * cy, cp * sy, sp)
+    ay = (sr * sp * cy - cr * sy, sr * sp * sy + cr * cy, -sr * cp)
+    az = (-(cr * sp * cy + sr * sy), cy * sr - cr * sp * sy, cr * cp)
+    return tuple(ax[i] * v[0] + ay[i] * v[1] + az[i] * v[2] for i in range(3))
 
 
 def _team(value) -> str:
@@ -103,9 +120,14 @@ class ActorMapper:
                 return []
             scale = t3d.parse_float(props.get('DrawScale'), 1.0)
             s3 = t3d.parse_vector(props.get('DrawScale3D'), (1.0, 1.0, 1.0))
-            return [dict(base, type='static_mesh', mesh=self.static_meshes[mesh]['mesh'],
-                         scale=[scale * s3[0], scale * s3[1], scale * s3[2]],
-                         collision=t3d.parse_bool(props.get('bCollideActors'), True))]
+            sc = [scale * s3[0], scale * s3[1], scale * s3[2]]
+            # UE1/UE2 draw a mesh at Location + R * S * (v - PrePivot) (Actor.LocalToWorld);
+            # the mesh's own origin is v = 0, so the actor moves by R * S * -PrePivot
+            pp = t3d.parse_vector(props.get('PrePivot'), (0.0, 0.0, 0.0))
+            off = rotate((-pp[0] * sc[0] * UU_TO_CM, -pp[1] * sc[1] * UU_TO_CM, -pp[2] * sc[2] * UU_TO_CM), a['rotation'])
+            loc = [base['location'][i] + off[i] for i in range(3)]
+            return [dict(base, location=loc, type='static_mesh', mesh=self.static_meshes[mesh]['mesh'],
+                         scale=sc, collision=t3d.parse_bool(props.get('bCollideActors'), True))]
 
         if cls in LIGHT_CLASSES or props.get('LightType') not in (None, 'LT_None'):
             return self._light(cls, base, props)
@@ -146,7 +168,13 @@ class ActorMapper:
             return [dict(base, type='loadout_zone', team=_team(props.get('Team', 255)),
                          box_min=box[0], box_max=box[1])]
 
-        if cls in ('ZoneInfo', 'RageZoneInfo', 'RageWaterZone', 'SkyZoneInfo'):
+        if cls == 'SkyZoneInfo':
+            # UE1 draws the sky zone, seen from here, through the map's sky windows
+            # (PF_FakeBackdrop); AMFSkyCapture captures it into the sky material's cubemap
+            self._note_ambient(props)
+            return [self._legacy(a), dict(base, type='actor', **{'class': '/Script/MobileForces.MFSkyCapture'}, props={})]
+
+        if cls in ('ZoneInfo', 'RageZoneInfo', 'RageWaterZone'):
             self._note_ambient(props)
             return [self._legacy(a)]
 

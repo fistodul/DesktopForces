@@ -81,3 +81,24 @@ public:
 	TObjectPtr<class UBillboardComponent> Sprite;
 #endif
 };
+
+/**
+ * The map's sky (MF SkyZoneInfo): UE1 rendered the sky zone, seen from this point with the
+ * player's view rotation, through sky-window polygons (PF_FakeBackdrop). Here a cube capture
+ * from this point fills RT_MF_Sky once when the map starts; the sky material on those
+ * polygons samples it by view direction. One capture at load, nothing per frame.
+ */
+UCLASS()
+class MOBILEFORCES_API AMFSkyCapture : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AMFSkyCapture();
+
+protected:
+	virtual void BeginPlay() override;
+
+	UPROPERTY(VisibleAnywhere, Category = "MF")
+	TObjectPtr<class USceneCaptureComponentCube> Capture;
+};

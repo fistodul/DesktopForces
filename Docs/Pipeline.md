@@ -49,7 +49,20 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
 - **Poly flags** decide what a polygon becomes:
   invisible → collision-only; non-solid / portal → render-only (zone portals skipped);
   masked → alpha-test material; translucent → additive; modulated → modulate (×2);
-  unlit; two-sided; fake backdrop → sky.
+  unlit; two-sided; fake backdrop → sky window (`M_MF_Sky`, see below).
+- **Watertight, consistently wound** (`mflib/polyfix.py`): BSP cuts leave T-junctions (a
+  vertex in the middle of a neighbour's edge) that a GPU shows as pixel cracks into the void;
+  those vertices are welded into the neighbours' edges. Facing comes from the Newell normal
+  of all vertices (after BSP splits the first three are often collinear, which flipped ~500
+  warehouse polygons: "holes that only work one way"). Triangulation fans from an unsplit
+  corner, else from the centroid, so every welded vertex joins real triangles.
+- **Sky**: UE1 drew the sky zone (seen from the SkyZoneInfo with the player's rotation)
+  through fake-backdrop polygons. `AMFSkyCapture` (spawned at the SkyZoneInfo) captures a
+  256 px cube once at load (re-captured at 0.5/2/5/10 s while textures stream in); `M_MF_Sky`
+  samples it by view direction.
+- **Static mesh actors**: UE1 draws a mesh at `Location + R·S·(v − PrePivot)`, so placement
+  applies `−PrePivot` (rotated and scaled). Without it 137 of 138 warehouse meshes were off by
+  up to several metres.
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
   triangles have position, normal and normalised UV.
 - **Animations** (weapons/characters): `MeshAnimation` objects parse fully (bones, motion
@@ -89,8 +102,20 @@ Material keys are `package.group.texture|mode` (mode: `opaque`, `masked`, `addit
 
 UE1 colour = `FGetHSV(LightHue, LightSaturation, LightBrightness)` (saturation 255 = white),
 radius = 25 × (LightRadius + 1) uu. Converted to static UE lights with non-inverse-square
-falloff (exponent 2). Zone ambient light → Lightmass environment colour.
-`LIGHT_INTENSITY` / `SUN_INTENSITY` in `actors.py` are tuning knobs.
+falloff (exponent 2). `LIGHT_INTENSITY` / `SUN_INTENSITY` in `actors.py` = 3.0 (≈ π: UE's
+Lambert divides by π, so a full-brightness light shows the texture at its own brightness).
+
+- **Zone ambient**: UE1 added each zone's `FGetHSV(AmbientHue, AmbientSaturation,
+  AmbientBrightness)` to every surface in the zone, unshadowed. The lit masters
+  (`M_MF_Opaque/Masked`) add `BaseColor × Ambient` as emissive; `Ambient` is custom primitive
+  data 0-2, set per component from its zone (`LevelModel.zone_at`, world chunks are split
+  per zone ambient). Lightmass gets no environment light and ignores emissive
+  (`EmissiveBoost 0`: UE1 unlit surfaces never lit anything).
+- The builder assigns light properties *before* making a light Static: UE's `Set*()`
+  functions do nothing on a registered Static component (`AreDynamicDataChangesAllowed`).
+  That bug left every light at UE's default 5000 and made all earlier bakes white.
+- Check a map's lights in game: `getall PointLightComponent Intensity`; what the view looks
+  at (meshes, materials, lightmap coefficients): `MFTraceMat`.
 
 ### Baking on Linux (UE 5.8.3)
 Only whoever bakes needs this; players get the baked result inside the map.

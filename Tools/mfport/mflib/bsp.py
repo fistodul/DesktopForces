@@ -139,6 +139,19 @@ class LevelModel:
             self.zones.append(actor)  # MF has no LastRenderTime float here (UT does)
         self.end_offset = r.p
 
+    def zone_at(self, p) -> int:
+        """BSP zone index of a point (UE1 FBspNode: iZone[1] in front of the plane, iZone[0] behind)."""
+        if not self.nodes:
+            return 0
+        i = 0
+        while True:
+            n = self.nodes[i]
+            front = n.plane[0] * p[0] + n.plane[1] * p[1] + n.plane[2] * p[2] - n.plane[3] >= 0
+            nxt = n.i_front if front else n.i_back
+            if nxt < 0:
+                return n.i_zone[1] if front else n.i_zone[0]
+            i = nxt
+
     def _find_level_model(self):
         """The level BSP is the Model referenced by the Level export (it is the biggest one)."""
         models = self.pkg.exports_of('Model')

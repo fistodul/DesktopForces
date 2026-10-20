@@ -60,6 +60,16 @@ namespace
 		return FRotator((*R)->GetNumberField(TEXT("pitch")), (*R)->GetNumberField(TEXT("yaw")), (*R)->GetNumberField(TEXT("roll")));
 	}
 
+	/** UE1 zone ambient (record field "ambient") -> custom primitive data 0-2 (M_MF_Opaque/Masked "Ambient"). */
+	void SetZoneAmbient(UPrimitiveComponent* C, const TSharedPtr<FJsonObject>& O)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+		if (O->TryGetArrayField(TEXT("ambient"), A) && A->Num() == 3)
+		{
+			C->SetDefaultCustomPrimitiveDataVector3(0, FVector((*A)[0]->AsNumber(), (*A)[1]->AsNumber(), (*A)[2]->AsNumber()));
+		}
+	}
+
 	FLinearColor Color(const TSharedPtr<FJsonObject>& O)
 	{
 		const FVector C = Vec(O, TEXT("color"));
@@ -206,6 +216,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 		{
 			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			C->bOverrideLightMapRes = false;
+			SetZoneAmbient(C, W);
 			WorldBounds += Mesh->GetBoundingBox().ShiftBy(Loc);
 			A->SetActorLabel(FString::Printf(TEXT("World_%s"), *Mesh->GetName()));
 		}
@@ -248,42 +259,48 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			{
 				C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			}
+			SetZoneAmbient(C, R);
 			Actor = A;
 		}
 		else if (Type == TEXT("point_light"))
 		{
 			APointLight* L = World->SpawnActor<APointLight>(Loc, Rotation, SP);
 			UPointLightComponent* C = L->PointLightComponent;
-			C->SetMobility(EComponentMobility::Static);
+			// Plain assignments: the Set*() functions do nothing on a registered Static light
+			// (AreDynamicDataChangesAllowed), which left every light at UE's defaults.
 			C->bUseInverseSquaredFalloff = false;   // UE1-style radial falloff
 			C->LightFalloffExponent = 2.f;
-			C->SetAttenuationRadius(R->GetNumberField(TEXT("radius")));
-			C->SetIntensity(R->GetNumberField(TEXT("intensity")));
-			C->SetLightColor(Color(R));
-			C->SetCastShadows(true);
+			C->AttenuationRadius = R->GetNumberField(TEXT("radius"));
+			C->Intensity = R->GetNumberField(TEXT("intensity"));
+			C->LightColor = Color(R).ToFColor(true);
+			C->CastShadows = true;
+			C->SetMobility(EComponentMobility::Static);
+			C->MarkRenderStateDirty();
 			Actor = L;
 		}
 		else if (Type == TEXT("spot_light"))
 		{
 			ASpotLight* L = World->SpawnActor<ASpotLight>(Loc, Rotation, SP);
 			USpotLightComponent* C = L->SpotLightComponent;
-			C->SetMobility(EComponentMobility::Static);
 			C->bUseInverseSquaredFalloff = false;
 			C->LightFalloffExponent = 2.f;
-			C->SetAttenuationRadius(R->GetNumberField(TEXT("radius")));
-			C->SetIntensity(R->GetNumberField(TEXT("intensity")));
-			C->SetLightColor(Color(R));
-			C->SetOuterConeAngle(R->GetNumberField(TEXT("cone")));
-			C->SetInnerConeAngle(R->GetNumberField(TEXT("cone")) * 0.7f);
+			C->AttenuationRadius = R->GetNumberField(TEXT("radius"));
+			C->Intensity = R->GetNumberField(TEXT("intensity"));
+			C->LightColor = Color(R).ToFColor(true);
+			C->OuterConeAngle = R->GetNumberField(TEXT("cone"));
+			C->InnerConeAngle = R->GetNumberField(TEXT("cone")) * 0.7f;
+			C->SetMobility(EComponentMobility::Static);
+			C->MarkRenderStateDirty();
 			Actor = L;
 		}
 		else if (Type == TEXT("directional_light"))
 		{
 			ADirectionalLight* L = World->SpawnActor<ADirectionalLight>(Loc, Rotation, SP);
 			UDirectionalLightComponent* C = Cast<UDirectionalLightComponent>(L->GetLightComponent());
+			C->Intensity = R->GetNumberField(TEXT("intensity"));
+			C->LightColor = Color(R).ToFColor(true);
 			C->SetMobility(EComponentMobility::Static);
-			C->SetIntensity(R->GetNumberField(TEXT("intensity")));
-			C->SetLightColor(Color(R));
+			C->MarkRenderStateDirty();
 			Actor = L;
 		}
 		else if (Type == TEXT("actor"))
@@ -378,6 +395,9 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	}
 	WS->LightmassSettings.NumIndirectLightingBounces = 1;   // UE1 had no bounce light; one keeps corners from going black
 	WS->LightmassSettings.bUseAmbientOcclusion = false;
+	// UE1 lighting came from light actors only; unlit/sky surfaces (signs, lamps, sky windows)
+	// never lit anything. Lightmass would otherwise gather their emissive as light.
+	WS->LightmassSettings.EmissiveBoost = 0.f;
 	WS->LightmassSettings.StaticLightingLevelScale = 1.f;
 	WS->bPrecomputeVisibility = true;   // cheap occlusion for mobile, built with lighting
 	if (WorldBounds.IsValid)
@@ -487,14 +507,14 @@ bool FMFImporter::BuildTestMap()
 	Crate(FVector(-2700, 0, 0), 1);
 
 	ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(FVector(0, 0, 1000), FRotator(-50.f, 30.f, 0), SP);
+	Sun->GetLightComponent()->Intensity = 2.5f;   // assign before Static: Set*() is ignored after
 	Sun->GetLightComponent()->SetMobility(EComponentMobility::Static);
-	Sun->GetLightComponent()->SetIntensity(2.5f);
 	APointLight* Lamp = World->SpawnActor<APointLight>(FVector(-1800, -1800, 700), FRotator::ZeroRotator, SP);
-	Lamp->PointLightComponent->SetMobility(EComponentMobility::Static);
 	Lamp->PointLightComponent->bUseInverseSquaredFalloff = false;
-	Lamp->PointLightComponent->SetAttenuationRadius(1500.f);
-	Lamp->PointLightComponent->SetIntensity(3.f);
-	Lamp->PointLightComponent->SetLightColor(FLinearColor(1.f, 0.8f, 0.5f));
+	Lamp->PointLightComponent->AttenuationRadius = 1500.f;
+	Lamp->PointLightComponent->Intensity = 3.f;
+	Lamp->PointLightComponent->LightColor = FLinearColor(1.f, 0.8f, 0.5f).ToFColor(true);
+	Lamp->PointLightComponent->SetMobility(EComponentMobility::Static);
 
 	AWorldSettings* WS = World->GetWorldSettings();
 	WS->LightmassSettings.EnvironmentColor = FColor(90, 100, 120);

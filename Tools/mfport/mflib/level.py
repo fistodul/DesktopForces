@@ -18,11 +18,12 @@ import math
 from pathlib import Path
 
 from . import t3d, ucc
-from .actors import ActorMapper
+from .actors import ActorMapper, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
 from .config import Config, UU_TO_CM
 from .mfmesh import MeshBuilder
+from .polyfix import newell_normal, triangulate, weld_tjunctions
 from .upkg import Package
 
 CHUNK_SIZE = 2048.0            # world geometry grid cell, in MF units (~46 m)
@@ -134,42 +135,73 @@ class LevelConverter:
                         h[i] = max(h[i], v[i])
         return {z: (_scale(lo[z]), _scale(hi[z])) for z in lo}
 
-    def convert_world(self, model: LevelModel) -> list[dict]:
+    @staticmethod
+    def zone_ambients(model: LevelModel, actors: list[dict]) -> list[tuple]:
+        """UE1 ambient light colour per BSP zone (its ZoneInfo, else the LevelInfo)."""
+        by_name = {a['name']: a for a in actors}
+        level_info = next((a for a in actors if a['class'] == 'LevelInfo'), None)
+        out = []
+        for name in model.zones:
+            a = by_name.get(name) if name else level_info
+            out.append(tuple(round(c, 4) for c in zone_ambient(a['props'])) if a else (0.0, 0.0, 0.0))
+        return out
+
+    def convert_world(self, model: LevelModel, ambients: list[tuple]) -> list[dict]:
         chunks: dict[tuple, MeshBuilder] = {}
         coll: dict[tuple, MeshBuilder] = {}
         areas: dict[tuple, float] = {}
         skipped = 0
+        polys = []
         for poly in model.polygons():
+            f = poly.poly_flags
+            if f & PF_INVISIBLE and f & (PF_NOTSOLID | PF_PORTAL):
+                skipped += 1
+                continue
+            polys.append(poly)
+        amb_ids: dict[tuple, int] = {}
+        named = [a for z, a in enumerate(ambients) if z and model.zones[z]]
+        default_amb = max(set(named), key=named.count) if named else (0.0, 0.0, 0.0)
+        welded, inserted = weld_tjunctions([p.vertices for p in polys])
+        print(f'  world: {inserted} T-junction vertices welded')
+        for poly, verts in zip(polys, welded):
             f = poly.poly_flags
             render = not f & PF_INVISIBLE
             collide = not f & (PF_NOTSOLID | PF_PORTAL)
-            if not render and not collide:
-                skipped += 1
-                continue
             c = tuple(sum(v[i] for v in poly.vertices) / len(poly.vertices) for i in range(3))
             cell = (math.floor(c[0] / CHUNK_SIZE), math.floor(c[1] / CHUNK_SIZE))
             if render:
                 key = material_key(poly.texture, f)
                 self._use(key)
-                mb = chunks.get(cell)
+                # one render chunk per (cell, zone ambient): the ambient is a per-component value
+                z = poly.zone
+                for off in (2.0, 8.0, 16.0, 32.0, 64.0):   # unassigned (0): the zone the polygon faces
+                    if z:
+                        break
+                    z = model.zone_at(tuple(c[i] + poly.normal[i] * off for i in range(3)))
+                amb = ambients[z] if z and z < len(ambients) else default_amb
+                if amb not in amb_ids:
+                    amb_ids[amb] = len(amb_ids)
+                ck = (cell, amb)
+                mb = chunks.get(ck)
                 if mb is None:
-                    mb = chunks[cell] = MeshBuilder(f'World_{cell[0]}_{cell[1]}'.replace('-', 'm'))
+                    k = amb_ids[amb]
+                    mb = chunks[ck] = MeshBuilder((f'World_{cell[0]}_{cell[1]}' + (f'_a{k}' if k else '')).replace('-', 'm'))
                     mb.collision = 'none'
-                self._emit_poly(mb, key, poly, cell)
-                areas[cell] = areas.get(cell, 0.0) + _area(poly.vertices)
+                self._emit_poly(mb, key, poly, verts, cell)
+                areas[ck] = areas.get(ck, 0.0) + _area(poly.vertices)
             if collide:
                 cb = coll.get(cell)
                 if cb is None:
                     cb = coll[cell] = MeshBuilder(f'Collision_{cell[0]}_{cell[1]}'.replace('-', 'm'))
                     cb.render = False
                     cb.collision = 'complex'
-                self._emit_poly(cb, 'Engine.DefaultTexture|collision', poly, cell)
+                self._emit_poly(cb, 'Engine.DefaultTexture|collision', poly, verts, cell)
         out = []
         geo = self.out / 'geo'
-        for cell, mb in chunks.items():
-            texels = math.sqrt(areas[cell]) / LIGHTMAP_TEXEL
+        for (cell, amb), mb in chunks.items():
+            texels = math.sqrt(areas[(cell, amb)]) / LIGHTMAP_TEXEL
             mb.lightmap_resolution = int(min(1024, max(64, _next_pow2(texels))))
-            out.append(self._chunk_entry(mb, cell, geo))
+            out.append(dict(self._chunk_entry(mb, cell, geo), ambient=list(amb)))
         for cell, cb in coll.items():
             out.append(self._chunk_entry(cb, cell, geo))
         print(f'  world: {len(chunks)} render chunks, {len(coll)} collision chunks, {skipped} portal polys skipped')
@@ -185,14 +217,13 @@ class LevelConverter:
     def _cell_pivot(cell):
         return ((cell[0] + 0.5) * CHUNK_SIZE, (cell[1] + 0.5) * CHUNK_SIZE, 0.0)
 
-    def _emit_poly(self, mb: MeshBuilder, key: str, poly, cell):
+    def _emit_poly(self, mb: MeshBuilder, key: str, poly, verts, cell):
         pivot = self._cell_pivot(cell)
         usize, vsize = self.texture_size(poly.texture)
         n = poly.normal
-        verts = poly.vertices
-        # orient fan triangles so cross(v1-v0, v2-v0) points along the normal
-        geo_n = _cross(_sub(verts[1], verts[0]), _sub(verts[2], verts[0]))
-        if _dot(geo_n, n) < 0:
+        # orient triangles so cross(v1-v0, v2-v0) points along the normal (from all vertices:
+        # BSP splits often leave the first three collinear)
+        if _dot(newell_normal(verts), n) < 0:
             verts = list(reversed(verts))
 
         def vtx(p):
@@ -201,9 +232,10 @@ class LevelConverter:
             v = (_dot(d, poly.texture_v) + poly.pan_v) / vsize
             return (_scale(_sub(p, pivot)), n, (u, v))
 
-        vs = [vtx(p) for p in verts]
-        for i in range(1, len(vs) - 1):
-            mb.add_triangle(key, vs[0], vs[i], vs[i + 1])
+        pts, tris = triangulate(verts)
+        vs = [vtx(p) for p in pts]
+        for a, b, c in tris:
+            mb.add_triangle(key, vs[a], vs[b], vs[c])
 
     # --- static meshes ----------------------------------------------------
     def convert_static_meshes(self, level: t3d.Block) -> dict[str, dict]:
@@ -268,14 +300,21 @@ class LevelConverter:
         self.out.mkdir(parents=True, exist_ok=True)
         pkg = Package(str(self.umf))
         model = LevelModel(pkg)
-        world = self.convert_world(model)
         level = t3d.parse(self.export_t3d().read_text(encoding='latin-1')).children[0]
-        meshes = self.convert_static_meshes(level)
         actors = self.convert_actors(level)
+        ambients = self.zone_ambients(model, actors)
+        world = self.convert_world(model, ambients)
+        meshes = self.convert_static_meshes(level)
         bounds = self.zone_bounds(model)
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
-        env_color, env_intensity = mapper.environment_color()
+        for rec in spawns:
+            if rec['type'] == 'static_mesh':
+                loc = [c / UU_TO_CM for c in rec['location']]
+                rec['ambient'] = list(ambients[model.zone_at(loc)])
+        # UE1 zone ambient is unshadowed and added everywhere in the zone: the lit materials
+        # add BaseColor * Ambient (per component, from its zone), so Lightmass gets none of it
+        env_color, env_intensity = [0.0, 0.0, 0.0], 0.0
         data = {
             'map': self.map,
             'uu_to_cm': UU_TO_CM,

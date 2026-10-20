@@ -37,6 +37,10 @@ public:
 	 * otherwise every lightmapped surface falls back to the default checker material.
 	 */
 	void FixMasterMaterialUsage();
+	/** M_MF_Sky + RT_MF_Sky: sky windows show the sky zone's cube capture (AMFSkyCapture). */
+	UMaterialInterface* EnsureSkyMaterial();
+	/** Adds the UE1 zone ambient term to a lit master (once). True if it changed. */
+	bool AddZoneAmbient(UMaterial* M);
 
 	/** Import mod plugins' converted SourceArt (work/out/Plugins/<Plugin>/...) into /<Plugin>/Generated/. */
 	bool ImportPluginArt();

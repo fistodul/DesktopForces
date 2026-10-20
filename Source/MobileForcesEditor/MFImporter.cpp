@@ -11,6 +11,9 @@
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionCameraVectorWS.h"
+#include "Materials/MaterialExpressionTextureSampleParameterCube.h"
+#include "Engine/TextureRenderTargetCube.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Misc/FileHelper.h"
@@ -259,6 +262,49 @@ bool FMFImporter::ImportPluginArt()
 
 // --- materials -------------------------------------------------------------------------
 
+UMaterialInterface* FMFImporter::EnsureSkyMaterial()
+{
+	if (UMaterialInterface** Found = MasterCache.Find(TEXT("Sky")))
+	{
+		return *Found;
+	}
+	bool bNewRT = false;
+	UTextureRenderTargetCube* RT = FindOrCreateAsset<UTextureRenderTargetCube>(TEXT("/Game/MF/Materials"), TEXT("RT_MF_Sky"), bNewRT);
+	if (bNewRT)
+	{
+		RT->Init(256, PF_B8G8R8A8);   // MF skies are 256 px textures; LDR is plenty
+		RT->ClearColor = FLinearColor::Black;
+		SaveAsset(RT);
+	}
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_Sky"), bCreated);
+	if (bCreated)
+	{
+		// emissive = sky cube sampled along the view ray (camera -> pixel)
+		UMaterialExpressionCameraVectorWS* Cam = NewObject<UMaterialExpressionCameraVectorWS>(M);
+		M->GetExpressionCollection().AddExpression(Cam);
+		UMaterialExpressionMultiply* Neg = NewObject<UMaterialExpressionMultiply>(M);
+		Neg->A.Connect(0, Cam);
+		Neg->ConstB = -1.f;
+		M->GetExpressionCollection().AddExpression(Neg);
+		UMaterialExpressionTextureSampleParameterCube* Sky = NewObject<UMaterialExpressionTextureSampleParameterCube>(M);
+		Sky->ParameterName = TEXT("Sky");
+		Sky->Texture = RT;
+		Sky->AutoSetSampleType();
+		Sky->Coordinates.Connect(0, Neg);
+		M->GetExpressionCollection().AddExpression(Sky);
+		M->SetShadingModel(MSM_Unlit);
+		M->SetMaterialUsage(MATUSAGE_StaticLighting);
+		M->GetEditorOnlyData()->EmissiveColor.Connect(0, Sky);
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+		UE_LOG(LogMFEditor, Display, TEXT("Created M_MF_Sky"));
+	}
+	MasterCache.Add(TEXT("Sky"), M);
+	return M;
+}
+
 void FMFImporter::FixMasterMaterialUsage()
 {
 	for (const TCHAR* Mode : { TEXT("Opaque"), TEXT("Masked"), TEXT("MaskedUnlit"), TEXT("Unlit"), TEXT("Additive"),
@@ -366,8 +412,47 @@ UMaterialInterface* FMFImporter::GetMasterMaterial(const FString& Mode)
 		SaveAsset(M);
 		UE_LOG(LogMFEditor, Display, TEXT("Created master material M_MF_%s"), *Mode);
 	}
+	if ((Mode == TEXT("Opaque") || Mode == TEXT("Masked")) && AddZoneAmbient(M))
+	{
+		UE_LOG(LogMFEditor, Display, TEXT("Added zone ambient to M_MF_%s"), *Mode);
+	}
 	MasterCache.Add(Mode, M);
 	return M;
+}
+
+bool FMFImporter::AddZoneAmbient(UMaterial* M)
+{
+	// UE1 zone ambient light: unshadowed, added to every surface in the zone. Emissive =
+	// BaseColor * Ambient, with Ambient a per-component value (custom primitive data 0-2, set
+	// by the level builder from the zone). Lightmass ignores it (EmissiveBoost 0 per level).
+	for (const TObjectPtr<UMaterialExpression>& E : M->GetExpressions())
+	{
+		if (const UMaterialExpressionVectorParameter* P = Cast<UMaterialExpressionVectorParameter>(E); P && P->ParameterName == TEXT("Ambient"))
+		{
+			return false;
+		}
+	}
+	UMaterialEditorOnlyData* Data = M->GetEditorOnlyData();
+	UMaterialExpression* BaseColor = Data->BaseColor.Expression;
+	if (!BaseColor)
+	{
+		return false;
+	}
+	UMaterialExpressionVectorParameter* Amb = NewObject<UMaterialExpressionVectorParameter>(M);
+	Amb->ParameterName = TEXT("Ambient");
+	Amb->DefaultValue = FLinearColor::Black;
+	Amb->bUseCustomPrimitiveData = true;
+	Amb->PrimitiveDataIndex = 0;
+	M->GetExpressionCollection().AddExpression(Amb);
+	UMaterialExpressionMultiply* Mul = NewObject<UMaterialExpressionMultiply>(M);
+	Mul->A.Connect(Data->BaseColor.OutputIndex, BaseColor);
+	Mul->B.Connect(0, Amb);
+	M->GetExpressionCollection().AddExpression(Mul);
+	Data->EmissiveColor.Connect(0, Mul);
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	return true;
 }
 
 UMaterialInterface* FMFImporter::GetMaterial(const FString& Key)
@@ -395,9 +480,15 @@ UMaterialInterface* FMFImporter::GetMaterial(const FString& Key)
 	{
 		Base = Mode;
 	}
+	if (Base == TEXT("sky"))
+	{
+		// UE1 never drew these polygons' own texture: the sky zone shows through them
+		UMaterialInterface* M = EnsureSkyMaterial();
+		MaterialCache.Add(Key, M);
+		return M;
+	}
 	FString Master = TEXT("Opaque");
-	if (Base == TEXT("sky"))            Master = TEXT("Unlit");
-	else if (Base == TEXT("additive"))  Master = TEXT("Additive");
+	if (Base == TEXT("additive"))       Master = TEXT("Additive");
 	else if (Base == TEXT("modulated")) Master = TEXT("Modulated");
 	else if (Base == TEXT("masked"))    Master = bUnlit ? TEXT("MaskedUnlit") : TEXT("Masked");
 	else if (bUnlit)                    Master = TEXT("Unlit");

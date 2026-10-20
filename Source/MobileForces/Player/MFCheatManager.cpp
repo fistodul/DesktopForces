@@ -13,6 +13,12 @@
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/Material.h"
+#include "MaterialShared.h"
+#include "SceneInterface.h"
+#include "Engine/MapBuildDataRegistry.h"
+#include "LightMap.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
@@ -69,6 +75,68 @@ void UMFCheatManager::MFNavTest()
 			else
 			{
 				UE_LOG(LogMF, Display, TEXT("NavTest   nothing solid between path end and target (navmesh gap)"));
+			}
+		}
+	}
+}
+
+void UMFCheatManager::MFTraceMat()
+{
+	FVector Loc;
+	FRotator Rot;
+	GetPlayerController()->GetPlayerViewPoint(Loc, Rot);
+	FHitResult Hit;
+	FCollisionQueryParams Params(TEXT("MFTraceMat"), true, GetPlayerController()->GetPawn());
+	Params.bReturnFaceIndex = true;
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Loc, Loc + Rot.Vector() * 100000.f, ECC_Visibility, Params))
+	{
+		UE_LOG(LogMF, Display, TEXT("MFTraceMat: nothing"));
+		return;
+	}
+	int32 Section = -1;
+	UMaterialInterface* Mat = Hit.GetComponent() ? Hit.GetComponent()->GetMaterialFromCollisionFaceIndex(Hit.FaceIndex, Section) : nullptr;
+	UE_LOG(LogMF, Display, TEXT("MFTraceMat: %s at %s dist %.0f face %d section %d material %s"),
+		*GetNameSafe(Hit.GetComponent()), *Hit.ImpactPoint.ToString(), Hit.Distance, Hit.FaceIndex, Section, *GetPathNameSafe(Mat));
+	// the world's render meshes have no collision (separate collision meshes): list the
+	// visible meshes whose bounds hold the hit point, with their materials
+	auto LogErrors = [this](const UMaterialInterface* M)
+	{
+		const UMaterial* Base = M ? M->GetMaterial() : nullptr;
+		const FMaterialResource* Res = Base && GetWorld()->Scene ? Base->GetMaterialResource(GetWorld()->Scene->GetShaderPlatform()) : nullptr;
+		if (Res)
+		{
+			for (const FString& E : Res->GetCompileErrors())
+			{
+				UE_LOG(LogMF, Display, TEXT("MFTraceMat:     compile error: %s"), *E);
+			}
+		}
+	};
+	LogErrors(Mat);
+	for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
+	{
+		if (It->GetWorld() == GetWorld() && It->IsVisible() && It->Bounds.GetBox().ExpandBy(2.f).IsInside(Hit.ImpactPoint))
+		{
+			UE_LOG(LogMF, Display, TEXT("MFTraceMat:   %s (%s)"), *It->GetName(), *GetNameSafe(It->GetStaticMesh()));
+			const FMeshMapBuildData* BuildData = It->LODData.Num() ? It->GetMeshMapBuildData(It->LODData[0]) : nullptr;
+			const FLightMap* LM = BuildData ? BuildData->LightMap.GetReference() : nullptr;
+			if (!LM)
+			{
+				UE_LOG(LogMF, Display, TEXT("MFTraceMat:     no lightmap (build data %s)"), BuildData ? TEXT("yes") : TEXT("no"));
+			}
+			else
+			{
+				const FLightMapInteraction I = LM->GetInteraction(GetWorld()->GetFeatureLevel());
+				const FVector4f* Scale = I.GetType() == LMIT_Texture ? I.GetScaleArray() : nullptr;
+				const FVector4f* Add = I.GetType() == LMIT_Texture ? I.GetAddArray() : nullptr;
+				UE_LOG(LogMF, Display, TEXT("MFTraceMat:     lightmap type %d scale0 %s add0 %s scale1 %s add1 %s tex %s"), (int32)I.GetType(),
+					Scale ? *Scale[0].ToString() : TEXT("-"), Add ? *Add[0].ToString() : TEXT("-"),
+					Scale ? *Scale[1].ToString() : TEXT("-"), Add ? *Add[1].ToString() : TEXT("-"),
+					I.GetType() == LMIT_Texture ? *GetNameSafe(I.GetTexture(true)) : TEXT("-"));
+			}
+			for (int32 i = 0; i < It->GetNumMaterials(); ++i)
+			{
+				UE_LOG(LogMF, Display, TEXT("MFTraceMat:     [%d] %s"), i, *GetPathNameSafe(It->GetMaterial(i)));
+				LogErrors(It->GetMaterial(i));
 			}
 		}
 	}

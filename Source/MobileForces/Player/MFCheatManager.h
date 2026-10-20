@@ -17,6 +17,10 @@ public:
 	// --- Mobile Forces cheats (same names as the original; UE adds God, Ghost, Fly, Walk,
 	//     Slomo, Summon, Teleport, PlayersOnly, ViewSelf, DestroyAll ...) ---------------
 	/** Join team N and respawn there. */
+	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
+	UFUNCTION(Exec)
+	void MFTraceMat();
+
 	UFUNCTION(Exec)
 	void SetTeam(int32 N);
 	/** Kill every enemy (everyone else in deathmatch). */
