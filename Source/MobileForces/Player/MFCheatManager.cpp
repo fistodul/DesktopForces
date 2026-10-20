@@ -114,6 +114,24 @@ void UMFCheatManager::MFHurt(int32 N)
 	}
 }
 
+void UMFCheatManager::MFHurtEnemies(int32 N)
+{
+	const AMFCharacter* Me = Cast<AMFCharacter>(GetPlayerController()->GetPawn());
+	TArray<AMFCharacter*> Targets;
+	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+	{
+		if (*It != Me && It->IsAlive() && (!Me || It->GetTeam() == MF::NoTeam || It->GetTeam() != Me->GetTeam()))
+		{
+			Targets.Add(*It);
+		}
+	}
+	for (AMFCharacter* C : Targets)
+	{
+		FDamageEvent Ev(UMFDamage_Bullet::StaticClass());
+		C->TakeDamage(float(N), Ev, GetPlayerController(), GetPlayerController()->GetPawn());
+	}
+}
+
 void UMFCheatManager::MFFire()
 {
 	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()))

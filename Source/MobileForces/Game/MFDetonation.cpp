@@ -1,4 +1,5 @@
 #include "Game/MFDetonation.h"
+#include "Core/MFProps.h"
 #include "MobileForces.h"
 #include "AI/MFBotController.h"
 #include "Core/MFGameSettings.h"
@@ -62,6 +63,10 @@ void AMFDetonationLock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 void AMFDetonationLock::BeginPlay()
 {
 	Super::BeginPlay();
+	if (MF::ApplyPropMesh(Mesh, TEXT("RageGame/RageDetLockMesh")))
+	{
+		return;
+	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		if (UMaterialInterface* M = UMFGameSettings::Get().GetTeamTintMaterial())

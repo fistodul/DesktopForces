@@ -1,4 +1,10 @@
 #include "Game/MFGameMode.h"
+#include "Vehicles/MFVehicle.h"
+#include "Weapons/MFTripBomb.h"
+#include "Weapons/MFProjectile.h"
+#include "Weapons/MFWeapon.h"
+#include "Player/MFCharacter.h"
+#include "EngineUtils.h"
 #include "MobileForces.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/StaticMeshActor.h"
@@ -40,6 +46,7 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	GoalTeamScore = UGameplayStatics::GetIntOption(Options, TEXT("GoalTeamScore"), GoalTeamScore);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
+	bVehicles = UGameplayStatics::GetIntOption(Options, TEXT("Vehicles"), bVehicles ? 1 : 0) != 0;
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 	{
@@ -76,6 +83,10 @@ void AMFGameMode::HandleMatchHasStarted()
 {
 	Super::HandleMatchHasStarted();
 	AddBots(BotCount);
+	if (bVehicles)
+	{
+		AMFVehicleGenerator::SpawnAll(GetWorld());   // the map's Buggy/Humvee/Truck/ArmadilloGenerators
+	}
 	GetWorldTimerManager().SetTimer(TimeLimitTimer, this, &AMFGameMode::CheckTimeLimit, 1.f, true);
 }
 
@@ -538,4 +549,38 @@ AMFGameMode_TDM::AMFGameMode_TDM()
 	NumTeams = 2;
 	FragLimit = 0;
 	TimeLimit = 12;
+}
+
+void AMFGameMode::RestartRound()
+{
+	if (AMFGameState* GS = GetGameState<AMFGameState>())
+	{
+		GS->RoundStartTime = GS->ElapsedTime;
+	}
+	// what the last round left lying around: trip bombs, mines, thrown items, dropped weapons
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		if (It->IsA<AMFTripBomb>() || It->IsA<AMFProjectile>() || (It->IsA<AMFWeapon>() && Cast<AMFWeapon>(*It)->IsDropped()))
+		{
+			It->Destroy();
+		}
+	}
+	// everyone starts fresh (MF RestartRound: discard inventory, StartupInLoadout)
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		AController* C = It->Get();
+		if (!C || !C->PlayerState || C->PlayerState->IsSpectator())
+		{
+			continue;
+		}
+		if (APawn* P = C->GetPawn())
+		{
+			if (AMFCharacter* MC = Cast<AMFCharacter>(P))
+			{
+				MC->ClearInventory(false);
+			}
+			P->Destroy();
+		}
+		RestartPlayer(C);
+	}
 }

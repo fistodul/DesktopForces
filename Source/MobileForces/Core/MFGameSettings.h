@@ -74,6 +74,10 @@ public:
 
 	UMaterialInterface* GetTeamTintMaterial() const { return TeamTintMaterial.LoadSynchronous(); }
 
+	/** Loadout crate look (lit, team colour from custom primitive data 0-2). */
+	UPROPERTY(Config, EditAnywhere, Category = "Look")
+	TSoftObjectPtr<UMaterialInterface> CrateMaterial;
+
 	/** Global material parameters (MPC_MF: Ambient). */
 	UPROPERTY(Config, EditAnywhere, Category = "Look")
 	TSoftObjectPtr<class UMaterialParameterCollection> MaterialParameters;

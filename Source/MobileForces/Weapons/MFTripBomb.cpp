@@ -1,5 +1,6 @@
 #include "Weapons/MFTripBomb.h"
 #include "Player/MFCharacter.h"
+#include "Core/MFGameSettings.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
@@ -40,6 +41,17 @@ void AMFTripBomb::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMFTripBomb, LaserEnd);
+	DOREPLIFETIME(AMFTripBomb, Team);
+}
+
+bool AMFTripBomb::IsFriendlyTo(const AActor* Other) const
+{
+	const AMFCharacter* C = Cast<AMFCharacter>(Other);
+	if (!C)
+	{
+		return false;
+	}
+	return C == GetInstigator() || (Team != MF::NoTeam && C->GetTeam() == Team);
 }
 
 void AMFTripBomb::BeginPlay()
@@ -76,7 +88,13 @@ void AMFTripBomb::UpdateBeam()
 	{
 		return;
 	}
-	// Thin stretched cube as the beam (team colour once materials exist)
+	// thin stretched cube in the planter's team colour (MF Blue/RedBeamRifle)
+	if (UMaterialInterface* M = UMFGameSettings::Get().GetTeamTintMaterial(); M && Beam->GetMaterial(0) != M)
+	{
+		Beam->SetMaterial(0, M);
+	}
+	const FLinearColor C = Team == MF::NoTeam ? FLinearColor(1.f, 0.2f, 0.1f) : UMFGameSettings::Get().GetTeamColor(Team);
+	Beam->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
 	Beam->SetVisibility(true);
 	Beam->SetWorldLocationAndRotation(Start + Delta * 0.5f, Delta.Rotation());
 	Beam->SetWorldScale3D(FVector(Len / 100.f, 0.01f, 0.01f));
@@ -154,11 +172,16 @@ void AMFProjectile_TripMine::CheckProximity()
 	GetWorld()->OverlapMultiByChannel(Hits, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(TriggerRadius));
 	for (const FOverlapResult& H : Hits)
 	{
-		if (const AMFCharacter* C = Cast<AMFCharacter>(H.GetActor()); C && C->IsAlive())
+		if (AMFCharacter* C = Cast<AMFCharacter>(H.GetActor()); C && C->IsAlive() && ShouldTrigger(C))
 		{
 			GetWorldTimerManager().ClearTimer(ProximityTimer);
-			Explode(GetActorLocation(), FVector::UpVector);
+			Trigger(C);
 			return;
 		}
 	}
+}
+
+void AMFProjectile_TripMine::Trigger(AMFCharacter* Who)
+{
+	Explode(GetActorLocation(), FVector::UpVector);
 }

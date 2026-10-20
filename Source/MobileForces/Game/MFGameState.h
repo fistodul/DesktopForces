@@ -49,13 +49,17 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	FString GameName;
 
+	/** ElapsedTime when the current round began (round-based modes restart the clock). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	int32 RoundStartTime = 0;
+
 	bool IsTeamGame() const { return NumTeams > 0; }
 
-	/** Seconds left (TimeLimit minus the engine's ElapsedTime); -1 without a limit. */
+	/** Seconds left (TimeLimit minus the time since the round began); -1 without a limit. */
 	int32 GetRemainingTime() const
 	{
 		const int32 Limit = TimeLimitSeconds > 0 ? TimeLimitSeconds : TimeLimit * 60;
-		return Limit > 0 ? FMath::Max(0, Limit - ElapsedTime) : -1;
+		return Limit > 0 ? FMath::Max(0, Limit - (ElapsedTime - RoundStartTime)) : -1;
 	}
 
 	int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }

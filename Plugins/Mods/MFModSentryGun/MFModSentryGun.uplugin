@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Sentry Gun",
+	"Description": "Mobile Forces mod: a deployable machine-gun turret that shreds enemies in sight (port of the MF-mods SentryGun package).",
+	"Category": "Mobile Forces Mods",
+	"CreatedBy": "fistodul (original MF-mods UnrealScript mod). UE5 port: Mobile Forces UE5 project, MPL-2.0.",
+	"CanContainContent": true,
+	"EnabledByDefault": true,
+	"Modules": [
+		{
+			"Name": "MFModSentryGun",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

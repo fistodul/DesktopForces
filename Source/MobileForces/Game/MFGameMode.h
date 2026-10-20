@@ -22,7 +22,7 @@ class AMFPlayerStart;
  *
  * Game modes extend this by overriding the small virtuals (ScoreKill, CheckEndConditions,
  * OnTimeLimit, IsStartAllowed, SetPlayerDefaults) rather than copying bodies.
- * URL options: ?FragLimit=10?TimeLimit=5?GoalTeamScore=3?Teams=4?Bots=8?BotSkill=0.7
+ * URL options: ?FragLimit=10?TimeLimit=5?GoalTeamScore=3?Teams=4?Bots=8?BotSkill=0.7?Vehicles=0
  */
 UCLASS(Config = Game)
 class MOBILEFORCES_API AMFGameMode : public AGameMode
@@ -47,6 +47,11 @@ public:
 	virtual float ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator) const;
 	/** A pawn died. */
 	virtual void Killed(AController* Killer, AController* Victim, AMFCharacter* VictimPawn, TSubclassOf<UDamageType> DamageType);
+	/** A blow would kill Victim: return true to keep them alive (mods: Tug of War converts instead). */
+	virtual bool PreventDeath(AMFCharacter* Victim, AController* Killer, TSubclassOf<UDamageType> DamageType) { return false; }
+
+	/** Round-based modes: start the clock again, clear planted / dropped items, respawn everyone. */
+	void RestartRound();
 
 	bool IsTeamGame() const { return NumTeams > 0; }
 	/** Whether actors flagged for team / non-team play exist in this mode (MF Actor.bTeamPlay / bNonTeamPlay). */
@@ -104,6 +109,10 @@ public:
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bHardCoreMode = true;
+
+	/** Vehicles at the map's generators (URL ?Vehicles=0 turns them off). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bVehicles = true;
 
 	/** Seconds on the end screen before the map restarts (MF RestartWait). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")

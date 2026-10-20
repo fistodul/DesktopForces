@@ -114,7 +114,18 @@ def parse_object_ref(value: str | None) -> str | None:
 
 
 def parse_float(value: str | None, default: float = 0.0) -> float:
-    return float(value) if value not in (None, '') else default
+    return _float(value) if value not in (None, '') else default
+
+
+def _float(text: str) -> float:
+    """float() that also takes MSVC's printouts of NaN / infinity ('-1.#IND00', '1.#INF00',
+    '1.#QNAN0') as written by UE1's exporter; they come out as NaN."""
+    try:
+        return float(text)
+    except ValueError:
+        if '#' in text:
+            return float('nan')
+        raise
 
 
 def parse_bool(value: str | None, default: bool = False) -> bool:
@@ -147,7 +158,12 @@ def static_mesh_triangles(block: Block) -> list[SMTriangle]:
             elif parts[0] == 'SmoothingMask':
                 smooth = int(parts[1])
             elif parts[0] == 'Vertex':
-                f = list(map(float, parts[2:10]))
+                f = list(map(_float, parts[2:10]))
+                if any(v != v for v in f[0:3]):
+                    verts = []      # broken position: drop the triangle
+                    break
+                f[3:6] = [0.0 if v != v else v for v in f[3:6]]   # broken normal: recomputed later
+                f[6:8] = [0.0 if v != v else v for v in f[6:8]]
                 verts.append(((f[0], f[1], f[2]), (f[3], f[4], f[5]), (f[6], f[7])))
         if len(verts) == 3:
             tris.append(SMTriangle(tex, flags, smooth, verts))

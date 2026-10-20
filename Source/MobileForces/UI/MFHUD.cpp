@@ -10,6 +10,7 @@
 #include "Player/MFCharacter.h"
 #include "Player/MFPlayerController.h"
 #include "Weapons/MFWeapon.h"
+#include "Vehicles/MFVehicle.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -212,6 +213,17 @@ void AMFHUD::DrawHUD()
 			DrawStatus(C);
 			DrawWeaponBar(C);
 		}
+	}
+	else if (const AMFVehicle* V = PC ? Cast<AMFVehicle>(PC->GetPawn()) : nullptr)
+	{
+		// driving: vehicle health and speed bottom centre, the minimap stays
+		if (AMFCharacter* Rider = V->GetDriver(); Rider && bArt && !(PC->IsScoreboardShown()) && !(GS && GS->HasMatchEnded()))
+		{
+			DrawMiniMapMF(Rider);
+			DrawHealthMF(Rider);
+		}
+		MFText(FString::Printf(TEXT("%s   %d%%   %d km/h"), *V->DisplayName.ToString(), FMath::Max(0, V->Health), FMath::RoundToInt(V->GetSpeedKmh())),
+			Canvas->ClipX * 0.5f - MFTextSize(TEXT("Buggy   100%   100 km/h"), 1).X * 0.5f, Canvas->ClipY - Block * 0.9f, White, 1);
 	}
 	else if (GS)
 	{

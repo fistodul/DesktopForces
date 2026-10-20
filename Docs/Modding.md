@@ -2,12 +2,27 @@
 
 Mods are **Unreal plugins** under `Plugins/Mods/<ModName>/`. A plugin can add C++ code,
 Blueprints, assets and config, and players turn it on or off without touching the game.
-Two working examples ship with the repo:
+Working examples ship with the repo:
 
 | Plugin | Original (MF-mods) | Shows |
 |---|---|---|
 | `MFModMolotov` | `Molotov` | a new weapon (subclass of Grenades), its projectiles, a burning area actor, a damage type, its own icon art |
 | `MFModKOH` | `KOH` | a new game mode (subclass of Holdout): several capture points chosen from the map's objectives, per-second scoring |
+| `MFModTotem` | `Totem` | a carried item that cheats death (`AbsorbDamage` + `GetAbsorbPriority`), fire / alt fire / reload actions, a heal-over-time **component** with a damage filter (`IMFDamageFilter`) |
+| `MFModTripLasers` | `TripLasers` | a trip bomb variant through the trip bomb hooks (`BombClass`, `CanPlace`, `Arm`/`CheckBeam`, mine `ShouldTrigger`/`Trigger`) |
+| `MFModSeekerMines` | `SeekerMines` | a thrown drone: an `APawn` with `UFloatingPawnMovement` + `AAIController` navmesh moves, hunting / escorting / roaming on a 5 Hz timer |
+| `MFModTug` | `TugGame` | a round-based team mode: `PreventDeath` (kills convert instead), `RestartRound`, original teams per round |
+
+### Hooks in the base game for mods
+| Hook | For |
+|---|---|
+| `AMFWeapon::AbsorbDamage` / `GetAbsorbPriority` | armour-like items, run highest priority first (armour 10, Totem -1) |
+| `IMFDamageFilter` (any component on a character) | buffs, shields, grace periods: see damage before armour |
+| `AMFGameMode::PreventDeath` | keep a dying player alive (convert, revive, last stand) |
+| `AMFGameMode::RestartRound` | round modes: clock restart, clear planted / dropped items, respawn everyone |
+| `AMFGameMode::GetBotGoals` / `GetBotShootTarget` | where bots go / what they shoot in your mode |
+| `AMFWeapon_TripBombs`: `BombClass`, `bNeedLaserTarget`, `CanPlace`, `GetThrowSpeed` | placed / thrown devices |
+| `AMFWeapon::bAddToLoadout` | the item appears in every loadout crate while the plugin is on |
 
 ## Is the JSON the mod format?
 

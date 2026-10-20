@@ -39,7 +39,6 @@ public:
 	void FixMasterMaterialUsage();
 	/** M_MF_Sky + RT_MF_Sky: sky windows show the sky zone's cube capture (AMFSkyCapture). */
 	UMaterialInterface* EnsureSkyMaterial();
-	/** Adds the UE1 zone ambient term to a lit master (once). True if it changed. */
 	/** Lit masters: Emissive = BaseColor * MPC_MF.Ambient (map ambient floor, see AMFMapInfo). */
 	bool AddAmbientFloor(UMaterial* M);
 	class UMaterialParameterCollection* EnsureAmbientCollection();
@@ -49,6 +48,15 @@ public:
 
 	/** Import mod plugins' converted SourceArt (work/out/Plugins/<Plugin>/...) into /<Plugin>/Generated/. */
 	bool ImportPluginArt();
+
+	/**
+	 * Our own generated art (PNGs in Tools/artgen/out, committed) -> /Game/MF/Art/<name>, plus
+	 * the materials using it (M_MF_Crate: loadout crates with a team-coloured stencil).
+	 */
+	bool ImportArt();
+	/** Gameplay meshes from the game packages (work/out/Props, mfport.py props) -> /Game/MFImported/Props/<Package>/<Mesh>. */
+	bool ImportProps();
+	void EnsureCrateMaterial();
 
 	/** Small blockout map from engine shapes only (no MF assets): /Game/MF/Maps/MF_TestRange. */
 	bool BuildTestMap();

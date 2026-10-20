@@ -1,4 +1,5 @@
 #include "Game/MFSafecracker.h"
+#include "Core/MFProps.h"
 #include "MobileForces.h"
 #include "AI/MFBotController.h"
 #include "Core/MFGameSettings.h"
@@ -199,6 +200,13 @@ void AMFSafe::OnRep_Open()
 
 void AMFSafe::UpdateLook()
 {
+	// MF RageSafe meshes per team, the blown-open one once cracked
+	const TCHAR* Prop = bOpen ? (Team == 1 ? TEXT("RageGame/RageSafeOpenMeshRed") : TEXT("RageGame/RageSafeOpenMeshBlue"))
+		: (Team == 1 ? TEXT("RageGame/RageSafeMeshRed") : TEXT("RageGame/RageSafeMeshBlue"));
+	if (MF::ApplyPropMesh(Mesh, Prop))
+	{
+		return;
+	}
 	FLinearColor C = UMFGameSettings::Get().GetTeamColor(Team);
 	if (bOpen)
 	{

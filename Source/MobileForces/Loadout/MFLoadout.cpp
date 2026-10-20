@@ -140,13 +140,18 @@ void AMFLoadoutCrate::UpdateLook()
 		Mesh->SetVisibility(IsVisibleCrate());
 		Mesh->SetCollisionEnabled(IsVisibleCrate() ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 	}
-	// Team colour on the placeholder box until the MF crate meshes are converted
+	// our crate (M_MF_Crate: generated wood, stencil in the team colour); flat team tint without it
 	if (!Mesh || !Mesh->GetStaticMesh())
 	{
 		return;
 	}
-	const FLinearColor Color = Team == MF::NoTeam ? FLinearColor(0.6f, 0.45f, 0.1f) : UMFGameSettings::Get().GetTeamColor(Team);
-	if (UMaterialInterface* M = UMFGameSettings::Get().GetTeamTintMaterial())
+	const FLinearColor Color = Team == MF::NoTeam ? FLinearColor(0.9f, 0.7f, 0.15f) : UMFGameSettings::Get().GetTeamColor(Team);
+	UMaterialInterface* M = UMFGameSettings::Get().CrateMaterial.LoadSynchronous();
+	if (!M)
+	{
+		M = UMFGameSettings::Get().GetTeamTintMaterial();
+	}
+	if (M)
 	{
 		Mesh->SetMaterial(0, M);
 	}

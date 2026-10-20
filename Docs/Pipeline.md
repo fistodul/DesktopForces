@@ -22,13 +22,13 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | Command | Does |
 |---|---|
 | `mfport.py map mf-warehouse` | BSP world geometry → chunked `.mfmesh`; static meshes → `.mfmesh`; actors → `level.json` |
-| `mfport.py textures` | exports every texture used by converted maps, BMP → PNG (≤ `max_texture_size`), alpha for masked |
+| `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py mods` | mod plugins' `SourceArt/` → PNG/WAV for `import --steps plugins` |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
-| `mfport.py import [map…]` | runs the UE importer (`--steps textures,sounds,music,plugins,maps`; maps also get their navmesh baked) |
+| `mfport.py import [map…]` | runs the UE importer (`--steps art,textures,sounds,music,plugins,maps`; maps also get their navmesh baked) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 
@@ -63,6 +63,13 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
 - **Static mesh actors**: UE1 draws a mesh at `Location + R·S·(v − PrePivot)`, so placement
   applies `−PrePivot` (rotated and scaled). Without it 137 of 138 warehouse meshes were off by
   up to several metres.
+- **Textures** are decoded from the packages, not exported: MF textures are palettised (P8)
+  and most also carry an S3TC copy (`bHasComp`, `CompMips`: DXT1/DXT3) - what MF's Direct3D
+  renderer drew. That copy wins (true colour; on some posters the P8 copy is a magenta-keyed
+  fallback). Exceptions: Rage's HUD art keeps soft alpha in its palettes (MF draws it with
+  `STY_Alpha`; DXT1 has only 1-bit alpha), and masked uses keep P8 when only palette index 0
+  has the holes. A texture's own `bMasked`/`PolyFlags` add to the surfaces using it (UE1:
+  surface flags | texture flags). Formats this can't read fall back to UCC's BMP export.
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
   triangles have position, normal and normalised UV.
 - **Animations** (weapons/characters): `MeshAnimation` objects parse fully (bones, motion
@@ -105,12 +112,19 @@ radius = 25 × (LightRadius + 1) uu. Converted to static UE lights with non-inve
 falloff (exponent 2). `LIGHT_INTENSITY` / `SUN_INTENSITY` in `actors.py` = 3.0 (≈ π: UE's
 Lambert divides by π, so a full-brightness light shows the texture at its own brightness).
 
-- **Zone ambient**: UE1 added each zone's `FGetHSV(AmbientHue, AmbientSaturation,
-  AmbientBrightness)` to every surface in the zone, unshadowed. The lit masters
-  (`M_MF_Opaque/Masked`) add `BaseColor × Ambient` as emissive; `Ambient` is custom primitive
-  data 0-2, set per component from its zone (`LevelModel.zone_at`, world chunks are split
-  per zone ambient). Lightmass gets no environment light and ignores emissive
-  (`EmissiveBoost 0`: UE1 unlit surfaces never lit anything).
+- **Ambient and bounce light** (UE-native, all baked, free at runtime): UE1 added each zone's
+  `FGetHSV(AmbientHue, AmbientSaturation, AmbientBrightness)` to every surface, unshadowed.
+  Now the map's main zone ambient is Lightmass's environment colour (light arriving through
+  sky windows), Lightmass bounces light twice (`LIGHTMASS_BOUNCES` in `level.py`), and the lit
+  masters add a small unshadowed floor `BaseColor × MPC_MF.Ambient`, one global value set by
+  `AMFMapInfo` = map ambient × `AmbientFloor` (0.35, `DefaultGame.ini`) × the player's
+  Brightness. Earlier versions split world chunks per zone and set the ambient per component
+  (more draw calls); gone. Lightmass ignores emissive (`EmissiveBoost 0`: UE1 unlit surfaces
+  never lit anything).
+- **Sky windows** (fake backdrop) are their own chunks (`Sky_x_y`) that cast no shadow, so the
+  sun and the sky colour come in through them (UE1 sunlight lit what could see the sky).
+- **Soft shadows**: point/spot lights get a 40 cm source radius, the sun a 3° angle (UE1
+  lightmaps had one texel per 32 uu, so its shadows were soft too).
 - The builder assigns light properties *before* making a light Static: UE's `Set*()`
   functions do nothing on a registered Static component (`AreDynamicDataChangesAllowed`).
   That bug left every light at UE's default 5000 and made all earlier bakes white.
@@ -133,6 +147,13 @@ Only whoever bakes needs this; players get the baked result inside the map.
 3. Stuck runs: kill leftover `UnrealLightmass` processes before baking again.
 
 Windows bakes without any of this.
+
+## Our own art (`Tools/artgen`)
+
+`python3 Tools/artgen/artgen.py` generates textures made for this project (procedural, no
+game art, MPL-2.0 like the code) into `Tools/artgen/out/` (committed); `import --steps art`
+brings them to `/Game/MF/Art/` and builds the materials using them. Today: `T_MF_Crate`
+(loadout crates; alpha = stencil painted in the team colour by `M_MF_Crate`).
 
 ## Overrides
 

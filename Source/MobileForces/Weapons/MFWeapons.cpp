@@ -636,6 +636,7 @@ AMFWeapon_TripBombs::AMFWeapon_TripBombs()
 	PutDownTime = 0.667f;
 	bInstantHit = false;
 	AltProjectileClass = AMFProjectile_TripMine::StaticClass();
+	BombClass = AMFTripBomb::StaticClass();
 	RecoilPower = 0.f;
 	MFFireSound = TEXT("WeaponSFX_TripBombs.Plant");
 	MFSelectSound = TEXT("WeaponSFX_TripBombs.Idle01");
@@ -693,6 +694,10 @@ void AMFWeapon_TripBombs::Use(bool bAlt, float Power)
 	{
 		return;
 	}
+	if (HasAuthority() && !CanPlace())
+	{
+		return;
+	}
 	if (!bAlt)
 	{
 		if (HasAuthority() && !TryPlant())
@@ -713,7 +718,7 @@ void AMFWeapon_TripBombs::Use(bool bAlt, float Power)
 		++BurstCounter;
 		if (bAlt)
 		{
-			SpawnProjectile(AltProjectileClass, Power * 281.25f, true);   // MF ThrowPower * 125 uu/s
+			SpawnProjectile(AltProjectileClass, GetThrowSpeed(Power), true);
 		}
 	}
 	if (IsLocallyControlled())
@@ -739,7 +744,7 @@ bool AMFWeapon_TripBombs::TryPlant()
 		return false;
 	}
 	const FVector BombLoc = Wall.ImpactPoint + Wall.ImpactNormal * 6.f;
-	if (!GetWorld()->LineTraceSingleByChannel(Opposite, BombLoc, BombLoc + Wall.ImpactNormal * MaxLaserDistance, ECC_Visibility, Params))
+	if (bNeedLaserTarget && !GetWorld()->LineTraceSingleByChannel(Opposite, BombLoc, BombLoc + Wall.ImpactNormal * MaxLaserDistance, ECC_Visibility, Params))
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/Game/MFImported/Sounds/WeaponSFX_TripBombs/PlantFail.PlantFail"), nullptr, LOAD_NoWarn | LOAD_Quiet), BombLoc);
 		return false;   // too far for the laser to work reliably
@@ -748,7 +753,7 @@ bool AMFWeapon_TripBombs::TryPlant()
 	SP.Owner = C;
 	SP.Instigator = C;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	if (AMFTripBomb* Bomb = GetWorld()->SpawnActor<AMFTripBomb>(BombLoc, Wall.ImpactNormal.Rotation(), SP))
+	if (AMFTripBomb* Bomb = GetWorld()->SpawnActor<AMFTripBomb>(BombClass ? *BombClass : AMFTripBomb::StaticClass(), BombLoc, Wall.ImpactNormal.Rotation(), SP))
 	{
 		Bomb->MaxLaserDistance = MaxLaserDistance;
 		Bomb->Team = C->GetTeam();

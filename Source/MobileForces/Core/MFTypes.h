@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/DamageType.h"
+#include "UObject/Interface.h"
 #include "MFTypes.generated.h"
 
 namespace MF
@@ -108,4 +109,21 @@ enum class EMFBotOrder : uint8
 	Attack,     // go for the enemy objective / base
 	Follow,     // "Cover me": stay with whoever gave the order
 	Freelance,  // "Improvise": do what bots do
+};
+
+UINTERFACE(MinimalAPI)
+class UMFDamageFilter : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Something on a character (usually a component a mod adds: a buff, a shield) that sees
+ * damage before armour does. Return the damage left (0 = none taken).
+ */
+class MOBILEFORCES_API IMFDamageFilter
+{
+	GENERATED_BODY()
+public:
+	virtual int32 FilterDamage(int32 Damage, const UMFDamageType* Type) = 0;
 };

@@ -27,25 +27,25 @@ OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
 
 # Textures the game code uses directly (HUD), converted even if no map references them.
 UI_TEXTURES = {
-    'rageweapons.weaponicons': {'masked'},       # weapon icon sheet (RageWeapon.WeaponIcon rects)
-    'rageweapons.icons.scopemask': {'masked'},
-    'rageweapons.icons.sniperrifleaim': {'masked'},
-    'rageweapons.icons.rocketlauncheraim': {'masked'},
+    'rageweapons.weaponicons': {'masked', 'ui'},       # weapon icon sheet (RageWeapon.WeaponIcon rects)
+    'rageweapons.icons.scopemask': {'masked', 'ui'},
+    'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},
+    'rageweapons.icons.rocketlauncheraim': {'masked', 'ui'},
     # RageHUD atlases (TexRects in RageHUD defaultproperties): item boxes per colour set,
     # translucent backs + ammo bars, health/armour/loadout icons per team, loadout screen
     # tint, pain flash, scoreboard bits
-    'rage.boxes': {'masked'},
-    'rage.backs': {'masked'},
-    'rage.icons': {'masked'},
-    'rage.loadoutbackblue': set(),
-    'rage.loadoutbackred': set(),
-    'rage.owblue': set(),
-    'rage.owred': set(),
-    'rage.scoreboardbits': {'masked'},
-    'rage.scoreboxes': {'masked'},         # RageTeamHUD.DrawScoreBar
-    'rage.scoreicons': {'masked'},
-    'rage.pickupicons': {'masked'},
-    'rage.minimapnewicons': {'masked'},
+    'rage.boxes': {'masked', 'ui'},
+    'rage.backs': {'masked', 'ui'},
+    'rage.icons': {'masked', 'ui'},
+    'rage.loadoutbackblue': {'ui'},
+    'rage.loadoutbackred': {'ui'},
+    'rage.owblue': {'ui'},
+    'rage.owred': {'ui'},
+    'rage.scoreboardbits': {'masked', 'ui'},
+    'rage.scoreboxes': {'masked', 'ui'},         # RageTeamHUD.DrawScoreBar
+    'rage.scoreicons': {'masked', 'ui'},
+    'rage.pickupicons': {'masked', 'ui'},
+    'rage.minimapnewicons': {'masked', 'ui'},
     # RageHUD.CrosshairGraphic(0..23) = CrossHairA..X; drawn subtractive + additive in MF, so
     # black means "nothing": alpha from brightness lets the HUD darken only the shape
     **{f'rage.crosshair{c}': {'lumalpha'} for c in 'abcdefghijklmnopqrstuvwx'},
@@ -147,6 +147,8 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             'file': str(dst.relative_to(cfg.out_dir)),
             'usize': info['usize'], 'vsize': info['vsize'],
             'alpha': needs_alpha, 'override': override.exists(),
+            # HUD art / fonts / minimaps: drawn by the canvas, imported without mips
+            'ui': bool(modes & {'ui', 'fontalpha', 'lumalpha'}),
         }
     return manifest
 

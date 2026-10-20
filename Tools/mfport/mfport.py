@@ -3,6 +3,7 @@
 
 Steps (run alone or chained with `all`):
   map <name...>        convert maps: BSP world geometry, static meshes, actors (UCC T3D export)
+  props                gameplay meshes from the game packages (vehicles, crates, safes, flag bases ...)
   textures             export + convert every texture the converted maps use
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
@@ -52,7 +53,8 @@ def cmd_vmf(cfg, names):
 
 def collect_usage(cfg) -> dict[str, set[str]]:
     usage: dict[str, set[str]] = {}
-    for lj in (cfg.out_dir / 'Maps').glob('*/level.json'):
+    files = list((cfg.out_dir / 'Maps').glob('*/level.json')) + list((cfg.out_dir / 'Props').glob('props.json'))
+    for lj in files:
         for k, modes in json.loads(lj.read_text())['texture_usage'].items():
             usage.setdefault(k, set()).update(modes)
     return usage
@@ -108,9 +110,9 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'textures', 'sounds', 'music', 'mods', 'vmf', 'merge', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'sounds', 'music', 'mods', 'vmf', 'merge', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
-    ap.add_argument('--steps', default='textures,sounds,music,plugins,maps', help='importer steps for `import`')
+    ap.add_argument('--steps', default='art,textures,props,sounds,music,plugins,maps', help='importer steps for `import`')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -123,6 +125,9 @@ def main():
         from mflib.merge import Merger
         for n in a.names or ['mf-warehouse']:
             Merger(cfg, n).run()
+    if a.step in ('props', 'all'):
+        from mflib import props
+        print(f'  -> {props.convert(cfg)}')
     if a.step in ('textures', 'all'):
         cmd_textures(cfg)
     if a.step == 'sounds':

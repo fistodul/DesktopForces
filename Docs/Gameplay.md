@@ -25,6 +25,13 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 | Carry | 6 blocks; speed −5%/block, min 50% | same |
 | Headshot | hit Z − centre Z > 0.8 × half-height | same |
 | Recoil | AddRecoil(RecoilPower×6); per frame pitch += r×20 rot units, yaw ±r×20, r halves | stepped at 30 Hz |
+| Floor checks | flat cylinder bottom | `bUseFlatBaseForFloorChecks` (stands on stair grating rims like MF) |
+
+**Ladders** (LadderClimber): grabbed when falling into the volume (walking off the top,
+jumping at it) or when walking at the rungs with the centre inside the volume's radius
+(MF grabbed on touch; a capsule touches a metre early, which felt wrong). Forward climbs and
+presses onto the ledge at the top; back climbs down; reaching the floor walks again; jump
+lets go (no regrab for 0.5 s).
 
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.
@@ -81,6 +88,10 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
   `AMFZoneBox` tagged `CaptainProhibited`). 5 points / 12 min. "CAPTAIN" label over them.
 - Holdout (Domination), DM, TDM as before; Trailer waits for vehicles (its map actors are
   already in the converted maps).
+- **Tug of War** (`tug`, MF-mods TugGame, plugin `MFModTug`): killing an enemy converts them
+  to your team on the spot (full health). A team with nobody left loses the round (+2 to the
+  converter); the bigger team wins a round that runs out of time (8 min). 3 rounds; every
+  round starts with the original teams and fresh loadouts.
 - Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
   All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
   flag.", Safecracker "Guard the safe." / "Grab the gold."). Bots acknowledge
@@ -102,6 +113,14 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 | Trip bombs | 9 | 1 (max 3) | 2 | — | — | — | — | laser 1024 uu; alt: proximity mine (TODO) |
 | Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90) |
 | Armour | 11 | 1 | — | absorbs 75% | — | — | — | 100 charge; falling/drowning bypass |
+
+Mod items (MF-mods, plugins, in every crate while enabled): **Totem of Undying** (group 10:
+cheats death once - 5 health, 1.5 s no damage, +19 over 3 s; fire: +56 to you and team-mates
+within 400 uu in view; alt: +118 over 10 s to the team-mate you aim at; reload: +120 over 10 s
+on yourself), **Trip Laser** (group 9, 3: beam passes team-mates, burns the first enemy 280 /
+185 into the open, max 10 out; thrown: 280 on touch), **Seeker Mine** (group 9, 1: thrown
+drone hunts the nearest enemy within 1900 uu, 320 r440, escorts you otherwise, max 3),
+**Molotov** (group 8).
 
 Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(rand−0.5)×1000·Z
 + MaxTraceDistance (10000)·X.

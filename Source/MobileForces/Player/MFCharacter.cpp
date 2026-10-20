@@ -217,7 +217,17 @@ void AMFCharacter::Heal(int32 Amount)
 
 int32 AMFCharacter::AbsorbWithArmour(int32 Damage, const UMFDamageType* Type)
 {
+	// buffs / shields first (IMFDamageFilter components), then inventory by absorb priority
+	TInlineComponentArray<UActorComponent*> Comps(this);
+	for (UActorComponent* Comp : Comps)
+	{
+		if (IMFDamageFilter* Filter = Cast<IMFDamageFilter>(Comp); Filter && Damage > 0)
+		{
+			Damage = Filter->FilterDamage(Damage, Type);
+		}
+	}
 	TArray<TObjectPtr<AMFWeapon>> Items = Inventory;   // armour may remove itself when worn out
+	Items.StableSort([](const AMFWeapon& A, const AMFWeapon& B) { return A.GetAbsorbPriority() > B.GetAbsorbPriority(); });
 	for (AMFWeapon* W : Items)
 	{
 		if (Damage <= 0)
@@ -258,7 +268,15 @@ float AMFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AC
 	}
 	if (Health <= 0)
 	{
-		Die(EventInstigator, DamageEvent.DamageTypeClass, DamageCauser);
+		AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+		if (GM && GM->PreventDeath(this, EventInstigator, DamageEvent.DamageTypeClass))
+		{
+			Health = FMath::Max(Health, 1);   // the mode decided what happens instead
+		}
+		else
+		{
+			Die(EventInstigator, DamageEvent.DamageTypeClass, DamageCauser);
+		}
 	}
 	return float(Applied);
 }

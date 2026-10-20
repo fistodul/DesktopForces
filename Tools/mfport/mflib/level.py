@@ -278,7 +278,12 @@ class LevelConverter:
                     vs = [(_scale(v[0]), v[1], v[2]) for v in tri.verts]
                     geo_n = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
                     avg_n = tuple(sum(v[1][i] for v in tri.verts) for i in range(3))
-                    if _dot(geo_n, avg_n) < 0:
+                    if _dot(avg_n, avg_n) < 1e-12:
+                        # exporter wrote NaN normals: use the face's own
+                        ln = math.sqrt(_dot(geo_n, geo_n)) or 1.0
+                        unit = tuple(c / ln for c in geo_n)
+                        vs = [(v[0], unit, v[2]) for v in vs]
+                    elif _dot(geo_n, avg_n) < 0:
                         vs = [vs[0], vs[2], vs[1]]
                     mb.add_triangle(key, *vs)
                     area += _area(p)

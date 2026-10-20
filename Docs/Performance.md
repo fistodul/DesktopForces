@@ -17,7 +17,13 @@ build uses mobile-class settings too.
 - Mobile: forward path, `r.MobileHDR=0` (LDR → no post-process pass at all), no local lights
   at runtime (`r.Mobile.Forward.EnableLocalLights=0`).
 - Nanite, virtual textures, Substrate off. Shader targets SM5 (DX11/Vulkan) + ES3.1 only.
-- Texture streaming off (textures are ≤ 512 px, `NeverStream`), no mip bias games needed.
+- Texture streaming off (textures are ≤ 512 px, `NeverStream`). Texture quality Low samples
+  one mip down (`r.MipMapLODBias=1`: 512 px textures draw as 256); `max_texture_size = 256` in
+  `mfport.toml` imports everything at 256 for the smallest memory. A converted MF map's
+  textures are ~50 MB at 512 px, so 4 GB VRAM cards have lots of room.
+- Lighting is all baked: two Lightmass bounces, soft light radii, sky light through sky
+  windows - none of it costs anything at runtime. The only live lighting term is one
+  multiply-add in the lit materials (`BaseColor × MPC_MF.Ambient`, the map's ambient floor).
 
 ## Content
 - Textures imported at original resolution up to 512 px (`max_texture_size`); Android/iOS
@@ -33,7 +39,7 @@ build uses mobile-class settings too.
 ## Code
 - Actors don't tick unless they must. `AMFCharacter` ticks only when locally controlled
   (camera FOV + recoil); weapons, projectiles, crates, map actors never tick — timers only.
-- Canvas HUD (no UMG widget tree to tick/layout).
+- Canvas HUD (no UMG widget tree to tick/layout); menus are plain Slate, only while open.
 - Skeletal meshes: `OnlyTickPoseWhenRendered`.
 - Net: 30 Hz server tick, weapons 10 Hz net update, characters 30 Hz.
 - Prefer `TActorIterator` only at events (spawn, loadout), never per frame.

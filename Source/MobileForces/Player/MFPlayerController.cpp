@@ -9,6 +9,8 @@
 #include "Engine/LocalPlayer.h"
 #include "UI/MFHUD.h"
 #include "UI/MFMenu.h"
+#include "Vehicles/MFVehicle.h"
+#include "Game/MFFlag.h"
 #include "Core/MFUserSettings.h"
 #include "World/MFMapActors.h"
 #include "Camera/CameraComponent.h"
@@ -245,6 +247,12 @@ void AMFPlayerController::SetupInputComponent()
 
 void AMFPlayerController::OnMove(const FInputActionValue& Value)
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		const FVector2D In = Value.Get<FVector2D>();
+		V->SetDriveInput(In.Y, In.X, bVehicleHandbrake);   // forward = throttle, strafe = steer
+		return;
+	}
 	AMFCharacter* C = GetMFCharacter();
 	if (!C || C->IsInLoadout())
 	{
@@ -276,6 +284,7 @@ void AMFPlayerController::OnLook(const FInputActionValue& Value)
 
 void AMFPlayerController::OnJump()
 {
+	bVehicleHandbrake = true;   // jump = handbrake while driving
 	if (AMFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout())
 	{
 		C->Jump();
@@ -284,6 +293,7 @@ void AMFPlayerController::OnJump()
 
 void AMFPlayerController::OnJumpReleased()
 {
+	bVehicleHandbrake = false;
 	if (AMFCharacter* C = GetMFCharacter())
 	{
 		C->StopJumping();
@@ -607,7 +617,49 @@ void AMFPlayerController::OnMenuDown()
 
 void AMFPlayerController::OnMenuSelect()
 {
-	LoadoutSelect();
+	if (IsLoadoutOpen())
+	{
+		LoadoutSelect();
+	}
+	else
+	{
+		TryEnterExit();   // MF E = TryEnterExit
+	}
+}
+
+void AMFPlayerController::TryEnterExit()
+{
+	ServerTryEnterExit();
+}
+
+void AMFPlayerController::ServerTryEnterExit_Implementation()
+{
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->Exit();
+		return;
+	}
+	AMFCharacter* C = GetMFCharacter();
+	if (!C || !C->IsAlive() || C->IsInLoadout())
+	{
+		return;
+	}
+	// the nearest vehicle with a door in reach
+	AMFVehicle* Best = nullptr;
+	float BestDist = 1e9f;
+	for (TActorIterator<AMFVehicle> It(GetWorld()); It; ++It)
+	{
+		const float D = FVector::Dist(It->GetActorLocation(), C->GetActorLocation());
+		if (D < BestDist && It->IsNear(C))
+		{
+			BestDist = D;
+			Best = *It;
+		}
+	}
+	if (Best)
+	{
+		Best->TryEnter(C);
+	}
 }
 
 TArray<AMFWeapon*> AMFPlayerController::GetLoadoutInventory() const
@@ -726,6 +778,10 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 		{
 			ForcedMoveUntil = 0.f;
 		}
+		else if (AMFVehicle* V = Cast<AMFVehicle>(P))
+		{
+			V->SetDriveInput(ForcedMove.X, ForcedMove.Y, false);
+		}
 		else
 		{
 			const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
@@ -736,8 +792,8 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 		{
 			ForcedMoveNextLog = Now + 0.25f;
 			const UCharacterMovementComponent* M = Cast<ACharacter>(P) ? Cast<ACharacter>(P)->GetCharacterMovement() : nullptr;
-			UE_LOG(LogMF, Display, TEXT("MFWalk %.1f: %s mode %s"), Now, *P->GetActorLocation().ToCompactString(),
-				M ? *M->GetMovementName() : TEXT("-"));
+			UE_LOG(LogMF, Display, TEXT("MFWalk %.1f: %s mode %s speed %.0f"), Now, *P->GetActorLocation().ToCompactString(),
+				M ? *M->GetMovementName() : *P->GetClass()->GetName(), P->GetVelocity().Size());
 		}
 	}
 }
@@ -932,6 +988,7 @@ void AMFPlayerController::ServerSay_Implementation(const FString& Msg, bool bTea
 void AMFPlayerController::ClientMessage_Implementation(const FString& S, FName Type, float MsgLifeTime)
 {
 	Super::ClientMessage_Implementation(S, Type, MsgLifeTime);
+	UE_LOG(LogMF, Log, TEXT("Message: %s"), *S);
 	if (AMFHUD* HUD = GetHUD<AMFHUD>())
 	{
 		HUD->AddMessage(S, FLinearColor::White);
@@ -1072,6 +1129,19 @@ void AMFPlayerController::CenterView()
 	FRotator R = GetControlRotation();
 	R.Pitch = 0.f;
 	SetControlRotation(R);
+}
+
+void AMFPlayerController::TossFlag()
+{
+	ServerTossFlag();
+}
+
+void AMFPlayerController::ServerTossFlag_Implementation()
+{
+	if (AMFFlag* Flag = AMFFlag::FindCarriedBy(GetMFCharacter()))
+	{
+		Flag->Drop();
+	}
 }
 
 void AMFPlayerController::ShowMenu()

@@ -158,6 +158,19 @@ public:
 	/** Level the view (MF End). */
 	UFUNCTION(Exec)
 	void CenterView();
+	/** MF TryEnterExit (E): get into the nearest vehicle / out of this one. */
+	UFUNCTION(Exec)
+	void TryEnterExit();
+	UFUNCTION(Server, Reliable)
+	void ServerTryEnterExit();
+	/** MF Reload (R). */
+	UFUNCTION(Exec)
+	void Reload() { OnReload(); }
+	/** MF TossFlag (G): drop the flag / gold / key you carry. */
+	UFUNCTION(Exec)
+	void TossFlag();
+	UFUNCTION(Server, Reliable)
+	void ServerTossFlag();
 	/** MF ShowMenu (Esc): the in-game menu (resume, new game, options, leave, quit). */
 	UFUNCTION(Exec)
 	void ShowMenu();
@@ -260,6 +273,7 @@ protected:
 	void LoadoutMove(int32 Dir);
 	void PlayUISound(const TCHAR* Path);
 	bool bLoadoutWasOpen = false;
+	bool bVehicleHandbrake = false;
 
 	// MFWalk: scripted movement input
 	FVector2D ForcedMove = FVector2D::ZeroVector;

@@ -22,7 +22,7 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 		Work = FPaths::ProjectDir() / TEXT("Tools/mfport/work/out");
 	}
 	Work = FPaths::ConvertRelativePathToFull(Work);
-	const bool bNeedsWork = Steps.Contains(TEXT("textures")) || Steps.Contains(TEXT("sounds")) || Steps.Contains(TEXT("music")) || Steps.Contains(TEXT("maps"));
+	const bool bNeedsWork = Steps.Contains(TEXT("textures")) || Steps.Contains(TEXT("props")) || Steps.Contains(TEXT("sounds")) || Steps.Contains(TEXT("music")) || Steps.Contains(TEXT("maps"));
 	if (bNeedsWork && !FPaths::DirectoryExists(Work))
 	{
 		UE_LOG(LogMFEditor, Error, TEXT("Work dir %s not found - run Tools/mfport/mfport.py first"), *Work);
@@ -44,6 +44,14 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 	if (Steps.Contains(TEXT("music")))
 	{
 		Importer.ImportSounds(TEXT("Music"), true);
+	}
+	if (Steps.Contains(TEXT("props")))
+	{
+		Importer.ImportProps();
+	}
+	if (Steps.Contains(TEXT("art")))
+	{
+		Importer.ImportArt();
 	}
 	if (Steps.Contains(TEXT("plugins")))
 	{

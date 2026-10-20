@@ -10,6 +10,7 @@
 #include "MaterialShared.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
@@ -143,7 +144,8 @@ bool FMFImporter::ImportTextures()
 	}
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	TArray<UAssetImportTask*> Tasks;
-	TArray<TPair<FString, bool>> Keys;   // key, has alpha
+	struct FTexKey { FString Key; bool bAlpha; bool bUI; };
+	TArray<FTexKey> Keys;
 	for (const auto& Pair : Manifest->Values)
 	{
 		const TSharedPtr<FJsonObject> Info = Pair.Value->AsObject();
@@ -158,7 +160,12 @@ bool FMFImporter::ImportTextures()
 		Task->bReplaceExisting = true;
 		Task->bSave = false;
 		Tasks.Add(Task);
-		Keys.Emplace(Key, Info->GetBoolField(TEXT("alpha")));
+		bool bUI = false;
+		if (!Info->TryGetBoolField(TEXT("ui"), bUI))
+		{
+			bUI = IsUITexture(Key);   // manifests from before the "ui" flag
+		}
+		Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI });
 	}
 	UE_LOG(LogMFEditor, Display, TEXT("Importing %d textures"), Tasks.Num());
 	AssetTools.ImportAssetTasks(Tasks);
@@ -177,9 +184,10 @@ bool FMFImporter::ImportTextures()
 		Tex->NeverStream = true;
 		Tex->SRGB = true;
 		Tex->CompressionSettings = TC_Default;
-		Tex->CompressionNoAlpha = !Keys[i].Value;
+		Tex->CompressionNoAlpha = !Keys[i].bAlpha;
+		Tex->Filter = TF_Default;
 		Tex->MipGenSettings = TMGS_FromTextureGroup;
-		if (IsUITexture(Keys[i].Key))
+		if (Keys[i].bUI)
 		{
 			// HUD art and bitmap fonts: uncompressed, never mipped; fonts point sampled (crisp
 			// glyphs), the art filtered like MF's canvas (soft palette-alpha glows when scaled)
@@ -328,6 +336,107 @@ bool FMFImporter::ImportPluginArt()
 		AssetTools.ImportAssetTasks(Tasks);
 	}
 	return true;
+}
+
+bool FMFImporter::ImportProps()
+{
+	TSharedPtr<FJsonObject> Props = LoadJson(WorkDir / TEXT("Props/props.json"));
+	if (!Props)
+	{
+		UE_LOG(LogMFEditor, Warning, TEXT("No Props/props.json - run mfport.py props"));
+		return false;
+	}
+	int32 Ok = 0, Total = 0;
+	for (const auto& Pair : Props->GetObjectField(TEXT("meshes"))->Values)
+	{
+		const FString Rel = Pair.Value->AsObject()->GetStringField(TEXT("mesh"));   // Package/Name
+		++Total;
+		Ok += BuildStaticMesh(WorkDir / TEXT("Props") / (Rel + TEXT(".mfmesh.json")), FString::Printf(TEXT("%s/Props/%s"), ImportRoot, *Rel)) ? 1 : 0;
+	}
+	UE_LOG(LogMFEditor, Display, TEXT("Props: %d / %d meshes"), Ok, Total);
+	return Ok > 0;
+}
+
+bool FMFImporter::ImportArt()
+{
+	const FString Dir = FPaths::ProjectDir() / TEXT("Tools/artgen/out");
+	TArray<FString> Files;
+	IFileManager::Get().FindFiles(Files, *(Dir / TEXT("*.png")), true, false);
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	TArray<UAssetImportTask*> Tasks;
+	for (const FString& File : Files)
+	{
+		UAssetImportTask* Task = NewObject<UAssetImportTask>();
+		Task->Filename = FPaths::ConvertRelativePathToFull(Dir / File);
+		Task->DestinationPath = TEXT("/Game/MF/Art");
+		Task->DestinationName = FPaths::GetBaseFilename(File);
+		Task->bAutomated = true;
+		Task->bReplaceExisting = true;
+		Task->bSave = false;
+		Tasks.Add(Task);
+	}
+	UE_LOG(LogMFEditor, Display, TEXT("Art: importing %d textures (Tools/artgen/out)"), Tasks.Num());
+	AssetTools.ImportAssetTasks(Tasks);
+	for (const FString& File : Files)
+	{
+		const FString Name = FPaths::GetBaseFilename(File);
+		if (UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *FString::Printf(TEXT("/Game/MF/Art/%s.%s"), *Name, *Name)))
+		{
+			Tex->LODGroup = TEXTUREGROUP_World;   // 512 max, 256 on the lowest texture quality
+			Tex->NeverStream = true;
+			Tex->SRGB = true;
+			Tex->CompressionSettings = TC_Default;
+			Tex->PostEditChange();
+			SaveAsset(Tex);
+		}
+	}
+	EnsureCrateMaterial();
+	return true;
+}
+
+void FMFImporter::EnsureCrateMaterial()
+{
+	UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/MF/Art/T_MF_Crate.T_MF_Crate"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_Crate"), bCreated);
+	if (!bCreated)
+	{
+		return;
+	}
+	// lit wood; the texture's alpha is the stencil, painted in the team colour (custom primitive data 0-2)
+	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+	UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+	T->ParameterName = TEXT("Texture");
+	T->Texture = Tex ? Tex : LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+	M->GetExpressionCollection().AddExpression(T);
+	UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(M);
+	Color->ParameterName = TEXT("Color");
+	Color->DefaultValue = FLinearColor(0.9f, 0.75f, 0.2f);
+	Color->bUseCustomPrimitiveData = true;
+	Color->PrimitiveDataIndex = 0;
+	M->GetExpressionCollection().AddExpression(Color);
+	UMaterialExpressionLinearInterpolate* Lerp = NewObject<UMaterialExpressionLinearInterpolate>(M);
+	Lerp->A.Connect(0, T);
+	Lerp->B.Connect(0, Color);
+	Lerp->B.SetMask(1, 1, 1, 1, 0);
+	Lerp->Alpha.Connect(4, T);   // alpha
+	M->GetExpressionCollection().AddExpression(Lerp);
+	E->BaseColor.Connect(0, Lerp);
+	UMaterialExpressionConstant* Zero = NewObject<UMaterialExpressionConstant>(M);
+	Zero->R = 0.f;
+	M->GetExpressionCollection().AddExpression(Zero);
+	UMaterialExpressionConstant* One = NewObject<UMaterialExpressionConstant>(M);
+	One->R = 1.f;
+	M->GetExpressionCollection().AddExpression(One);
+	E->Specular.Connect(0, Zero);
+	E->Roughness.Connect(0, One);
+	M->SetShadingModel(MSM_DefaultLit);
+	M->SetMaterialUsage(MATUSAGE_StaticLighting);
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	AddAmbientFloor(M);
+	UE_LOG(LogMFEditor, Display, TEXT("Created M_MF_Crate"));
 }
 
 // --- materials -------------------------------------------------------------------------

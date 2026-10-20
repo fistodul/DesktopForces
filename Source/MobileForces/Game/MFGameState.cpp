@@ -14,6 +14,7 @@ void AMFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(AMFGameState, TeamScores);
 	DOREPLIFETIME(AMFGameState, WinnerText);
 	DOREPLIFETIME(AMFGameState, GameName);
+	DOREPLIFETIME(AMFGameState, RoundStartTime);
 }
 
 TArray<AMFPlayerState*> AMFGameState::GetSortedPlayers() const

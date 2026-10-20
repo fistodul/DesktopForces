@@ -24,6 +24,9 @@ public:
 	/** Developer: take N damage (scripted tests). */
 	UFUNCTION(Exec)
 	void MFHurt(int32 N);
+	/** Developer: N damage from you to every enemy (mode rules apply: Tug converts, Totem saves). */
+	UFUNCTION(Exec)
+	void MFHurtEnemies(int32 N);
 	/** Developer: press and release fire once (scripted tests). */
 	UFUNCTION(Exec)
 	void MFFire();

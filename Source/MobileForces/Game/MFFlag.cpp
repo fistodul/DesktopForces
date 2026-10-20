@@ -1,4 +1,5 @@
 #include "Game/MFFlag.h"
+#include "Core/MFProps.h"
 #include "MobileForces.h"
 #include "AI/MFBotController.h"
 #include "Core/MFGameSettings.h"
@@ -376,6 +377,11 @@ void AMFFlagBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 void AMFFlagBase::BeginPlay()
 {
 	Super::BeginPlay();
+	// MF RageFlagBase (DrawScale 1.3) stands where the legacy actor was, 130 cm above this plinth
+	if (MF::ApplyPropMesh(Mesh, Team == 1 ? TEXT("RageGame/RageFlagBase1Mesh") : TEXT("RageGame/RageFlagBase0Mesh"), 1.3f, FVector(0.f, 0.f, 130.f)))
+	{
+		return;
+	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		if (UMaterialInterface* M = UMFGameSettings::Get().GetTeamTintMaterial())

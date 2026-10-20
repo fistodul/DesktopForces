@@ -1,4 +1,5 @@
 #include "Game/MFHoldout.h"
+#include "Core/MFProps.h"
 #include "MobileForces.h"
 #include "Core/MFGameSettings.h"
 #include "Game/MFGameState.h"
@@ -97,6 +98,12 @@ void AMFHoldoutPoint::OnRep_OwnerTeam()
 
 void AMFHoldoutPoint::UpdateLook()
 {
+	// MF RageDominationTimer: neutral / TeamMesh(0) blue / TeamMesh(1) red
+	if (MF::ApplyPropMesh(Mesh, OwnerTeam == 0 ? TEXT("RageGame/RageDomTimerBlueMesh")
+		: OwnerTeam == 1 ? TEXT("RageGame/RageDomTimerRedMesh") : TEXT("RageGame/RageDomTimerMesh")))
+	{
+		return;
+	}
 	const FLinearColor C = OwnerTeam == MF::NoTeam ? FLinearColor(0.7f, 0.7f, 0.7f) : UMFGameSettings::Get().GetTeamColor(OwnerTeam);
 	Mesh->SetCustomPrimitiveDataVector4(0, C);
 }

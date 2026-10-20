@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Trip Lasers",
+	"Description": "Mobile Forces mod: trip bombs whose beam burns enemies instead of exploding and lets team-mates through (port of the MF-mods TripLasers package).",
+	"Category": "Mobile Forces Mods",
+	"CreatedBy": "fistodul (original MF-mods UnrealScript mod). UE5 port: Mobile Forces UE5 project, MPL-2.0.",
+	"CanContainContent": true,
+	"EnabledByDefault": true,
+	"Modules": [
+		{
+			"Name": "MFModTripLasers",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

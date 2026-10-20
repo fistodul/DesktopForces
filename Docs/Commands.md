@@ -26,11 +26,23 @@ the original had the command; case doesn't matter.
 | `Say Text` / `TeamSay Text` | send a chat line |
 | `ViewTeam` | watch the next team-mate (F5); `ViewPlayerNum N`: NumPad1 = yourself, NumPad2.. = team-mates |
 | `CenterView` | level the view (End) |
+| `Reload` | reload (R); Totem: heal yourself over time |
+| `TossFlag` | drop the flag / gold / detonation key you carry (G) |
+| `ShowMenu` | in-game menu: resume, new game, join, options, leave, quit (Esc) |
+| `Brightness [X]` | MF brightness: step 0.5 → 2, or set 0.25 - 3 (scales the map's ambient light; saved) |
 
 Keys that run commands are a config table, like MF's User.ini: `[/Script/MobileForces.MFPlayerController]`
 `+CommandBindings=(Key=F9,Command="SShot")` in `Config/DefaultGame.ini` (or your user Game.ini).
 Built-in keys: WASD / arrows / `,` `.` move, Ctrl crouch (MF also had C; C opens orders here),
 Delete / PageDown look up / down, Q / Backspace loadout, `;` throw, `[` `]` / wheel weapons.
+UE's development-build debug keys (F1 wireframe, F2-F5 view modes, PageUp/PageDown, `;` debug
+camera) are switched off in `Config/DefaultInput.ini`; only Ctrl+Shift+`.` (recompile shaders)
+and Ctrl+Shift+`,` (GPU profile) stay.
+
+Without a map on the command line the game starts at the **main menu** (play: map, game type,
+bots, skill, time limit, LAN host; join an address; options: name, resolution, display mode,
+graphics level, brightness, mouse, field of view). Options live in
+`Saved/Config/<platform>/GameUserSettings.ini` (`UMFUserSettings`).
 
 ## Cheats
 
@@ -67,6 +79,13 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFTopView X Y Width [Z]` | orthographic top view (`MFTopView 0 0 0` = back) |
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
+| `MFWalk Yaw Seconds [Fwd] [Right]` | hold movement input, logging position + movement mode every 0.25 s (stairs / ladder tests) |
+| `MFMenuPage N`, `MFMenuStart` | main menu: show page N (0 main, 1 play, 2 join, 3 options) / press Start |
+| `MFApplyUserSettings` | re-read the player's options (field of view) |
 
-Not ported (no equivalent yet): vehicle (`TryEnterExit`, `KillCars`, `ExpireCars`), flag
-(`TossFlag`), `FeignDeath`, `Taunt`, `Speech`, `BehindView` (third person comes with soldier models).
+Command line for automated runs: `-MFExec="…"` (commands, `@seconds:` delays), `-MFQuitAfter=N`,
+`-MFAutoShot=N -MFShotName=x [-MFShotUI]` (`-MFShotUI` includes Slate menus), `-abslog=<file>`
+to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/MobileForces.log`).
+
+Not ported (no equivalent yet): vehicle (`TryEnterExit`, `KillCars`, `ExpireCars`),
+`FeignDeath`, `Taunt`, `Speech`, `BehindView` (third person comes with soldier models).

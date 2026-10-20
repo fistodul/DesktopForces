@@ -187,6 +187,16 @@ protected:
 	void ServerUse(bool bAlt, float Power);
 	void Use(bool bAlt, float Power);
 	bool TryPlant();
+	/** Throw speed for a wind-up of Power (3-10): MF ThrowPower * 125 uu/s. */
+	virtual float GetThrowSpeed(float Power) const { return Power * 281.25f; }
+	/** Server, before a plant or throw: may this owner put down another one? (mods: limits) */
+	virtual bool CanPlace() const { return true; }
+	/** What gets planted on walls. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	TSubclassOf<class AMFTripBomb> BombClass;
+	/** Planting needs something within MaxLaserDistance for the beam (MF TripBombs; TripLasers don't). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	bool bNeedLaserTarget = true;
 	double WindUpStart = 0.0;
 	bool bWinding = false;
 	float GetThrowPower() const;
@@ -218,6 +228,7 @@ public:
 	AMFWeapon_Armour();
 	virtual void GiveFullAmmo() override;
 	virtual int32 AbsorbDamage(int32 Damage, const UMFDamageType* Type) override;
+	virtual int32 GetAbsorbPriority() const override { return 10; }
 	int32 GetCharge() const { return Charge; }
 protected:
 	virtual bool TryFire(bool bAlt) override { return false; }

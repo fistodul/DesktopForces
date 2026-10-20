@@ -274,6 +274,8 @@ public:
 
 	/** Armour hook: return the damage left after this item absorbed its share. */
 	virtual int32 AbsorbDamage(int32 Damage, const UMFDamageType* Type) { return Damage; }
+	/** Order of the AbsorbDamage calls, highest first (MF Inventory.AbsorptionPriority). */
+	virtual int32 GetAbsorbPriority() const { return 0; }
 
 	/** HUD hook: crosshair / scope overlay. Return true if the weapon drew its own crosshair. */
 	virtual bool DrawHUD(UCanvas* Canvas) { return false; }
