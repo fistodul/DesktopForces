@@ -28,6 +28,8 @@ from .upkg import Package
 
 CHUNK_SIZE = 2048.0            # world geometry grid cell, in MF units (~46 m)
 LIGHTMAP_TEXEL = 16.0          # target lightmap texel size, MF units (36 cm)
+LIGHTMAP_BUDGET = 6_000_000    # lightmap texels per map (world + every prop instance): big outdoor
+                               # maps get coarser texels instead of 25M (VRAM on 4 GB cards, bake time)
 LIGHTMASS_BOUNCES = 2          # baked bounce light (free at runtime; fills what UE1 zone ambient lit)
 
 ROT_TO_DEG = 360.0 / 65536.0
@@ -229,11 +231,50 @@ class LevelConverter:
         for (cell, sky), mb in chunks.items():
             texels = math.sqrt(areas[(cell, sky)]) / LIGHTMAP_TEXEL
             mb.lightmap_resolution = 4 if sky else int(min(1024, max(64, _next_pow2(texels))))
-            out.append(dict(self._chunk_entry(mb, cell, geo), sky=sky))
+            out.append(dict(self._chunk_entry(mb, cell, geo), sky=sky, lightmap_size_uu=0.0 if sky else math.sqrt(areas[(cell, sky)])))
         for cell, cb in coll.items():
             out.append(self._chunk_entry(cb, cell, geo))
         print(f'  world: {len(chunks)} render chunks (incl. sky), {len(coll)} collision chunks, {skipped} portal polys skipped')
         return out
+
+    def apply_lightmap_budget(self, world: list[dict], meshes: dict[str, dict], spawns: list[dict]):
+        """Coarser texels when the map would need more than LIGHTMAP_BUDGET lightmap texels.
+
+        Every static mesh instance gets its own lightmap, so props count once per placement;
+        small props go down to 8 x 8 (they are mostly evenly lit anyway)."""
+        uses: dict[str, int] = {}
+        for rec in spawns:
+            if rec['type'] == 'static_mesh':
+                name = rec['mesh'].split('/')[-1]
+                uses[name] = uses.get(name, 0) + 1
+        chunks = [w for w in world if w.get('render') and not w.get('sky')]
+
+        def plan(texel: float) -> tuple[int, dict, dict]:
+            cres = {w['mesh']: int(min(1024, max(32, _next_pow2(w['lightmap_size_uu'] / texel)))) for w in chunks}
+            mres = {n: int(min(256, max(8, _next_pow2(m['lightmap_size_uu'] / texel)))) for n, m in meshes.items()}
+            total = sum(r * r for r in cres.values()) + sum(mres[n] ** 2 * uses.get(n, 0) for n in mres)
+            return total, cres, mres
+
+        texel = LIGHTMAP_TEXEL
+        total, cres, mres = plan(texel)
+        start = total
+        while total > LIGHTMAP_BUDGET and texel < LIGHTMAP_TEXEL * 64:
+            texel *= 1.25
+            total, cres, mres = plan(texel)
+        for w in chunks:
+            w['lightmap_resolution'] = cres[w['mesh']]
+            self._set_lightmap(self.out / (w['mesh'] + '.mfmesh.json'), w['lightmap_resolution'])
+        for n, m in meshes.items():
+            m['lightmap_resolution'] = mres[n]
+            self._set_lightmap(self.out / (m['mesh'] + '.mfmesh.json'), mres[n])
+        print(f'  lightmaps: {total / 1e6:.1f}M texels at {texel * UU_TO_CM:.0f} cm (unbudgeted {start / 1e6:.1f}M)')
+
+    @staticmethod
+    def _set_lightmap(path: Path, res: int):
+        data = json.loads(path.read_text())
+        if data.get('lightmap_resolution') != res:
+            data['lightmap_resolution'] = res
+            path.write_text(json.dumps(data, indent=1))
 
     def _chunk_entry(self, mb: MeshBuilder, cell, geo: Path) -> dict:
         pivot = self._cell_pivot(cell)
@@ -297,7 +338,7 @@ class LevelConverter:
                 mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / LIGHTMAP_TEXEL))))
                 mb.write(out)
                 meshes[name] = {'mesh': f'meshes/{name}', 'triangles': mb.triangle_count,
-                                'lightmap_resolution': mb.lightmap_resolution}
+                                'lightmap_resolution': mb.lightmap_resolution, 'lightmap_size_uu': math.sqrt(area)}
         print(f'  static meshes: {len(meshes)}')
         return meshes
 
@@ -342,6 +383,7 @@ class LevelConverter:
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
+        self.apply_lightmap_budget(world, meshes, spawns)
         # UE1 zone ambient (flat light everywhere in a zone) becomes mostly UE-native lighting:
         # the map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
         # windows pick up) and bounced light fills the rest; a small unshadowed floor stays in the

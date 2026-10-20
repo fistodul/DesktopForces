@@ -2,13 +2,21 @@
 """Replacement art: new procedural textures that stand in for original Mobile Forces ones.
 
 Core maps (community maps that are part of Desktop Forces, Tools/mfport/packs.toml) still use
-some textures of the original game. This makes our own versions: each entry in
-lookalikes.toml names a procedural generator (bricks, planks, corrugated metal, plaster ...)
-and its layout; only the original's *colours* are sampled (dark / mid / light tones), never
-its pixels. Output goes to Tools/mfport/overrides/textures/<package>/<group>/<name>.png
-(committed), where the pipeline picks it up as replacement art.
+some textures of the original game. This makes our own versions: each entry names a procedural
+generator (bricks, planks, corrugated metal, plaster ...) and its layout; only the original's
+*colours* are sampled (dark / mid / light tones), never its pixels.
 
-    python3 Tools/artgen/lookalike.py              # every entry
+  lookalikes.toml       hand-tuned entries
+  lookalikes_auto.toml  written by --auto for every other texture core maps still borrow: the
+                        generator picked from the name and the stripes / grid found in the
+                        original, colours and size stored, so it regenerates without the game
+
+Output: Tools/mfport/work/generated/textures/<package>/<group>/<name>.png (git-ignored,
+re-created by this script), which the pipeline takes as replacement art after any hand-made
+file in Tools/mfport/overrides/textures (committed, wins).
+
+    python3 Tools/artgen/lookalike.py --auto       # (re)classify what core maps need
+    python3 Tools/artgen/lookalike.py              # generate every entry
     python3 Tools/artgen/lookalike.py ap_road3     # entries whose key contains the text
     python3 Tools/artgen/lookalike.py --sheet      # also write a comparison sheet (scratch)
 
@@ -27,8 +35,9 @@ from PIL import Image, ImageDraw, ImageFilter
 
 HERE = Path(__file__).resolve().parent
 TABLE = HERE / 'lookalikes.toml'
+AUTO_TABLE = HERE / 'lookalikes_auto.toml'
 MFPORT = HERE.parent / 'mfport'
-OVERRIDES = MFPORT / 'overrides' / 'textures'
+OUT = MFPORT / 'work' / 'generated' / 'textures'
 
 
 # --- noise ---------------------------------------------------------------------------------
@@ -346,6 +355,8 @@ def g_grate(rng, h, w, t, o):
     rgb[wire2] = w2[wire2]
     sel = wire1 & (~wire2 | over)
     rgb[sel] = w1[sel]
+    if o.get('masked'):
+        return rgb, ((wire1 | wire2) * 255).astype(np.float32)   # see-through between the wires
     return rgb
 
 
@@ -441,11 +452,39 @@ def g_lamp(rng, h, w, t, o):
     return rgb
 
 
+SIGN_WORDS = ['DEPOT', 'CARGO', 'ZONE 3', 'NO ENTRY', 'EXIT', 'STORE', 'GARAGE', 'OFFICE', 'DOCK 2',
+              'SECTOR 7', 'DANGER', 'KEEP OUT', 'LOADING', 'PARTS', 'SERVICE', 'AUTO', 'MARKET', 'HOTEL',
+              'CAFE', 'POWER', 'FUEL', 'STAFF ONLY', 'BAY 4', 'TOOLS', 'DESKTOP FORCES', 'RADIO', 'CLINIC']
+
+
 def g_sign(rng, h, w, t, o):
-    """Our own sign: flat colour with the emblem (for logo signs of the original)."""
+    """Our own sign: an emblem, words of our own, or hazard stripes on the sign's colour."""
+    from PIL import ImageFont
     col = rgb_from(o.get('color', t[2]))
+    mark = tuple(int(c) for c in o.get('mark', (255, 255, 255)))
     rgb = shade(np.broadcast_to(col, (h, w, 3)).copy(), 0.95 + 0.08 * fbm(rng, h, w, 1.2))
-    return emblem(rgb, {'size': 0.32, 'color': o.get('mark', (255, 255, 255)), 'opacity': 1.0})
+    style = o.get('style') or ['emblem', 'words', 'words', 'stripes'][int(rng.integers(0, 4))]
+    if style == 'emblem':
+        return emblem(rgb, {'size': 0.32, 'color': mark, 'opacity': 1.0})
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    if style == 'stripes':
+        step = max(8, min(w, h) // 5)
+        for x in range(-h, w + h, step * 2):
+            d.polygon([(x, h), (x + step, h), (x + step + h, 0), (x + h, 0)], fill=mark)
+        return np.asarray(img, np.float32)
+    border = max(2, min(w, h) // 20)
+    d.rectangle((border, border, w - 1 - border, h - 1 - border), outline=mark, width=border)
+    words = o.get('words') or SIGN_WORDS[int(rng.integers(0, len(SIGN_WORDS)))]
+    size = max(8, int(h * 0.42))
+    font = ImageFont.load_default(size=size)
+    box = d.textbbox((0, 0), words, font=font)
+    while size > 8 and box[2] - box[0] > (w - 4 * border) * 0.9:   # shrink to fit inside the border
+        size = int(size * 0.85)
+        font = ImageFont.load_default(size=size)
+        box = d.textbbox((0, 0), words, font=font)
+    d.text(((w - (box[2] - box[0])) / 2 - box[0], (h - (box[3] - box[1])) / 2 - box[1]), words, font=font, fill=mark)
+    return np.asarray(img, np.float32)
 
 
 def g_flat(rng, h, w, t, o):
@@ -456,10 +495,62 @@ def g_flat(rng, h, w, t, o):
     return np.broadcast_to(top * (1 - g) + bottom * g, (h, w, 3)).copy()
 
 
+def g_sky(rng, h, w, t, o):
+    """Sky backdrop: a vertical gradient with soft drifting clouds."""
+    dark, mid, light = t
+    g = np.linspace(0, 1, h, dtype=np.float32)[:, None, None]
+    base = np.broadcast_to(mid * (1 - g) + light * g, (h, w, 3)).copy()
+    clouds = np.clip((stretched(rng, h, w, 4, 1, 2.2) - 0.5) * 2.2, 0, 1)[..., None] * o.get('clouds', 0.6)
+    return base * (1 - clouds) + np.maximum(light, mid) * 1.08 * clouds
+
+
+def g_glow(rng, h, w, t, o):
+    """Additive effect / light glow: a soft radial blob of the brightest tone on black."""
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    r = np.hypot(xx / w - 0.5, yy / h - 0.5) * 2
+    n = 0.75 + 0.5 * fbm(rng, h, w, 1.6)
+    a = np.clip(1 - r, 0, 1) ** 1.6 * n
+    return t[2][None, None, :] * a[..., None]
+
+
+def g_screen(rng, h, w, t, o):
+    """Console / monitor face: dark glass with lit bars and boxes."""
+    dark, mid, light = t
+    rgb = np.broadcast_to(dark * 0.35, (h, w, 3)).copy()
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    glow = tuple(int(c) for c in np.clip(np.maximum(light, mid * 1.4), 0, 255))
+    for _ in range(int(rng.integers(5, 11))):
+        x0, y0 = rng.uniform(0.08, 0.8) * w, rng.uniform(0.08, 0.85) * h
+        x1, y1 = x0 + rng.uniform(0.05, 0.35) * w, y0 + rng.uniform(0.02, 0.12) * h
+        if rng.random() < 0.5:
+            d.rectangle((x0, y0, min(x1, w * 0.92), min(y1, h * 0.92)), outline=glow, width=max(1, w // 128))
+        else:
+            d.rectangle((x0, y0, min(x1, w * 0.92), min(y1, h * 0.92)), fill=glow)
+    d.rectangle((0, 0, w - 1, h - 1), outline=tuple(int(c) for c in mid), width=max(2, w // 32))
+    return np.asarray(img, np.float32)
+
+
+def g_window(rng, h, w, t, o):
+    """Window: panes of tinted glass in a frame (grid of nx x ny)."""
+    dark, mid, light = t
+    nx, ny = o.get('nx', 2), o.get('ny', 2)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    fu, fv = (xx / w * nx) % 1, (yy / h * ny) % 1
+    frame = (np.minimum(fu, 1 - fu) < 0.06) | (np.minimum(fv, 1 - fv) < 0.06)
+    glass = ramp(0.35 + 0.5 * (1 - yy / h) * 0.6 + 0.15 * stretched(rng, h, w, 1, 6), dark, mid, light)
+    sheen = np.clip(1 - np.abs(((xx + yy * 0.6) / w) % 1 - 0.3) * 6, 0, 1) * 0.25
+    glass = glass * (1 + sheen[..., None])
+    rgb = glass.copy()
+    rgb[frame] = (dark * 0.7)[None, :]
+    return rgb
+
+
 GENERATORS = {
     'noise': g_noise, 'bricks': g_bricks, 'tiles': g_tiles, 'planks': g_planks, 'plywood': g_plywood,
     'corrugated': g_corrugated, 'siding': g_siding, 'treadplate': g_treadplate, 'grate': g_grate,
     'panel': g_panel, 'pipes': g_pipes, 'lamp': g_lamp, 'sign': g_sign, 'flat': g_flat,
+    'sky': g_sky, 'glow': g_glow, 'screen': g_screen, 'window': g_window,
 }
 
 
@@ -479,7 +570,7 @@ def original(key: str) -> tuple[Image.Image | None, int, int]:
 
 
 def make(key: str, spec: dict) -> Image.Image:
-    src, uw, vh = original(key)
+    src, uw, vh = (None, spec['size'][0], spec['size'][1]) if 'size' in spec else original(key)
     scale = spec.get('scale', 2)                      # MF 256 -> 512 (our cap), 128 -> 256
     w, h = min(512, uw * scale), min(512, vh * scale)
     rng = np.random.default_rng(zlib.crc32(key.lower().encode()))
@@ -487,32 +578,186 @@ def make(key: str, spec: dict) -> Image.Image:
     for i, name in enumerate(('dark', 'mid', 'light')):
         if name in spec:
             t[i] = rgb_from(spec[name])
-    rgb = GENERATORS[spec['gen']](rng, h, w, t, spec)
+    out = GENERATORS[spec['gen']](rng, h, w, t, spec)
+    rgb, alpha = out if isinstance(out, tuple) else (out, None)
     # surface detail on top of every material: fine grit and big soft grime patches
-    plain = spec['gen'] in ('lamp', 'sign', 'flat')
+    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen')
     grit = spec.get('grit', 0.0 if plain else 0.22)
     grime = spec.get('grime', 0.0 if plain else 0.25)
     if grit:
         rgb = shade(rgb, 1 - grit / 2 + grit * fbm(rng, h, w, 0.6))
     if grime:
         rgb = shade(rgb, 1 - grime * np.clip(fbm(rng, h, w, 2.4) - 0.45, 0, 1) * 1.8)
-    return Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), 'RGB')
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), 'RGB')
+    if alpha is not None:
+        img.putalpha(Image.fromarray(alpha.astype(np.uint8)))
+    return img
+
+
+# --- automatic specs ------------------------------------------------------------------------
+
+KEYWORDS = [   # first match wins: (words in the key, generator, options)
+    (('sky', 'cloud', 'des_sun'), 'sky', {}),
+    (('spark', 'smoke', 'flash', 'blood', 'flame', 'fire', 'glow', 'flare', 'explo', 'corona'), 'glow', {}),
+    (('light', 'lamp', 'bulb'), 'lamp', {'kind': 'round'}),
+    (('sign', 'poster', 'logo', 'advert', 'arrow', 'notice', 'label', 'flag', 'decal', 'stripe'), 'sign', {}),
+    (('screen', 'monitor', 'console', 'terminal', 'radar', 'computer', 'tconsole', 'display'), 'screen', {}),
+    (('window', 'glass', 'win_'), 'window', {}),
+    (('grate', 'grill', 'mesh', 'fence', 'net', 'wire', 'vent'), 'grate', {'n': 12}),
+    (('brick',), 'bricks', {}),
+    (('tile', 'slab', 'floortile'), 'tiles', {}),
+    (('plank', 'wood', 'board', 'ply', 'lumber_wood'), 'planks', {}),
+    (('crate', 'box', 'cargo', 'container', 'locker'), 'panel', {'border': 0.07}),
+    (('door',), 'panel', {'border': 0.06, 'bolt': True}),
+    (('pipe', 'tube'), 'pipes', {}),
+    (('roof', 'corrug', 'sheet', 'cladding'), 'corrugated', {}),
+    (('metal', 'steel', 'iron', 'rust', 'crane', 'girder', 'beam'), 'panel', {'border': 0.0}),
+    (('ground', 'dirt', 'sand', 'mud', 'grass', 'snow', 'rock', 'stone', 'gravel', 'road', 'concrete',
+      'floor', 'wall', 'plaster', 'cement'), 'noise', {}),
+]
+
+
+def periodicity(gray: np.ndarray) -> tuple[int, float, int, float]:
+    """Strongest repeat count along x and y (2..32) and how much it stands out (peak / mean)."""
+    out = []
+    for axis in (0, 1):
+        prof = gray.mean(axis=axis)
+        prof = prof - prof.mean()
+        spec = np.abs(np.fft.rfft(prof)) ** 2
+        band = spec[2:33]
+        k = int(np.argmax(band)) + 2
+        out += [k, float(band.max() / (spec[1:].mean() + 1e-6))]
+    return out[0], out[1], out[2], out[3]   # columns (x): repeats along x; rows (y)
+
+
+def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
+    k = key.lower()
+    rgb = img.convert('RGB')
+    gray = np.asarray(rgb.convert('L').resize((128, 128)), np.float32)
+    std = float(gray.std())
+    dark, mid, light = tones(rgb)
+    spec: dict = {'size': list(img.size)}
+    gen, opts = None, {}
+    for words, g, o in KEYWORDS:
+        if any(w in k for w in words):
+            gen, opts = g, dict(o)
+            break
+    if 'masked' in modes and gen != 'grate':
+        return None                                   # see-through shapes (foliage, decals): later, by hand
+    if 'additive' in modes and gen not in ('glow', 'lamp'):
+        gen, opts = 'glow', {}
+    nx, px, ny, py = periodicity(gray)
+    ex = float(np.abs(np.diff(gray, axis=1)).mean())   # edges across x (vertical lines)
+    ey = float(np.abs(np.diff(gray, axis=0)).mean())   # edges across y (horizontal lines)
+    if gen in (None, 'noise', 'corrugated', 'panel') and py > 12 and ny >= 4 and 0.45 < ex / max(ey, 1e-3) < 1.1 and 'roof' not in k:
+        gen = 'bricks'   # rows of courses with short joints between: a brick / block wall
+    if gen in (None, 'noise', 'panel', 'corrugated', 'planks', 'tiles', 'bricks'):
+        strong_x, strong_y = px > 12, py > 12
+        if gen == 'bricks':
+            opts.update(rows=int(min(16, max(4, ny))), cols=int(min(8, max(2, nx // 2 or 2))))
+        elif gen == 'tiles' or (gen in (None, 'noise') and strong_x and strong_y):
+            gen = 'tiles'
+            opts.update(n=int(min(8, max(2, round((nx + ny) / 2)))), grout=0.04)
+        elif gen == 'planks' or (gen in (None, 'noise') and strong_y and not strong_x and 'wood' in k):
+            gen = 'planks'
+            opts.update(n=int(min(10, max(1, ny if strong_y else 4))), vertical=bool(strong_x and not strong_y))
+        elif strong_x != strong_y and gen in (None, 'noise', 'panel', 'corrugated'):
+            n = nx if strong_x else ny
+            gen = 'corrugated' if n >= 6 else 'siding'
+            opts = {'ridges': int(min(24, n)), 'vertical': bool(strong_x)} if gen == 'corrugated' else {'n': int(n), 'vertical': bool(strong_x)}
+        elif gen is None:
+            gen = 'noise'
+    if gen == 'noise':
+        opts.setdefault('contrast', round(float(np.clip(std / 32.0, 0.4, 1.6)), 2))
+        opts.setdefault('beta', 1.8)
+        dark_frac = float((gray < gray.mean() - 2.2 * std).mean()) if std > 1 else 0.0
+        if dark_frac > 0.01:
+            opts['spots'] = round(min(0.2, dark_frac * 4), 3)
+    if gen == 'grate' and 'masked' in modes:
+        opts['masked'] = True
+    if gen == 'sign':
+        hsv = np.asarray(rgb.convert('HSV').resize((32, 32)), np.float32).reshape(-1, 3)
+        vivid = hsv[hsv[:, 1] > 80]
+        base = np.asarray(rgb.resize((32, 32)), np.float32).reshape(-1, 3)
+        col = base[hsv[:, 1] > 80].mean(axis=0) if len(vivid) > 20 else mid
+        opts.update(color=[int(c) for c in col], mark=[255, 255, 255] if col.mean() < 150 else [30, 30, 30])
+    if gen == 'window':
+        opts.update(nx=int(min(6, max(1, nx if px > 8 else 2))), ny=int(min(6, max(1, ny if py > 8 else 2))))
+    spec.update(gen=gen, dark=[int(c) for c in dark], mid=[int(c) for c in mid], light=[int(c) for c in light])
+    spec.update(opts)
+    return spec
+
+
+def needed_textures() -> dict[str, set[str]]:
+    """Textures core maps use from classic packages, with the modes they're drawn in."""
+    sys.path.insert(0, str(MFPORT))
+    from mflib import config, packs
+    cfg = config.load()
+    p = packs.load()
+    need: dict[str, set[str]] = {}
+    for lj in (cfg.out_dir / 'Maps').glob('*/level.json'):
+        if packs.map_pack(p, lj.parent.name) != 'core':
+            continue
+        for key, modes in json.loads(lj.read_text())['texture_usage'].items():
+            pkg = key.split('.')[0]
+            if set(modes) <= {'sky'} or pkg.lower() == 'engine' or packs.package_pack(p, pkg) != 'classic':
+                continue
+            need.setdefault(key.lower(), set()).update(modes)
+    return need
+
+
+def write_auto_table() -> None:
+    hand = {k.lower() for k in tomllib.loads(TABLE.read_text())}
+    man = {k.lower(): (k, v) for k, v in json.loads((MFPORT / 'work' / 'out' / 'textures.json').read_text()).items()}
+    lines = ['# Written by `lookalike.py --auto` (re-run after converting more core maps); edit an entry or',
+             '# move it to lookalikes.toml to tune it. Colours were sampled from the originals.', '']
+    skipped, n = [], 0
+    for lk, modes in sorted(needed_textures().items()):
+        if lk in hand or lk not in man:
+            continue
+        key, info = man[lk]
+        f = MFPORT / 'work' / 'out' / info['file']
+        if not f.exists():
+            continue
+        spec = auto_spec(key, Image.open(f), modes)
+        if spec is None:
+            skipped.append(key)
+            continue
+        lines.append(f'["{key}"]')
+        for name, val in spec.items():
+            lines.append(f'{name} = {json.dumps(val)}')
+        lines.append('')
+        n += 1
+    if skipped:
+        lines.append('# not generated (see-through shapes; replace by hand): ' + ', '.join(skipped))
+    AUTO_TABLE.write_text('\n'.join(lines) + '\n')
+    print(f'[lookalike] {n} automatic entries -> {AUTO_TABLE.name} ({len(skipped)} left for hand-made art)')
 
 
 def main(argv: list[str]) -> None:
+    if '--auto' in argv:
+        write_auto_table()
+        if len([a for a in argv if not a.startswith('--')]) == 0 and '--sheet' not in argv:
+            return
     table = tomllib.loads(TABLE.read_text())
+    if AUTO_TABLE.exists():
+        for key, spec in tomllib.loads(AUTO_TABLE.read_text()).items():
+            table.setdefault(key, spec)
     want = [a for a in argv if not a.startswith('--')]
     sheet = []
+    n = 0
     for key, spec in table.items():
         if want and not any(w.lower() in key.lower() for w in want):
             continue
         img = make(key, spec)
         parts = key.split('.')
-        dst = OVERRIDES.joinpath(*parts[:-1], parts[-1] + '.png')
+        dst = OUT.joinpath(*parts[:-1], parts[-1] + '.png')
         dst.parent.mkdir(parents=True, exist_ok=True)
         img.save(dst, optimize=True)
-        print(f'[lookalike] {key} ({spec["gen"]}) -> {dst.relative_to(HERE.parent.parent)}')
-        sheet.append((key, img))
+        n += 1
+        if len(sheet) < 120:
+            sheet.append((key, img))
+    print(f'[lookalike] {n} textures -> {OUT}')
     if '--sheet' in argv and sheet:
         cell = 160
         cols = 6

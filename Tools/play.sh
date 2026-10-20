@@ -8,7 +8,7 @@
 #   Tools/play.sh editor                       open the editor instead
 #   Tools/play.sh build                        compile the C++ modules first
 #
-# Modes: dm, tdm, holdout, sc (Safecracker), ctf, det (Detonation), cap (Captains), trailer, koh, tug, coop, zombie.
+# Modes: dm, tdm, holdout, sc (Safecracker), ctf, det (Detonation), cap (Captains), trailer, koh, tug, coop, zombie, arena.
 # No arguments at all would start the main menu: run the editor binary with -game and no map. Extra arguments after the bot count go to the engine
 # (e.g. -ResX=1600 -ResY=900, -log). Engine path: mfport.toml `ue_root` or $UE_ROOT.
 set -euo pipefail
@@ -50,6 +50,7 @@ case "$MODE" in
   trailer) GAME="/Script/DesktopForces.MFGameMode_Trailer" ;;
   coop)    GAME="/Script/DesktopForces.MFGameMode_Coop" ;;
   zombie)  GAME="/Script/DesktopForces.MFGameMode_Zombie" ;;
+  arena)   GAME="/Script/DesktopForces.MFGameMode_Arena" ;;
   *)       GAME="$MODE" ;;
 esac
 

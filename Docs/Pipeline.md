@@ -208,6 +208,21 @@ Overrides are committed and become core content (`/Game/MF/Replacements`). Prefe
 (ambientCG, Poly Haven, Kenney, freesound CC0) and note the source/licence in
 `overrides/CREDITS.md`.
 
+**Generated stand-ins** (`Tools/artgen/lookalike.py`): for every texture core maps still borrow,
+a procedural replacement - bricks, planks, corrugated sheet, siding, tiles, panels, plaster /
+concrete noise, pipes, grates (see-through), windows, lamps, glows, screens, skies, and signs
+with words of our own. `--auto` picks the generator from the name and from stripes / grids found
+in the original (FFT of its rows and columns), and stores it with the original's dark / mid / light
+colours in `lookalikes_auto.toml` (committed); `lookalikes.toml` holds hand-tuned entries. Only
+colours are taken from the originals. Outputs land in `work/generated/textures` (git-ignored,
+re-created anywhere from the tables, no game needed) and count as replacement art after any
+hand-made override. See-through shapes (foliage, decals) are left for hand-made art (listed at the
+end of the auto table).
+
+    python3 Tools/artgen/lookalike.py --auto    # after converting more core maps
+    python3 Tools/artgen/lookalike.py           # generate (7 min for ~850)
+    python3 Tools/mfport/mfport.py textures && python3 Tools/mfport/mfport.py import --steps textures
+
 Masked textures get their see-through texels' colour bled in from the opaque neighbours
 (`bleed_alpha` in `textures.py`): UE1 kept palette index 0 (white, magenta) there, which
 filtering and mips smeared into white fringes (tyres, fences).

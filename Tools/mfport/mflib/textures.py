@@ -26,6 +26,8 @@ from .config import Config, TOOL_DIR
 from .upkg import Package, Reader
 
 OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
+# procedural replacement art from Tools/artgen/lookalike.py (git-ignored; hand-made overrides win)
+GENERATED_DIR = TOOL_DIR / 'work' / 'generated' / 'textures'
 
 # Textures the game code uses directly (HUD), converted even if no map references them.
 UI_TEXTURES = {
@@ -126,6 +128,8 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
         dst.parent.mkdir(parents=True, exist_ok=True)
         needs_alpha = bool(modes & {'masked', 'lumalpha', 'fontalpha'}) or info['masked']
         override = OVERRIDE_DIR / rel.with_suffix('.png')
+        if not override.exists():
+            override = GENERATED_DIR / rel.with_suffix('.png')
         replacement = None
         if override.exists():
             # replacement art: imported next to the original (/Game/MF/Replacements); core maps
