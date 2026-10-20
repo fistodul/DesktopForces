@@ -196,9 +196,9 @@ void AMFHUD::DrawHUD()
 		if (bArt)
 		{
 			DrawPainMF();
-			if (!(PC && PC->IsScoreboardShown()) && !(GS && GS->HasMatchEnded()))
+			if (!C->IsInLoadout() && !(PC && PC->IsScoreboardShown()) && !(GS && GS->HasMatchEnded()))
 			{
-				DrawMiniMapMF(C);   // under the scoreboard in MF
+				DrawMiniMapMF(C);   // the loadout grid and the scoreboard take its place in MF
 			}
 			DrawHealthMF(C);
 			DrawInventoryMF(C, PC);
@@ -481,7 +481,10 @@ void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 	}
 	else if (PC && PC->PlayerState)
 	{
-		Text(FString::Printf(TEXT("FRAGS %d"), FMath::RoundToInt(PC->PlayerState->GetScore())), 20.f * UIScale, 10.f * UIScale, White, 1.f);
+		// (MF's DM HUD has no frag counter; bottom right, clear of the minimap)
+		const FString Frags = FString::Printf(TEXT("Frags %d"), FMath::RoundToInt(PC->PlayerState->GetScore()));
+		const FVector2D FS = MFTextSize(Frags, 1);
+		MFText(Frags, Canvas->ClipX - FS.X - Block * 0.25f, Canvas->ClipY - FS.Y - Block * 0.25f, White, 1);
 	}
 	if (GetWorld()->GetTimeSeconds() - AnnouncementTime < 4.f && !(PC && PC->IsScoreboardShown()) && !GS->HasMatchEnded())
 	{
@@ -1168,6 +1171,7 @@ void AMFHUD::DrawLoadoutMF(AMFCharacter* C, AMFPlayerController* PC)
 	}
 	const FString Msg = OpenSlot
 		? FString::Printf(TEXT("Row %s: press the item's number"), *AMFWeapon::SlotKeyName(OpenSlot))
-		: TEXT("Press Q to Exit Loadout");
-	Text(Msg, Canvas->ClipX * 0.5f, Canvas->ClipY - Block * 4.f, White, 1.4f * RS, true);
+		: TEXT("Press BACKSPACE or Q to Exit Loadout");   // RagePlayer loadout hint
+	const FVector2D MS = MFTextSize(Msg, 1);
+	MFText(Msg, (Canvas->ClipX - MS.X) * 0.5f, Canvas->ClipY - Block * 4.f, White, 1);
 }
