@@ -53,6 +53,8 @@ public:
 	void PickUp(AMFCharacter* By);
 	/** Holder died / left: fall to the floor where they were. */
 	void Drop();
+	/** Lie at Spot, takeable, with the 25 s timeout running (the Detonation key's spawns). */
+	void PlaceDropped(const FVector& Spot, const FRotator& Rot = FRotator::ZeroRotator);
 	void UpdateLook();
 
 	static AMFFlag* FindCarriedBy(const AMFCharacter* C);
@@ -99,6 +101,8 @@ public:
 	virtual void FlagPickedUp(AMFFlag* Flag, AMFCharacter* By);
 	virtual void FlagDropped(AMFFlag* Flag, AMFCharacter* Was);
 	virtual void FlagWentHome(AMFFlag* Flag);
+	/** Lay untouched for 25 s after a drop: default home with a "returned" line. */
+	virtual void FlagTimedOut(AMFFlag* Flag);
 
 	/** Colour-coded event line for everyone (MF RageCTFMessage / RageSCMessage). */
 	void Event(const FString& Text, uint8 ColourTeam);

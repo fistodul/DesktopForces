@@ -146,10 +146,8 @@ void AMFFlag::Drop()
 		return;
 	}
 	OldHolder = Was;
-	TimeDropped = GetWorld()->GetTimeSeconds();
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	Holder = nullptr;
-	State = EMFFlagState::Dropped;
 	// MF Drop: two collision radii behind the holder, then it falls
 	FVector Spot = Was->GetActorLocation() - Was->GetActorForwardVector() * 76.f;
 	FHitResult Hit;
@@ -162,21 +160,33 @@ void AMFFlag::Drop()
 	{
 		Spot = Hit.Location + FVector(0, 0, 20.f);
 	}
-	SetActorLocationAndRotation(Spot, FRotator::ZeroRotator);
-	UpdateLook();
-	ForceNetUpdate();
 	if (AMFGameMode_Flags* GM = FlagMode(this))
 	{
 		GM->FlagDropped(this, Was);
 	}
-	// MF state Dropped: home after 25 s
+	PlaceDropped(Spot);
+}
+
+void AMFFlag::PlaceDropped(const FVector& Spot, const FRotator& Rot)
+{
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	Holder = nullptr;
+	State = EMFFlagState::Dropped;
+	TimeDropped = GetWorld()->GetTimeSeconds();
+	SetActorLocationAndRotation(Spot, Rot);
+	UpdateLook();
+	ForceNetUpdate();
+	// MF state Dropped: 25 s untouched and it goes home (the mode decides where)
 	GetWorldTimerManager().SetTimer(ReturnTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{
 		if (AMFGameMode_Flags* GM = FlagMode(this))
 		{
-			GM->Event(FString::Printf(TEXT("The %s %s was returned!"), AMFGameMode_Flags::TeamName(Team), *GM->GetObjectName()), Team);
+			GM->FlagTimedOut(this);
 		}
-		SendHome();
+		else
+		{
+			SendHome();
+		}
 	}), 25.f, false);
 	TArray<AActor*> Inside;
 	Trigger->GetOverlappingActors(Inside, AMFCharacter::StaticClass());
@@ -310,6 +320,12 @@ void AMFGameMode_Flags::FlagReturned(AMFFlag* Flag, AMFCharacter* By)
 
 void AMFGameMode_Flags::FlagWentHome(AMFFlag* Flag)
 {
+}
+
+void AMFGameMode_Flags::FlagTimedOut(AMFFlag* Flag)
+{
+	Event(FString::Printf(TEXT("The %s %s was returned!"), TeamName(Flag->Team), *ObjectName), Flag->Team);
+	Flag->SendHome();
 }
 
 void AMFGameMode_Flags::FlagCaptured(AMFFlag* Flag, AMFCharacter* By)
