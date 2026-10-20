@@ -1,4 +1,6 @@
 #include "UI/MFHUD.h"
+#include "World/MFMapActors.h"
+#include "Game/MFFlag.h"
 #include "Game/MFSafecracker.h"
 #include "Loadout/MFLoadout.h"
 #include "Core/MFGameSettings.h"
@@ -194,6 +196,7 @@ void AMFHUD::DrawHUD()
 		if (bArt)
 		{
 			DrawPainMF();
+			DrawMiniMapMF(C);
 			DrawHealthMF(C);
 			DrawInventoryMF(C, PC);
 			if (AMFWeapon* W = C->GetCurrentWeapon())
@@ -498,6 +501,104 @@ void AMFHUD::DrawMessages()
 	}
 }
 
+void AMFHUD::DrawMiniMapMF(AMFCharacter* C)
+{
+	if (!bLookedForMapInfo)
+	{
+		bLookedForMapInfo = true;
+		for (TActorIterator<AMFMapInfo> It(GetWorld()); It; ++It)
+		{
+			MapInfo = *It;
+		}
+	}
+	UTexture2D* Map = MapInfo ? MapInfo->MiniMap.LoadSynchronous() : nullptr;
+	if (!Map || !TexMiniIcons)
+	{
+		return;
+	}
+	// 1 texture pixel = 64 uu = 144 cm (MiniMapInfo.PixelsToMapUnits)
+	const FVector4 B = MapInfo->MiniMapBounds;
+	const float CmPerPx = 144.f;
+	const float TexW = (B.Z - B.X) / CmPerPx, TexH = (B.W - B.Y) / CmPerPx;
+	if (TexW <= 0.f || TexH <= 0.f)
+	{
+		return;
+	}
+	const float Size = 192.f * RS, O = Block * 0.125f;   // MiniMapSize 192
+	const int32 T = TeamSet();
+	// background: MF darkens with a team tint (MapBack_Team, STY_Subtractive)
+	Box(O, O, Size, Size, T == 1 ? FLinearColor(0.35f, 0.04f, 0.04f, 0.6f) : FLinearColor(0.04f, 0.08f, 0.35f, 0.6f));
+	// RageHUD.SetMapExtents (own position only): as zoomed as the map allows, centred on us
+	const float Scale = FMath::Max(1.f, FMath::Max(192.f / TexW, 192.f / TexH)) * RS;   // screen px per map px
+	const float View = Size / Scale;
+	const FVector P = C->GetActorLocation();
+	const float PX = (P.X - B.X) / CmPerPx, PY = (P.Y - B.Y) / CmPerPx;
+	const float MX = FMath::Clamp(PX - View * 0.5f, 0.f, FMath::Max(0.f, TexW - View));
+	const float MY = FMath::Clamp(PY - View * 0.5f, 0.f, FMath::Max(0.f, TexH - View));
+	DrawTexRect(Map, O, O, Size, Size, MX, MY, View, View, FLinearColor::White, SE_BLEND_Translucent);
+
+	auto ToScreen = [&](const FVector& W) { return FVector2D(O + ((W.X - B.X) / CmPerPx - MX) * Scale, O + ((W.Y - B.Y) / CmPerPx - MY) * Scale); };
+	auto Inside = [&](const FVector2D& S) { return S.X >= O && S.Y >= O && S.X <= O + Size && S.Y <= O + Size; };
+	const float Icon = 24.f * RS;   // MinimapIconSize
+	auto DrawIcon = [&](const FVector& W, float U, float V, float Rot = 0.f, bool bRotate = false)
+	{
+		const FVector2D S = ToScreen(W);
+		if (!Inside(S))
+		{
+			return;
+		}
+		const float TW = TexMiniIcons->GetSizeX(), TH = TexMiniIcons->GetSizeY();
+		FCanvasTileItem Tile(S - FVector2D(Icon * 0.5f), TexMiniIcons->GetResource(), FVector2D(Icon),
+			FVector2D(U / TW, V / TH), FVector2D((U + 32.f) / TW, (V + 32.f) / TH), FLinearColor::White);
+		Tile.BlendMode = SE_BLEND_Translucent;
+		if (bRotate)
+		{
+			Tile.Rotation = FRotator(0.f, Rot, 0.f);
+			Tile.PivotPoint = FVector2D(0.5f, 0.5f);
+		}
+		Canvas->DrawItem(Tile);
+	};
+	const float TeamU = T == 1 ? 192.f : 224.f;   // *_Team(0) X=224, (1) X=192
+	// objectives the whole team sees (MinimapInfo.TrackItem): safes, gold, flags, locks
+	for (TActorIterator<AMFSafe> It(GetWorld()); It; ++It)
+	{
+		DrawIcon(It->GetActorLocation(), It->Team == 1 ? 192.f : 224.f, 192.f);   // SafeIcon_Team
+	}
+	for (TActorIterator<AMFFlag> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsHidden() || It->State == EMFFlagState::Held)
+		{
+			DrawIcon(It->GetActorLocation(), It->Team == 1 ? 192.f : 224.f, 128.f);   // GoldIcon_Team
+		}
+	}
+	// team-mates (TeamMateIcon_Team Y=32)
+	if (const AMFPlayerState* MyPS = C->GetPlayerState<AMFPlayerState>(); MyPS && MyPS->HasTeam())
+	{
+		for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+		{
+			if (*It != C && It->IsAlive() && It->GetTeam() == MyPS->GetTeam())
+			{
+				DrawIcon(It->GetActorLocation(), TeamU, 32.f);
+			}
+		}
+	}
+	// us: PlayerIcon_Team (Y=0), turned with the view (MF draws a 3D arrow here)
+	DrawIcon(P, TeamU, 0.f, C->GetControlRotation().Yaw + 90.f, true);
+
+	// border: 16 px pieces around MiniMapSize + 4, team rects in MinimapNewIcons
+	const float BX = 6.f * RS, Edge = 16.f * RS, BS = (192.f + 4.f) * RS;
+	const float L = T == 1 ? 13.f : 109.f;     // TL X; TC +16, TR +54
+	auto Piece = [&](float X, float Y, float W, float H, float U, float V) { DrawTexRect(TexMiniIcons, X, Y, W, H, U, V, 16.f, 16.f, FLinearColor::White, SE_BLEND_Translucent); };
+	Piece(BX, BX, Edge, Edge, L, 77.f);
+	Piece(BX + Edge, BX, BS - 2.f * Edge, Edge, L + 16.f, 77.f);
+	Piece(BX + BS - Edge, BX, Edge, Edge, L + 54.f, 77.f);
+	Piece(BX, BX + Edge, Edge, BS - 2.f * Edge, L, 93.f);
+	Piece(BX + BS - Edge, BX + Edge, Edge, BS - 2.f * Edge, L + 54.f, 93.f);
+	Piece(BX, BX + BS - Edge, Edge, Edge, L, 131.f);
+	Piece(BX + Edge, BX + BS - Edge, BS - 2.f * Edge, Edge, L + 16.f, 131.f);
+	Piece(BX + BS - Edge, BX + BS - Edge, Edge, Edge, L + 54.f, 131.f);
+}
+
 void AMFHUD::DrawCaptainMarkers(AMFPlayerController* PC)
 {
 	FVector Eye;
@@ -684,6 +785,7 @@ bool AMFHUD::LoadMFArt()
 		TexPain[1] = LoadTex(TEXT("/Game/MFImported/Textures/Rage/OwRed.OwRed"));
 		TexScoreBoxes = LoadTex(TEXT("/Game/MFImported/Textures/Rage/ScoreBoxes.ScoreBoxes"));
 		TexScoreIcons = LoadTex(TEXT("/Game/MFImported/Textures/Rage/ScoreIcons.ScoreIcons"));
+		TexMiniIcons = LoadTex(TEXT("/Game/MFImported/Textures/Rage/MinimapNewIcons.MinimapNewIcons"));
 		for (int32 i = 0; i < 24; ++i)
 		{
 			const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));

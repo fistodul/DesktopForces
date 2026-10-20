@@ -116,6 +116,20 @@ class LevelConverter:
             self.texture_sizes.setdefault(lk, (256, 256))
         return self.texture_sizes[lk]
 
+    def add_minimap(self, actors: list[dict], spawns: list[dict]):
+        """MF MiniMapInfo -> the map_info record: texture + world bounds (cm, MapLeft/Top/Right/Bottom)."""
+        mm = next((a for a in actors if a['class'] == 'MiniMapInfo'), None)
+        info = next((s for s in spawns if s['type'] == 'map_info'), None)
+        tex = t3d.parse_object_ref(mm['props'].get('MiniMapTex(0)')) if mm else None
+        if not (mm and info and tex):
+            return
+        p = mm['props']
+        info['minimap'] = {
+            'texture': tex,
+            'bounds': [float(p.get(k, 0)) * UU_TO_CM for k in ('MapLeft', 'MapTop', 'MapRight', 'MapBottom')],
+        }
+        self.usage.setdefault(tex.lower(), set()).add('lumalpha')   # black = see-through, like MF's alpha style
+
     def _use(self, key: str):
         tex, mode = key.split('|')
         self.usage.setdefault(tex.lower(), set()).add(mode.split('_')[0])
@@ -308,6 +322,7 @@ class LevelConverter:
         bounds = self.zone_bounds(model)
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
+        self.add_minimap(actors, spawns)
         for rec in spawns:
             if rec['type'] == 'static_mesh':
                 loc = [c / UU_TO_CM for c in rec['location']]

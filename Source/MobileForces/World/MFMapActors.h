@@ -34,6 +34,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
 	TObjectPtr<USoundBase> Music;
 
+	/** MF MiniMapInfo: top-down map texture (64 uu per pixel) and the world box it covers. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
+	TSoftObjectPtr<class UTexture2D> MiniMap;
+
+	/** World X of the texture's left edge, Y of its top, X right, Y bottom (cm; MF MapLeft/Top/Right/Bottom). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
+	FVector4 MiniMapBounds = FVector4(0, 0, 0, 0);
+
 	/** MF "Fog end is the draw distance": cull distance for the whole map (cm, 0 = unlimited). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
 	float DrawDistance = 0.f;

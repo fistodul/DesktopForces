@@ -359,6 +359,16 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			Info->Author = R->GetStringField(TEXT("author"));
 			Info->IdealPlayerCount = R->GetStringField(TEXT("ideal_players"));
 			Info->SourceMap = MapName;
+			const TSharedPtr<FJsonObject>* MM = nullptr;
+			if (R->TryGetObjectField(TEXT("minimap"), MM))
+			{
+				Info->MiniMap = FindTexture((*MM)->GetStringField(TEXT("texture")));
+				const TArray<TSharedPtr<FJsonValue>>& B = (*MM)->GetArrayField(TEXT("bounds"));
+				if (B.Num() == 4)
+				{
+					Info->MiniMapBounds = FVector4(B[0]->AsNumber(), B[1]->AsNumber(), B[2]->AsNumber(), B[3]->AsNumber());
+				}
+			}
 			FString Song, SongPkg, SongName;
 			if (R->TryGetStringField(TEXT("song"), Song) && Song.Split(TEXT("."), &SongPkg, &SongName))
 			{

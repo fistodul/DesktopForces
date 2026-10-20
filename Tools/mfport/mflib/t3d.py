@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 
 _BEGIN = re.compile(r'^\s*Begin\s+(\w+)(.*)$')
 _END = re.compile(r'^\s*End\s+(\w+)\s*$')
-_KV = re.compile(r'(\w+)=("[^"]*"|\([^()]*(?:\([^()]*\)[^()]*)*\)|\S+)')
+# keys may carry an array index: MiniMapTex(0)=..., MultiSkins(1)=...
+_KV = re.compile(r'(\w+(?:\(\d+\))?)=("[^"]*"|\([^()]*(?:\([^()]*\)[^()]*)*\)|\S+)')
 
 
 @dataclass

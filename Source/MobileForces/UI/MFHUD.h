@@ -101,6 +101,13 @@ protected:
 	void DrawHealthMF(AMFCharacter* C);
 	void DrawLoadoutMF(AMFCharacter* C, AMFPlayerController* PC);
 	void DrawPainMF();
+	/** RageHUD.DrawMiniMap: map around the player top left, team border, team-mates, objectives. */
+	void DrawMiniMapMF(AMFCharacter* C);
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> TexMiniIcons;
+	UPROPERTY(Transient)
+	TObjectPtr<class AMFMapInfo> MapInfo;
+	bool bLookedForMapInfo = false;
 	/** RageTeamHUD.DrawScoreBar: box in a colour set, fill, icon to the right, text. */
 	void DrawScoreBarMF(float X, float Y, float W, float H, int32 BoxSet, int32 Icon, const FString& Label, float Level);
 	/** Bottom right: team score panels (RageTeamHUD.DrawTeamScores) or the mode's bars. True if drawn. */

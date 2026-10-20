@@ -48,7 +48,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ⬜ More MF-mods: Totem, ZombieGame (as components, not player subclasses), TugGame, CoopMode, arenaMode, SentryGun, SeekerMines, TripLasers, PredatorMissile …
 
 ## Presentation
-- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars; ⬜ minimap, MF scoreboard
+- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars, minimap (MF MiniMapInfo texture, team border, team-mates, objectives); ⬜ MF scoreboard
 - ✅ MF loadout behaviour: frozen soldier and view, one cursor through store and carried items (put back from the inventory), W/S/wheel/Fire/E, number rows + X, sounds, spawn protection
 - ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom)

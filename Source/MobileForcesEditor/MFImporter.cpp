@@ -195,7 +195,7 @@ bool FMFImporter::ImportTextures()
 bool FMFImporter::IsUITexture(const FString& Key)
 {
 	return Key.StartsWith(TEXT("Rage."), ESearchCase::IgnoreCase) || Key.StartsWith(TEXT("RageWeapons."), ESearchCase::IgnoreCase)
-		|| Key.StartsWith(TEXT("MobileForceFonts."), ESearchCase::IgnoreCase);
+		|| Key.StartsWith(TEXT("MobileForceFonts."), ESearchCase::IgnoreCase) || Key.Contains(TEXT("minimap"), ESearchCase::IgnoreCase);
 }
 
 void FMFImporter::ImportFonts()
