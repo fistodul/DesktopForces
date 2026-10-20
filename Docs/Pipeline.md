@@ -22,7 +22,7 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | Command | Does |
 |---|---|
 | `mfport.py map mf-warehouse` | BSP world geometry → chunked `.mfmesh`; static meshes → `.mfmesh`; actors → `level.json` |
-| `mfport.py props` | gameplay meshes from Rage.u / RageGame.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers) → `.mfmesh` |
+| `mfport.py props` | gameplay meshes from Rage.u / RageGame.u / RageWeapons.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers; `LodMesh`: weapon models, rockets, det key) → `.mfmesh` |
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
@@ -77,6 +77,11 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   (material, first index, primitive count, list/strip, vertex range). Positions are in uu with
   the mesh-import scale already applied. Converted to `/Game/MFImported/Props/<Package>/<Name>`;
   game actors put them on with `MF::ApplyPropMesh` and keep their placeholder shapes without.
+- **LodMesh** (`mflib/lodmesh.py`): UE1 vertex-animated mesh (packed 11/11/10-bit vertices per
+  frame, wedges with byte UVs, faces, materials, mesh origin/rotation/scale). The first frame
+  becomes a static prop: weapon carry models (held in first person, dropped on the floor),
+  rockets, grenades, the detonation key. Skeletal first-person meshes with arms (SkeletalMesh)
+  are not read yet.
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
   triangles have position, normal and normalised UV.
 - **Animations** (weapons/characters): `MeshAnimation` objects parse fully (bones, motion

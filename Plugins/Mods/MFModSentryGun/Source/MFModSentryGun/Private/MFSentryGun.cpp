@@ -1,5 +1,6 @@
 #include "MFSentryGun.h"
 #include "Core/MFGameSettings.h"
+#include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -89,7 +90,12 @@ void AMFSentryTurret::InitPlacer(AMFCharacter* Placer)
 void AMFSentryTurret::BeginPlay()
 {
 	Super::BeginPlay();
-	if (GetNetMode() != NM_DedicatedServer)
+	// MF SentryGunTurret draws the HMG carry model (DrawScale 1.25); team tint on the placeholder only
+	if (MF::ApplyPropMesh(Gun, TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh"), 1.25f, FVector(0.f, 0.f, 22.5f)))
+	{
+		Gun->SetWorldRotation(Aim);
+	}
+	else if (GetNetMode() != NM_DedicatedServer)
 	{
 		if (UMaterialInterface* M = UMFGameSettings::Get().GetTeamTintMaterial())
 		{
@@ -298,6 +304,7 @@ void AMFSentryTurret::BlowUp()
 AMFWeapon_SentryGun::AMFWeapon_SentryGun()
 {
 	DisplayName = LOCTEXT("SentryGun", "Sentry Gun");
+	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	InventoryGroup = 11;
 	CarrySize = 2;
 	MaxClipAmmo = 1;

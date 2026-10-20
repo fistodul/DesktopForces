@@ -18,7 +18,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ⬜ Skeletal meshes + animations (soldiers, first-person weapons): MeshAnimation parses; SkeletalMesh reader + PSK/glTF export
 - ✅ Rage `DeviceMesh` (vehicles, wheels, crates, safes, flag bases, det locks, holdout timers): `mfport.py props`
-- ⬜ `LodMesh` (pickups, rockets, grenades, det key) and Rage `CollisionMesh`
+- ✅ `LodMesh` first frame (weapon carry models, rockets, grenades, det key); ⬜ Rage `CollisionMesh`, LodMesh animation
 - ⬜ Movers (doors/lifts are brushes with keyframes), water zones → volumes
 - ✅ Ladders → `AMFLadderVolume` with nav links
 - ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes
@@ -56,7 +56,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Generated art of our own (`Tools/artgen`): loadout crates with team stencil
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px
-- ⬜ First-person weapon models + animations, third-person soldiers, team skins
+- 🟡 First-person weapons: MF carry models held in view (no arms / animations yet: those are SkeletalMeshes); ⬜ third-person soldiers, team skins
 - ⬜ Effects: muzzle flash, tracers, impacts, explosions, blood (cheap sprite particles)
 - 🟡 Menus: main menu (play / join / options / quit) and Esc menu in Slate; ⬜ server browser (333networks master server protocol)
 - ⬜ Touch controls (mobile)
