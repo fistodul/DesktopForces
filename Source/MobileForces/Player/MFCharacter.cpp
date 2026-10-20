@@ -136,6 +136,14 @@ void AMFCharacter::Destroyed()
 uint8 AMFCharacter::GetTeam() const
 {
 	const AMFPlayerState* PS = GetPlayerState<AMFPlayerState>();
+	if (!PS)
+	{
+		// riding in a vehicle: the controller (and its player state) is on the vehicle
+		if (const APawn* Ride = Cast<APawn>(GetAttachParentActor()))
+		{
+			PS = Ride->GetPlayerState<AMFPlayerState>();
+		}
+	}
 	return PS ? PS->GetTeam() : MF::NoTeam;
 }
 

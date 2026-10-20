@@ -117,4 +117,32 @@ AMFVehicle_Armadillo::AMFVehicle_Armadillo()
 	CameraDistance = 562.5f;
 }
 
+AMFVehicle_TrailerCab::AMFVehicle_TrailerCab()
+{
+	DisplayName = LOCTEXT("TrailerCab", "Trailer cab");
+	AccelTime = 9.f;   // pulling 1500 kg
+	CameraDistance = 900.f;
+}
+
+AMFVehicle_Trailer::AMFVehicle_Trailer()
+{
+	DisplayName = LOCTEXT("Trailer", "Bomb trailer");
+	bDriveable = false;
+	BodyMeshName = TEXT("Rage/TrailerMesh");
+	BoxCenter = FVector(0.f, 0.f, 40.f);
+	BoxExtent = FVector(170.f, 80.f, 80.f);
+	MassKg = 1500.f;                   // handling TRAILER Mass 1500
+	CenterOfMass = FVector(0.f, 0.f, -30.f);
+	Armour = 0.5f;
+	SuspensionTravel = 25.f;
+	SuspensionDamping = 0.5f;
+	// Trailer.COL; free-rolling, no steering
+	Wheels = {
+		Wheel(FVector(101.4f, 59.1f, -78.8f), 43.1f, false, false, TEXT("Rage/TrailerWheelR")),
+		Wheel(FVector(101.4f, -59.7f, -78.8f), 43.1f, false, false, TEXT("Rage/TrailerWheelL")),
+		Wheel(FVector(-88.3f, 59.1f, -78.8f), 43.1f, false, false, TEXT("Rage/TrailerWheelR")),
+		Wheel(FVector(-88.3f, -59.7f, -78.8f), 43.1f, false, false, TEXT("Rage/TrailerWheelL")),
+	};
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -41,3 +41,21 @@ class MOBILEFORCES_API AMFVehicle_Armadillo : public AMFVehicle
 public:
 	AMFVehicle_Armadillo();
 };
+
+/** Trailer mode's cab (MF TrailerCab extends Humvee): tows the bomb trailer. */
+UCLASS()
+class MOBILEFORCES_API AMFVehicle_TrailerCab : public AMFVehicle_Humvee
+{
+	GENERATED_BODY()
+public:
+	AMFVehicle_TrailerCab();
+};
+
+/** MF TrailerX / BombTrailer: no engine, no seats, towed by a cab. */
+UCLASS()
+class MOBILEFORCES_API AMFVehicle_Trailer : public AMFVehicle
+{
+	GENERATED_BODY()
+public:
+	AMFVehicle_Trailer();
+};

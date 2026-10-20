@@ -10,7 +10,7 @@
 #include "Player/MFCharacter.h"
 #include "Player/MFPlayerController.h"
 #include "Weapons/MFWeapon.h"
-#include "Vehicles/MFVehicle.h"
+#include "Vehicles/MFVehicles.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -587,6 +587,20 @@ void AMFHUD::DrawMiniMapMF(AMFCharacter* C)
 		if (!It->IsHidden() || It->State == EMFFlagState::Held)
 		{
 			DrawIcon(It->GetActorLocation(), It->Team == 1 ? 192.f : 224.f, 128.f);   // GoldIcon_Team
+		}
+	}
+	// Trailer (TrailerGameHUD): delivery bays, the cab coloured by who drives it
+	if (const AMFGameState* TGS = GetWorld()->GetGameState<AMFGameState>(); TGS && TGS->GameName == TEXT("Trailer"))
+	{
+		for (AMFLegacyActor* L : AMFLegacyActor::FindAll(GetWorld(), TEXT("TrailerDelivery")))
+		{
+			DrawIcon(L->GetActorLocation(), L->Team == 1 ? 64.f : 96.f, 192.f);   // DeliveryIcon_Team
+		}
+		for (TActorIterator<AMFVehicle_TrailerCab> It(GetWorld()); It; ++It)
+		{
+			const AMFCharacter* D = It->GetDriver();
+			const float U = !D || D->GetTeam() > 1 ? 96.f : (D->GetTeam() == 1 ? 128.f : 160.f);   // TrailerIcon_Team
+			DrawIcon(It->GetActorLocation(), U, 224.f);
 		}
 	}
 	// team-mates (TeamMateIcon_Team Y=32)

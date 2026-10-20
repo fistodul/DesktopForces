@@ -255,19 +255,6 @@ FString AMFGameMode_Flags::NameOf(const APawn* P)
 	return P && P->GetPlayerState() ? P->GetPlayerState()->GetPlayerName() : FString(TEXT("Someone"));
 }
 
-void AMFGameMode_Flags::Event(const FString& Text, uint8 ColourTeam)
-{
-	UE_LOG(LogMF, Display, TEXT("%s: %s"), *GameName, *Text);
-	const FName Type(*FString::Printf(TEXT("Event%d"), ColourTeam));
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		if (APlayerController* PC = It->Get())
-		{
-			PC->ClientTeamMessage(nullptr, Text, Type);
-		}
-	}
-}
-
 AMFFlag* AMFGameMode_Flags::SpawnFlag(uint8 Team, AActor* Home, const FVector& Location)
 {
 	FActorSpawnParameters SP;

@@ -16,6 +16,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Game/MFGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Sound/SoundBase.h"
@@ -140,10 +142,10 @@ void AMFVehicle::Tick(float DeltaSeconds)
 		UpdateWheelVisuals(DeltaSeconds);
 	}
 	// controllers send input only while keys are held: let go of everything otherwise
-	if (!Driver || GetWorld()->GetTimeSeconds() - LastInputTime > 0.15f)
+	if (!Driver || bLocked || GetWorld()->GetTimeSeconds() - LastInputTime > 0.15f)
 	{
 		Throttle = Steer = 0.f;
-		bHandbrake = !Driver;
+		bHandbrake = bLocked || (bDriveable && !Driver);   // parked cars hold, towed trailers roll
 	}
 }
 
@@ -293,7 +295,7 @@ FVector AMFVehicle::DoorExit(int32 Door) const
 
 bool AMFVehicle::TryEnter(AMFCharacter* C)
 {
-	if (!HasAuthority() || bBlownUp || !C || !C->IsAlive() || Driver || !IsNear(C) || C->IsInLoadout())
+	if (!HasAuthority() || bBlownUp || !bDriveable || bLocked || !C || !C->IsAlive() || Driver || !IsNear(C) || C->IsInLoadout())
 	{
 		return false;
 	}
@@ -312,6 +314,11 @@ bool AMFVehicle::TryEnter(AMFCharacter* C)
 	C->GetCharacterMovement()->DisableMovement();
 	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	C->SetActorRelativeLocation((SeatPositions.Num() ? SeatPositions[0] : FVector::ZeroVector) - BoxCenter);
+	LastDriver = C;
+	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+	{
+		GM->VehicleEntered(this, C);   // before possession: the soldier still has the player state
+	}
 	const FRotator View = PC->GetControlRotation();
 	PC->Possess(this);
 	PC->SetControlRotation(View);
@@ -367,12 +374,48 @@ void AMFVehicle::Destroyed()
 	if (HasAuthority())
 	{
 		Exit(true);
+		if (Trailer)
+		{
+			Trailer->Destroy();   // MF Vehicle.SilentDestroy: the trailer goes with the cab
+		}
 		if (Generator.IsValid())
 		{
 			Generator->VehicleGone();
 		}
 	}
 	Super::Destroyed();
+}
+
+void AMFVehicle::HitchTrailer(AMFVehicle* Other, const FVector& HitchPoint)
+{
+	if (!HasAuthority() || !Other || Other == this)
+	{
+		return;
+	}
+	Trailer = Other;
+	// ball joint: free to swing behind the cab, some pitch over bumps, little roll
+	Hitch = NewObject<UPhysicsConstraintComponent>(this);
+	Hitch->SetupAttachment(Body);
+	Hitch->RegisterComponent();
+	Hitch->SetRelativeLocation(HitchPoint - BoxCenter);
+	Hitch->SetDisableCollision(true);
+	Hitch->SetLinearXLimit(LCM_Locked, 0.f);
+	Hitch->SetLinearYLimit(LCM_Locked, 0.f);
+	Hitch->SetLinearZLimit(LCM_Locked, 0.f);
+	Hitch->SetAngularSwing1Limit(ACM_Limited, 75.f);
+	Hitch->SetAngularSwing2Limit(ACM_Limited, 25.f);
+	Hitch->SetAngularTwistLimit(ACM_Limited, 15.f);
+	Hitch->SetConstrainedComponents(Body, NAME_None, Other->Body, NAME_None);
+}
+
+void AMFVehicle::LockDown()
+{
+	bLocked = true;
+	Exit(true);
+	if (Trailer)
+	{
+		Trailer->LockDown();
+	}
 }
 
 // --- damage --------------------------------------------------------------------------------------
@@ -397,6 +440,10 @@ float AMFVehicle::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACon
 void AMFVehicle::BlowUp(AController* By)
 {
 	bBlownUp = true;
+	if (Trailer && !Trailer->bBlownUp)
+	{
+		Trailer->BlowUp(By);
+	}
 	AMFCharacter* Inside = Driver;
 	Exit(true);
 	if (Inside)
@@ -473,7 +520,7 @@ void AMFVehicleGenerator::VehicleGone()
 	GetWorldTimerManager().SetTimer(Timer, this, &AMFVehicleGenerator::Generate, 5.f, false);
 }
 
-void AMFVehicleGenerator::SpawnAll(UWorld* World)
+void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude)
 {
 	static const TPair<const TCHAR*, UClass*> Map[] = {
 		{ TEXT("BuggyGenerator"), AMFVehicle_Buggy::StaticClass() },
@@ -488,6 +535,10 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World)
 		{
 			const FString* Auto = L->Properties.Find(TEXT("bAutoGenerate"));
 			if (Auto && Auto->Equals(TEXT("False"), ESearchCase::IgnoreCase))
+			{
+				continue;
+			}
+			if (Exclude.ContainsByPredicate([L](const FVector& P) { return FVector::Dist(P, L->GetActorLocation()) < 800.f; }))
 			{
 				continue;
 			}

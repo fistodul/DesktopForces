@@ -81,7 +81,16 @@ public:
 	/** Server: let the driver out at the nearest free door. */
 	void Exit(bool bForce = false);
 	AMFCharacter* GetDriver() const { return Driver; }
+	/** Whoever drove it last (still set after they got out; Trailer scoring). */
+	AMFCharacter* GetLastDriver() const { return LastDriver.Get(); }
 	bool IsNear(const AMFCharacter* C) const;
+
+	/** Server: tow Other behind this one, joined at Hitch (this vehicle's MF body space, cm). */
+	void HitchTrailer(AMFVehicle* Other, const FVector& Hitch);
+	AMFVehicle* GetTrailer() const { return Trailer; }
+	/** Server: brakes on, nobody can drive it any more (MF LockDown). */
+	void LockDown();
+	bool IsLocked() const { return bLocked; }
 
 	/** Vehicle health (MF Pawn.Health 100 by default). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle")
@@ -115,6 +124,10 @@ protected:
 	TArray<TObjectPtr<UStaticMeshComponent>> WheelMeshes;
 
 	// --- tuning (constructors of the vehicle classes, MF values in comments) -------------------
+	/** Has an engine and a driver's seat (a trailer doesn't). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	bool bDriveable = true;
+
 	/** Converted MF body mesh ("Rage/BuggyMesh"); a box stands in without it. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	FString BodyMeshName;
@@ -178,6 +191,13 @@ protected:
 	UPROPERTY(Replicated)
 	TObjectPtr<AMFCharacter> Driver;
 
+	TWeakObjectPtr<AMFCharacter> LastDriver;
+	UPROPERTY(Transient)
+	TObjectPtr<AMFVehicle> Trailer;
+	UPROPERTY(Transient)
+	TObjectPtr<class UPhysicsConstraintComponent> Hitch;
+	bool bLocked = false;
+
 	float Throttle = 0.f;
 	float Steer = 0.f;
 	bool bHandbrake = false;
@@ -214,8 +234,8 @@ public:
 
 	void VehicleGone();
 
-	/** Spawn generators for every legacy *Generator actor in the world (server). */
-	static void SpawnAll(UWorld* World);
+	/** Spawn generators for every legacy *Generator actor in the world (server), except within 8 m of Exclude. */
+	static void SpawnAll(UWorld* World, const TArray<FVector>& Exclude = TArray<FVector>());
 
 protected:
 	virtual void BeginPlay() override;

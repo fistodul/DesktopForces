@@ -9,6 +9,7 @@
 #include "Player/MFCharacter.h"
 #include "Player/MFCharacterMovement.h"
 #include "Player/MFPlayerController.h"
+#include "Vehicles/MFVehicle.h"
 #include "Weapons/MFWeapon.h"
 #include "UObject/UObjectIterator.h"
 #include "World/MFLadder.h"
@@ -160,6 +161,17 @@ void UMFCheatManager::MFWalk(float Yaw, float Seconds, float Forward, float Righ
 
 void UMFCheatManager::MFTeleport(float X, float Y, float Z)
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPlayerController()->GetPawn()))
+	{
+		// a vehicle takes its trailer along (the hitch would pull them back together)
+		const FVector Offset = FVector(X, Y, Z) - V->GetActorLocation();
+		V->TeleportTo(FVector(X, Y, Z), V->GetActorRotation(), false, true);
+		if (AMFVehicle* T = V->GetTrailer())
+		{
+			T->TeleportTo(T->GetActorLocation() + Offset, T->GetActorRotation(), false, true);
+		}
+		return;
+	}
 	if (APawn* P = GetPlayerController()->GetPawn())
 	{
 		P->TeleportTo(FVector(X, Y, Z), P->GetActorRotation());

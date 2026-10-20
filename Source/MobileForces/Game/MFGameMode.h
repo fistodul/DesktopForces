@@ -50,6 +50,11 @@ public:
 	/** A blow would kill Victim: return true to keep them alive (mods: Tug of War converts instead). */
 	virtual bool PreventDeath(AMFCharacter* Victim, AController* Killer, TSubclassOf<UDamageType> DamageType) { return false; }
 
+	/** Someone got into a vehicle (Trailer: "trailer has been captured!"). */
+	virtual void VehicleEntered(class AMFVehicle* Vehicle, AMFCharacter* Driver) {}
+	/** Places where the map's vehicle generators stay off in this mode (Trailer: the delivery bays). */
+	virtual void GetVehicleExclusions(TArray<FVector>& OutPoints) const {}
+
 	/** Round-based modes: start the clock again, clear planted / dropped items, respawn everyone. */
 	void RestartRound();
 
@@ -73,6 +78,8 @@ public:
 	void FinishMatch(const FString& Winner);
 
 	// --- chat and team orders (MF Say / TeamSay, RageVoicePack orders) -----------------------
+	/** Game event line for everyone (MF EventN messages), in ColourTeam's colour (255 = white). */
+	void Event(const FString& Text, uint8 ColourTeam);
 	/** A chat line to everyone, or to the sender's team (team games). */
 	void BroadcastChat(AController* Sender, const FString& Msg, bool bTeam);
 	/** AGameMode's own "Say" exec runs first on a host: send it as the local player's chat. */

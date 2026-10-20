@@ -85,7 +85,9 @@ void AMFGameMode::HandleMatchHasStarted()
 	AddBots(BotCount);
 	if (bVehicles)
 	{
-		AMFVehicleGenerator::SpawnAll(GetWorld());   // the map's Buggy/Humvee/Truck/ArmadilloGenerators
+		TArray<FVector> Exclude;
+		GetVehicleExclusions(Exclude);
+		AMFVehicleGenerator::SpawnAll(GetWorld(), Exclude);   // the map's Buggy/Humvee/Truck/ArmadilloGenerators
 	}
 	GetWorldTimerManager().SetTimer(TimeLimitTimer, this, &AMFGameMode::CheckTimeLimit, 1.f, true);
 }
@@ -582,5 +584,18 @@ void AMFGameMode::RestartRound()
 			P->Destroy();
 		}
 		RestartPlayer(C);
+	}
+}
+
+void AMFGameMode::Event(const FString& Text, uint8 ColourTeam)
+{
+	UE_LOG(LogMF, Display, TEXT("%s: %s"), *GameName, *Text);
+	const FName Type(*FString::Printf(TEXT("Event%d"), ColourTeam));
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APlayerController* PC = It->Get())
+		{
+			PC->ClientTeamMessage(nullptr, Text, Type);
+		}
 	}
 }

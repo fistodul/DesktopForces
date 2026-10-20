@@ -104,8 +104,6 @@ public:
 	/** Lay untouched for 25 s after a drop: default home with a "returned" line. */
 	virtual void FlagTimedOut(AMFFlag* Flag);
 
-	/** Colour-coded event line for everyone (MF RageCTFMessage / RageSCMessage). */
-	void Event(const FString& Text, uint8 ColourTeam);
 	static const TCHAR* TeamName(uint8 Team);
 	static FString NameOf(const APawn* P);
 	const FString& GetObjectName() const { return ObjectName; }
