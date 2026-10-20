@@ -64,7 +64,9 @@ def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> in
             continue
         # -messaging: commandlets keep UdpMessaging off, and Lightmass talks to the editor
         # through it (without: "Timed out waiting for the recipient", then Lightmass dies)
-        rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', '-BuildNavigationData', f'-quality={quality}',
+        # no -BuildNavigationData: its rebuild comes out empty (tile size 0) and would replace
+        # the navmesh the importer built (with ladder link fix-ups); resaving keeps that one
+        rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', f'-quality={quality}',
                              '-allowcommandletrendering', '-messaging', f'-map={pkg}',
                              watch=('Lightmass crashed', 'Assertion failed', 'Lighting build failed',
                                     'Failed to build lighting'))

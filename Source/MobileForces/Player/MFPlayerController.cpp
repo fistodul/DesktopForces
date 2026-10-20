@@ -911,7 +911,14 @@ void AMFPlayerController::ClientTeamMessage_Implementation(APlayerState* SenderP
 		const FString Line = SenderPlayerState ? FString::Printf(TEXT("%s: %s"), *SenderPlayerState->GetPlayerName(), *S) : S;
 		// MF: team chat in the team colour, everything else white
 		const AMFPlayerState* PS = Cast<AMFPlayerState>(SenderPlayerState);
-		const FLinearColor Col = Type == TEXT("TeamSay") && PS && PS->HasTeam() ? UMFGameSettings::Get().GetTeamColor(PS->GetTeam()) : FLinearColor::White;
+		FLinearColor Col = Type == TEXT("TeamSay") && PS && PS->HasTeam() ? UMFGameSettings::Get().GetTeamColor(PS->GetTeam()) : FLinearColor::White;
+		const FString TypeStr = Type.ToString();
+		if (TypeStr.StartsWith(TEXT("Event")))
+		{
+			// game events (MF RageSCMessage ...): in the colour of the team they concern
+			const int32 Team = FCString::Atoi(*TypeStr.Mid(5));
+			Col = Team >= 0 && Team < 255 ? UMFGameSettings::Get().GetTeamColor(uint8(Team)) : FLinearColor::White;
+		}
 		HUD->AddMessage(Line, Col);
 	}
 }

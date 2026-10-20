@@ -105,6 +105,17 @@ void AMFBotController::Think()
 	{
 		Fight(C, Target);
 	}
+	else if (AActor* Thing = GetObjectiveTarget())
+	{
+		// objective to shoot (a safe): face it and keep firing, still walking the goal route
+		SetFocus(Thing);
+		if (!bHoldingFire && Now >= ReactionDue)
+		{
+			C->StartFire(false);
+			bHoldingFire = true;
+		}
+		Roam(C);
+	}
 	else
 	{
 		C->StopFire(false);
@@ -204,6 +215,12 @@ void AMFBotController::SetOrder(EMFBotOrder NewOrder, APawn* Giver)
 	LingerUntil = 0.f;
 	NextRoam = 0.f;
 	StopMovement();
+}
+
+AActor* AMFBotController::GetObjectiveTarget() const
+{
+	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	return GM ? GM->GetBotShootTarget(const_cast<AMFBotController*>(this)) : nullptr;
 }
 
 bool AMFBotController::FollowOrder(AMFCharacter* C)

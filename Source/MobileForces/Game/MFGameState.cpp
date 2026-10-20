@@ -8,6 +8,7 @@ void AMFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(AMFGameState, NumTeams);
 	DOREPLIFETIME(AMFGameState, FragLimit);
 	DOREPLIFETIME(AMFGameState, TimeLimit);
+	DOREPLIFETIME(AMFGameState, TimeLimitSeconds);
 	DOREPLIFETIME(AMFGameState, GoalTeamScore);
 	DOREPLIFETIME(AMFGameState, RespawnWait);
 	DOREPLIFETIME(AMFGameState, TeamScores);

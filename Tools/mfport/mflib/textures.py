@@ -40,6 +40,10 @@ UI_TEXTURES = {
     'rage.owblue': set(),
     'rage.owred': set(),
     'rage.scoreboardbits': {'masked'},
+    'rage.scoreboxes': {'masked'},         # RageTeamHUD.DrawScoreBar
+    'rage.scoreicons': {'masked'},
+    'rage.pickupicons': {'masked'},
+    'rage.minimapnewicons': {'masked'},
     # RageHUD.CrosshairGraphic(0..23) = CrossHairA..X; drawn subtractive + additive in MF, so
     # black means "nothing": alpha from brightness lets the HUD darken only the shape
     **{f'rage.crosshair{c}': {'lumalpha'} for c in 'abcdefghijklmnopqrstuvwx'},

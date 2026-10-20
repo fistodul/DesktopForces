@@ -1,4 +1,6 @@
 #include "Player/MFCheatManager.h"
+#include "Engine/DamageEvents.h"
+#include "TimerManager.h"
 #include "MobileForces.h"
 #include "Core/MFTypes.h"
 #include "Game/MFGameMode.h"
@@ -77,6 +79,31 @@ void UMFCheatManager::MFNavTest()
 				UE_LOG(LogMF, Display, TEXT("NavTest   nothing solid between path end and target (navmesh gap)"));
 			}
 		}
+	}
+}
+
+void UMFCheatManager::MFHurt(int32 N)
+{
+	if (APawn* P = GetPlayerController()->GetPawn())
+	{
+		P->TakeDamage(N, FDamageEvent(), nullptr, nullptr);
+	}
+}
+
+void UMFCheatManager::MFFire()
+{
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()))
+	{
+		C->StartFire(false);
+		TWeakObjectPtr<AMFCharacter> Weak = C;
+		FTimerHandle H;
+		GetWorld()->GetTimerManager().SetTimer(H, FTimerDelegate::CreateLambda([Weak]()
+		{
+			if (Weak.IsValid())
+			{
+				Weak->StopFire(false);
+			}
+		}), 0.1f, false);
 	}
 }
 

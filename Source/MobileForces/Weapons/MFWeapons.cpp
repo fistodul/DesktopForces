@@ -776,9 +776,11 @@ AMFWeapon_AdrenalineShot::AMFWeapon_AdrenalineShot()
 	MaxClipAmmo = 1;
 	MaxClips = 1;
 	bDestroyWhenEmpty = true;
-	FireTime = 0.5f;
-	EquipTime = 0.2f;
-	PutDownTime = 0.2f;
+	// MF AdrenalineShot: no select / fire / down animations (empty Play*Anim): ready at once,
+	// heals on the press and leaves the hands right after (Fire -> GotoState('DownWeapon'))
+	FireTime = 0.f;
+	EquipTime = 0.f;
+	PutDownTime = 0.f;
 	RecoilPower = 0.f;
 }
 

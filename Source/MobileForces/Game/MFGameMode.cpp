@@ -35,6 +35,7 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	NumTeams = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("Teams"), NumTeams));
 	FragLimit = UGameplayStatics::GetIntOption(Options, TEXT("FragLimit"), FragLimit);
 	TimeLimit = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), TimeLimit);
+	TimeLimitSeconds = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimitSecs"), TimeLimitSeconds);
 	GoalTeamScore = UGameplayStatics::GetIntOption(Options, TEXT("GoalTeamScore"), GoalTeamScore);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
@@ -54,6 +55,7 @@ void AMFGameMode::InitGameState()
 		GS->TeamScores.Init(0, NumTeams);
 		GS->FragLimit = FragLimit;
 		GS->TimeLimit = TimeLimit;
+		GS->TimeLimitSeconds = TimeLimitSeconds;
 		GS->GoalTeamScore = GoalTeamScore;
 		GS->RespawnWait = FMath::Max(1, RespawnWait);
 		GS->GameName = GameName;

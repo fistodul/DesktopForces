@@ -393,7 +393,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 		WS->LightmassSettings.EnvironmentColor = FLinearColor(C[0]->AsNumber(), C[1]->AsNumber(), C[2]->AsNumber()).ToFColor(true);
 		WS->LightmassSettings.EnvironmentIntensity = (*LM)->GetNumberField(TEXT("environment_intensity"));
 	}
-	WS->LightmassSettings.NumIndirectLightingBounces = 1;   // UE1 had no bounce light; one keeps corners from going black
+	WS->LightmassSettings.NumIndirectLightingBounces = 0;   // UE1: direct light + flat zone ambient (material), no bounce
 	WS->LightmassSettings.bUseAmbientOcclusion = false;
 	// UE1 lighting came from light actors only; unlit/sky surfaces (signs, lamps, sky windows)
 	// never lit anything. Lightmass would otherwise gather their emissive as light.

@@ -30,6 +30,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 TimeLimit = 0;
 
+	/** Seconds; overrides TimeLimit when set (Safecracker part 2 must beat part 1's time). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	int32 TimeLimitSeconds = 0;
+
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	int32 GoalTeamScore = 0;
 
@@ -48,7 +52,11 @@ public:
 	bool IsTeamGame() const { return NumTeams > 0; }
 
 	/** Seconds left (TimeLimit minus the engine's ElapsedTime); -1 without a limit. */
-	int32 GetRemainingTime() const { return TimeLimit > 0 ? FMath::Max(0, TimeLimit * 60 - ElapsedTime) : -1; }
+	int32 GetRemainingTime() const
+	{
+		const int32 Limit = TimeLimitSeconds > 0 ? TimeLimitSeconds : TimeLimit * 60;
+		return Limit > 0 ? FMath::Max(0, Limit - ElapsedTime) : -1;
+	}
 
 	int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }
 

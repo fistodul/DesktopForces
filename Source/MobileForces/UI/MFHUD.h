@@ -99,6 +99,10 @@ protected:
 	void DrawHealthMF(AMFCharacter* C);
 	void DrawLoadoutMF(AMFCharacter* C, AMFPlayerController* PC);
 	void DrawPainMF();
+	/** RageTeamHUD.DrawScoreBar: box in a colour set, fill, icon to the right, text. */
+	void DrawScoreBarMF(float X, float Y, float W, float H, int32 BoxSet, int32 Icon, const FString& Label, float Level);
+	/** Bottom right: team score panels (RageTeamHUD.DrawTeamScores) or the mode's bars. True if drawn. */
+	bool DrawGameInfoMF(AMFGameState* GS);
 	float HitTime = -100.f;
 	FVector HitDir = FVector::ZeroVector;
 	float Block = 64.f;   // MF BlockSize
@@ -111,6 +115,12 @@ protected:
 	TObjectPtr<UTexture2D> TexIcons;
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> TexLoadoutBack[2];
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> TexScoreBoxes;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> TexScoreIcons;
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> TexCrosshair[24];
 	UPROPERTY(Transient)

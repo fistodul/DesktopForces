@@ -61,6 +61,9 @@ public:
 	 */
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const {}
 
+	/** Something that isn't a player but bots should shoot at when no enemy is in sight (e.g. a safe). */
+	virtual AActor* GetBotShootTarget(AController* Bot) const { return nullptr; }
+
 	/** End the match with this winner line (also announced). */
 	void FinishMatch(const FString& Winner);
 
@@ -89,6 +92,9 @@ public:
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	int32 TimeLimit = 7;
+
+	/** Seconds; overrides TimeLimit when > 0 (URL option TimeLimitSecs). */
+	int32 TimeLimitSeconds = 0;
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	int32 GoalTeamScore = 0;

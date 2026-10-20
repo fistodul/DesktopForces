@@ -1,4 +1,5 @@
 #include "UI/MFHUD.h"
+#include "Game/MFSafecracker.h"
 #include "Loadout/MFLoadout.h"
 #include "Core/MFGameSettings.h"
 #include "Game/MFGameState.h"
@@ -376,10 +377,73 @@ void AMFHUD::DrawWeaponBar(AMFCharacter* C)
 	}
 }
 
+void AMFHUD::DrawScoreBarMF(float X, float Y, float W, float H, int32 BoxSet, int32 Icon, const FString& Label, float Level)
+{
+	// ScoreBoxes(0) Y=64 blue, (1) Y=0 red, (2) Y=32 grey; ScoreLevelBack X=4 Y=96 W=92 H=32
+	static const float BoxY[3] = { 64.f, 0.f, 32.f };
+	const int32 B = FMath::Clamp(BoxSet, 0, 2);
+	// STY_Alpha on these palette textures comes out about half see-through in MF
+	DrawTexRect(TexScoreBoxes, X, Y, W, H, 0.f, BoxY[B], 128.f, 32.f, FLinearColor(1.f, 1.f, 1.f, 0.55f), SE_BLEND_Translucent);
+	if (Level > 0.f && Level <= 1.f)
+	{
+		DrawTexRect(TexScoreBoxes, X + 4.f * RS, Y, 92.f * RS * Level, H, 4.f, 96.f, 92.f * Level, 32.f, SetColour(B == 2 ? 3 : B), SE_BLEND_Additive);
+	}
+	if (TexScoreIcons)
+	{
+		// ScoreIcons(0..2) X=128, Y=0/64/128, 64x64
+		DrawTexRect(TexScoreIcons, X + Block * 1.25f, Y - Block * 0.25f, Block, Block, 128.f, 64.f * FMath::Clamp(Icon, 0, 2), 64.f, 64.f,
+			FLinearColor::White, SE_BLEND_Translucent);
+	}
+	const FVector2D TS = MFTextSize(Label, 1);
+	MFText(Label, X + (W * 0.75f - TS.X) * 0.5f, Y + (H - TS.Y) * 0.5f, FLinearColor::White, 1);
+}
+
+bool AMFHUD::DrawGameInfoMF(AMFGameState* GS)
+{
+	if (!TexScoreBoxes)
+	{
+		return false;
+	}
+	// Safecracker (RageSafeCrackerHud): the defenders' safe meter, the countdown above it
+	for (TActorIterator<AMFSafe> It(GetWorld()); It; ++It)
+	{
+		if (It->bCrackable)
+		{
+			const float SX = Canvas->ClipX - Block * 2.25f;
+			float SY = Canvas->ClipY - Block * 0.75f;
+			const float Health = FMath::Clamp(It->Health, 0.f, 100.f) / 100.f;
+			// MF passes Health / 100 as the fill level (a bar too thin to see): the number tells
+			DrawScoreBarMF(SX, SY, Block * 2.f, Block * 0.5f, It->Team, It->Team, FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Health * 100.f)), 0.f);
+			SY -= Block * 0.75f;
+			const int32 Left = FMath::Max(0, GS->GetRemainingTime());
+			DrawScoreBarMF(SX, SY, Block * 2.f, Block * 0.5f, 2, 2, FString::Printf(TEXT("%d:%02d"), Left / 60, Left % 60), 0.f);
+			return true;
+		}
+	}
+	if (!GS->IsTeamGame())
+	{
+		return false;
+	}
+	// RageTeamHUD.DrawTeamScores: a 64x100 panel per team from the right, score inside
+	float SX = Canvas->ClipX - 64.f * RS;
+	const float SY = Canvas->ClipY - 100.f * RS;
+	for (int32 T = 0; T < FMath::Min(GS->NumTeams, 2); ++T)
+	{
+		DrawTexRect(TexBacks, SX, SY, 64.f * RS, 100.f * RS, 64.f, 128.f, 64.f, 100.f, SetColour(T), SE_BLEND_Additive);
+		DrawTexRect(TexIcons, SX, SY, 64.f * RS, 100.f * RS, T == 0 ? 64.f : 0.f, 0.f, 64.f, 100.f, FLinearColor::White, SE_BLEND_Translucent);
+		const FString S = FString::FromInt(GS->GetTeamScore(T));
+		const FVector2D TS = MFTextSize(S, 1);
+		MFText(S, SX + (Block - TS.X) * 0.5f, SY + 84.f * RS - TS.Y * 0.5f, FLinearColor::White, 1);
+		SX -= Block;
+	}
+	return true;
+}
+
 void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 {
 	const float CX = Canvas->ClipX * 0.5f;
-	if (const int32 Left = GS->GetRemainingTime(); Left >= 0)
+	const bool bMFPanels = LoadMFArt() && DrawGameInfoMF(GS);
+	if (const int32 Left = GS->GetRemainingTime(); Left >= 0 && !(bMFPanels && GS->GameName == TEXT("SafeCracker")))
 	{
 		Text(FString::Printf(TEXT("%d:%02d"), Left / 60, Left % 60), CX, 10.f * UIScale, White, 1.2f, true);
 	}
@@ -388,7 +452,7 @@ void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 		const UMFGameSettings& Settings = UMFGameSettings::Get();
 		const float Spacing = 140.f * UIScale;
 		float X = CX - Spacing * 0.5f * (GS->NumTeams - 1);
-		for (int32 T = 0; T < GS->NumTeams; ++T, X += Spacing)
+		for (int32 T = 0; T < GS->NumTeams && !bMFPanels; ++T, X += Spacing)
 		{
 			Text(FString::Printf(TEXT("%s %d"), *Settings.GetTeamName(T).ToString().ToUpper(), GS->GetTeamScore(T)),
 				X, 36.f * UIScale, Settings.GetTeamColor(T), 1.1f, true);
@@ -586,6 +650,8 @@ bool AMFHUD::LoadMFArt()
 		TexLoadoutBack[1] = LoadTex(TEXT("/Game/MFImported/Textures/Rage/LoadoutBackRed.LoadoutBackRed"));
 		TexPain[0] = LoadTex(TEXT("/Game/MFImported/Textures/Rage/OwBlue.OwBlue"));
 		TexPain[1] = LoadTex(TEXT("/Game/MFImported/Textures/Rage/OwRed.OwRed"));
+		TexScoreBoxes = LoadTex(TEXT("/Game/MFImported/Textures/Rage/ScoreBoxes.ScoreBoxes"));
+		TexScoreIcons = LoadTex(TEXT("/Game/MFImported/Textures/Rage/ScoreIcons.ScoreIcons"));
 		for (int32 i = 0; i < 24; ++i)
 		{
 			const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));

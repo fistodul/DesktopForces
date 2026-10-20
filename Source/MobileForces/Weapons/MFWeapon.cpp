@@ -182,6 +182,11 @@ void AMFWeapon::SetState(EMFWeaponState NewState, float Duration)
 	{
 		GetWorldTimerManager().SetTimer(StateTimer, this, &AMFWeapon::OnStateTimer, Duration, false);
 	}
+	else if (NewState != EMFWeaponState::Idle && NewState != EMFWeaponState::Inactive)
+	{
+		// no animation (MF items with empty Play*Anim): done on the next frame
+		StateTimer = GetWorldTimerManager().SetTimerForNextTick(this, &AMFWeapon::OnStateTimer);
+	}
 }
 
 void AMFWeapon::ClearStateTimer()

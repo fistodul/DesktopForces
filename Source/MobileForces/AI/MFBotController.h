@@ -56,6 +56,8 @@ protected:
 	FVector OrderSpot = FVector::ZeroVector;
 	/** Hold / Follow: move there instead of roaming. True if the order decided the move. */
 	bool FollowOrder(AMFCharacter* C);
+	/** The game mode's non-player target (GetBotShootTarget), if any. */
+	AActor* GetObjectiveTarget() const;
 
 	TWeakObjectPtr<AMFCharacter> Enemy;
 	float LastSeenEnemy = -100.f;

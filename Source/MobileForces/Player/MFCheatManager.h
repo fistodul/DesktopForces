@@ -17,6 +17,13 @@ public:
 	// --- Mobile Forces cheats (same names as the original; UE adds God, Ghost, Fly, Walk,
 	//     Slomo, Summon, Teleport, PlayersOnly, ViewSelf, DestroyAll ...) ---------------
 	/** Join team N and respawn there. */
+	/** Developer: take N damage (scripted tests). */
+	UFUNCTION(Exec)
+	void MFHurt(int32 N);
+	/** Developer: press and release fire once (scripted tests). */
+	UFUNCTION(Exec)
+	void MFFire();
+
 	/** Developer: move your pawn to X Y Z (scripted tests). */
 	UFUNCTION(Exec)
 	void MFTeleport(float X, float Y, float Z);
