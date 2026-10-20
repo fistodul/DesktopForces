@@ -22,13 +22,14 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | Command | Does |
 |---|---|
 | `mfport.py map mf-warehouse` | BSP world geometry → chunked `.mfmesh`; static meshes → `.mfmesh`; actors → `level.json` |
+| `mfport.py props` | gameplay meshes from Rage.u / RageGame.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers) → `.mfmesh` |
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py mods` | mod plugins' `SourceArt/` → PNG/WAV for `import --steps plugins` |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
-| `mfport.py import [map…]` | runs the UE importer (`--steps art,textures,sounds,music,plugins,maps`; maps also get their navmesh baked) |
+| `mfport.py import [map…]` | runs the UE importer (`--steps art,textures,props,sounds,music,plugins,maps`; maps also get their navmesh baked) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 
@@ -70,6 +71,12 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   `STY_Alpha`; DXT1 has only 1-bit alpha), and masked uses keep P8 when only palette index 0
   has the holes. A texture's own `bMasked`/`PolyFlags` add to the surfaces using it (UE1:
   surface flags | texture flags). Formats this can't read fall back to UCC's BMP export.
+- **DeviceMesh** (`mflib/devmesh.py`): Rage's own vertex-buffer mesh, no UCC exporter. The
+  native data ends with what matters, so it's read from the back: vertex array (compact count,
+  44 bytes each: position, pad, normal, UV, 8 runtime bytes), u16 index array, section table
+  (material, first index, primitive count, list/strip, vertex range). Positions are in uu with
+  the mesh-import scale already applied. Converted to `/Game/MFImported/Props/<Package>/<Name>`;
+  game actors put them on with `MF::ApplyPropMesh` and keep their placeholder shapes without.
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
   triangles have position, normal and normalised UV.
 - **Animations** (weapons/characters): `MeshAnimation` objects parse fully (bones, motion

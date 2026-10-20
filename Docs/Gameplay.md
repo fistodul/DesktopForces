@@ -125,7 +125,27 @@ drone hunts the nearest enemy within 1900 uu, 320 r440, escorts you otherwise, m
 Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(rand−0.5)×1000·Z
 + MaxTraceDistance (10000)·X.
 
-## Vehicles (to port)
-Humvee: 4 seats, armour 0.68, kill speed 8; types Humvee/Truck/Buggy/Armadillo (APC);
-handling data in `Physics/handling.hnd2` + `.COL` collision files (format to reverse).
-Bullets don't hurt vehicles (non-explosive damage = 0). 64 physical objects per level.
+## Vehicles
+Physics box + raycast wheels (`AMFVehicle`), numbers from MF's own data: `Physics/handling.hnd2`
+(mass, MaxSpeed in mph, steering lock), `Physics/<Vehicle>.COL` (wheel spheres in metres, x right /
+y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour; uu x 2.25).
+
+| | Mass | Top speed | Drive | Armour | Seats |
+|---|---|---|---|---|---|
+| Buggy | 800 kg | 70 mph | rear | 0.367 | 2 |
+| Humvee | 2000 kg | 50 mph | 4x4 | 0.68 | 4 |
+| Truck (6 wheels) | 3000 kg | 50 mph | all | 0.78 | 5 |
+| Armadillo APC | 2300 kg | 30 mph | 4x4 | 0.84 | 2 |
+
+- E (TryEnterExit) near a vehicle gets in (driver seat; passengers and mounted guns TODO), E again
+  out of the first free door. WASD drive, Space handbrake, mouse orbits the camera.
+- Only explosives hurt vehicles (MF: other damage 0), x (1 - Armour); 100 health; at 0 it blows
+  up (150, 900 cm) and kills whoever is inside. Hitting someone at KillSpeed 8 m/s or more runs
+  them over. Upside down and slow for 3 s: back on its wheels.
+- Generators: the map's Buggy/Humvee/Truck/ArmadilloGenerator actors make one each and a new one
+  5 s after it's gone. `?Vehicles=0` turns them off.
+- **Trailer** (`trailer`, TrailerGame): a neutral cab (Humvee) towing a bomb trailer (ball-joint
+  hitch) starts at the TrailerGenerator. Drive it into the enemy's delivery bay (TrailerDelivery,
+  128 + 128 uu): it locks, "Trailer detonation in 5 sec", blows up (600, 1200 uu), team point and
+  +7 for the driver; a new one 5 s later (also when it's destroyed on the way). 4 / 10 min.
+  Vehicle generators at the bays stay off in this mode.

@@ -14,8 +14,9 @@ built mobile-first so it also runs well on low-end PCs.
 
 ## Quick start
 
-Requirements: Unreal Engine 5.8, Python 3.11+ with Pillow, Wine (Linux/macOS only; used
-to run the original `UCC.exe` exporter), ffmpeg (optional, sounds), a Mobile Forces install.
+Requirements: Unreal Engine 5.8, Python 3.11+ with Pillow and numpy, Wine (Linux/macOS only;
+used to run the original `UCC.exe` exporter for levels and sounds), ffmpeg (optional, sounds),
+a Mobile Forces install.
 
 ```bash
 # 1. point the pipeline at your game (optional if the default path fits)
@@ -27,15 +28,19 @@ Tools/play.sh build
 # 3. convert + import a map (warehouse ~10 min the first time; shaders compile once)
 python3 Tools/mfport/mfport.py all mf-warehouse
 
-# 4. play (map, mode dm|tdm|holdout|sc|ctf|koh, bots) - or `Tools/play.sh editor`
+# 4. play (map, mode dm|tdm|holdout|sc|ctf|det|cap|trailer|koh|tug, bots) - or `Tools/play.sh editor`
 Tools/play.sh mf-warehouse tdm 8
+
+# or start at the main menu (map / mode / bots / options)
+<UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/MobileForces.uproject" -game
 ```
 
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,
-C crouch, Shift walk, F1/Tab scores), plus X for armour/gadgets; in the loadout screen a
+Ctrl crouch, Shift walk, E get in / out of vehicles, G drop the flag, V/C orders, F1/Tab scores,
+Esc menu), plus X for armour/gadgets; in the loadout screen a
 number picks a row, a second number the item in it. Map URL options: `?game=/Script/MobileForces.MFGameMode_TDM`
 (also `MFGameMode_Holdout`, `/Script/MFModKOH.MFGameMode_KOH`), `?Bots=8?BotSkill=0.7`,
-`?Teams=4`, `?FragLimit=10?TimeLimit=5`.
+`?Teams=4`, `?FragLimit=10?TimeLimit=5`, `?Vehicles=0`.
 
 ## Layout
 

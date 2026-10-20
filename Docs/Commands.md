@@ -28,6 +28,7 @@ the original had the command; case doesn't matter.
 | `CenterView` | level the view (End) |
 | `Reload` | reload (R); Totem: heal yourself over time |
 | `TossFlag` | drop the flag / gold / detonation key you carry (G) |
+| `TryEnterExit` | get into the nearest vehicle / out of this one (E; Enter in the loadout picks) |
 | `ShowMenu` | in-game menu: resume, new game, join, options, leave, quit (Esc) |
 | `Brightness [X]` | MF brightness: step 0.5 → 2, or set 0.25 - 3 (scales the map's ambient light; saved) |
 
@@ -75,7 +76,8 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFNavTest` | log navmesh reachability from you to every spawn, objective and ladder |
 | `MFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
 | `MFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
-| `MFTeleport X Y Z`, `MFHurt N`, `MFFire` | move your pawn, take damage, press fire once (scripted tests) |
+| `MFTeleport X Y Z`, `MFHurt N`, `MFFire` | move your pawn (a driven vehicle takes its trailer along), take damage, press fire once (scripted tests) |
+| `MFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `MFTopView X Y Width [Z]` | orthographic top view (`MFTopView 0 0 0` = back) |
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
@@ -87,5 +89,5 @@ Command line for automated runs: `-MFExec="…"` (commands, `@seconds:` delays),
 `-MFAutoShot=N -MFShotName=x [-MFShotUI]` (`-MFShotUI` includes Slate menus), `-abslog=<file>`
 to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/MobileForces.log`).
 
-Not ported (no equivalent yet): vehicle (`TryEnterExit`, `KillCars`, `ExpireCars`),
+Not ported (no equivalent yet): `KillCars`, `ExpireCars`,
 `FeignDeath`, `Taunt`, `Speech`, `BehindView` (third person comes with soldier models).
