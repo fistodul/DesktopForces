@@ -1,0 +1,65 @@
+# Content packs: which converted content belongs to Desktop Forces itself ("core") and which
+# stays in the Mobile Forces Classic plugin ("classic", /MobileForcesClassic/...: needs the
+# player's own copy of the original game, never distributed with Desktop Forces).
+#
+# Rules (mflib/packs.py):
+#   - everything from the retail game is classic, whatever this file says
+#   - a converted map is classic unless it is listed under [core.maps]
+#   - a texture / sound / music package is classic unless it is listed under [core.packages]
+#     or it is a core map's own package (textures saved inside the map file)
+#   - replacement art (overrides/textures/...) is core: /Game/MF/Replacements; core maps use it,
+#     classic maps keep the original texture unless remaster_classic = true
+#
+# A core map can still use classic textures; `mfport.py packs` lists what each core map still
+# needs from the original game (the backlog for replacement art).
+#
+# Authors who agreed so far (Filip, 2026-10-20): Filip (AKVARI), Edgaras "Gregaras" Ziaugra,
+# Marcin / Marcinbydg / Loser (the Polish maps), Ahmed Isaac Alizai, BR-thebigisland.
+# Ask before adding anyone else.
+
+core_root = "/Game/MF/Community"      # core textures, sounds, music of community content
+core_maps_root = "/Game/Maps"         # core maps: /Game/Maps/<map>, data in <map>_Data
+classic_root = "/MobileForcesClassic" # the plugin (Plugins/MobileForcesClassic)
+remaster_classic = false              # true: classic maps use replacement art too
+
+[core.maps]
+"COOP-CoopOneUpdate" = "AKVARI (Filip Stojanovic)"
+"MF-Filip" = "AKVARI (Filip Stojanovic)"
+"MF-SpaceZombura" = "AKVARI (Filip Stojanovic)"
+"ZM-SpaceZombura" = "AKVARI (Filip Stojanovic)"
+"MF-Stuck" = "AKVARI (Filip Stojanovic)"
+"MF-TurpowiaV1" = "AKVARI (Filip Stojanovic)"
+"MF-Test_Facility" = "Ahmed Isaac Alizai"
+"BR-thebigisland" = "mashup of Filip's and Gregaras' maps"
+"DM-Warship" = "Marcinbydg"
+"dm-HolidayTown" = "Marcin"
+"mf-BraveDwarfes" = "Marcin"
+"mf-City_Rush" = "Marcinbydg"
+"mf-Pobojowisko_VerII" = "Marcin"
+"mf-Prehistoric" = "Marcinbydg"
+"mf-Sardine_City" = "Marcinbydg"
+"mf-Space_station" = "Marcin"
+"mf-Tajga" = "Marcin"
+"mf-Toreford" = "Marcin"
+"mf-Treasure_Finders" = "Marcin"
+"mf-Tropics" = "Marcinbydg"
+"mf-Worlds_Peak" = "Marcin"
+
+[core.packages]
+# texture packages made for those maps (names differ from every retail texture; the art
+# itself has not been checked texture by texture)
+"GregarasTwo_texpack" = "Gregaras"
+"IsaacTexPak" = "Ahmed Isaac Alizai (MF-Test_Facility)"
+"turpowia1" = "AKVARI (MF-TurpowiaV1)"
+"MinWaterfront" = "Marcin (mf-Toreford)"
+"Pobojowisko" = "Marcin"
+"PobojowiskoVerII" = "Marcin (mf-Pobojowisko_VerII)"
+"SardineCity" = "Marcinbydg (mf-Sardine_City)"
+"Prehistoric" = "Marcinbydg (mf-Prehistoric)"
+"Taiga" = "Marcin (mf-Tajga)"
+"Tropics" = "Marcinbydg (mf-Tropics)"
+"Treasurefinders" = "Marcin (mf-Treasure_Finders)"
+"Space_station" = "Marcin (mf-Space_station)"
+"Worldspeak" = "Marcin (mf-Worlds_Peak)"
+"city_rush" = "Marcinbydg (mf-City_Rush)"
+"holidaztown" = "Marcin (dm-HolidayTown)"

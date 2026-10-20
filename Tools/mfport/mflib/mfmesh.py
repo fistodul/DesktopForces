@@ -1,4 +1,4 @@
-"""`.mfmesh` intermediate mesh format, read by the UE editor importer (MobileForcesEditor module).
+"""`.mfmesh` intermediate mesh format, read by the UE editor importer (DesktopForcesEditor module).
 
 A mesh is two files:
   <name>.mfmesh.json  - metadata: materials, sections, counts, options

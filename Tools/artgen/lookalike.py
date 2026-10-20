@@ -1,0 +1,534 @@
+#!/usr/bin/env python3
+"""Replacement art: new procedural textures that stand in for original Mobile Forces ones.
+
+Core maps (community maps that are part of Desktop Forces, Tools/mfport/packs.toml) still use
+some textures of the original game. This makes our own versions: each entry in
+lookalikes.toml names a procedural generator (bricks, planks, corrugated metal, plaster ...)
+and its layout; only the original's *colours* are sampled (dark / mid / light tones), never
+its pixels. Output goes to Tools/mfport/overrides/textures/<package>/<group>/<name>.png
+(committed), where the pipeline picks it up as replacement art.
+
+    python3 Tools/artgen/lookalike.py              # every entry
+    python3 Tools/artgen/lookalike.py ap_road3     # entries whose key contains the text
+    python3 Tools/artgen/lookalike.py --sheet      # also write a comparison sheet (scratch)
+
+Generated art is ours (MPL-2.0 like the code). Deterministic: the seed is the texture key.
+"""
+from __future__ import annotations
+
+import json
+import sys
+import tomllib
+import zlib
+from pathlib import Path
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
+
+HERE = Path(__file__).resolve().parent
+TABLE = HERE / 'lookalikes.toml'
+MFPORT = HERE.parent / 'mfport'
+OVERRIDES = MFPORT / 'overrides' / 'textures'
+
+
+# --- noise ---------------------------------------------------------------------------------
+
+def fbm(rng: np.random.Generator, h: int, w: int, beta: float = 1.8, lo: float = 0.0) -> np.ndarray:
+    """Tileable 1/f^beta noise in 0..1 (FFT filtered white noise: periodic by construction).
+    lo cuts the largest features (0 = keep everything)."""
+    white = rng.standard_normal((h, w))
+    fy = np.fft.fftfreq(h)[:, None]
+    fx = np.fft.fftfreq(w)[None, :]
+    f = np.sqrt(fx * fx + fy * fy)
+    f[0, 0] = 1.0
+    amp = f ** (-beta / 2.0)
+    amp[0, 0] = 0.0
+    if lo > 0:
+        amp *= 1.0 - np.exp(-(f / lo) ** 2)
+    out = np.real(np.fft.ifft2(np.fft.fft2(white) * amp))
+    out -= out.min()
+    return out / (out.max() or 1.0)
+
+
+def stretched(rng, h, w, sx: float, sy: float, beta=1.6) -> np.ndarray:
+    """Noise stretched along x (sx > 1) or y: wood grain, brushed metal, streaks (tileable)."""
+    hh, ww = max(4, int(h / sy)), max(4, int(w / sx))
+    n = fbm(rng, hh, ww, beta)
+    img = Image.fromarray((n * 255).astype(np.uint8))
+    tiled = Image.new('L', (ww * 3, hh * 3))
+    for i in range(3):
+        for j in range(3):
+            tiled.paste(img, (i * ww, j * hh))
+    big = tiled.resize((w * 3, h * 3), Image.BICUBIC)
+    return np.asarray(big, np.float32)[h:2 * h, w:2 * w] / 255.0
+
+
+def speckle(rng, h, w, density: float, size: float = 1.0) -> np.ndarray:
+    """Sparse spots (stains, pits) covering about `density` of the surface, 0..1, tileable."""
+    n = blur(rng.random((h, w)).astype(np.float32), max(0.6, size * 0.8))
+    thr = np.quantile(n, 1 - density)
+    return np.clip((n - thr) / max(n.max() - thr, 1e-6), 0, 1) ** 0.5
+
+
+def blur(a: np.ndarray, radius: float) -> np.ndarray:
+    img = Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8))
+    # wrap: blur a 3x3 tiling so edges stay seamless
+    h, w = a.shape
+    t = Image.new('L', (w * 3, h * 3))
+    for i in range(3):
+        for j in range(3):
+            t.paste(img, (i * w, j * h))
+    t = t.filter(ImageFilter.GaussianBlur(radius))
+    return np.asarray(t, np.float32)[h:2 * h, w:2 * w] / 255.0
+
+
+# --- colour ---------------------------------------------------------------------------------
+
+def tones(src: Image.Image | None, fallback=((60, 60, 60), (128, 128, 128), (200, 200, 200))):
+    """Dark / mid / light colours of the original (10th / 50th / 90th luminance percentile,
+    averaged around each): the only thing taken from it."""
+    if src is None:
+        return [np.array(c, np.float32) for c in fallback]
+    a = np.asarray(src.convert('RGB').resize((64, 64)), np.float32).reshape(-1, 3)
+    lum = a @ np.array([0.299, 0.587, 0.114], np.float32)
+    order = np.argsort(lum)
+    n = len(order)
+    out = []
+    for p in (0.1, 0.5, 0.9):
+        i = int(p * (n - 1))
+        sel = order[max(0, i - n // 20): min(n, i + n // 20 + 1)]
+        out.append(a[sel].mean(axis=0))
+    return out
+
+
+def ramp(t: np.ndarray, dark, mid, light) -> np.ndarray:
+    """t 0..1 -> colour through dark, mid, light."""
+    t = np.clip(t, 0, 1)[..., None]
+    lo = dark + (mid - dark) * np.clip(t * 2, 0, 1)
+    hi = mid + (light - mid) * np.clip(t * 2 - 1, 0, 1)
+    return np.where(t < 0.5, lo, hi)
+
+
+def shade(rgb: np.ndarray, f) -> np.ndarray:
+    f = np.asarray(f, np.float32)
+    return rgb * (f[..., None] if f.ndim == 2 else f)
+
+
+def rgb_from(c) -> np.ndarray:
+    return np.array(c, np.float32)
+
+
+# --- generators -----------------------------------------------------------------------------
+# each: (rng, h, w, (dark, mid, light), options) -> float RGB array (h, w, 3), 0..255
+
+def g_noise(rng, h, w, t, o):
+    """Concrete, plaster, dirt, painted metal, asphalt: layered noise + spots + streaks."""
+    dark, mid, light = t
+    n = fbm(rng, h, w, o.get('beta', 1.9)) * 0.7 + fbm(rng, h, w, 1.0) * 0.3
+    c = o.get('contrast', 1.0) * 1.3
+    v = 0.5 + (n - 0.5) * c
+    rgb = ramp(v, dark, mid, light)
+    if o.get('spots', 0):
+        rgb = shade(rgb, 1 - 0.7 * speckle(rng, h, w, o["spots"], o.get("spot_size", 2)))
+    if o.get('streaks', 0):
+        s = stretched(rng, h, w, 1, 12)
+        rgb = shade(rgb, 1 - o['streaks'] * np.clip(s - 0.45, 0, 1))
+    if o.get('stains', 0):
+        st = blur(fbm(rng, h, w, 2.6), 3)
+        rgb = shade(rgb, 1 - o['stains'] * np.clip(st - 0.55, 0, 1) * 2)
+    if o.get('band'):
+        # a strip of another colour along the bottom (dirt / grass at a wall's foot)
+        b = o['band']
+        y0 = int(h * (1 - b.get('height', 0.15)))
+        col = rgb_from(b['color'])
+        edge = (np.arange(h) - y0)[:, None] + (fbm(rng, 1, w, 1.2)[0] - 0.5)[None, :] * h * 0.04
+        m = np.clip(edge / 3.0, 0, 1)
+        bandtex = shade(np.broadcast_to(col, (h, w, 3)).copy(), 0.8 + 0.4 * fbm(rng, h, w, 1.4))
+        rgb = rgb * (1 - m[..., None]) + bandtex * m[..., None]
+    return rgb
+
+
+def g_bricks(rng, h, w, t, o):
+    """Bricks / blocks with mortar, running bond."""
+    dark, mid, light = t
+    rows, cols = o.get('rows', 8), o.get('cols', 4)
+    mortar = o.get('mortar', 0.06)
+    mortar_col = rgb_from(o['mortar_color']) if 'mortar_color' in o else (dark * 0.6 + light * 0.4)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    ry = yy / h * rows
+    row = np.floor(ry).astype(int)
+    rx = xx / w * cols + (row % 2) * 0.5 * o.get('offset', 1.0)
+    col = np.floor(rx).astype(int)
+    fy, fx = ry - row, rx - col
+    tint = rng.uniform(0.82, 1.15, (rows + 1, cols * 2 + 2))
+    base = ramp(0.35 + 0.4 * fbm(rng, h, w, 1.5), dark, mid, light)
+    base = shade(base, tint[row % rows, col % (cols * 2)])
+    my = mortar
+    mx = mortar * (h / rows) / (w / cols)          # same width in pixels as the bed joints
+    edge = np.minimum(np.minimum(fx, 1 - fx) / mx, np.minimum(fy, 1 - fy) / my)
+    m = np.clip(edge - 0.5, 0, 1)
+    bevel = np.clip(edge / 3, 0.75, 1.0)
+    rgb = shade(base, bevel) * m[..., None] + mortar_col * (1 - m[..., None])
+    return shade(rgb, 0.9 + 0.2 * fbm(rng, h, w, 1.0))
+
+
+def g_tiles(rng, h, w, t, o):
+    """Floor tiles / slabs, optionally diamond (45 deg) layout."""
+    dark, mid, light = t
+    n = o.get('n', 4)
+    grout = o.get('grout', 0.05)
+    grout_col = rgb_from(o['grout_color']) if 'grout_color' in o else dark * 0.8
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    u, v = xx / w * n, yy / h * n
+    if o.get('diamond'):
+        u, v = (u + v) / 1.0, (u - v) / 1.0
+    iu, iv = np.floor(u).astype(int), np.floor(v).astype(int)
+    fu, fv = u - iu, v - iv
+    tint = rng.uniform(0.9, 1.1, (64, 64))
+    base = ramp(0.4 + 0.35 * fbm(rng, h, w, 1.7), dark, mid, light)
+    base = shade(base, tint[iu % 64, iv % 64])
+    edge = np.minimum(np.minimum(fu, 1 - fu), np.minimum(fv, 1 - fv)) / grout
+    m = np.clip(edge - 0.5, 0, 1)
+    bevel = 0.85 + 0.15 * np.clip(edge / 4, 0, 1)
+    return shade(base, bevel) * m[..., None] + grout_col * (1 - m[..., None])
+
+
+def g_planks(rng, h, w, t, o):
+    """Boards with grain, gaps and nails; vertical with vertical=true; optional frame."""
+    dark, mid, light = t
+    n = o.get('n', 5)
+    vertical = o.get('vertical', False)
+    H, W = (w, h) if vertical else (h, w)
+    grain = stretched(rng, H, W, 10, 1, 1.4)
+    rings = 0.5 + 0.5 * np.sin(grain * o.get('rings', 18))
+    yy = np.mgrid[0:H, 0:W][0].astype(np.float32)
+    p = yy / H * n
+    idx = np.floor(p).astype(int)
+    fp = p - idx
+    tint = rng.uniform(0.8, 1.15, n + 1)
+    v = 0.2 + 0.5 * grain + 0.25 * rings
+    fine = stretched(rng, H, W, 24, 1, 0.9)               # fibres along the board
+    rgb = ramp(v + 0.25 * (fine - 0.5), dark, mid, light)
+    rgb = shade(rgb, tint[idx % n])
+    gap = o.get('gap', 0.04)
+    rgb = shade(rgb, np.where(fp < gap, 0.35, np.where(fp < gap * 2.5, 0.8, 1.0)))
+    if o.get('weathered', 0):
+        rgb = shade(rgb, 1 - o['weathered'] * speckle(rng, H, W, 0.25, 1.5))
+    if o.get('nails'):
+        img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
+        d = ImageDraw.Draw(img)
+        for i in range(n):
+            y = int((i + 0.5) / n * H)
+            for x in (W * 0.06, W * 0.94):
+                r = max(1, W // 128)
+                d.ellipse((x - r, y - r, x + r, y + r), fill=tuple(int(c) for c in dark * 0.5))
+        rgb = np.asarray(img, np.float32)
+    if vertical:
+        rgb = np.transpose(rgb, (1, 0, 2))
+    if o.get('frame'):
+        rgb = frame(rgb, rng, o['frame'], dark, mid)
+    return rgb
+
+
+def frame(rgb, rng, width, dark, mid):
+    """Darker border boards around a face (crates, framed panels)."""
+    h, w, _ = rgb.shape
+    fw = int(w * width)
+    out = rgb.copy()
+    m = np.zeros((h, w), bool)
+    m[:fw] = m[-fw:] = True
+    m[:, :fw] = m[:, -fw:] = True
+    bord = ramp(0.3 + 0.4 * stretched(rng, h, w, 1, 10), dark * 0.8, mid * 0.85, mid)
+    out[m] = bord[m]
+    out[fw:fw + 2, fw:-fw] *= 0.5
+    out[h - fw - 2:h - fw, fw:-fw] *= 1.15
+    return out
+
+
+def g_plywood(rng, h, w, t, o):
+    """One sheet: soft grain bands, darker frame (crates)."""
+    dark, mid, light = t
+    grain = stretched(rng, h, w, 6, 1, 1.3)
+    rgb = ramp(0.35 + 0.35 * grain + 0.15 * fbm(rng, h, w, 2.0), dark, mid, light)
+    if o.get('frame', 0.07):
+        rgb = frame(rgb, rng, o.get('frame', 0.07), dark, mid)
+    if o.get('emblem'):
+        rgb = emblem(rgb, o['emblem'])
+    return rgb
+
+
+def emblem(rgb, spec):
+    """Our own stencil mark (chevrons in a ring), never the original logos."""
+    h, w, _ = rgb.shape
+    img = Image.new('L', (w, h), 0)
+    d = ImageDraw.Draw(img)
+    cx, cy, r = w / 2, h / 2, min(w, h) * spec.get('size', 0.22)
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=255, width=max(2, int(r * 0.16)))
+    for k in range(2):
+        y = cy - r * 0.35 + k * r * 0.5
+        d.line([(cx - r * 0.55, y), (cx, y + r * 0.35), (cx + r * 0.55, y)], fill=255, width=max(2, int(r * 0.18)))
+    m = np.asarray(img.filter(ImageFilter.GaussianBlur(0.8)), np.float32)[..., None] / 255.0 * spec.get('opacity', 0.85)
+    col = rgb_from(spec.get('color', (190, 60, 30)))
+    return rgb * (1 - m) + col * m
+
+
+def g_corrugated(rng, h, w, t, o):
+    """Corrugated sheet: ridges shaded like a sine profile; rust; seams."""
+    dark, mid, light = t
+    n = o.get('ridges', 12)
+    vertical = o.get('vertical', True)
+    H, W = (h, w) if vertical else (w, h)
+    x = np.arange(W, dtype=np.float32) / W * n * 2 * np.pi
+    prof = 0.5 + 0.5 * np.cos(x)
+    lit = np.broadcast_to(prof[None, :], (H, W))
+    base = ramp(0.3 + 0.45 * lit + 0.1 * stretched(rng, H, W, 1, 8), dark, mid, light)
+    base = shade(base, 0.7 + 0.4 * lit)
+    if o.get('rust', 0):
+        r = np.clip(fbm(rng, H, W, 2.2) - (1 - o['rust']), 0, 1) / max(o['rust'], 1e-3)
+        rust = rgb_from(o.get('rust_color', (120, 60, 30)))
+        base = base * (1 - r[..., None]) + shade(np.broadcast_to(rust, (H, W, 3)).copy(), 0.7 + 0.5 * lit) * r[..., None]
+    if o.get('seam'):
+        y = int(H * o['seam'])
+        base[y:y + max(2, H // 64)] *= 0.55
+    if not vertical:
+        base = np.transpose(base, (1, 0, 2))
+    return base
+
+
+def g_siding(rng, h, w, t, o):
+    """Overlapping boards / cladding: each board darker at the top under the one above."""
+    dark, mid, light = t
+    n = o.get('n', 6)
+    vertical = o.get('vertical', False)
+    H, W = (w, h) if vertical else (h, w)
+    y = np.arange(H, dtype=np.float32) / H * n
+    f = y - np.floor(y)
+    prof = 0.55 + 0.45 * f
+    prof = np.where(f < 0.06, 0.35, prof)
+    base = ramp(0.3 + 0.5 * prof[:, None] + 0.12 * stretched(rng, H, W, 8, 1), dark, mid, light)
+    base = shade(base, np.broadcast_to((0.62 + 0.45 * prof)[:, None], (H, W)))   # structure even in flat colours
+    if vertical:
+        base = np.transpose(base, (1, 0, 2))
+    return base
+
+
+def g_treadplate(rng, h, w, t, o):
+    """Diamond tread plate: raised lozenges in alternating directions on dark steel."""
+    dark, mid, light = t
+    n = o.get('n', 8)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    u, v = xx / w * n, yy / h * n
+    iu, iv = np.floor(u).astype(int), np.floor(v).astype(int)
+    fu, fv = u - iu - 0.5, v - iv - 0.5
+    flip = ((iu + iv) % 2) * 2 - 1
+    a, b = (fu + flip * fv) / 1.414, (fu - flip * fv) / 1.414
+    bump = np.clip(1 - (a / 0.38) ** 2 - (b / 0.09) ** 2, 0, 1)
+    base = ramp(0.25 + 0.2 * fbm(rng, h, w, 1.6), dark, mid, light)
+    hl = np.clip(bump * 1.4, 0, 1)
+    return base * (1 - hl[..., None] * 0.6) + light * (hl[..., None] * 0.6)
+
+
+def g_grate(rng, h, w, t, o):
+    """Woven wire mesh (diagonal) over a dark gap (opaque: the holes are drawn dark)."""
+    dark, mid, light = t
+    n = o.get('n', 10)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    u, v = (xx + yy) / w * n, (xx - yy) / w * n
+    wire1 = np.abs((u - np.floor(u)) - 0.5) < o.get('wire', 0.17)
+    wire2 = np.abs((v - np.floor(v)) - 0.5) < o.get('wire', 0.17)
+    over = (np.floor(u) + np.floor(v)) % 2 == 0
+    lit1 = 1 - np.abs((u - np.floor(u)) - 0.5) * 2.5
+    lit2 = 1 - np.abs((v - np.floor(v)) - 0.5) * 2.5
+    hole = ramp(0.1 + 0.1 * fbm(rng, h, w, 1.5), dark * 0.4, dark, mid * 0.6)
+    w1 = ramp(0.4 + 0.5 * lit1, dark, mid, light)
+    w2 = ramp(0.4 + 0.5 * lit2, dark, mid, light)
+    rgb = hole.copy()
+    rgb[wire2] = w2[wire2]
+    sel = wire1 & (~wire2 | over)
+    rgb[sel] = w1[sel]
+    return rgb
+
+
+def g_panel(rng, h, w, t, o):
+    """Metal panel: plate with a raised border, rivets, scratches; beam = horizontal flanges."""
+    dark, mid, light = t
+    base = ramp(0.4 + 0.25 * fbm(rng, h, w, 1.8) + 0.1 * stretched(rng, h, w, 10, 1), dark, mid, light)
+    if o.get('rust', 0):
+        r = np.clip(fbm(rng, h, w, 2.3) - (1 - o['rust']), 0, 1) / max(o['rust'], 1e-3)
+        rust = rgb_from(o.get('rust_color', (110, 60, 30)))
+        base = base * (1 - r[..., None]) + rust * r[..., None]
+    b = o.get('border', 0.06)
+    if b:
+        bw = int(min(h, w) * b)
+        m = np.zeros((h, w), np.float32)
+        m[:bw] = m[-bw:] = 1
+        m[:, :bw] = m[:, -bw:] = 1
+        base = shade(base, 1 + 0.18 * m)
+        base[bw:bw + 2, bw:-bw] *= 0.6
+        base[bw:-bw, bw:bw + 2] *= 0.6
+    if o.get('flanges'):
+        fh = int(h * o['flanges'])
+        base[:fh] = shade(base[:fh], 1.2)
+        base[-fh:] = shade(base[-fh:], 0.8)
+        base[fh:fh + 2] *= 0.5
+        base[h - fh - 2:h - fh] *= 1.3
+    if o.get('rivets'):
+        img = Image.fromarray(np.clip(base, 0, 255).astype(np.uint8))
+        d = ImageDraw.Draw(img)
+        r = max(2, w // 64)
+        pts = o['rivets']
+        cols = pts.get('cols', [0.04, 0.96])
+        nrow = pts.get('rows', 8)
+        for x in cols:
+            for i in range(nrow):
+                cx, cy = x * w, (i + 0.5) / nrow * h
+                d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=tuple(int(c) for c in light * 0.9))
+                d.ellipse((cx - r + 1, cy, cx + r, cy + r), fill=tuple(int(c) for c in dark * 0.7))
+        base = np.asarray(img, np.float32)
+    if o.get('bolt'):
+        img = Image.fromarray(np.clip(base, 0, 255).astype(np.uint8))
+        d = ImageDraw.Draw(img)
+        cx, cy, r = w / 2, h / 2, w * 0.03
+        d.ellipse((cx - r, cy - r * 1.6, cx + r, cy + r * 1.6), fill=tuple(int(c) for c in dark * 0.5))
+        base = np.asarray(img, np.float32)
+    return base
+
+
+def g_pipes(rng, h, w, t, o):
+    """Row of vertical pipes, cylinder shaded, dark between."""
+    dark, mid, light = t
+    n = o.get('n', 8)
+    x = np.arange(w, dtype=np.float32) / w * n
+    f = x - np.floor(x)
+    prof = np.sqrt(np.clip(1 - ((f - 0.5) / 0.42) ** 2, 0, 1))
+    lit = np.broadcast_to(prof[None, :], (h, w))
+    base = ramp(0.15 + 0.8 * lit, dark * 0.5, mid, light)
+    return shade(base, 0.9 + 0.15 * stretched(rng, h, w, 1, 12))
+
+
+def g_lamp(rng, h, w, t, o):
+    """Light fittings: round, grid (caged) or tube (fluorescent)."""
+    dark, mid, light = t
+    kind = o.get('kind', 'round')
+    glow = rgb_from(o.get('glow', (255, 250, 225)))
+    housing = rgb_from(o.get('housing', mid))
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    rgb = np.broadcast_to(rgb_from(o.get('back', dark * 0.4)), (h, w, 3)).copy()
+    if kind == 'round':
+        r = np.hypot(xx / w - 0.5, yy / h - 0.5)
+        ring = (r < 0.47) & (r > 0.36)
+        rgb[ring] = housing * (0.8 + 0.4 * (1 - (r[ring] - 0.36) / 0.11))[..., None]
+        inner = r <= 0.36
+        rgb[inner] = (glow * (0.75 + 0.25 * (1 - r[inner] / 0.36))[..., None])
+    elif kind == 'grid':
+        inner = (np.abs(xx / w - 0.5) < 0.42) & (np.abs(yy / h - 0.5) < 0.42)
+        r = np.hypot(xx / w - 0.5, yy / h - 0.5)
+        rgb[inner] = glow * np.clip(1.2 - r[inner] * 1.5, 0.55, 1)[..., None]
+        bars = (((xx / w * 6) % 1) < 0.12) | (((yy / h * 6) % 1) < 0.12)
+        rgb[inner & bars] = housing * 0.7
+        edge = ~inner & (np.abs(xx / w - 0.5) < 0.48) & (np.abs(yy / h - 0.5) < 0.48)
+        rgb[edge] = housing
+    else:   # tubes
+        n = o.get('n', 2)
+        rgb[:] = housing * 0.35
+        for i in range(n):
+            cy = (i + 0.5) / n
+            d = np.abs(yy / h - cy)
+            tube = (d < 0.13) & (np.abs(xx / w - 0.5) < 0.44)
+            rgb[tube] = glow * (1 - d[tube] * 2.5)[..., None]
+            halo = (d < 0.22) & ~tube & (np.abs(xx / w - 0.5) < 0.47)
+            rgb[halo] = housing * 0.35 + glow * 0.25
+    return rgb
+
+
+def g_sign(rng, h, w, t, o):
+    """Our own sign: flat colour with the emblem (for logo signs of the original)."""
+    col = rgb_from(o.get('color', t[2]))
+    rgb = shade(np.broadcast_to(col, (h, w, 3)).copy(), 0.95 + 0.08 * fbm(rng, h, w, 1.2))
+    return emblem(rgb, {'size': 0.32, 'color': o.get('mark', (255, 255, 255)), 'opacity': 1.0})
+
+
+def g_flat(rng, h, w, t, o):
+    """Flat colour with a soft vertical gradient (sky fills)."""
+    top = rgb_from(o.get('top', t[1]))
+    bottom = rgb_from(o.get('bottom', t[2]))
+    g = np.linspace(0, 1, h, dtype=np.float32)[:, None, None]
+    return np.broadcast_to(top * (1 - g) + bottom * g, (h, w, 3)).copy()
+
+
+GENERATORS = {
+    'noise': g_noise, 'bricks': g_bricks, 'tiles': g_tiles, 'planks': g_planks, 'plywood': g_plywood,
+    'corrugated': g_corrugated, 'siding': g_siding, 'treadplate': g_treadplate, 'grate': g_grate,
+    'panel': g_panel, 'pipes': g_pipes, 'lamp': g_lamp, 'sign': g_sign, 'flat': g_flat,
+}
+
+
+# --- driver -----------------------------------------------------------------------------------
+
+def original(key: str) -> tuple[Image.Image | None, int, int]:
+    """The converted original (work/out, local only) for its colours and size."""
+    man = MFPORT / 'work' / 'out' / 'textures.json'
+    if man.exists():
+        tex = {k.lower(): v for k, v in json.loads(man.read_text()).items()}
+        info = tex.get(key.lower())
+        if info:
+            f = MFPORT / 'work' / 'out' / info['file']
+            img = Image.open(f) if f.exists() else None
+            return img, info['usize'], info['vsize']
+    return None, 256, 256
+
+
+def make(key: str, spec: dict) -> Image.Image:
+    src, uw, vh = original(key)
+    scale = spec.get('scale', 2)                      # MF 256 -> 512 (our cap), 128 -> 256
+    w, h = min(512, uw * scale), min(512, vh * scale)
+    rng = np.random.default_rng(zlib.crc32(key.lower().encode()))
+    t = tones(src)
+    for i, name in enumerate(('dark', 'mid', 'light')):
+        if name in spec:
+            t[i] = rgb_from(spec[name])
+    rgb = GENERATORS[spec['gen']](rng, h, w, t, spec)
+    # surface detail on top of every material: fine grit and big soft grime patches
+    plain = spec['gen'] in ('lamp', 'sign', 'flat')
+    grit = spec.get('grit', 0.0 if plain else 0.22)
+    grime = spec.get('grime', 0.0 if plain else 0.25)
+    if grit:
+        rgb = shade(rgb, 1 - grit / 2 + grit * fbm(rng, h, w, 0.6))
+    if grime:
+        rgb = shade(rgb, 1 - grime * np.clip(fbm(rng, h, w, 2.4) - 0.45, 0, 1) * 1.8)
+    return Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), 'RGB')
+
+
+def main(argv: list[str]) -> None:
+    table = tomllib.loads(TABLE.read_text())
+    want = [a for a in argv if not a.startswith('--')]
+    sheet = []
+    for key, spec in table.items():
+        if want and not any(w.lower() in key.lower() for w in want):
+            continue
+        img = make(key, spec)
+        parts = key.split('.')
+        dst = OVERRIDES.joinpath(*parts[:-1], parts[-1] + '.png')
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        img.save(dst, optimize=True)
+        print(f'[lookalike] {key} ({spec["gen"]}) -> {dst.relative_to(HERE.parent.parent)}')
+        sheet.append((key, img))
+    if '--sheet' in argv and sheet:
+        cell = 160
+        cols = 6
+        out = Image.new('RGB', (cols * cell * 2, ((len(sheet) + cols - 1) // cols) * cell), (0, 0, 0))
+        for i, (key, img) in enumerate(sheet):
+            src, _, _ = original(key)
+            x, y = (i % cols) * cell * 2, (i // cols) * cell
+            if src:
+                out.paste(src.convert('RGB').resize((cell, cell)), (x, y))
+            out.paste(img.resize((cell, cell)), (x + cell, y))
+            ImageDraw.Draw(out).text((x + 2, y + 2), key.split('.')[-1], fill=(255, 255, 0))
+        path = HERE / 'out' / 'lookalikes_sheet.png'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        out.save(path)
+        print(f'[lookalike] comparison sheet -> {path}')
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

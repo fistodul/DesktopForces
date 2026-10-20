@@ -7,9 +7,10 @@ Steps (run alone or chained with `all`):
   textures             export + convert every texture the converted maps use
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
-  mods                 convert mod plugins' SourceArt (Plugins/Mods/*/SourceArt)
   vmf <name...>        convert a Source (Hammer) map listed in vmf_maps.toml, aligned to its MF map
   merge <preset...>    merge two aligned maps area by area (merge/<preset>.toml)
+  packs                which pack each converted map is in (core / classic), and what core maps
+                       still need from the original game (packs.toml)
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + sounds + import + light
@@ -110,9 +111,9 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'sounds', 'music', 'mods', 'vmf', 'merge', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
-    ap.add_argument('--steps', default='art,textures,props,sounds,music,plugins,maps', help='importer steps for `import`')
+    ap.add_argument('--steps', default='art,textures,props,sounds,music,maps', help='importer steps for `import`')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -134,13 +135,20 @@ def main():
         cmd_sounds(cfg, a.names)
     if a.step == 'music':
         cmd_music(cfg, a.names)
-    if a.step in ('mods', 'all'):
-        from mflib import mods
-        mods.convert(cfg)
     if a.step == 'all':
         cmd_sounds(cfg, [])
         cmd_music(cfg, [])
+    if a.step == 'packs':
+        from mflib import packs
+        packs.report(cfg)
     if a.step in ('import', 'all'):
+        from mflib import packs
+        packs.write_manifest(cfg)
+        if 'art' in a.steps.split(','):
+            # the game's own art (Tools/artgen: generated + SourceArt) goes in with the same run
+            sys.path.insert(0, str(config.PROJECT_DIR / 'Tools' / 'artgen'))
+            import artgen
+            artgen.main([])
         rc = ue.run_importer(cfg, a.steps, a.names if a.step == 'import' else a.names or None)
         if rc:
             sys.exit(rc)

@@ -10,7 +10,7 @@ work_dir = "work"
 
 # Unreal Engine 5 root (holding Engine/) and the project file.
 ue_root = "../../../Linux_Unreal_Engine_5.8.3"
-uproject = "../../MobileForces.uproject"
+uproject = "../../DesktopForces.uproject"
 
 # Wine command used to run the game's UCC.exe on Linux/macOS (ignored on Windows).
 wine = "wine"

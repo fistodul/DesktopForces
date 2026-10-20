@@ -6,7 +6,8 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ UE 5.8 project: forward/mobile rendering, no post, static lighting, ~80 plugins off, Low scalability defaults
 - ✅ Git repo, open-source layout (code/tools/docs tracked, original assets generated locally)
 - ✅ Docs for the team (this folder)
-- ✅ Licence: MPL-2.0 ([LICENSE.md](../LICENSE.md))
+- ✅ Licence: MPL-2.0 ([LICENSE.md](../LICENSE.md)); credits ([CREDITS.md](../CREDITS.md), in-game Credits page)
+- ✅ Name: **Desktop Forces** (2026-10-20); the original game's converted content is the separate *Mobile Forces Classic* plugin, community maps whose authors agreed are part of the game ([packs](Pipeline.md#content-packs))
 - ⬜ CI build (Linux + Windows), automated import test on a small map
 
 ## Pipeline (`Tools/mfport`)
@@ -14,7 +15,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ UE importer commandlet, map builder, Lightmass bake step
 - ✅ Override folders for clean replacement textures/sounds
 - ✅ Lightmass on Linux (UE 5.8.3): 6-byte patch of the shipped library (once per machine) + `-messaging` for the bake commandlet ([Pipeline.md](Pipeline.md#baking-on-linux-ue-583))
-- ✅ Lighting: UE1 light values (intensity ≈ π), sky windows transparent to light, 2 Lightmass bounces, soft light radii, small ambient floor from the map's zone ambient (`MPC_MF`) - all baked
+- ✅ Lighting: UE1 light values (intensity ≈ π), sky windows transparent to light, 2 Lightmass bounces, soft light radii, small unshadowed floor from each zone's ambient (world vertex colour, `MPC_MF`) - all baked
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ⬜ Skeletal meshes + animations (soldiers, first-person weapons): MeshAnimation parses; SkeletalMesh reader + PSK/glTF export
 - ✅ Rage `DeviceMesh` (vehicles, wheels, crates, safes, flag bases, det locks, holdout timers): `mfport.py props`
@@ -22,7 +23,9 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ⬜ Movers (doors/lifts are brushes with keyframes), water zones → volumes
 - ✅ Ladders → `AMFLadderVolume` with nav links
 - ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes
-- ✅ Mod plugin art: `Plugins/Mods/*/SourceArt` → `mfport.py mods` → `import --steps plugins`
+- ✅ Our own art: `SourceArt/` (menu pictures, start-up theme, mod icons) + procedural textures → `Tools/artgen` → `/Game/MF/...`
+- ✅ Content packs: classic (plugin) / core / replaced roots from `packs.toml`; core maps own their material instances (replacement art needs no re-bake)
+- 🟡 Replacement art for the textures core maps still borrow (`mfport.py packs`: Toreford 1, MF-Filip 43)
 - ✅ Sky: each map's SkyZone captured into a cubemap for the sky material
 - ✅ Minimap textures (MiniMapInfo)
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
@@ -44,10 +47,10 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Chat (T/Y, Say/TeamSay), team orders menu (V/C) with bot orders, MF message list
 - ✅ N teams (`UMFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `MFNavTest` / `MFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
-- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL`, MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ⬜ passenger seats, mounted guns (BuggyWeapon …), bots driving, wheel blow-outs
+- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ⬜ passenger seats, mounted guns (BuggyWeapon …), bots driving, wheel blow-outs
 - ✅ Ladders: grab when close / falling in, climb down from the top, floor walks again; ⬜ swimming/drowning, water zones
-- ✅ Mods as plugins ([Modding.md](Modding.md)): `MFModMolotov` (weapon), `MFModKOH` (game mode)
-- ✅ Mods: Totem, TripLasers, SeekerMines, SentryGun, TugGame (plugins)
+- ✅ MF-mods, part of the game (`Source/DesktopForces/Mods`, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame
+- ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
 - ⬜ More MF-mods: ZombieGame (as components, not player subclasses), CoopMode, PredatorMissile, ArmedAPC, arenaMode …
 
 ## Presentation
@@ -58,7 +61,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px
 - 🟡 First-person weapons: MF carry models held in view (no arms / animations yet: those are SkeletalMeshes); ⬜ third-person soldiers, team skins
 - ⬜ Effects: muzzle flash, tracers, impacts, explosions, blood (cheap sprite particles)
-- 🟡 Menus: main menu (play / join / options / quit) and Esc menu in Slate; ⬜ server browser (333networks master server protocol)
+- 🟡 Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ⬜ server browser (333networks master server protocol)
 - ⬜ Touch controls (mobile)
 
 ## Maps

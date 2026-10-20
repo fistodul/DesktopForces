@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Start Mobile Forces from the editor build (no packaging needed).
+# Start Desktop Forces from the editor build (no packaging needed).
 #
 #   Tools/play.sh                              warehouse, deathmatch
 #   Tools/play.sh mf-warehouse tdm 8           team deathmatch with 8 bots
-#   Tools/play.sh mf-warehouse koh 8           King of the Hill (mod plugin)
+#   Tools/play.sh mf-warehouse koh 8           King of the Hill (MF-mods)
 #   Tools/play.sh MF_TestRange                 test map
 #   Tools/play.sh editor                       open the editor instead
 #   Tools/play.sh build                        compile the C++ modules first
@@ -13,13 +13,13 @@
 # (e.g. -ResX=1600 -ResY=900, -log). Engine path: mfport.toml `ue_root` or $UE_ROOT.
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UPROJECT="$PROJECT_DIR/MobileForces.uproject"     # UE needs an absolute path here
+UPROJECT="$PROJECT_DIR/DesktopForces.uproject"     # UE needs an absolute path here
 UE_ROOT="${UE_ROOT:-$(python3 -c "import sys; sys.path.insert(0, '$PROJECT_DIR/Tools/mfport'); from mflib import config; print(config.load().ue_root)")}"
 EDITOR="$UE_ROOT/Engine/Binaries/Linux/UnrealEditor"
 
 case "${1:-}" in
   build)
-    exec "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh" MobileForcesEditor Linux Development \
+    exec "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh" DesktopForcesEditor Linux Development \
       -project="$UPROJECT" -waitmutex -NoUBA ;;
   editor)
     exec "$EDITOR" "$UPROJECT" ;;
@@ -33,19 +33,21 @@ shift $(( $# < 3 ? $# : 3 ))
 case "$MAP" in
   MF_*) MAP_PATH="/Game/MF/Maps/$MAP" ;;
   /*)   MAP_PATH="$MAP" ;;
-  *)    MAP_PATH="/Game/MFMaps/Generated/$MAP" ;;
+  *)    # cleared community maps are part of the game (/Game/Maps), the rest is in the classic plugin
+        if [ -f "$PROJECT_DIR/Content/Maps/$MAP.umap" ]; then MAP_PATH="/Game/Maps/$MAP"
+        else MAP_PATH="/MobileForcesClassic/Maps/$MAP"; fi ;;
 esac
 case "$MODE" in
-  dm)      GAME="/Script/MobileForces.MFGameMode_DM" ;;
-  tdm)     GAME="/Script/MobileForces.MFGameMode_TDM" ;;
-  holdout) GAME="/Script/MobileForces.MFGameMode_Holdout" ;;
-  sc)      GAME="/Script/MobileForces.MFGameMode_Safecracker" ;;
-  ctf)     GAME="/Script/MobileForces.MFGameMode_CTF" ;;
-  det)     GAME="/Script/MobileForces.MFGameMode_Detonation" ;;
-  cap)     GAME="/Script/MobileForces.MFGameMode_Captains" ;;
-  koh)     GAME="/Script/MFModKOH.MFGameMode_KOH" ;;
-  tug)     GAME="/Script/MFModTug.MFGameMode_Tug" ;;
-  trailer) GAME="/Script/MobileForces.MFGameMode_Trailer" ;;
+  dm)      GAME="/Script/DesktopForces.MFGameMode_DM" ;;
+  tdm)     GAME="/Script/DesktopForces.MFGameMode_TDM" ;;
+  holdout) GAME="/Script/DesktopForces.MFGameMode_Holdout" ;;
+  sc)      GAME="/Script/DesktopForces.MFGameMode_Safecracker" ;;
+  ctf)     GAME="/Script/DesktopForces.MFGameMode_CTF" ;;
+  det)     GAME="/Script/DesktopForces.MFGameMode_Detonation" ;;
+  cap)     GAME="/Script/DesktopForces.MFGameMode_Captains" ;;
+  koh)     GAME="/Script/DesktopForces.MFGameMode_KOH" ;;
+  tug)     GAME="/Script/DesktopForces.MFGameMode_Tug" ;;
+  trailer) GAME="/Script/DesktopForces.MFGameMode_Trailer" ;;
   *)       GAME="$MODE" ;;
 esac
 

@@ -57,8 +57,9 @@ lets go (no regrab for 0.5 s).
 - Loadout areas don't need closed-off zones (an MF1 limit): place an `MFLoadoutZone` and
   size its box (`Volume` component) like any trigger volume; set `Team` (255 = everyone).
 - Dropped weapons (throw key `;`, death with ammo left) keep their ammo and lie where MF put
-  them (`Pawn.DropItem`: 4 collision radii out, random ±71° around the facing, then on the
-  floor). No touch pickup, like MF: take them through the loadout. 32 per map at most.
+  them (`Pawn.DropItem`: 4 collision radii out, random ±71° around the facing, then they fall,
+  MF `PHYS_Falling`, until the model's underside rests on the floor; soldiers don't hold them
+  up). No touch pickup, like MF: take them through the loadout. 32 per map at most.
 - Keys: MF picked an item with its group key (1-9, 0). Groups now hold any number of
   items (mods), so the loadout screen shows **one row per key**: a row with one item is
   picked by its key directly; otherwise the key opens the row and the next number picks
@@ -88,7 +89,7 @@ lets go (no regrab for 0.5 s).
   `AMFZoneBox` tagged `CaptainProhibited`). 5 points / 12 min. "CAPTAIN" label over them.
 - Holdout (Domination), DM, TDM as before; Trailer waits for vehicles (its map actors are
   already in the converted maps).
-- **Tug of War** (`tug`, MF-mods TugGame, plugin `MFModTug`): killing an enemy converts them
+- **Tug of War** (`tug`, MF-mods TugGame, `Mods/Tug`): killing an enemy converts them
   to your team on the spot (full health). A team with nobody left loses the round (+2 to the
   converter); the bigger team wins a round that runs out of time (8 min). 3 rounds; every
   round starts with the original teams and fresh loadouts.
@@ -114,7 +115,7 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 | Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90) |
 | Armour | 11 | 1 | — | absorbs 75% | — | — | — | 100 charge; falling/drowning bypass |
 
-Mod items (MF-mods, plugins, in every crate while enabled): **Totem of Undying** (group 10:
+Mod items (MF-mods, part of the game, in every crate): **Totem of Undying** (group 10:
 cheats death once - 5 health, 1.5 s no damage, +19 over 3 s; fire: +56 to you and team-mates
 within 400 uu in view; alt: +118 over 10 s to the team-mate you aim at; reload: +120 over 10 s
 on yourself), **Trip Laser** (group 9, 3: beam passes team-mates, burns the first enemy 280 /

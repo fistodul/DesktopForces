@@ -58,7 +58,7 @@ def load() -> Config:
         game_dir=path('game_dir', '../../../MoFo/MobileForces'),
         work_dir=path('work_dir', 'work'),
         ue_root=path('ue_root', '../../../Linux_Unreal_Engine_5.8.3'),
-        uproject=path('uproject', str(PROJECT_DIR / 'MobileForces.uproject')),
+        uproject=path('uproject', str(PROJECT_DIR / 'DesktopForces.uproject')),
         wine=str(get('wine', 'wine')),
         max_texture_size=int(get('max_texture_size', 512)),
     )

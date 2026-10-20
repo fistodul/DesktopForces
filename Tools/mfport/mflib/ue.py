@@ -41,7 +41,7 @@ def run_commandlet(cfg: Config, name: str, *args: str, watch: tuple[str, ...] = 
     return rc
 
 
-def run_importer(cfg: Config, steps: str = 'textures,sounds,music,plugins,maps', maps: list[str] | None = None) -> int:
+def run_importer(cfg: Config, steps: str = 'art,textures,props,sounds,music,maps', maps: list[str] | None = None) -> int:
     args = [f'-steps={steps}']
     default_out = (cfg.uproject.parent / 'Tools' / 'mfport' / 'work' / 'out').resolve()
     if cfg.out_dir.resolve() != default_out:
@@ -52,13 +52,24 @@ def run_importer(cfg: Config, steps: str = 'textures,sounds,music,plugins,maps',
     return run_commandlet(cfg, 'MFImport', *args)
 
 
+def map_package(cfg: Config, name: str) -> tuple[str, Path]:
+    """Long package name and .umap file of a map: our own (MF_*) in /Game/MF/Maps, cleared
+    community maps in /Game/Maps, everything else in the MobileForcesClassic plugin."""
+    root = cfg.uproject.parent
+    if name.startswith('MF_'):
+        return f'/Game/MF/Maps/{name}', root / 'Content' / 'MF' / 'Maps' / f'{name}.umap'
+    from . import packs
+    if packs.map_pack(packs.load(), name) == 'core':
+        return f'/Game/Maps/{name}', root / 'Content' / 'Maps' / f'{name}.umap'
+    return f'/MobileForcesClassic/Maps/{name}', root / 'Plugins' / 'MobileForcesClassic' / 'Content' / 'Maps' / f'{name}.umap'
+
+
 def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> int:
     """Bake static lighting (Lightmass) + precomputed visibility for generated maps."""
     rc = 0
     for m in maps:
-        # our own maps (MF_*) live in /Game/MF/Maps, converted ones in /Game/MFMaps/Generated
-        pkg = f'/Game/MF/Maps/{m}' if m.startswith('MF_') else f'/Game/MFMaps/Generated/{m}'
-        if not (cfg.uproject.parent / 'Content' / (pkg[len('/Game/'):] + '.umap')).exists():
+        pkg, path = map_package(cfg, m)
+        if not path.exists():
             print(f'! no map {pkg} - import it first')
             rc = 1
             continue

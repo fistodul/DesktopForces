@@ -1,6 +1,6 @@
 """Music: Mobile Forces .umx packages hold one tracker module each (Impulse Tracker 'it',
 also s3m/xm/mod). Extracted straight from the package, rendered to WAV with ffmpeg's
-libopenmpt decoder, imported as looping SoundWaves (/Game/MFImported/Music/<pkg>/<name>).
+libopenmpt decoder, imported as looping SoundWaves (<pack root>/Music/<pkg>/<name>, mflib/packs.py).
 
 UMusic native data (v83): FName FileType, then a lazy array (INT skip offset, compact count, bytes).
 Overrides: Tools/mfport/overrides/music/<package>.ogg|.wav replaces the original.

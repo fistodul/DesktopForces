@@ -31,8 +31,9 @@ the original had the command; case doesn't matter.
 | `TryEnterExit` | get into the nearest vehicle / out of this one (E; Enter in the loadout picks) |
 | `ShowMenu` | in-game menu: resume, new game, join, options, leave, quit (Esc) |
 | `Brightness [X]` | MF brightness: step 0.5 → 2, or set 0.25 - 3 (scales the map's ambient light; saved) |
+| `RenderScale X` | 3D resolution 0.25 - 2 × the window (HUD stays sharp; saved, also in Options) |
 
-Keys that run commands are a config table, like MF's User.ini: `[/Script/MobileForces.MFPlayerController]`
+Keys that run commands are a config table, like MF's User.ini: `[/Script/DesktopForces.MFPlayerController]`
 `+CommandBindings=(Key=F9,Command="SShot")` in `Config/DefaultGame.ini` (or your user Game.ini).
 Built-in keys: WASD / arrows / `,` `.` move, Ctrl crouch (MF also had C; C opens orders here),
 Delete / PageDown look up / down, Q / Backspace loadout, `;` throw, `[` `]` / wheel weapons.
@@ -82,12 +83,13 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
 | `MFWalk Yaw Seconds [Fwd] [Right]` | hold movement input, logging position + movement mode every 0.25 s (stairs / ladder tests) |
-| `MFMenuPage N`, `MFMenuStart` | main menu: show page N (0 main, 1 play, 2 join, 3 options) / press Start |
+| `MFMenuPage N`, `MFMenuStart` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits) / press Start |
+| `MFVehicles` | log every vehicle: position, mass, gravity, physics awake, height above ground, wheel compression |
 | `MFApplyUserSettings` | re-read the player's options (field of view) |
 
 Command line for automated runs: `-MFExec="…"` (commands, `@seconds:` delays), `-MFQuitAfter=N`,
 `-MFAutoShot=N -MFShotName=x [-MFShotUI]` (`-MFShotUI` includes Slate menus), `-abslog=<file>`
-to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/MobileForces.log`).
+to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/DesktopForces.log`).
 
 Not ported (no equivalent yet): `KillCars`, `ExpireCars`,
 `FeignDeath`, `Taunt`, `Speech`, `BehindView` (third person comes with soldier models).

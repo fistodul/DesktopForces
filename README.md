@@ -1,22 +1,26 @@
-# Mobile Forces — Unreal Engine 5 remake
+# Desktop Forces
 
-A remake of **Mobile Forces** (Rage Software, 2002, Unreal Engine 1.5) in Unreal Engine 5.8,
-built mobile-first so it also runs well on low-end PCs.
+A team shooter for low-end PCs in the spirit of **Mobile Forces** (Rage Software, 2002), made
+in Unreal Engine 5.8 by the Mobile Forces community ([mf.nofisto.com](https://mf.nofisto.com)).
+It plays like the original (rules and numbers are ported from its UnrealScript) and can play
+its maps, but it is its own game: code, tools, docs and art in this repository are ours.
 
-- **Code, tools and docs are open source.** The original game's assets are *not* in this
-  repository. A Python pipeline (`Tools/mfport`) converts them from **your own copy** of
-  Mobile Forces (Steam) into the project. Legally clean replacements can be dropped in
-  over time (see [Docs/Pipeline.md](Docs/Pipeline.md#overrides)) until the game no longer
-  needs the original files at all.
-- Gameplay is ported from the original UnrealScript: numbers and rules come from the
-  decompiled classes. Every constant carries a comment with the original value
-  ([Docs/Gameplay.md](Docs/Gameplay.md)).
+- **No original game data in this repository.** A Python pipeline (`Tools/mfport`) converts the
+  maps, textures, sounds and models from **your own copy** of Mobile Forces into a separate
+  content plugin, *Mobile Forces Classic* (`Plugins/MobileForcesClassic`). Disable that plugin
+  and the game builds without any of it.
+- **Community content** whose authors agreed (list in [`Tools/mfport/packs.toml`](Tools/mfport/packs.toml))
+  is part of the game itself; textures it still borrows from the original game get replacement
+  art over time ([Docs/Pipeline.md](Docs/Pipeline.md#content-packs)).
+- **Low-end first:** forward shading, baked lighting, no Nanite / Lumen / virtual shadow maps,
+  textures at most 512 px (256 on low), 4 GB VRAM is plenty ([Docs/Performance.md](Docs/Performance.md)).
+- Gameplay numbers carry the original value in a comment ([Docs/Gameplay.md](Docs/Gameplay.md)).
 
 ## Quick start
 
 Requirements: Unreal Engine 5.8, Python 3.11+ with Pillow and numpy, Wine (Linux/macOS only;
-used to run the original `UCC.exe` exporter for levels and sounds), ffmpeg (optional, sounds),
-a Mobile Forces install.
+runs the original `UCC.exe` exporter for levels and sounds), ffmpeg (sounds, music), a Mobile
+Forces install for the classic content.
 
 ```bash
 # 1. point the pipeline at your game (optional if the default path fits)
@@ -31,49 +35,48 @@ python3 Tools/mfport/mfport.py all mf-warehouse
 # 4. play (map, mode dm|tdm|holdout|sc|ctf|det|cap|trailer|koh|tug, bots) - or `Tools/play.sh editor`
 Tools/play.sh mf-warehouse tdm 8
 
-# or start at the main menu (map / mode / bots / options)
-<UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/MobileForces.uproject" -game
+# or start at the main menu (map / mode / bots / options / credits)
+<UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/DesktopForces.uproject" -game
 ```
 
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,
 Ctrl crouch, Shift walk, E get in / out of vehicles, G drop the flag, V/C orders, F1/Tab scores,
-Esc menu), plus X for armour/gadgets; in the loadout screen a
-number picks a row, a second number the item in it. Map URL options: `?game=/Script/MobileForces.MFGameMode_TDM`
-(also `MFGameMode_Holdout`, `/Script/MFModKOH.MFGameMode_KOH`), `?Bots=8?BotSkill=0.7`,
-`?Teams=4`, `?FragLimit=10?TimeLimit=5`, `?Vehicles=0`.
+Esc menu), plus X for armour/gadgets; in the loadout screen a number picks a row, a second
+number the item in it. Map URL options: `?game=/Script/DesktopForces.MFGameMode_TDM` (also
+`MFGameMode_Holdout`, `MFGameMode_KOH`, ...), `?Bots=8?BotSkill=0.7`, `?Teams=4`,
+`?FragLimit=10?TimeLimit=5`, `?Vehicles=0`.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `Source/MobileForces/` | Game module: player, movement, weapons, loadout, game modes, HUD |
-| `Source/MobileForcesEditor/` | Editor module: importer commandlet (`-run=MFImport`) that builds assets and maps from the pipeline output |
+| `Source/DesktopForces/` | Game module: player, movement, weapons (one file each), loadout, game modes, vehicles, HUD, menu |
+| `Source/DesktopForces/Mods/` | The MF-mods (Totem, Trip Lasers, Seeker Mines, Sentry Gun, Molotov, King of the Hill, Tug of War), part of the game |
+| `Source/DesktopForcesEditor/` | Editor module: importer commandlet (`-run=MFImport`) that builds assets and maps from the pipeline output |
+| `SourceArt/` | The team's own art and music (menu pictures, start-up theme, mod icons) - see [CREDITS.md](CREDITS.md) |
+| `Tools/artgen/` | Procedural textures + SourceArt conversion |
 | `Tools/mfport/` | Python pipeline: reads the original packages (`.umf/.utx/.uax/.u`), exports with UCC, converts BSP/meshes/textures/sounds |
-| `Tools/mfport/overrides/` | Replacement textures/sounds (committed; take precedence over the originals) |
-| `Plugins/Mods/` | Mods as UE plugins (Molotov, King of the Hill, …) — see [Docs/Modding.md](Docs/Modding.md) |
-| `Content/MF/` | Our own assets (master materials, ...) — committed |
-| `Content/MFImported/`, `Content/MFMaps/Generated/` | Generated from the original game — **never committed** |
+| `Tools/mfport/packs.toml` | Which converted content is part of the game and which stays classic |
+| `Tools/mfport/overrides/` | Replacement textures (committed; take precedence over the originals) |
+| `Content/MF/` | Our own assets (master materials, menu art, crate, test map) - committed |
+| `Content/Maps/`, `Content/MF/Community/` | Converted community maps cleared for the game - generated |
+| `Plugins/MobileForcesClassic/` | Content converted from the original game - generated, **never committed** |
 | `Docs/` | How everything works |
 
 ## Docs
 
-- [Architecture](Docs/Architecture.md) — modules, classes, how MF concepts map to UE5
-- [Pipeline](Docs/Pipeline.md) — asset conversion, file formats, overrides
-- [Gameplay reference](Docs/Gameplay.md) — every number taken from the original game
-- [Performance rules](Docs/Performance.md) — mobile-first rendering and code rules
-- [Modding](Docs/Modding.md) — mods as plugins, examples, data formats
-- [Console commands](Docs/Commands.md) — MF commands, cheats, test helpers
-- [Roadmap](Docs/Roadmap.md) — what's done and what's next
-
-## Status
-
-Early but playable: deathmatch, team deathmatch, Holdout and King of the Hill on converted
-original maps with the full stock arsenal, the loadout system and bots. See the roadmap for
-the rest.
+- [Architecture](Docs/Architecture.md) - modules, classes, how MF concepts map to UE5
+- [Pipeline](Docs/Pipeline.md) - asset conversion, content packs, file formats, overrides
+- [Gameplay reference](Docs/Gameplay.md) - every number taken from the original game
+- [Performance rules](Docs/Performance.md) - low-end rendering and code rules
+- [Modding](Docs/Modding.md) - adding weapons, modes and maps; content after release
+- [Console commands](Docs/Commands.md) - MF commands, cheats, test helpers
+- [Roadmap](Docs/Roadmap.md) - what's done and what's next
 
 ## Licence
 
-Code, tools and docs: Mozilla Public License 2.0 — see [LICENSE.md](LICENSE.md).
+Code, tools and docs: Mozilla Public License 2.0 - see [LICENSE.md](LICENSE.md). Art and music
+in `SourceArt/` belong to their authors ([CREDITS.md](CREDITS.md)).
 
-Mobile Forces is © Rage Software / Majesco. This project is a non-commercial fan remake;
-it ships no original game data.
+Mobile Forces is © Rage Software and its current rights holders. Desktop Forces is a fan-made
+game, not affiliated with them, and ships no original game data.

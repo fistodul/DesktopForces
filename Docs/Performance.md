@@ -7,6 +7,9 @@ build uses mobile-class settings too.
 - **Forward shading**, MSAA (scaled by AA quality: off / 2× / 4×). No TAA/TSR.
 - **No post-processing** by default: bloom, AO, auto exposure, motion blur, lens flare, DOF
   off at Low/Medium/High (`DefaultScalability.ini`). Epic post quality adds a little bloom.
+- **Render scale** (Options, `RenderScale X`): the 3D view at 25 % - 200 % of the window
+  (`r.ScreenPercentage`), HUD and menus stay at full resolution. 100 % is the default and costs
+  nothing; 50 % is for very weak GPUs, above 100 % supersamples.
 - **Graphics headroom**: players can raise scalability (`scalability 0-3` or options):
   higher levels add MSAA, anisotropic filtering (0/2/4/8×), view distance and Epic bloom.
   The defaults stay potato.
@@ -45,7 +48,7 @@ build uses mobile-class settings too.
 - Prefer `TActorIterator` only at events (spawn, loadout), never per frame.
 
 ## Plugins
-~80 default plugins disabled in `MobileForces.uproject` (media players, ArchVis, PCG,
+~80 default plugins disabled in `DesktopForces.uproject` (media players, ArchVis, PCG,
 MetaHuman, Paper2D, cloth, ControlRig extras, source control providers …). Only disable a
 plugin if nothing enabled depends on it — the list was computed from the `.uplugin`
 dependency graph.

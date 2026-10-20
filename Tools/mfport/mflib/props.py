@@ -4,7 +4,7 @@ first frame (weapon carry/pickup models, rockets, the detonation key ...).
 
     mfport.py props   ->  work/out/Props/<Package>/<Mesh>.mfmesh.* + Props/props.json
 
-`import --steps props` builds them as /Game/MFImported/Props/<Package>/<Mesh>; game actors
+`import --steps props` builds them as /MobileForcesClassic/Props/<Package>/<Mesh>; game actors
 use them when present (a converted install) and keep their placeholder shapes otherwise.
 """
 from __future__ import annotations

@@ -4,7 +4,7 @@ Converts the original game (your install) into UE assets. Two halves:
 
 1. **Python** (`Tools/mfport/mfport.py`, library in `mflib/`) reads/export the original
    data and writes neutral intermediate files to `Tools/mfport/work/` (git-ignored).
-2. **C++ commandlet** (`MobileForcesEditor`, `-run=MFImport`) turns those into UE assets
+2. **C++ commandlet** (`DesktopForcesEditor`, `-run=MFImport`) turns those into UE assets
    and levels. `mfport.py import` runs it.
 
 ```
@@ -14,7 +14,8 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
                                                         │
                               UnrealEditor-Cmd -run=MFImport
                                                         ▼
-                         Content/MFImported/…  +  Content/MFMaps/Generated/<map>.umap
+      Plugins/MobileForcesClassic/Content/…   (original game: textures, sounds, stock maps …)
+      Content/Maps/<map> + Content/MF/Community/…   (community maps cleared for the game)
 ```
 
 ## Steps
@@ -26,10 +27,10 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
-| `mfport.py mods` | mod plugins' `SourceArt/` → PNG/WAV for `import --steps plugins` |
+| `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
-| `mfport.py import [map…]` | runs the UE importer (`--steps art,textures,props,sounds,music,plugins,maps`; maps also get their navmesh baked) |
+| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,sounds,music,maps`; maps also get their navmesh baked) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 
@@ -99,7 +100,8 @@ Rotations: UE1 units (65536 = 360°) → degrees.
 
 ### `.mfmesh` (`mflib/mfmesh.py`)
 `<name>.mfmesh.json` (materials, sections, counts, lightmap resolution, collision mode,
-render flag) + `<name>.mfmesh.bin` (float32 interleaved `pos3 nrm3 uv2`, then uint32 indices).
+render flag) + `<name>.mfmesh.bin` (float32 interleaved `pos3 nrm3 uv2`, or `pos3 nrm3 uv2 col3`
+for world geometry: the polygon's zone ambient, then uint32 indices).
 Positions in UE cm, mesh-local. Triangle winding: `cross(v1-v0, v2-v0)` points along the
 normal; the UE importer reverses it (UE's convention). Simple enough for other tools
 (e.g. the planned VMF converter) to write.
@@ -126,13 +128,16 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
 
 - **Ambient and bounce light** (UE-native, all baked, free at runtime): UE1 added each zone's
   `FGetHSV(AmbientHue, AmbientSaturation, AmbientBrightness)` to every surface, unshadowed.
-  Now the map's main zone ambient is Lightmass's environment colour (light arriving through
-  sky windows), Lightmass bounces light twice (`LIGHTMASS_BOUNCES` in `level.py`), and the lit
-  masters add a small unshadowed floor `BaseColor × MPC_MF.Ambient`, one global value set by
-  `AMFMapInfo` = map ambient × `AmbientFloor` (0.35, `DefaultGame.ini`) × the player's
-  Brightness. Earlier versions split world chunks per zone and set the ambient per component
-  (more draw calls); gone. Lightmass ignores emissive (`EmissiveBoost 0`: UE1 unlit surfaces
-  never lit anything).
+  Now the map's main ambient (area-weighted over all zones; zones without a ZoneInfo use the
+  LevelInfo's, which is how MF-Filip lights everything) is Lightmass's environment colour (light
+  arriving through sky windows), Lightmass bounces light twice (`LIGHTMASS_BOUNCES` in
+  `level.py`), and the lit masters add a small unshadowed floor:
+  `BaseColor × lerp(MPC_MF.Ambient, VertexColor.rgb × MPC_MF.AmbientScale, VertexColor.a)`.
+  World geometry carries its zone's ambient in the vertex colour (alpha 1), props and actors
+  (alpha 0) use the map's main ambient. `AmbientScale` = `AmbientFloor` (0.35, `DefaultGame.ini`)
+  × the player's Brightness, set by `AMFMapInfo`. Per-zone light this way costs nothing: no
+  extra meshes or draw calls (earlier versions split chunks per zone). Lightmass ignores
+  emissive (`EmissiveBoost 0`: UE1 unlit surfaces never lit anything).
 - **Sky windows** (fake backdrop) are their own chunks (`Sky_x_y`) that cast no shadow, so the
   sun and the sky colour come in through them (UE1 sunlight lit what could see the sky).
 - **Soft shadows**: point/spot lights get a 40 cm source radius, the sun a 3° angle (UE1
@@ -160,12 +165,36 @@ Only whoever bakes needs this; players get the baked result inside the map.
 
 Windows bakes without any of this.
 
-## Our own art (`Tools/artgen`)
+## Our own art (`Tools/artgen`, `SourceArt/`)
 
-`python3 Tools/artgen/artgen.py` generates textures made for this project (procedural, no
-game art, MPL-2.0 like the code) into `Tools/artgen/out/` (committed); `import --steps art`
-brings them to `/Game/MF/Art/` and builds the materials using them. Today: `T_MF_Crate`
-(loadout crates; alpha = stencil painted in the team colour by `M_MF_Crate`).
+`python3 Tools/artgen/artgen.py` writes `Tools/artgen/out/<folder>/` (git-ignored; `mfport.py
+import` with the `art` step runs it), and the importer brings everything to `/Game/MF/<folder>/`:
+
+- procedural textures made for this project (no game art): `Art/T_MF_Crate` (loadout crates;
+  alpha = stencil painted in the team colour by `M_MF_Crate`)
+- `SourceArt/` (committed): the team's own files - menu pictures (`UI/`), the start-up theme
+  (`Music/`, mp3/ogg/flac → WAV with ffmpeg), MF-mods icons (`Mods/Icons/`). 8-bit BMPs keep
+  the UE1 rule: palette index 0 is transparent. Authors in [CREDITS.md](../CREDITS.md).
+
+`UI/` and `*/Icons/` become UI textures (no mips); the rest world textures (512 max, 256 low).
+
+## Content packs
+
+Converted content is split so Desktop Forces can be built without the original game
+(`Tools/mfport/packs.toml`, applied by `mflib/packs.py`, which writes `work/out/packs.json`
+for the importer):
+
+| Pack | Root | What |
+|---|---|---|
+| classic | `/MobileForcesClassic` (plugin) | everything from the retail game; community maps and packages not cleared yet |
+| core | `/Game/Maps/<map>`, `/Game/MF/Community` | community maps whose authors agreed, their own texture packages |
+| replaced | `/Game/MF/Replacements` | textures with replacement art in `overrides/` |
+
+Core maps get their own material instances in `/Game/MF/Community/Materials`: they point at
+the original texture until replacement art exists, so adding an override later only re-points
+materials (re-run `import --steps textures` for the map's textures) - no map rebuild, no
+re-bake. `mfport.py packs` shows what each core map still borrows (e.g. mf-Toreford: one
+`car_park` texture; MF-Filip: 43 from six retail packages).
 
 ## Overrides
 
@@ -175,8 +204,13 @@ The way out of depending on the original art:
   resolution; UVs always use the original size).
 - `Tools/mfport/overrides/sounds/<package>/<name>.wav` replaces that sound.
 
-Overrides are committed. Prefer CC0 sources (ambientCG, Poly Haven, Kenney, freesound CC0)
-and note the source/licence in `overrides/CREDITS.md`.
+Overrides are committed and become core content (`/Game/MF/Replacements`). Prefer CC0 sources
+(ambientCG, Poly Haven, Kenney, freesound CC0) and note the source/licence in
+`overrides/CREDITS.md`.
+
+Masked textures get their see-through texels' colour bled in from the opaque neighbours
+(`bleed_alpha` in `textures.py`): UE1 kept palette index 0 (white, magenta) there, which
+filtering and mips smeared into white fringes (tyres, fences).
 
 ## Debugging a conversion
 

@@ -1,11 +1,11 @@
 """Map Mobile Forces (UE1) actors to spawn records for the UE5 level builder.
 
 All Mobile Forces knowledge about actors lives here; the C++ builder
-(MobileForcesEditor/MFLevelBuilder) just spawns what the records say:
+(DesktopForcesEditor/MFLevelBuilder) just spawns what the records say:
 
   {"type": "static_mesh", "mesh": ..., "location", "rotation", "scale"}
   {"type": "point_light" | "spot_light" | "directional_light", ..., "color", "intensity", "radius"}
-  {"type": "actor", "class": "/Script/MobileForces.MFPlayerStart", "props": {UE property: text}}
+  {"type": "actor", "class": "/Script/DesktopForces.MFPlayerStart", "props": {UE property: text}}
   {"type": "loadout_zone", "team", "box_min", "box_max"}
   {"type": "ambient_sound", "sound", "radius", "volume"}
   {"type": "legacy", "mf_class", "mf_name", "team", "props"}   (kept for future game modes)
@@ -134,7 +134,7 @@ class ActorMapper:
 
         if cls in ('PlayerStart', 'CaptainStart'):
             team = props.get('TeamNumber', '0')
-            rec = dict(base, type='actor', **{'class': '/Script/MobileForces.MFPlayerStart'},
+            rec = dict(base, type='actor', **{'class': '/Script/DesktopForces.MFPlayerStart'},
                        props={'TeamNumber': str(int(float(team)) & 255)})
             if t3d.parse_bool(props.get('bEnabled'), True) is False:
                 rec['props']['bEnabled'] = 'False'
@@ -148,7 +148,7 @@ class ActorMapper:
         if cls == 'LadderClimber':
             r = t3d.parse_float(props.get('CollisionRadius'), 22.0) * UU_TO_CM
             h = t3d.parse_float(props.get('CollisionHeight'), 22.0) * UU_TO_CM
-            return [dict(base, type='actor', **{'class': '/Script/MobileForces.MFLadderVolume'},
+            return [dict(base, type='actor', **{'class': '/Script/DesktopForces.MFLadderVolume'},
                          props={'Radius': f'{r:.2f}', 'HalfHeight': f'{h:.2f}',
                                 'ClimbSpeed': props.get('ClimbSpeed', '0.5')})]
 
@@ -158,7 +158,7 @@ class ActorMapper:
             if not t3d.parse_bool(props.get('IsActive'), True):
                 return []
             variant = 'Open' if cls.endswith('Open') else ('Skewed' if cls.endswith('Skewed') else 'Closed')
-            return [dict(base, type='actor', **{'class': '/Script/MobileForces.MFLoadoutCrate'},
+            return [dict(base, type='actor', **{'class': '/Script/DesktopForces.MFLoadoutCrate'},
                          props={'Team': team, 'bTeamPlay': str(team_play), 'bNonTeamPlay': str(non_team),
                                 'Variant': variant if not hidden else 'Hidden'})]
 
@@ -183,7 +183,7 @@ class ActorMapper:
             # UE1 draws the sky zone, seen from here, through the map's sky windows
             # (PF_FakeBackdrop); AMFSkyCapture captures it into the sky material's cubemap
             self._note_ambient(props)
-            return [self._legacy(a), dict(base, type='actor', **{'class': '/Script/MobileForces.MFSkyCapture'}, props={})]
+            return [self._legacy(a), dict(base, type='actor', **{'class': '/Script/DesktopForces.MFSkyCapture'}, props={})]
 
         if cls in ('ZoneInfo', 'RageZoneInfo', 'RageWaterZone'):
             self._note_ambient(props)

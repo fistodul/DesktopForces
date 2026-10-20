@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Procedural textures made for this project (no original game art, MPL-2.0 like the code).
+"""The game's own art: procedural textures made here, plus the team's source files.
 
-Writes PNGs to Tools/artgen/out/; `mfport.py import --steps art` brings them into
-/Game/MF/Art/ (textures + the materials that use them). Deterministic: same seed, same image.
+Everything lands in Tools/artgen/out/<folder>/ and `mfport.py import --steps art` brings it
+into /Game/MF/<folder>/ (textures, sounds, and the materials that use them). None of it comes
+from the original game, so it is part of the public repository (see CREDITS.md for authors).
 
-    python3 Tools/artgen/artgen.py            # all
-    python3 Tools/artgen/artgen.py crate      # one
+  generated  procedural textures below, deterministic (same seed, same image) -> out/Art/
+  SourceArt/ files made by the team (menu backgrounds, music, mod icons) -> out/<same path>
+             images become PNG (8-bit BMPs: palette index 0 is transparent, the UE1 way),
+             audio becomes WAV (mp3 / ogg / flac need ffmpeg)
+
+    python3 Tools/artgen/artgen.py              # all
+    python3 Tools/artgen/artgen.py crate        # one generator
+    python3 Tools/artgen/artgen.py sourceart    # only the SourceArt conversion
 
 Textures:
   crate   T_MF_Crate (512): olive military crate face, planks in a frame, nails; alpha
@@ -14,6 +21,8 @@ Textures:
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,6 +30,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 OUT = Path(__file__).resolve().parent / 'out'
+SOURCE_ART = Path(__file__).resolve().parents[2] / 'SourceArt'
 
 
 def _noise(rng: np.random.Generator, size: int, scale: int) -> np.ndarray:
@@ -108,13 +118,51 @@ def crate(size: int = 512) -> Image.Image:
     return rgba
 
 
-GENERATORS = {'crate': ('T_MF_Crate.png', crate)}
+GENERATORS = {'crate': ('Art/T_MF_Crate.png', crate)}
+
+
+def convert_source_art() -> int:
+    """SourceArt/<path>.<ext> -> out/<path>.png | .wav"""
+    n = 0
+    for src in sorted(SOURCE_ART.rglob('*')):
+        if not src.is_file() or src.name.startswith('.') or src.suffix.lower() == '.md':
+            continue
+        rel = src.relative_to(SOURCE_ART)
+        ext = src.suffix.lower()
+        if ext in ('.bmp', '.png', '.pcx', '.tga'):
+            dst = (OUT / rel).with_suffix('.png')
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            img = Image.open(src)
+            if img.mode == 'P':
+                mask = img.point(lambda i: 0 if i == 0 else 255, mode='L')
+                img = img.convert('RGBA')
+                img.putalpha(mask)
+            img.save(dst, optimize=True)
+        elif ext == '.wav':
+            dst = OUT / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst)
+        elif ext in ('.mp3', '.ogg', '.flac'):
+            dst = (OUT / rel).with_suffix('.wav')
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime:
+                subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-ar', '44100', '-ac', '2', str(dst)], check=True)
+        else:
+            print(f'[artgen] skipped {rel} (unknown type)')
+            continue
+        n += 1
+    print(f'[artgen] SourceArt: {n} files -> {OUT}')
+    return n
 
 
 def main(names: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    for name in names or GENERATORS:
+    for name in names or [*GENERATORS, 'sourceart']:
+        if name == 'sourceart':
+            convert_source_art()
+            continue
         file, fn = GENERATORS[name]
+        (OUT / file).parent.mkdir(parents=True, exist_ok=True)
         fn().save(OUT / file, optimize=True)
         print(f'[artgen] {name} -> {OUT / file}')
 

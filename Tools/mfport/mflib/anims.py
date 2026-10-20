@@ -9,7 +9,7 @@ Layout (verified on RageWeapons.u, consumes every byte of each export):
 
 UE1/MF animation timing: PlayAnim(Seq, Rate, TweenTime) lasts
   (NumFrames - 1) / (Seq.Rate * Rate) + TweenTime  seconds,
-which is what weapon fire/reload/select times in Source/MobileForces/Weapons are based on.
+which is what weapon fire/reload/select times in Source/DesktopForces/Weapons are based on.
 
 Usage:  python3 -m mflib.anims <package.u> [AnimationName]
 """

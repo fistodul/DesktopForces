@@ -5,10 +5,12 @@ Keys: every texture is identified by its full UE1 path `package.group.name`
 static-mesh triangles reference.
 
 Overrides: a file at `Tools/mfport/overrides/textures/<package>/<group>/<name>.png`
-(any size) replaces the original texture. This is how the project moves away from
-the original game's art: drop in legally clean / remastered textures there (they
-ARE committed to git) and re-run the pipeline. UV mapping always uses the
-original texture's size, so replacements of any resolution line up.
+(any size) is replacement art for that texture. This is how the project moves away from
+the original game's art: drop in legally clean textures there (they ARE committed to
+git; Tools/artgen/lookalike.py makes procedural ones) and re-run the pipeline. Both are
+imported; core maps use the replacement, classic maps the original (unless packs.toml
+says remaster_classic). UV mapping always uses the original texture's size, so
+replacements of any resolution line up.
 """
 from __future__ import annotations
 
@@ -121,9 +123,17 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
         dst.parent.mkdir(parents=True, exist_ok=True)
         needs_alpha = bool(modes & {'masked', 'lumalpha', 'fontalpha'}) or info['masked']
         override = OVERRIDE_DIR / rel.with_suffix('.png')
+        replacement = None
         if override.exists():
-            img = Image.open(override).convert('RGBA' if needs_alpha else 'RGB')
-        elif (native := decode_p8(pkg, info, needs_alpha)) is not None:
+            # replacement art: imported next to the original (/Game/MF/Replacements); core maps
+            # use it, classic maps keep the original (packs.toml remaster_classic)
+            replacement = cfg.out_dir / 'Replacements' / rel.with_suffix('.png')
+            replacement.parent.mkdir(parents=True, exist_ok=True)
+            rep = Image.open(override).convert('RGBA' if needs_alpha else 'RGB')
+            if needs_alpha and rep.mode == 'RGBA':
+                rep = bleed_alpha(rep)
+            _limit_size(rep, cfg.max_texture_size).save(replacement, optimize=True)
+        if (native := decode_p8(pkg, info, needs_alpha)) is not None:
             img = native
         else:
             raw = raw or export_package(cfg, package)
@@ -149,6 +159,7 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             'file': str(dst.relative_to(cfg.out_dir)),
             'usize': info['usize'], 'vsize': info['vsize'],
             'alpha': needs_alpha, 'override': override.exists(),
+            **({'replacement': str(replacement.relative_to(cfg.out_dir))} if replacement else {}),
             # HUD art / fonts / minimaps: drawn by the canvas, imported without mips
             'ui': bool(modes & {'ui', 'fontalpha', 'lumalpha'}),
         }

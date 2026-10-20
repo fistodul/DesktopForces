@@ -36,7 +36,7 @@ def main():
         cmds += [f'@{t:.1f}:MFCam {cx:.0f} {cy:.0f} {cz:.0f} {yaw:.1f} {pitch:.1f}', f'@{t + 0.7:.1f}:MFShot seam_{n}']
         t += 1.0
     exe = cfg.ue_root / 'Engine/Binaries/Linux/UnrealEditor'
-    subprocess.run([str(exe), str(cfg.uproject), f'/Game/MFMaps/Generated/{a.map}?game=/Script/MobileForces.MFGameMode_DM?Bots=0',
+    subprocess.run([str(exe), str(cfg.uproject), f'/MobileForcesClassic/Maps/{a.map}?game=/Script/DesktopForces.MFGameMode_DM?Bots=0',
                     '-game', '-RenderOffscreen', '-ResX=800', '-ResY=500', '-nosplash',
                     f'-MFExec={"|".join(cmds)}', f'-MFQuitAfter={t + 2:.0f}'],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)

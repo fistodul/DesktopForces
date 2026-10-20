@@ -1,0 +1,256 @@
+# Replacement art for textures that core maps still borrow from the original game
+# (`python3 Tools/mfport/mfport.py packs` lists them). `python3 Tools/artgen/lookalike.py`
+# makes each one with a procedural generator; dark / mid / light colours come from the
+# original unless given here ([r, g, b]). Output: Tools/mfport/overrides/textures/...
+#
+# Generators and their options (see lookalike.py):
+#   noise       beta, contrast, spots, spot_size, streaks, stains, band = {height, color}
+#   bricks      rows, cols, mortar, mortar_color, offset
+#   tiles       n, grout, grout_color, diamond
+#   planks      n, vertical, rings, gap, weathered, nails, frame
+#   plywood     frame, emblem = {size, color, opacity}
+#   corrugated  ridges, vertical, rust, rust_color, seam
+#   siding      n, vertical
+#   treadplate  n
+#   grate       n, wire
+#   panel       border, rust, rust_color, flanges, rivets = {cols, rows}, bolt
+#   pipes       n
+#   lamp        kind = round | grid | tube, n, glow, housing, back
+#   sign        color, mark
+#   flat        top, bottom
+# Every entry may set scale (default 2: 256 px originals become 512, our cap).
+
+# --- MF-Filip (AKVARI) ------------------------------------------------------------------
+["rage_airport.box-cargo.ap_MetalBox1"]
+gen = "panel"
+border = 0.07
+rust = 0.25
+rivets = { cols = [0.035, 0.965], rows = 10 }
+
+["rage_airport.Box.ap_Plywood10"]
+gen = "plywood"
+frame = 0.08
+
+["rage_airport.Box.ap_Plywood1z"]
+gen = "plywood"
+frame = 0.0
+
+["rage_airport.Box.ap_Plywood4z"]
+gen = "plywood"
+frame = 0.0
+emblem = { size = 0.24, color = [196, 70, 40], opacity = 0.8 }
+
+["rage_airport.Floor.ap_floor2"]
+gen = "tiles"
+n = 3
+diamond = true
+grout = 0.04
+
+["rage_airport.Floor.ap_road3"]
+gen = "noise"
+beta = 1.5
+contrast = 1.1
+spots = 0.12
+spot_size = 2
+
+["rage_airport.Floor.ap_stone2"]
+gen = "noise"
+beta = 2.0
+contrast = 0.9
+spots = 0.05
+
+["rage_airport.Floor.ap_StWalk2z"]
+gen = "treadplate"
+n = 10
+
+["rage_airport.Floor.ap_TowerBase4z"]
+gen = "grate"
+n = 14
+wire = 0.2
+
+["rage_airport.Floor.yard-floor-05"]
+gen = "tiles"
+n = 3
+grout = 0.035
+grout_color = [40, 42, 44]
+
+["rage_airport.Light.ap_LRlightz"]
+gen = "lamp"
+kind = "round"
+back = [10, 10, 10]
+
+["rage_airport.metal.ap_Beam1z"]
+gen = "panel"
+border = 0.0
+flanges = 0.14
+bolt = true
+
+["rage_airport.metal.ap_BGsteel1z"]
+gen = "corrugated"
+ridges = 14
+
+["rage_airport.metal.ap_greenroof2z"]
+gen = "corrugated"
+ridges = 10
+rust = 0.35
+seam = 0.92
+
+["rage_airport.metal.ap_greenwall4z"]
+gen = "panel"
+border = 0.0
+rust = 0.08
+rivets = { cols = [0.5], rows = 12 }
+
+["rage_airport.Wall.ap_bGwall"]
+gen = "bricks"
+rows = 8
+cols = 2
+mortar = 0.05
+
+["rage_airport.Wall.ap_cladding3z"]
+gen = "siding"
+n = 8
+vertical = true
+
+["rage_airport.Wall.ap_wall01"]
+gen = "siding"
+n = 5
+
+["rage_dock.Light.dock_light_3"]
+gen = "lamp"
+kind = "grid"
+glow = [255, 236, 120]
+
+["rage_dock.metal.dock_metal_18"]
+gen = "corrugated"
+ridges = 8
+vertical = false
+
+["rage_dock.metal.dock_metal_31"]
+gen = "noise"
+beta = 2.2
+contrast = 0.6
+streaks = 0.25
+stains = 0.2
+
+["rage_dock.metal.dock_metal_32"]
+gen = "noise"
+beta = 2.2
+contrast = 0.6
+streaks = 0.25
+stains = 0.2
+
+["rage_dock.metal.dock_metal_72"]
+gen = "noise"
+beta = 2.0
+contrast = 0.8
+streaks = 0.35
+
+["rage_marina.concrete.marina_concrete_46"]
+gen = "tiles"
+n = 3
+grout = 0.04
+
+["rage_marina.concrete.marina_concrete_6"]
+gen = "tiles"
+n = 2
+grout = 0.012
+
+["rage_marina.Light.marina_light_3"]
+gen = "lamp"
+kind = "round"
+
+["rage_marina.Wall.marina_wall_2"]
+gen = "noise"
+beta = 2.1
+contrast = 0.7
+stains = 0.15
+
+["rage_marina.Wall.marina_wall_5"]
+gen = "noise"
+beta = 2.1
+contrast = 0.7
+stains = 0.15
+
+["rage_marina.Wall.marina_wall_6"]
+gen = "noise"
+beta = 2.1
+contrast = 0.8
+stains = 0.35
+
+["rage_pueblo.ground.pueblo_ground_5"]
+gen = "noise"
+beta = 1.4
+contrast = 1.0
+spots = 0.08
+
+["rage_pueblo.sky.Des_Sun3"]
+gen = "flat"
+
+["rage_pueblo.Wall.pueblo_wall_21"]
+gen = "noise"
+beta = 1.6
+contrast = 0.9
+band = { height = 0.18, color = [110, 96, 60] }
+
+["rage_pueblo.Wall.pueblo_wall_34"]
+gen = "noise"
+beta = 1.5
+contrast = 1.0
+stains = 0.15
+
+["rage_pueblo.Wall.pueblo_wall_36"]
+gen = "noise"
+beta = 1.8
+contrast = 0.8
+stains = 0.1
+
+["rage_shuttle.Mid.tubeipipesRed"]
+gen = "pipes"
+n = 12
+
+["rage_shuttle.win2.ware_metal_25pf"]
+gen = "panel"
+border = 0.0
+rust = 0.45
+rivets = { cols = [0.1, 0.9], rows = 9 }
+
+["rage_shuttle.win2.ware_metal_29pf"]
+gen = "noise"
+beta = 1.5
+contrast = 1.2
+spots = 0.15
+stains = 0.3
+
+["rage_warehouse.Brick.ware_brick_11"]
+gen = "bricks"
+rows = 10
+cols = 4
+
+["rage_warehouse.Light.ware_light_2"]
+gen = "lamp"
+kind = "tube"
+n = 2
+
+["rage_warehouse.Sign.ware_sign_17"]
+gen = "sign"
+color = [250, 205, 20]
+
+["rage_warehouse.Wood.ware_wood_1"]
+gen = "planks"
+n = 1
+gap = 0.0
+rings = 26
+
+["rage_warehouse.Wood.ware_wood_10"]
+gen = "planks"
+n = 6
+weathered = 0.4
+nails = true
+frame = 0.06
+
+["rage_warehouse.Wood.ware_wood_17"]
+gen = "planks"
+n = 5
+vertical = true
+weathered = 0.5

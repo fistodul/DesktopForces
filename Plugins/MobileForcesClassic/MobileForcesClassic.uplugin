@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Mobile Forces Classic",
+	"Description": "Maps, textures, sounds, music, fonts and models converted from your own copy of Mobile Forces (Rage Games, 2002) by Tools/mfport, plus community maps whose authors have not been asked yet. Never distributed with Desktop Forces: disable this plugin to build the game without it.",
+	"Category": "Desktop Forces content",
+	"CreatedBy": "Generated locally by Tools/mfport",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"EnabledByDefault": true
+}

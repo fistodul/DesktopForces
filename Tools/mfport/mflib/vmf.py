@@ -344,11 +344,11 @@ class VmfConverter:
             rot = {'pitch': -pitch, 'yaw': -(yaw + math.degrees(self.yaw)), 'roll': roll}
             base = {'name': f'{cls}_{ent.keys.get("id", "")}', 'location': loc, 'rotation': rot}
             if cls in ('info_player_deathmatch', 'info_player_start'):
-                out.append(dict(base, type='actor', **{'class': '/Script/MobileForces.MFPlayerStart'}, props={'TeamNumber': '255'}))
+                out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.MFPlayerStart'}, props={'TeamNumber': '255'}))
             elif cls in ('info_player_combine', 'info_player_captain_blue'):
-                out.append(dict(base, type='actor', **{'class': '/Script/MobileForces.MFPlayerStart'}, props={'TeamNumber': '0'}))
+                out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.MFPlayerStart'}, props={'TeamNumber': '0'}))
             elif cls in ('info_player_rebel', 'info_player_captain_red'):
-                out.append(dict(base, type='actor', **{'class': '/Script/MobileForces.MFPlayerStart'}, props={'TeamNumber': '1'}))
+                out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.MFPlayerStart'}, props={'TeamNumber': '1'}))
             elif cls in ('light', 'light_spot'):
                 col = [float(x) for x in ent.keys.get('_light', '255 255 255 200').split()[:4]]
                 while len(col) < 4:

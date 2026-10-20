@@ -53,7 +53,7 @@ def main():
             cmds.append(f'@{t:.1f}:MFTopView {x:.0f} {y:.0f} {w:.0f} {z:.0f}')
             cmds.append(f'@{t + 0.7:.1f}:MFShot merge_{m}_{name}')
             t += 1.0
-        args = [str(exe), str(cfg.uproject), f'/Game/MFMaps/Generated/{m}?game=/Script/MobileForces.MFGameMode_DM?Bots=0',
+        args = [str(exe), str(cfg.uproject), f'/MobileForcesClassic/Maps/{m}?game=/Script/DesktopForces.MFGameMode_DM?Bots=0',
                 '-game', '-RenderOffscreen', f'-ResX={a.res}', f'-ResY={a.res}', '-nosplash',
                 f'-MFExec={"|".join(cmds)}', f'-MFQuitAfter={t + 2:.0f}']
         print(f'[{m}] {len(shots)} shots ...')

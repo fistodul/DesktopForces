@@ -1,0 +1,179 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/GameMode.h"
+#include "Core/MFTypes.h"
+#include "MFGameMode.generated.h"
+
+class AMFCharacter;
+class AMFPlayerState;
+class AMFPlayerStart;
+
+/**
+ * Base rules for every Mobile Forces mode (MF RageGameInfo + RageDeathMatch + RageTeamGame
+ * folded into one class; UE's AGameMode supplies the match states).
+ *
+ *  - NumTeams 0 = deathmatch; N > 0 = team game with N teams (MF had 2; any number works,
+ *    names/colours from UMFGameSettings::Teams).
+ *  - "Hardcore mode": all damage dealt by someone x1.5 (RageDeathMatch.ReduceDamage).
+ *  - Kill +1 frag, suicide -1; team games also score teams (RageTeamGame.ScoreKill).
+ *  - Spawns: neutral PlayerStarts in deathmatch, own team's in team games (FindPlayerStart).
+ *  - Respawn after max(1, RespawnWait) s; spawning at a loadout crate/zone opens loadout.
+ *
+ * Game modes extend this by overriding the small virtuals (ScoreKill, CheckEndConditions,
+ * OnTimeLimit, IsStartAllowed, SetPlayerDefaults) rather than copying bodies.
+ * URL options: ?FragLimit=10?TimeLimit=5?GoalTeamScore=3?Teams=4?Bots=8?BotSkill=0.7?Vehicles=0
+ */
+UCLASS(Config = Game)
+class DESKTOPFORCES_API AMFGameMode : public AGameMode
+{
+	GENERATED_BODY()
+
+public:
+	AMFGameMode();
+
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+	virtual void InitGameState() override;
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+	virtual bool ShouldSpawnAtStartSpot(AController* Player) override { return false; }
+	virtual void RestartPlayer(AController* NewPlayer) override;
+	virtual void SetPlayerDefaults(APawn* PlayerPawn) override;
+	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
+	virtual void HandleMatchHasStarted() override;
+	virtual void HandleMatchHasEnded() override;
+
+	/** Damage modifiers (hardcore x1.5, friendly fire). */
+	virtual float ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator) const;
+	/** A pawn died. */
+	virtual void Killed(AController* Killer, AController* Victim, AMFCharacter* VictimPawn, TSubclassOf<UDamageType> DamageType);
+	/** A blow would kill Victim: return true to keep them alive (mods: Tug of War converts instead). */
+	virtual bool PreventDeath(AMFCharacter* Victim, AController* Killer, TSubclassOf<UDamageType> DamageType) { return false; }
+
+	/** Someone got into a vehicle (Trailer: "trailer has been captured!"). */
+	virtual void VehicleEntered(class AMFVehicle* Vehicle, AMFCharacter* Driver) {}
+	/** Places where the map's vehicle generators stay off in this mode (Trailer: the delivery bays). */
+	virtual void GetVehicleExclusions(TArray<FVector>& OutPoints) const {}
+
+	/** Round-based modes: start the clock again, clear planted / dropped items, respawn everyone. */
+	void RestartRound();
+
+	bool IsTeamGame() const { return NumTeams > 0; }
+	/** Whether actors flagged for team / non-team play exist in this mode (MF Actor.bTeamPlay / bNonTeamPlay). */
+	bool IsRelevant(bool bForTeamPlay, bool bForNonTeamPlay) const { return IsTeamGame() ? bForTeamPlay : bForNonTeamPlay; }
+
+	/** Loadout: can this player use the crate / zone they're standing in? */
+	virtual bool CanUseLoadout(AMFCharacter* Character) const;
+
+	/**
+	 * Where a bot with nothing to shoot at should go, best first (objective modes); empty =
+	 * roam freely. The bot skips goals it found unreachable recently.
+	 */
+	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const {}
+
+	/** Something that isn't a player but bots should shoot at when no enemy is in sight (e.g. a safe). */
+	virtual AActor* GetBotShootTarget(AController* Bot) const { return nullptr; }
+
+	/** End the match with this winner line (also announced). */
+	void FinishMatch(const FString& Winner);
+
+	// --- chat and team orders (MF Say / TeamSay, RageVoicePack orders) -----------------------
+	/** Game event line for everyone (MF EventN messages), in ColourTeam's colour (255 = white). */
+	void Event(const FString& Text, uint8 ColourTeam);
+	/** A chat line to everyone, or to the sender's team (team games). */
+	void BroadcastChat(AController* Sender, const FString& Msg, bool bTeam);
+	/** AGameMode's own "Say" exec runs first on a host: send it as the local player's chat. */
+	virtual void Say(const FString& Msg) override;
+	/** MF orders menu entry 0-4: Defend! / Defend this area. / Attack! / Cover me. / Improvise! */
+	static FString GetOrderAbbrev(int32 Order);
+	/** The spoken order line; modes rename Defend / Attack (MF OrderString 5-14). */
+	virtual FString GetOrderString(int32 Order) const;
+	/** Order a team-mate (Target) or the whole team (null): message + bots follow it. */
+	void GiveOrder(AController* Giver, int32 Order, APlayerState* Target);
+
+	/** Spawn bots from the configured roster (UMFGameSettings::Bots, then numbered extras). */
+	/** Add bots from the roster; Skill < 0 = the match's BotSkill (MF AddBots / GoodBot / BadBot). */
+	void AddBots(int32 Count, float Skill = -1.f);
+
+	/** Teams playing (0 = free-for-all). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 NumTeams = 0;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 FragLimit = 30;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 TimeLimit = 7;
+
+	/** Seconds; overrides TimeLimit when > 0 (URL option TimeLimitSecs). */
+	int32 TimeLimitSeconds = 0;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 GoalTeamScore = 0;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 RespawnWait = 0;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bHardCoreMode = true;
+
+	/** Vehicles at the map's generators (URL ?Vehicles=0 turns them off). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bVehicles = true;
+
+	/** Seconds on the end screen before the map restarts (MF RestartWait). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 RestartWait = 15;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	float FriendlyFireScale = 0.f;
+
+	/** Kills add to the team score (MF RageTeamGame.bScoreTeamKills; off in objective modes). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bScoreTeamKills = true;
+
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	FString GameName = TEXT("DeathMatch");
+
+	/** Bots added when the match starts (AGameMode::NumBots counts the ones playing). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 BotCount = 0;
+
+	/** 0..1 */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	float BotSkill = 0.5f;
+
+protected:
+	virtual void ScoreKill(AMFPlayerState* Killer, AMFPlayerState* Victim);
+	virtual void CheckEndConditions(AMFPlayerState* LastKiller);
+	virtual void OnTimeLimit();
+	virtual bool IsStartAllowed(const AMFPlayerStart* Start, AController* Player) const;
+	/** Team for a joining player / bot (smallest team; Preferred breaks ties). */
+	virtual uint8 PickTeam(uint8 Preferred = MF::NoTeam) const;
+	void EnsureKillZ();
+
+	void CheckTimeLimit();
+	void ScheduleRespawn(AController* Victim);
+
+	FTimerHandle TimeLimitTimer;
+	TMap<TWeakObjectPtr<AController>, FTimerHandle> RespawnTimers;
+	TWeakObjectPtr<AActor> LastStartSpot;
+	int32 BotsAdded = 0;
+	bool bFirstBlood = false;
+};
+
+/** Deathmatch: the base rules. */
+UCLASS(Config = Game)
+class DESKTOPFORCES_API AMFGameMode_DM : public AMFGameMode
+{
+	GENERATED_BODY()
+};
+
+/** Team deathmatch (MF RageTeamGame): 2 teams by default (?Teams=N), 12 min, no friendly fire. */
+UCLASS(Config = Game)
+class DESKTOPFORCES_API AMFGameMode_TDM : public AMFGameMode
+{
+	GENERATED_BODY()
+public:
+	AMFGameMode_TDM();
+};
