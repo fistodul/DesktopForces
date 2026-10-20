@@ -1,4 +1,5 @@
 #include "Game/MFGameMode.h"
+#include "MobileForces.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/StaticMeshActor.h"
 #include "Game/MFGameState.h"
@@ -116,9 +117,9 @@ uint8 AMFGameMode::PickTeam(uint8 Preferred) const
 
 bool AMFGameMode::IsStartAllowed(const AMFPlayerStart* Start, AController* Player) const
 {
-	if (!Start->bEnabled)
+	if (!Start->bEnabled || Start->bCaptainStart)
 	{
-		return false;
+		return false;   // captain starts: see AMFGameMode_Captains
 	}
 	if (!IsTeamGame())
 	{
@@ -431,6 +432,7 @@ void AMFGameMode::BroadcastChat(AController* Sender, const FString& Msg, bool bT
 {
 	APlayerState* SenderPS = Sender ? Sender->PlayerState : nullptr;
 	const AMFPlayerState* MFS = Cast<AMFPlayerState>(SenderPS);
+	UE_LOG(LogMF, Display, TEXT("%s%s%s"), bTeam ? TEXT("[team] ") : TEXT(""), SenderPS ? *(SenderPS->GetPlayerName() + TEXT(": ")) : TEXT(""), *Msg);
 	const bool bTeamOnly = bTeam && IsTeamGame() && MFS && MFS->HasTeam();
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{

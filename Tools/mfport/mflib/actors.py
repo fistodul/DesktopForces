@@ -138,6 +138,8 @@ class ActorMapper:
                        props={'TeamNumber': str(int(float(team)) & 255)})
             if t3d.parse_bool(props.get('bEnabled'), True) is False:
                 rec['props']['bEnabled'] = 'False'
+            if cls == 'CaptainStart':
+                rec['props']['bCaptainStart'] = 'True'
             out = [rec]
             if cls == 'CaptainStart':
                 out.append(self._legacy(a))
@@ -167,6 +169,15 @@ class ActorMapper:
                 return []
             return [dict(base, type='loadout_zone', team=_team(props.get('Team', 255)),
                          box_min=box[0], box_max=box[1])]
+
+        if cls == 'CaptainProhibitedZone':
+            # MF: captains standing in these corridors next to the start rooms are sent back
+            self._note_ambient(props)
+            box = self.zone_bounds.get(a['zone'])
+            out = [self._legacy(a)]
+            if box:
+                out.append(dict(base, type='zone_box', tag='CaptainProhibited', box_min=box[0], box_max=box[1]))
+            return out
 
         if cls == 'SkyZoneInfo':
             # UE1 draws the sky zone, seen from here, through the map's sky windows

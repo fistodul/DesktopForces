@@ -327,6 +327,14 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			Z->Team = Team(R->GetStringField(TEXT("team")));
 			Actor = Z;
 		}
+		else if (Type == TEXT("zone_box"))
+		{
+			const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
+			AMFZoneBox* Z = World->SpawnActor<AMFZoneBox>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
+			Z->Volume->SetBoxExtent((Max - Min) * 0.5f);
+			Z->Tags.Add(FName(*R->GetStringField(TEXT("tag"))));
+			Actor = Z;
+		}
 		else if (Type == TEXT("ambient_sound"))
 		{
 			USoundWave* Sound = FindSound(R->GetStringField(TEXT("sound")));

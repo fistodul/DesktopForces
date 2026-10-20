@@ -1,4 +1,5 @@
 #include "World/MFMapActors.h"
+#include "Components/BoxComponent.h"
 #include "MobileForces.h"
 #include "TimerManager.h"
 #include "Engine/TextureRenderTargetCube.h"
@@ -91,4 +92,23 @@ void AMFSkyCapture::BeginPlay()
 			Capture->CaptureScene();
 		}), Delay, false);
 	}
+}
+
+// --- zone box --------------------------------------------------------------------------
+
+AMFZoneBox::AMFZoneBox()
+{
+	PrimaryActorTick.bCanEverTick = false;
+	Volume = CreateDefaultSubobject<UBoxComponent>(TEXT("Volume"));
+	Volume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Volume->SetMobility(EComponentMobility::Static);
+	Volume->bHiddenInGame = true;
+	RootComponent = Volume;
+}
+
+bool AMFZoneBox::IsInside(const FVector& Point) const
+{
+	const FVector Local = GetActorTransform().InverseTransformPosition(Point);
+	const FVector E = Volume->GetUnscaledBoxExtent();
+	return FMath::Abs(Local.X) <= E.X && FMath::Abs(Local.Y) <= E.Y && FMath::Abs(Local.Z) <= E.Z;
 }

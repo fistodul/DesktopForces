@@ -215,6 +215,7 @@ void AMFHUD::DrawHUD()
 	if (PC)
 	{
 		DrawCommandMenu(PC);
+		DrawCaptainMarkers(PC);
 	}
 	if (GS)
 	{
@@ -494,6 +495,37 @@ void AMFHUD::DrawMessages()
 	{
 		MFText(M.Text, X, Y, M.Color, 2);
 		Y += LineH;
+	}
+}
+
+void AMFHUD::DrawCaptainMarkers(AMFPlayerController* PC)
+{
+	FVector Eye;
+	FRotator ViewRot;
+	PC->GetPlayerViewPoint(Eye, ViewRot);
+	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
+	{
+		const AMFPlayerState* PS = It->GetPlayerState<AMFPlayerState>();
+		if (!PS || !PS->bCaptain || !It->IsAlive() || *It == PC->GetPawn())
+		{
+			continue;
+		}
+		const FVector Head = It->GetActorLocation() + FVector(0, 0, 120.f);
+		if (FVector::DotProduct(Head - Eye, ViewRot.Vector()) <= 0.f)
+		{
+			continue;
+		}
+		FHitResult Hit;
+		FCollisionQueryParams Params(TEXT("MFCaptainMark"), false, PC->GetPawn());
+		Params.AddIgnoredActor(*It);
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Head, ECC_Visibility, Params))
+		{
+			continue;   // behind a wall, like the MF sprite
+		}
+		const FVector S = Project(Head);
+		const FString Label = TEXT("CAPTAIN");
+		const FVector2D TS = MFTextSize(Label, 0);
+		MFText(Label, S.X - TS.X * 0.5f, S.Y - TS.Y, UMFGameSettings::Get().GetTeamColor(PS->GetTeam()), 0);
 	}
 }
 

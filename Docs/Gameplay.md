@@ -71,8 +71,16 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
   right (RageSafeCrackerHud). Safes/gold are placeholders until the MF meshes convert.
 - **CTF** (`ctf`, RageCTF): touch your own flag at home while carrying theirs. 4 captures /
   20 min, carrier kill +4, capture +7, dropped flag home after 25 s or on your team's touch.
-- Holdout (Domination), DM, TDM as before; Detonation, Captains, Trailer to port (their map
-  actors are already in the converted maps).
+- **Detonation** (`det`, RageDetonation): one neutral key at a random key spot; carry it to
+  the enemy lock: 5 s countdown, then that team dies one by one (random 0-1 s apart), +7
+  and a team point, the key restarts elsewhere. An untouched key moves after 25 s. 4 / 10 min.
+- **Captains** (`cap`, RageCaptains): a random captain per team; killing the enemy captain
+  is a team point (+7). New captain ~4 s later (at once after a captain's suicide). Captains
+  spawn at their CaptainStart (unused as a normal start in every mode, like MF) and are sent
+  back there from loadout zones and the start-room corridors (CaptainProhibitedZone →
+  `AMFZoneBox` tagged `CaptainProhibited`). 5 points / 12 min. "CAPTAIN" label over them.
+- Holdout (Domination), DM, TDM as before; Trailer waits for vehicles (its map actors are
+  already in the converted maps).
 - Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
   All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
   flag.", Safecracker "Guard the safe." / "Grab the gold."). Bots acknowledge

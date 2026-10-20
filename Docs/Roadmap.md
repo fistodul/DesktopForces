@@ -37,8 +37,8 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Weapon drops (throw / death) as ground items taken through the loadout (MF Loadout_Ground); loadout opens anywhere
 - ✅ Deathmatch, Team Deathmatch
 - ✅ Holdout (Domination): `AMFGameMode_Holdout` + `AMFHoldoutPoint`, captures, hold-time scoring, HUD readout, bot attack/guard goals
-- ✅ Safecracker (two parts, safe cracking, gold), CTF (`AMFFlag` shared by both)
-- ⬜ Captains, Detonation, Trailer — data already in converted maps as `AMFLegacyActor`
+- ✅ Safecracker (two parts, safe cracking, gold), CTF, Detonation (`AMFFlag` shared), Captains
+- ⬜ Trailer (needs the trailer truck vehicle) — data already in converted maps as `AMFLegacyActor`
 - ✅ Chat (T/Y, Say/TeamSay), team orders menu (V/C) with bot orders, MF message list
 - ✅ N teams (`UMFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `MFNavTest` / `MFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).

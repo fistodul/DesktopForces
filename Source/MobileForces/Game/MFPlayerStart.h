@@ -24,5 +24,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
 	bool bEnabled = true;
 
+	/** MF CaptainStart: only the team's captain spawns here (Captains); unused elsewhere. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
+	bool bCaptainStart = false;
+
 	bool IsNeutral() const { return TeamNumber >= 2; }
 };

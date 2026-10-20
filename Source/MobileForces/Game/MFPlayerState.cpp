@@ -7,6 +7,7 @@ void AMFPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMFPlayerState, Team);
 	DOREPLIFETIME(AMFPlayerState, Kills);
 	DOREPLIFETIME(AMFPlayerState, Deaths);
+	DOREPLIFETIME(AMFPlayerState, bCaptain);
 	DOREPLIFETIME(AMFPlayerState, DeathTime);
 }
 

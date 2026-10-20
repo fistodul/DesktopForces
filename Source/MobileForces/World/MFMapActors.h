@@ -83,6 +83,23 @@ public:
 };
 
 /**
+ * A box area standing in for an MF zone with a special meaning (Tags: e.g.
+ * "CaptainProhibited" = MF CaptainProhibitedZone). No collision; game modes test IsInside.
+ */
+UCLASS()
+class MOBILEFORCES_API AMFZoneBox : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AMFZoneBox();
+	bool IsInside(const FVector& Point) const;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MF")
+	TObjectPtr<class UBoxComponent> Volume;
+};
+
+/**
  * The map's sky (MF SkyZoneInfo): UE1 rendered the sky zone, seen from this point with the
  * player's view rotation, through sky-window polygons (PF_FakeBackdrop). Here a cube capture
  * from this point fills RT_MF_Sky once when the map starts; the sky material on those

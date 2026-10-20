@@ -55,6 +55,8 @@ protected:
 	void DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC);
 	void DrawMessages();
 	void DrawCommandMenu(AMFPlayerController* PC);
+	/** Captains: label over each captain in sight (MF captain ID sprite). */
+	void DrawCaptainMarkers(AMFPlayerController* PC);
 	void DrawLoadout(AMFCharacter* C, AMFPlayerController* PC);
 	void DrawScoreboard(AMFGameState* GS);
 	void DrawDeadScreen(AMFGameState* GS, AMFPlayerController* PC);
