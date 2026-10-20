@@ -27,7 +27,7 @@ Tools/play.sh build
 # 3. convert + import a map (warehouse ~10 min the first time; shaders compile once)
 python3 Tools/mfport/mfport.py all mf-warehouse
 
-# 4. play (map, mode dm|tdm|holdout|koh, bots) - or `Tools/play.sh editor`
+# 4. play (map, mode dm|tdm|holdout|sc|ctf|koh, bots) - or `Tools/play.sh editor`
 Tools/play.sh mf-warehouse tdm 8
 ```
 

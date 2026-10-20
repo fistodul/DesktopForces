@@ -42,8 +42,16 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
   and loadout zones only in team games.
 - Items (LoadoutCrate.aWeaponsInStore): Pistol, Machine Gun, Shotgun, Sniper Rifle,
   Trip Bombs, Rocket Launcher, Grenades, Adrenaline, Armour, Heavy Machine Gun.
-- Entering loadout refills ammo of everything carried. Loadout key away from loadout drops
-  the held weapon. Loadout only while walking on the ground.
+- Entering loadout at a crate / in a loadout zone refills ammo of everything carried.
+  Loadout only while walking on the ground.
+- **Away from crates and zones the loadout still opens** (MF only opened it there): it lists
+  the weapons lying within 562 cm (MF `TryLoadoutDropped`, 250 uu); putting an item back
+  drops it on the ground there. At a crate / zone a put-back item goes back into the store.
+- Loadout areas don't need closed-off zones (an MF1 limit): place an `MFLoadoutZone` and
+  size its box (`Volume` component) like any trigger volume; set `Team` (255 = everyone).
+- Dropped weapons (throw key `;`, death with ammo left) keep their ammo and lie where MF put
+  them (`Pawn.DropItem`: 4 collision radii out, random ±71° around the facing, then on the
+  floor). No touch pickup, like MF: take them through the loadout. 32 per map at most.
 - Keys: MF picked an item with its group key (1-9, 0). Groups now hold any number of
   items (mods), so the loadout screen shows **one row per key**: a row with one item is
   picked by its key directly; otherwise the key opens the row and the next number picks
@@ -52,6 +60,23 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 - HUD layout follows MF: loadout grid top left (bright = carried, dark = fits, grey = no
   room), carry strip bottom centre with each item as wide as its carry blocks plus the free
   blocks, health/armour bottom left.
+
+## Game modes
+- **Safecracker** (`sc`, RageSafeCracker): two parts. Part 1: red (FirstAttackerIndex)
+  cracks the blue safe (100 health; explosives ×0.15, other damage ×0.05, ≥1 per hit),
+  takes the gold and carries it to its own safe within 9 min, else "Blue safeguarded their
+  gold!". Part 2 (map reloads with `?Part=2?FirstCaptureTime=N`): sides swap, the new
+  attackers must beat part 1's time. Carrier kill +4, steal +7, respawn 5 s. Dropped gold
+  goes home after 25 s or when a defender touches it. HUD: safe meter + countdown bottom
+  right (RageSafeCrackerHud). Safes/gold are placeholders until the MF meshes convert.
+- **CTF** (`ctf`, RageCTF): touch your own flag at home while carrying theirs. 4 captures /
+  20 min, carrier kill +4, capture +7, dropped flag home after 25 s or on your team's touch.
+- Holdout (Domination), DM, TDM as before; Detonation, Captains, Trailer to port (their map
+  actors are already in the converted maps).
+- Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
+  All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
+  flag.", Safecracker "Guard the safe." / "Grab the gold."). Bots acknowledge
+  ("Roger that", Rage.int AckString), hold the spot, follow, defend or attack.
 
 ## Weapons
 Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.

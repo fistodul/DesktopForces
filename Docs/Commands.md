@@ -21,6 +21,16 @@ the original had the command; case doesn't matter.
 | `RestartLevel` | restart the map (single player / host) |
 | `AddBots N`, `GoodBot N`, `BadBot N` | add bots of normal / better / worse skill (single player / host) |
 | `ListBots` | bots and their skill |
+| `ShowCommandMenu` | team orders menu (V, C); number keys pick the order, then All / a team-mate |
+| `Talk` / `TeamTalk` | type a chat line to everyone / your team (T / Y) |
+| `Say Text` / `TeamSay Text` | send a chat line |
+| `ViewTeam` | watch the next team-mate (F5); `ViewPlayerNum N`: NumPad1 = yourself, NumPad2.. = team-mates |
+| `CenterView` | level the view (End) |
+
+Keys that run commands are a config table, like MF's User.ini: `[/Script/MobileForces.MFPlayerController]`
+`+CommandBindings=(Key=F9,Command="SShot")` in `Config/DefaultGame.ini` (or your user Game.ini).
+Built-in keys: WASD / arrows / `,` `.` move, Ctrl crouch (MF also had C; C opens orders here),
+Delete / PageDown look up / down, Q / Backspace loadout, `;` throw, `[` `]` / wheel weapons.
 
 ## Cheats
 
@@ -51,6 +61,9 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | Command | Does |
 |---|---|
 | `MFNavTest` | log navmesh reachability from you to every spawn, objective and ladder |
+| `MFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
+| `MFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
+| `MFTeleport X Y Z`, `MFHurt N`, `MFFire` | move your pawn, take damage, press fire once (scripted tests) |
 | `MFTopView X Y Width [Z]` | orthographic top view (`MFTopView 0 0 0` = back) |
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |

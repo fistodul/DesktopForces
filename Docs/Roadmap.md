@@ -34,19 +34,21 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Heavy machine gun (deploy, spin-up), trip bombs (laser + proximity mine)
 - ⬜ Rocket lock-on (SmartRocket)
 - ✅ Loadout crates/zones, carry blocks, refill on entering
-- ⬜ Weapon drops as pickups, death drops
+- ✅ Weapon drops (throw / death) as ground items taken through the loadout (MF Loadout_Ground); loadout opens anywhere
 - ✅ Deathmatch, Team Deathmatch
 - ✅ Holdout (Domination): `AMFGameMode_Holdout` + `AMFHoldoutPoint`, captures, hold-time scoring, HUD readout, bot attack/guard goals
-- ⬜ CTF, Captains, Detonation, Safe Cracker, Trailer — data already in converted maps as `AMFLegacyActor`
+- ✅ Safecracker (two parts, safe cracking, gold), CTF (`AMFFlag` shared by both)
+- ⬜ Captains, Detonation, Trailer — data already in converted maps as `AMFLegacyActor`
+- ✅ Chat (T/Y, Say/TeamSay), team orders menu (V/C) with bot orders, MF message list
 - ✅ N teams (`UMFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
-- 🟡 Bots: MF roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). **mf-warehouse navmesh is split into islands** (bots reach only parts of the map; ladders 6, 8–13 had bad ends): needs a look in the editor navmesh view (`P`) — candidates: railings/props, step/ledge heights, missing jump-up links. `MFNavTest` cheat prints the reachability report.
+- 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `MFNavTest` / `MFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
 - ⬜ Vehicles: Buggy, Humma, Truck, APC (reverse `handling.hnd2` / `.COL`; Chaos Vehicles or a light custom raycast model)
 - 🟡 Ladders (LadderClimber → `AMFLadderVolume`, untested in game); ⬜ swimming/drowning, water zones
 - ✅ Mods as plugins ([Modding.md](Modding.md)): `MFModMolotov` (weapon), `MFModKOH` (game mode)
 - ⬜ More MF-mods: Totem, ZombieGame (as components, not player subclasses), TugGame, CoopMode, arenaMode, SentryGun, SeekerMines, TripLasers, PredatorMissile …
 
 ## Presentation
-- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; ⬜ minimap, pain flash, MF fonts
+- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars; ⬜ minimap, MF scoreboard
 - ✅ MF loadout behaviour: frozen soldier and view, one cursor through store and carried items (put back from the inventory), W/S/wheel/Fire/E, number rows + X, sounds, spawn protection
 - ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom)
