@@ -82,6 +82,29 @@ void UMFCheatManager::MFNavTest()
 	}
 }
 
+void UMFCheatManager::MFNavPath(float X, float Y, float Z)
+{
+	APawn* P = GetPlayerController()->GetPawn();
+	UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!P || !Nav)
+	{
+		return;
+	}
+	UNavigationPath* Path = Nav->FindPathToLocationSynchronously(GetWorld(), P->GetActorLocation(), FVector(X, Y, Z), P);
+	if (!Path || !Path->GetPath().IsValid())
+	{
+		UE_LOG(LogMF, Display, TEXT("MFNavPath: no path"));
+		return;
+	}
+	UE_LOG(LogMF, Display, TEXT("MFNavPath: %d points, length %.0f, partial %d"), Path->PathPoints.Num(), Path->GetPathLength(), Path->IsPartial());
+	const TArray<FNavPathPoint>& Points = Path->GetPath()->GetPathPoints();
+	for (int32 i = 0; i < Points.Num(); ++i)
+	{
+		const bool bLink = Points[i].CustomNavLinkId != FNavLinkId::Invalid;
+		UE_LOG(LogMF, Display, TEXT("MFNavPath: %d %s%s"), i, *Points[i].Location.ToString(), bLink ? TEXT(" (link)") : TEXT(""));
+	}
+}
+
 void UMFCheatManager::MFHurt(int32 N)
 {
 	if (APawn* P = GetPlayerController()->GetPawn())

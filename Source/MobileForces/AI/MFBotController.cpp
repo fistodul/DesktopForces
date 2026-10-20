@@ -75,6 +75,7 @@ AMFCharacter* AMFBotController::FindEnemy(AMFCharacter* C) const
 
 void AMFBotController::Think()
 {
+
 	AMFCharacter* C = Cast<AMFCharacter>(GetPawn());
 	if (!C || !C->IsAlive())
 	{
@@ -86,6 +87,8 @@ void AMFBotController::Think()
 		return;
 	}
 	const float Now = GetWorld()->GetTimeSeconds();
+	CheckStuck(C);
+
 	AMFCharacter* Seen = FindEnemy(C);
 	if (Seen && Seen != Enemy.Get())
 	{
@@ -223,6 +226,44 @@ AActor* AMFBotController::GetObjectiveTarget() const
 	return GM ? GM->GetBotShootTarget(const_cast<AMFBotController*>(this)) : nullptr;
 }
 
+void AMFBotController::CheckStuck(AMFCharacter* C)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (GetMoveStatus() != EPathFollowingStatus::Moving)
+	{
+		StuckCheckTime = Now;
+		StuckCheckPos = C->GetActorLocation();
+		StuckCount = 0;
+		return;
+	}
+	if (Now - StuckCheckTime < 1.5f)
+	{
+		return;
+	}
+	if (FVector::Dist(C->GetActorLocation(), StuckCheckPos) < 40.f)
+	{
+		// MF bots jumped over what they ran into; after a few tries give the goal up
+		C->Jump();
+		if (++StuckCount >= 3)
+		{
+			if (AActor* G = CurrentGoal.Get())
+			{
+				BlockedGoals.Add(G, Now + 30.f);
+			}
+			StopMovement();
+			CurrentGoal = nullptr;
+			NextRoam = 0.f;
+			StuckCount = 0;
+		}
+	}
+	else
+	{
+		StuckCount = 0;
+	}
+	StuckCheckTime = Now;
+	StuckCheckPos = C->GetActorLocation();
+}
+
 bool AMFBotController::FollowOrder(AMFCharacter* C)
 {
 	switch (Order)
@@ -261,8 +302,24 @@ void AMFBotController::Roam(AMFCharacter* C)
 		return;
 	}
 	const float Now = GetWorld()->GetTimeSeconds();
-	if (GetMoveStatus() == EPathFollowingStatus::Moving && Now < NextRoam)
+	if (GetMoveStatus() == EPathFollowingStatus::Moving)
 	{
+		// still on the way (CheckStuck handles stalls): every few seconds see whether a more
+		// urgent goal came up (our flag dropped, the carrier passed by ...) and switch to it
+		if (Now >= NextRoam && CurrentGoal.IsValid())
+		{
+			NextRoam = Now + 5.f;
+			if (const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+			{
+				TArray<AActor*> Goals;
+				GM->GetBotGoals(this, Goals);
+				Goals.RemoveAll([this, Now](AActor* G) { const float* Until = BlockedGoals.Find(G); return Until && Now < *Until; });
+				if (Goals.Num() && Goals[0] != CurrentGoal.Get())
+				{
+					TryGoal(Goals[0]);
+				}
+			}
+		}
 		return;
 	}
 	if (AActor* Prev = CurrentGoal.Get())
@@ -271,6 +328,14 @@ void AMFBotController::Roam(AMFCharacter* C)
 		{
 			// Arrived (or gave up) far from the goal: the navmesh doesn't really get there
 			const FVector D = Prev->GetActorLocation() - C->GetActorLocation();
+			if (D.Size2D() > 150.f && D.Size2D() < 400.f && FMath::Abs(D.Z) < 250.f && !bDirectApproach)
+			{
+				// path ends short of it (navmesh eroded along a railing / wall): walk straight
+				// at it so its trigger is touched (flags, safes, points)
+				bDirectApproach = true;
+				MoveToLocation(Prev->GetActorLocation(), 20.f, false, false, false);
+				return;
+			}
 			if (D.Size2D() > 150.f || FMath::Abs(D.Z) > 250.f)
 			{
 				UE_LOG(LogMF, Verbose, TEXT("%s: %s out of reach (%.0f / z %.0f)"), *GetName(), *Prev->GetName(), D.Size2D(), D.Z);
@@ -288,6 +353,7 @@ void AMFBotController::Roam(AMFCharacter* C)
 	}
 	CurrentGoal = nullptr;
 	LingerUntil = 0.f;
+	bDirectApproach = false;
 	NextRoam = Now + 15.f;
 	// Objective modes hand out goals; once there, linger a little then ask again
 	if (const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
@@ -299,7 +365,7 @@ void AMFBotController::Roam(AMFCharacter* C)
 			const float* Until = BlockedGoals.Find(G);
 			if ((!Until || Now >= *Until) && TryGoal(G))
 			{
-				NextRoam = Now + 30.f;   // travel budget before re-planning
+				NextRoam = Now + 5.f;    // look for a better goal now and then while travelling
 				return;
 			}
 		}

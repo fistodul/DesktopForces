@@ -8,7 +8,7 @@
 #   Tools/play.sh editor                       open the editor instead
 #   Tools/play.sh build                        compile the C++ modules first
 #
-# Modes: dm, tdm, holdout, sc (Safecracker), koh. Extra arguments after the bot count go to the engine
+# Modes: dm, tdm, holdout, sc (Safecracker), ctf, koh. Extra arguments after the bot count go to the engine
 # (e.g. -ResX=1600 -ResY=900, -log). Engine path: mfport.toml `ue_root` or $UE_ROOT.
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,6 +39,7 @@ case "$MODE" in
   tdm)     GAME="/Script/MobileForces.MFGameMode_TDM" ;;
   holdout) GAME="/Script/MobileForces.MFGameMode_Holdout" ;;
   sc)      GAME="/Script/MobileForces.MFGameMode_Safecracker" ;;
+  ctf)     GAME="/Script/MobileForces.MFGameMode_CTF" ;;
   koh)     GAME="/Script/MFModKOH.MFGameMode_KOH" ;;
   *)       GAME="$MODE" ;;
 esac

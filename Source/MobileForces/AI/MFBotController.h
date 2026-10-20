@@ -65,6 +65,13 @@ protected:
 	float NextRoam = 0.f;
 	TWeakObjectPtr<AActor> CurrentGoal;
 	float LingerUntil = 0.f;
+	/** Walking straight at the current goal for the last few metres. */
+	bool bDirectApproach = false;
+	/** Unstick: jump and re-plan when a move makes no progress (props, railings). */
+	FVector StuckCheckPos = FVector::ZeroVector;
+	float StuckCheckTime = 0.f;
+	int32 StuckCount = 0;
+	void CheckStuck(AMFCharacter* C);
 	/** Goals that turned out unreachable, retried after a while (paths can open, e.g. doors). */
 	TMap<TWeakObjectPtr<AActor>, float> BlockedGoals;
 	bool TryGoal(AActor* Goal);

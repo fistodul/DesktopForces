@@ -17,6 +17,10 @@ public:
 	// --- Mobile Forces cheats (same names as the original; UE adds God, Ghost, Fly, Walk,
 	//     Slomo, Summon, Teleport, PlayersOnly, ViewSelf, DestroyAll ...) ---------------
 	/** Join team N and respawn there. */
+	/** Developer: log the navmesh path from your pawn to X Y Z (points, links). */
+	UFUNCTION(Exec)
+	void MFNavPath(float X, float Y, float Z);
+
 	/** Developer: take N damage (scripted tests). */
 	UFUNCTION(Exec)
 	void MFHurt(int32 N);
