@@ -55,12 +55,30 @@ namespace
 		return Obj;
 	}
 
+	/** UE1 names may hold characters UE package / object names can't ("ap_P&Hd", "chest,box"). */
+	FString SafeName(const FString& In)
+	{
+		FString Out = In;
+		for (TCHAR& Ch : Out)
+		{
+			if (FCString::Strchr(TEXT("\\:*?\"<>|' ,.&!~@#(){}[]=;^%$`"), Ch))
+			{
+				Ch = TEXT('_');
+			}
+		}
+		return Out;
+	}
+
 	/** "rage_warehouse.metal.ware_metal_29" -> ("rage_warehouse/metal", "ware_metal_29") */
 	void SplitKey(const FString& Key, FString& OutDir, FString& OutName)
 	{
 		TArray<FString> Parts;
 		Key.ParseIntoArray(Parts, TEXT("."));
-		OutName = Parts.Num() ? Parts.Pop() : Key;
+		OutName = SafeName(Parts.Num() ? Parts.Pop() : Key);
+		for (FString& P : Parts)
+		{
+			P = SafeName(P);
+		}
 		OutDir = FString::Join(Parts, TEXT("/"));
 	}
 
@@ -235,7 +253,8 @@ USoundWave* FMFImporter::FindSound(const FString& MFPath) const
 	{
 		Package = Pkg;
 	}
-	const FString Path = FString::Printf(TEXT("%s/Sounds/%s/%s.%s"), *Packs.PackageRoot(Package), *Package, *Name, *Name);
+	const FString Safe = SafeName(Name);
+	const FString Path = FString::Printf(TEXT("%s/Sounds/%s/%s.%s"), *Packs.PackageRoot(Package), *Package, *Safe, *Safe);
 	return LoadObject<USoundWave>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 }
 
@@ -404,7 +423,7 @@ bool FMFImporter::ImportSounds(const FString& SubDir, bool bLooping)
 		FString Package = Rel;
 		Package.Split(TEXT("/"), &Package, nullptr);   // <package>/<name>.wav
 		Task->DestinationPath = FString::Printf(TEXT("%s/%s/%s"), *Packs.PackageRoot(Package), *SubDir, *FPaths::GetPath(Rel));
-		Task->DestinationName = FPaths::GetBaseFilename(Rel);
+		Task->DestinationName = SafeName(FPaths::GetBaseFilename(Rel));
 		Task->bAutomated = true;
 		Task->bReplaceExisting = true;
 		Task->bSave = !bLooping;
@@ -1036,7 +1055,7 @@ UStaticMesh* FMFImporter::LoadOrBuildMesh(const FString& MapDir, const FString& 
 	FString Sub, Name;
 	MeshRel.Split(TEXT("/"), &Sub, &Name);
 	const FString Folder = Sub == TEXT("geo") ? TEXT("Geo") : TEXT("Meshes");
-	const FString AssetPath = FString::Printf(TEXT("%s/%s/%s"), *Packs.MapDataRoot(MapName), *Folder, *Name);
+	const FString AssetPath = FString::Printf(TEXT("%s/%s/%s"), *Packs.MapDataRoot(MapName), *Folder, *SafeName(Name));
 	UStaticMesh* SM = BuildStaticMesh(MapDir / (MeshRel + TEXT(".mfmesh.json")), AssetPath);
 	MeshCache.Add(CacheKey, SM);
 	return SM;

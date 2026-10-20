@@ -59,4 +59,5 @@ GAMEPLAY_PACKAGES = [
     'WeaponSFX_SniperRifle', 'WeaponSFX_HeavyMachineGun', 'WeaponSFX_RocketLauncher',
     'WeaponSFX_Grenades', 'WeaponSFX_TripBombs', 'WeaponSFX_AdrenalineShot',
     'MiscSFX', 'footstepSFX', 'RagePlayerSounds', 'Announcer',
+    'deagleSFX', 'gren',   # MF-mods weapons
 ]

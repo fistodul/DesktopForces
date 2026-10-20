@@ -30,6 +30,9 @@ OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
 # Textures the game code uses directly (HUD), converted even if no map references them.
 UI_TEXTURES = {
     'rageweapons.weaponicons': {'masked', 'ui'},       # weapon icon sheet (RageWeapon.WeaponIcon rects)
+    'deagle.icons.deagleicon': {'masked', 'ui'},       # MF-mods weapon icons
+    'grenlaunch.skins.grenlaunchimage': {'masked', 'ui'},
+    'predatormissile.icons.predatoricon': {'masked', 'ui'},
     'rageweapons.icons.scopemask': {'masked', 'ui'},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},
     'rageweapons.icons.rocketlauncheraim': {'masked', 'ui'},

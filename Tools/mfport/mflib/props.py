@@ -20,7 +20,8 @@ from .mfmesh import MeshBuilder
 from .textures import _package_path, texture_index
 from .upkg import Package
 
-PACKAGES = ('Rage', 'RageGame', 'RageWeapons')
+# + MF-mods packages with weapon models (missing ones are skipped)
+PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'deagle', 'grenLaunch')
 
 
 def convert(cfg: Config) -> Path:
@@ -28,7 +29,11 @@ def convert(cfg: Config) -> Path:
     usage: dict[str, set[str]] = {}
     meshes: dict[str, dict] = {}
     for pkg_name in PACKAGES:
-        pkg = Package(str(_package_path(cfg, pkg_name)))
+        try:
+            pkg = Package(str(_package_path(cfg, pkg_name)))
+        except FileNotFoundError:
+            print(f'  ! {pkg_name}: not installed')
+            continue
         tex_info = texture_index(cfg, pkg_name)
         n = 0
         for exp in pkg.exports:
