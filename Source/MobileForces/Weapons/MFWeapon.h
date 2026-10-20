@@ -241,6 +241,24 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FIntRect HUDIconRect = FIntRect(0, 0, 64, 64);
 
+	/**
+	 * Converted MF carry / pickup model ("RageWeapons/PistolPickupCarryMesh", mfport props):
+	 * held in first person (at ViewOffset from the camera) and lying on the floor when
+	 * dropped. Without a converted install the placeholder box stays.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FString ViewMesh;
+	/** Held: rear of the model this far in front of the eye, centre this far right, top this far up (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FVector ViewOffset = FVector(10.f, 9.f, -5.f);
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FRotator ViewRotation = FRotator::ZeroRotator;
+	/** Held model scale (MF PlayerViewScale-like: the carry models are life size). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	float ViewScale = 0.5f;
+	bool bHasViewMesh = false;
+	FTransform HandTransform;
+
 	/** First-person model (placeholder until the MF weapon meshes are converted). */
 	UPROPERTY(VisibleAnywhere, Category = "MF|FX")
 	TObjectPtr<UStaticMeshComponent> Mesh1P;

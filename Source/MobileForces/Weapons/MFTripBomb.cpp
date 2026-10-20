@@ -154,6 +154,7 @@ AMFProjectile_TripMine::AMFProjectile_TripMine()
 	DamageRadius = 450.f;
 	Momentum = 112500.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	PropMesh = TEXT("RageWeapons/TripBombsThrowMesh");
 }
 
 void AMFProjectile_TripMine::BeginPlay()

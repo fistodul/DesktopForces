@@ -1,5 +1,6 @@
-"""Gameplay props from the game packages (Rage `DeviceMesh`es): vehicles and their wheels,
-loadout crates, safes, flag bases, detonation locks, holdout timers.
+"""Gameplay props from the game packages: Rage `DeviceMesh`es (vehicles and their wheels,
+loadout crates, safes, flag bases, detonation locks, holdout timers) and UE1 `LodMesh`es,
+first frame (weapon carry/pickup models, rockets, the detonation key ...).
 
     mfport.py props   ->  work/out/Props/<Package>/<Mesh>.mfmesh.* + Props/props.json
 
@@ -12,14 +13,14 @@ import json
 import math
 from pathlib import Path
 
-from . import devmesh
+from . import devmesh, lodmesh
 from .config import Config
 from .level import PF_MASKED, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
 from .mfmesh import MeshBuilder
 from .textures import _package_path, texture_index
 from .upkg import Package
 
-PACKAGES = ('Rage', 'RageGame')
+PACKAGES = ('Rage', 'RageGame', 'RageWeapons')
 
 
 def convert(cfg: Config) -> Path:
@@ -31,22 +32,36 @@ def convert(cfg: Config) -> Path:
         tex_info = texture_index(cfg, pkg_name)
         n = 0
         for exp in pkg.exports:
-            if pkg.class_of(exp) != 'DeviceMesh':
+            cls = pkg.class_of(exp)
+            if cls == 'DeviceMesh':
+                mesh = devmesh.read(pkg, exp.name)
+                tris = [(f'{pkg_name}.{sec.material}' if sec.material else None, [mesh.vertices[i] for i in idx])
+                        for sec, idx in mesh.triangles()] if mesh else None
+            elif cls == 'LodMesh':
+                mesh = lodmesh.read(pkg, exp.name)
+                tris = []
+                for tex_index, _flags, corners in (mesh.triangles if mesh else []):
+                    ref = mesh.textures[tex_index] if 0 <= tex_index < len(mesh.textures) else None
+                    # no normals in a LodMesh: flat ones from the face (UE recomputes smooth ones)
+                    p = [c[0] for c in corners]
+                    nrm = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
+                    ln = math.sqrt(_dot(nrm, nrm)) or 1.0
+                    nrm = tuple(c / ln for c in nrm)
+                    tris.append((f'{pkg_name}.{ref}' if ref else None, [(c[0], nrm, c[1]) for c in corners]))
+            else:
                 continue
-            mesh = devmesh.read(pkg, exp.name)
-            if mesh is None:
-                print(f'  ! {pkg_name}.{exp.name}: unreadable DeviceMesh')
+            if not tris:
+                print(f'  ! {pkg_name}.{exp.name}: unreadable {cls}')
                 continue
             mb = MeshBuilder(exp.name)
-            mb.collision = 'complex'
+            mb.collision = 'complex' if cls == 'DeviceMesh' else 'none'
             area = 0.0
-            for sec, (a, b, c) in mesh.triangles():
-                tex = f'{pkg_name}.{sec.material}' if sec.material else 'Engine.DefaultTexture'
+            for tex, vs in tris:
+                tex = tex or 'Engine.DefaultTexture'
                 info = tex_info.get(tex.lower(), {})
                 flags = PF_MASKED if info.get('masked') else 0
                 key = material_key(tex, flags | info.get('polyflags', 0))
                 usage.setdefault(tex.lower(), set()).add(key.split('|')[1].split('_')[0])
-                vs = [mesh.vertices[i] for i in (a, b, c)]
                 p = [v[0] for v in vs]
                 verts = [((v[0][0] * UU_TO_CM, v[0][1] * UU_TO_CM, v[0][2] * UU_TO_CM), v[1], v[2]) for v in vs]
                 geo_n = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))

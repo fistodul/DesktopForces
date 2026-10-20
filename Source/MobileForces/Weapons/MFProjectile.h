@@ -59,6 +59,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FString MFExplosionSound;
 
+	/** Converted MF model ("RageWeapons/RocketMesh", mfport props); a small sphere without it. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FString PropMesh;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void LifeSpanExpired() override;

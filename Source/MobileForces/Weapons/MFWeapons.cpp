@@ -17,6 +17,9 @@
 
 AMFWeapon_Knife::AMFWeapon_Knife()
 {
+	ViewMesh = TEXT("RageWeapons/KnifePickupCarryMesh");   // PickupViewMesh / ThirdPersonMesh
+	ViewRotation = FRotator(-70.f, 0.f, 0.f);              // the blade stands up in the model: point it forward
+	ViewOffset = FVector(16.f, 10.f, 9.f);
 	HUDIconRect = FIntRect(96, 0, 144, 64);   // WeaponIcon X=96 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Knife", "Knife");
 	InventoryGroup = 1;
@@ -95,6 +98,7 @@ void AMFWeapon_Knife::KnifeReturned()
 
 AMFWeapon_Pistol::AMFWeapon_Pistol()
 {
+	ViewMesh = TEXT("RageWeapons/PistolPickupCarryMesh");
 	HUDIconRect = FIntRect(0, 0, 48, 64);   // WeaponIcon X=0 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Pistol", "Pistol");
 	InventoryGroup = 2;
@@ -126,6 +130,7 @@ AMFWeapon_Pistol::AMFWeapon_Pistol()
 
 AMFWeapon_MachineGun::AMFWeapon_MachineGun()
 {
+	ViewMesh = TEXT("RageWeapons/MachineGunPickupCarryMesh");
 	HUDIconRect = FIntRect(0, 192, 104, 256);   // WeaponIcon X=0 Y=192 W=104 H=64
 	DisplayName = LOCTEXT("MachineGun", "Machine Gun");
 	InventoryGroup = 3;
@@ -156,6 +161,7 @@ AMFWeapon_MachineGun::AMFWeapon_MachineGun()
 
 AMFWeapon_Shotgun::AMFWeapon_Shotgun()
 {
+	ViewMesh = TEXT("RageWeapons/ShotgunPickupCarryMesh");
 	HUDIconRect = FIntRect(160, 128, 256, 192);   // WeaponIcon X=160 Y=128 W=96 H=64
 	DisplayName = LOCTEXT("Shotgun", "Shotgun");
 	InventoryGroup = 4;
@@ -241,6 +247,7 @@ void AMFWeapon_Shotgun::FireShot(bool bAlt)
 
 AMFWeapon_Rifle::AMFWeapon_Rifle()
 {
+	ViewMesh = TEXT("RageWeapons/SniperRiflePickupCarryMesh");
 	HUDIconRect = FIntRect(104, 192, 248, 256);   // WeaponIcon X=104 Y=192 W=144 H=64
 	DisplayName = LOCTEXT("Rifle", "Sniper Rifle");
 	InventoryGroup = 5;
@@ -380,6 +387,7 @@ FString AMFWeapon_Rifle::GetHUDStatus() const
 
 AMFWeapon_RocketLauncher::AMFWeapon_RocketLauncher()
 {
+	ViewMesh = TEXT("RageWeapons/RocketLauncherPickupCarryMesh");
 	HUDIconRect = FIntRect(0, 128, 160, 192);   // WeaponIcon X=0 Y=128 W=160 H=64
 	DisplayName = LOCTEXT("RocketLauncher", "Rocket Launcher");
 	InventoryGroup = 7;
@@ -410,6 +418,7 @@ AMFWeapon_RocketLauncher::AMFWeapon_RocketLauncher()
 
 AMFWeapon_Grenades::AMFWeapon_Grenades()
 {
+	ViewMesh = TEXT("RageWeapons/GrenadesPickupCarryMesh");
 	HUDIconRect = FIntRect(48, 0, 96, 64);   // WeaponIcon X=48 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Grenades", "Grenades");
 	InventoryGroup = 8;
@@ -501,6 +510,7 @@ FString AMFWeapon_Grenades::GetHUDStatus() const
 
 AMFWeapon_HeavyMachineGun::AMFWeapon_HeavyMachineGun()
 {
+	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	HUDIconRect = FIntRect(64, 64, 256, 128);   // WeaponIcon X=64 Y=64 W=192 H=64
 	DisplayName = LOCTEXT("HMG", "Heavy Machine Gun");
 	InventoryGroup = 6;
@@ -622,6 +632,7 @@ FString AMFWeapon_HeavyMachineGun::GetHUDStatus() const
 
 AMFWeapon_TripBombs::AMFWeapon_TripBombs()
 {
+	ViewMesh = TEXT("RageWeapons/TripBombsPickupCarryMesh");
 	HUDIconRect = FIntRect(192, 0, 256, 64);   // WeaponIcon X=192 Y=0 W=64 H=64
 	DisplayName = LOCTEXT("TripBombs", "Trip Bombs");
 	InventoryGroup = 9;

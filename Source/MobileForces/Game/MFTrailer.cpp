@@ -14,7 +14,7 @@
 namespace
 {
 	constexpr float Uu = 2.25f;
-	const TCHAR* SquadName(uint8 Team) { return Team == 1 ? TEXT("Red Squad") : TEXT("Blue Squad"); }
+	const TCHAR* TrailerSquad(uint8 Team) { return Team == 1 ? TEXT("Red Squad") : TEXT("Blue Squad"); }
 }
 
 AMFGameMode_Trailer::AMFGameMode_Trailer()
@@ -141,7 +141,7 @@ void AMFGameMode_Trailer::CheckDelivery()
 				// the driver's controller sits on the cab while they drive
 				Scorer = Cab->GetDriver() ? Cab->GetController() : By->GetController();
 				Cab->LockDown();
-				Event(FString::Printf(TEXT("Trailer delivered to %s"), SquadName(Bay.Team)), 1 - Bay.Team);
+				Event(FString::Printf(TEXT("Trailer delivered to %s"), TrailerSquad(Bay.Team)), 1 - Bay.Team);
 				UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/Game/MFImported/Sounds/TrailerSFX/LockDown.LockDown"), nullptr, LOAD_NoWarn | LOAD_Quiet), Cab->GetActorLocation());
 				Count = 5;
 				CountDown();
@@ -187,7 +187,7 @@ void AMFGameMode_Trailer::Detonate()
 	{
 		PS->SetScore(PS->GetScore() + (PS->GetTeam() == ScoreTeam ? 7.f : -7.f));
 	}
-	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s BASE DESTROYED!!!"), PS ? *PS->GetPlayerName() : SquadName(ScoreTeam),
+	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s BASE DESTROYED!!!"), PS ? *PS->GetPlayerName() : TrailerSquad(ScoreTeam),
 		ScoreTeam == 0 ? TEXT("BLUE") : TEXT("RED"), Bay == 0 ? TEXT("BLUE") : TEXT("RED")), ScoreTeam);
 	if (IsValid(Cab))
 	{
@@ -197,7 +197,7 @@ void AMFGameMode_Trailer::Detonate()
 	TrailerVehicle = nullptr;
 	if (GS && GoalTeamScore > 0 && GS->GetTeamScore(ScoreTeam) >= GoalTeamScore)
 	{
-		FinishMatch(FString::Printf(TEXT("%s wins!"), SquadName(ScoreTeam)));
+		FinishMatch(FString::Printf(TEXT("%s wins!"), TrailerSquad(ScoreTeam)));
 		return;
 	}
 	GetWorldTimerManager().SetTimer(RespawnTimer, this, &AMFGameMode_Trailer::SpawnTrailer, 5.f, false);

@@ -231,6 +231,13 @@ void AMFFlag::OnRep_State()
 void AMFFlag::UpdateLook()
 {
 	SetActorHiddenInGame(State == EMFFlagState::Home && bHiddenAtHome);
+	// MF models: the detonation key (RageDetonationKey), Safecracker's gold (RageSafeObject)
+	const TCHAR* Prop = Team == MF::NoTeam ? TEXT("RageGame/RageDetKeyMesh")
+		: bHiddenAtHome ? (Team == 1 ? TEXT("RageGame/SafeObjRedT") : TEXT("RageGame/SafeObjBlueT")) : nullptr;
+	if (Prop && MF::ApplyPropMesh(Mesh, Prop, 1.f, FVector(0.f, 0.f, 30.f)))
+	{
+		return;
+	}
 	const FLinearColor C = UMFGameSettings::Get().GetTeamColor(Team);
 	Mesh->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
 }

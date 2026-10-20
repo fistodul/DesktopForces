@@ -1,4 +1,5 @@
 #include "Weapons/MFProjectile.h"
+#include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -47,6 +48,10 @@ AMFProjectile::AMFProjectile()
 void AMFProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+	if (!PropMesh.IsEmpty())
+	{
+		MF::ApplyPropMesh(Mesh, *PropMesh);   // the MF model, life size; the sphere stays without it
+	}
 	Movement->OnProjectileStop.AddDynamic(this, &AMFProjectile::OnStop);
 	Movement->OnProjectileBounce.AddDynamic(this, &AMFProjectile::OnBounce);
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AMFProjectile::OnOverlap);
@@ -156,6 +161,7 @@ AMFProjectile_Rocket::AMFProjectile_Rocket()
 	Momentum = 225000.f;                      // MF MomentumTransfer 100000
 	InitialLifeSpan = 10.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	PropMesh = TEXT("RageWeapons/RocketMesh");
 }
 
 AMFProjectile_Grenade::AMFProjectile_Grenade()
@@ -175,6 +181,7 @@ AMFProjectile_Grenade::AMFProjectile_Grenade()
 	DamageRadius = 900.f;                     // MF HurtRadius 400
 	Momentum = 112500.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	PropMesh = TEXT("RageWeapons/GrenadesPickupCarryMesh");
 }
 
 AMFProjectile_ImpactGrenade::AMFProjectile_ImpactGrenade()
@@ -194,6 +201,7 @@ AMFProjectile_Knife::AMFProjectile_Knife()
 	DamageRadius = 0.f;
 	DamageType = UMFDamage_Knife::StaticClass();
 	InitialLifeSpan = 6.f;                    // MF TimeBeforeReturn
+	PropMesh = TEXT("RageWeapons/KnifePickupCarryMesh");
 }
 
 void AMFProjectile_Knife::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)

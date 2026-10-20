@@ -1,4 +1,5 @@
 #include "Weapons/MFWeapon.h"
+#include "Core/MFProps.h"
 #include "Weapons/MFProjectile.h"
 #include "Player/MFCharacter.h"
 #include "MobileForces.h"
@@ -32,7 +33,10 @@ AMFWeapon::AMFWeapon()
 	Mesh1P->bReceivesDecals = false;
 	Mesh1P->SetGenerateOverlapEvents(false);
 	Mesh1P->PrimaryComponentTick.bCanEverTick = false;
-	RootComponent = Mesh1P;
+	// the mesh hangs off a plain root: held, the root snaps to the camera socket and the mesh
+	// keeps its view placement; dropped, it lies at the root
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Mesh1P->SetupAttachment(RootComponent);
 
 	// Placeholder gun: a stretched cube in front of the camera.
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -68,6 +72,16 @@ void AMFWeapon::PostInitializeComponents()
 		GiveFullAmmo();   // RageWeapon.PostBeginPlay
 	}
 	ResolveSounds();
+	if (!ViewMesh.IsEmpty() && MF::ApplyPropMesh(Mesh1P, *ViewMesh))
+	{
+		// view-model placement from the mesh's bounds: rear ViewOffset.X in front of the eye,
+		// centred ViewOffset.Y to the right, top ViewOffset.Z below, at ViewScale
+		const FBox B = Mesh1P->GetStaticMesh()->GetBoundingBox();
+		const FVector Loc = ViewOffset + FVector(-B.Min.X, -B.GetCenter().Y, -B.Max.Z) * ViewScale;
+		HandTransform = FTransform(ViewRotation, Loc, FVector(ViewScale));
+		bHasViewMesh = true;
+		UpdateDroppedLook();
+	}
 }
 
 void AMFWeapon::Destroyed()
@@ -630,8 +644,12 @@ void AMFWeapon::OnRep_Dropped()
 
 void AMFWeapon::UpdateDroppedLook()
 {
-	// placeholder model on the floor for everyone; in hand only the owner sees it
+	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
+	if (bHasViewMesh)
+	{
+		Mesh1P->SetRelativeTransform(bDropped ? FTransform::Identity : HandTransform);
+	}
 	if (bDropped)
 	{
 		SetActorHiddenInGame(false);
