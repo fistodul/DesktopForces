@@ -68,6 +68,7 @@ void AMFVehicle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMFVehicle, Health);
 	DOREPLIFETIME(AMFVehicle, Driver);
+	DOREPLIFETIME(AMFVehicle, Passengers);
 }
 
 void AMFVehicle::BeginPlay()
@@ -309,10 +310,132 @@ FVector AMFVehicle::DoorExit(int32 Door) const
 	return GetActorTransform().TransformPosition(Local - BoxCenter) + FVector(0.f, 0.f, 60.f);
 }
 
+int32 AMFVehicle::GetSeatOf(const AMFCharacter* C) const
+{
+	if (C && C == Driver)
+	{
+		return 0;
+	}
+	const int32 I = C ? Passengers.IndexOfByKey(C) : INDEX_NONE;
+	return I > 0 ? I : INDEX_NONE;
+}
+
+void AMFVehicle::SeatPassenger(AMFCharacter* C, int32 Seat)
+{
+	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
+	Passengers[Seat] = C;
+	// rides along at the seat, still a soldier: looks around and shoots (InCarState), never
+	// pushes the vehicle it sits in
+	C->GetCharacterMovement()->DisableMovement();
+	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
+	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
+	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	Body->IgnoreActorWhenMoving(C, true);
+	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	C->SetActorRelativeLocation(SeatPositions[Seat] - BoxCenter);   // aSeatsPos: where the soldier stands or sits
+	PassengerEntered(C, Seat);
+}
+
+void AMFVehicle::UnseatPassenger(AMFCharacter* C)
+{
+	const int32 Seat = Passengers.IndexOfByKey(C);
+	if (Seat == INDEX_NONE)
+	{
+		return;
+	}
+	PassengerLeft(C, Seat);
+	Passengers[Seat] = nullptr;
+	Body->IgnoreActorWhenMoving(C, false);
+	C->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	const UCapsuleComponent* Def = GetDefault<ACharacter>(C->GetClass())->GetCapsuleComponent();
+	for (const ECollisionChannel Ch : { ECC_PhysicsBody, ECC_Vehicle, ECC_Pawn })
+	{
+		C->GetCapsuleComponent()->SetCollisionResponseToChannel(Ch, Def ? Def->GetCollisionResponseToChannel(Ch) : ECR_Block);
+	}
+}
+
+bool AMFVehicle::FindExitSpot(const AMFCharacter* C, FVector& OutSpot) const
+{
+	// first door with room for a soldier
+	OutSpot = GetActorLocation() + FVector(0.f, 0.f, BoxExtent.Z + 120.f);
+	const FCollisionShape Shape = FCollisionShape::MakeCapsule(C->GetCapsuleComponent()->GetScaledCapsuleRadius(), C->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFVehicleExit), false, this);
+	Params.AddIgnoredActor(C);
+	for (int32 D = 0; D < FMath::Max(1, DoorPositions.Num()); ++D)
+	{
+		const FVector Try = DoorExit(D);
+		if (!GetWorld()->OverlapAnyTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params))
+		{
+			OutSpot = Try;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool AMFVehicle::ExitPassenger(AMFCharacter* C, bool bForce)
+{
+	if (!HasAuthority() || !C || Passengers.IndexOfByKey(C) <= 0)
+	{
+		return false;
+	}
+	FVector Spot;
+	if (!FindExitSpot(C, Spot) && !bForce)
+	{
+		return false;   // boxed in: stay inside
+	}
+	UnseatPassenger(C);
+	C->TeleportTo(Spot, FRotator(0.f, GetActorRotation().Yaw, 0.f));
+	C->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+	C->GetCharacterMovement()->Velocity = GetVelocity() * 0.5f;
+	return true;
+}
+
+void AMFVehicle::PassengerDied(AMFCharacter* C)
+{
+	if (HasAuthority() && Passengers.Contains(C))
+	{
+		UnseatPassenger(C);
+	}
+}
+
+bool AMFVehicle::EnterSeat(AMFCharacter* C, int32 Seat)
+{
+	if (Seat <= 0)
+	{
+		return TryEnter(C);
+	}
+	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || GetSeatOf(C) != INDEX_NONE || !SeatPositions.IsValidIndex(Seat))
+	{
+		return false;
+	}
+	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
+	if (Passengers[Seat])
+	{
+		return false;
+	}
+	SeatPassenger(C, Seat);
+	return true;
+}
+
 bool AMFVehicle::TryEnter(AMFCharacter* C)
 {
-	if (!HasAuthority() || bBlownUp || !bDriveable || bLocked || !C || !C->IsAlive() || Driver || !IsNear(C) || C->IsInLoadout())
+	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || C->IsInLoadout() || GetSeatOf(C) != INDEX_NONE)
 	{
+		return false;
+	}
+	if (Driver || !bDriveable)
+	{
+		// driver's seat taken: the first free passenger seat (MF aSeatsPos 1..)
+		Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
+		for (int32 Seat = 1; Seat < SeatPositions.Num(); ++Seat)
+		{
+			if (!Passengers[Seat])
+			{
+				SeatPassenger(C, Seat);
+				return true;
+			}
+		}
 		return false;
 	}
 	AController* PC = C->GetController();
@@ -345,6 +468,16 @@ bool AMFVehicle::TryEnter(AMFCharacter* C)
 void AMFVehicle::Exit(bool bForce)
 {
 	AMFCharacter* C = Driver;
+	if (HasAuthority() && !C && bForce)
+	{
+		for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
+		{
+			if (P)
+			{
+				ExitPassenger(P, true);
+			}
+		}
+	}
 	if (!HasAuthority() || !C)
 	{
 		return;
@@ -370,6 +503,17 @@ void AMFVehicle::Exit(bool bForce)
 	}
 	AController* PC = GetController();
 	Driver = nullptr;
+	if (bForce)
+	{
+		// blown up / gone: passengers out too
+		for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
+		{
+			if (P)
+			{
+				ExitPassenger(P, true);
+			}
+		}
+	}
 	C->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	C->SetActorHiddenInGame(false);
 	C->SetActorEnableCollision(true);
@@ -460,12 +604,30 @@ void AMFVehicle::BlowUp(AController* By)
 	{
 		Trailer->BlowUp(By);
 	}
-	AMFCharacter* Inside = Driver;
+	TArray<AMFCharacter*> Inside;
+	if (Driver)
+	{
+		Inside.Add(Driver);
+	}
+	for (AMFCharacter* P : Passengers)
+	{
+		if (P)
+		{
+			Inside.Add(P);
+		}
+	}
 	Exit(true);
-	if (Inside)
+	for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
+	{
+		if (P)
+		{
+			ExitPassenger(P, true);
+		}
+	}
+	for (AMFCharacter* C : Inside)
 	{
 		FDamageEvent Ev(UMFDamage_Explosion::StaticClass());
-		Inside->TakeDamage(1000.f, Ev, By, this);
+		C->TakeDamage(1000.f, Ev, By, this);
 	}
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 150.f, 0.f, GetActorLocation(), 0.f, 900.f, 1.f,
@@ -478,7 +640,7 @@ void AMFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 {
 	// MF Vehicle: hitting someone at KillSpeed or faster runs them over
 	AMFCharacter* C = Cast<AMFCharacter>(Other);
-	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver)
+	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE)
 	{
 		return;
 	}
@@ -562,7 +724,8 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 			SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			if (AMFVehicleGenerator* G = World->SpawnActorDeferred<AMFVehicleGenerator>(AMFVehicleGenerator::StaticClass(), L->GetActorTransform()))
 			{
-				G->VehicleClass = Entry.Value;
+				const AMFGameMode* GM = World->GetAuthGameMode<AMFGameMode>();
+				G->VehicleClass = GM ? GM->GetVehicleClassFor(Entry.Value) : Entry.Value;
 				G->FinishSpawning(L->GetActorTransform());
 				++N;
 			}

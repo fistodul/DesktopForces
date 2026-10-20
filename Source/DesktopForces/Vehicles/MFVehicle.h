@@ -80,6 +80,16 @@ public:
 	bool TryEnter(AMFCharacter* C);
 	/** Server: let the driver out at the nearest free door. */
 	void Exit(bool bForce = false);
+	/** Server: take a particular passenger seat (1..) if it's free and in reach. */
+	bool EnterSeat(AMFCharacter* C, int32 Seat);
+	/** Server: let a passenger out (MF passengers sit or stand at aSeatsPos and keep their
+	 *  weapons; only the driver can't shoot). False if boxed in and not forced. */
+	bool ExitPassenger(AMFCharacter* C, bool bForce = false);
+	/** Server: a passenger died in their seat (they slide off it where they are). */
+	void PassengerDied(AMFCharacter* C);
+	/** Seat of this soldier: 0 driver, 1.. passengers, INDEX_NONE not inside. */
+	int32 GetSeatOf(const AMFCharacter* C) const;
+	const TArray<TObjectPtr<AMFCharacter>>& GetPassengers() const { return Passengers; }
 	AMFCharacter* GetDriver() const { return Driver; }
 	/** Whoever drove it last (still set after they got out; Trailer scoring). */
 	AMFCharacter* GetLastDriver() const { return LastDriver.Get(); }
@@ -193,6 +203,17 @@ protected:
 	// --- state ---------------------------------------------------------------------------
 	UPROPERTY(Replicated)
 	TObjectPtr<AMFCharacter> Driver;
+
+	/** Occupants by seat (index = seat; 0 stays empty: that's Driver). */
+	UPROPERTY(Replicated)
+	TArray<TObjectPtr<AMFCharacter>> Passengers;
+
+	/** Passenger seat taken / given up (ArmedAPC: the gunner seat). */
+	virtual void PassengerEntered(AMFCharacter* C, int32 Seat) {}
+	virtual void PassengerLeft(AMFCharacter* C, int32 Seat) {}
+	void SeatPassenger(AMFCharacter* C, int32 Seat);
+	void UnseatPassenger(AMFCharacter* C);
+	bool FindExitSpot(const AMFCharacter* C, FVector& OutSpot) const;
 
 	TWeakObjectPtr<AMFCharacter> LastDriver;
 	UPROPERTY(Transient)

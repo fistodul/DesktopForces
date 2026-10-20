@@ -46,6 +46,10 @@ public:
 	UFUNCTION(Exec)
 	void MFTraceMat();
 
+	/** Get into seat N (0 driver, 1.. passengers) of the nearest vehicle in reach. */
+	UFUNCTION(Exec)
+	void MFEnterSeat(int32 Seat);
+
 	/** Log every vehicle: position, physics, wheel compression. */
 	UFUNCTION(Exec)
 	void MFVehicles();

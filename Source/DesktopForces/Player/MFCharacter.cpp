@@ -1,4 +1,5 @@
 #include "Player/MFCharacter.h"
+#include "Vehicles/MFVehicle.h"
 #include "Core/MFUserSettings.h"
 #include "Player/MFCharacterMovement.h"
 #include "Weapons/MFWeapon.h"
@@ -345,6 +346,10 @@ void AMFCharacter::Die(AController* Killer, TSubclassOf<UDamageType> DamageType,
 	}
 	bDying = true;
 	Health = FMath::Min(Health, 0);
+	if (AMFVehicle* Riding = Cast<AMFVehicle>(GetAttachParentActor()))
+	{
+		Riding->PassengerDied(this);
+	}
 	AController* Victim = Controller;
 	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
 	{

@@ -250,6 +250,23 @@ void UMFCheatManager::MFCam(float X, float Y, float Z, float Yaw, float Pitch)
 	GetPlayerController()->SetViewTarget(Cam);
 }
 
+void UMFCheatManager::MFEnterSeat(int32 Seat)
+{
+	AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn());
+	AMFVehicle* Best = nullptr;
+	for (TActorIterator<AMFVehicle> It(GetWorld()); It && C; ++It)
+	{
+		if (It->IsNear(C) && (!Best || FVector::Dist(It->GetActorLocation(), C->GetActorLocation()) < FVector::Dist(Best->GetActorLocation(), C->GetActorLocation())))
+		{
+			Best = *It;
+		}
+	}
+	if (Best)
+	{
+		Best->EnterSeat(C, Seat);
+	}
+}
+
 void UMFCheatManager::MFVehicles()
 {
 	for (TActorIterator<AMFVehicle> It(GetWorld()); It; ++It)

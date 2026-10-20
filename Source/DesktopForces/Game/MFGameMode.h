@@ -53,6 +53,10 @@ public:
 
 	/** Someone got into a vehicle (Trailer: "trailer has been captured!"). */
 	virtual void VehicleEntered(class AMFVehicle* Vehicle, AMFCharacter* Driver) {}
+	/** The vehicle a map generator makes for its stock class (URL ?ArmedAPC=1 / 2: the MF-mods
+	 *  Armed APC instead of the Armadillo). */
+	virtual UClass* GetVehicleClassFor(UClass* StockClass) const;
+
 	/** Places where the map's vehicle generators stay off in this mode (Trailer: the delivery bays). */
 	virtual void GetVehicleExclusions(TArray<FVector>& OutPoints) const {}
 
@@ -125,6 +129,10 @@ public:
 	/** Vehicles at the map's generators (URL ?Vehicles=0 turns them off). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bVehicles = true;
+
+	/** MF-mods Armed APC at the Armadillo generators: 0 off, 1 machine gun, 2 rockets (?ArmedAPC=N). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 ArmedAPC = 0;
 
 	/** Seconds on the end screen before the map restarts (MF RestartWait). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")

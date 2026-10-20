@@ -47,6 +47,7 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
 	bVehicles = UGameplayStatics::GetIntOption(Options, TEXT("Vehicles"), bVehicles ? 1 : 0) != 0;
+	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 	{
@@ -251,6 +252,19 @@ void AMFGameMode::EnsureKillZ()
 bool AMFGameMode::CanUseLoadout(AMFCharacter* Character) const
 {
 	return UMFLoadoutLibrary::FindLoadoutSourceFor(Character) != nullptr;
+}
+
+UClass* AMFGameMode::GetVehicleClassFor(UClass* StockClass) const
+{
+	if (ArmedAPC > 0 && StockClass && StockClass->GetName() == TEXT("MFVehicle_Armadillo"))
+	{
+		const TCHAR* Path = ArmedAPC >= 2 ? TEXT("/Script/DesktopForces.MFVehicle_ArmedAPCRocket") : TEXT("/Script/DesktopForces.MFVehicle_ArmedAPC");
+		if (UClass* Replacement = LoadClass<AActor>(nullptr, Path))
+		{
+			return Replacement;
+		}
+	}
+	return StockClass;
 }
 
 void AMFGameMode::LoadoutDenied(APlayerController* PC) const

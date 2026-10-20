@@ -653,6 +653,11 @@ void AMFPlayerController::ServerTryEnterExit_Implementation()
 	{
 		return;
 	}
+	if (AMFVehicle* Riding = Cast<AMFVehicle>(C->GetAttachParentActor()))
+	{
+		Riding->ExitPassenger(C);
+		return;
+	}
 	// the nearest vehicle with a door in reach
 	AMFVehicle* Best = nullptr;
 	float BestDist = 1e9f;
