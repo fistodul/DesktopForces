@@ -20,6 +20,11 @@ added build steps). They are still the best examples of how to extend the game:
 | `Mods/SeekerMines` | `SeekerMines` | a thrown drone: an `APawn` with `UFloatingPawnMovement` + `AAIController` navmesh moves, hunting / escorting / roaming on a 5 Hz timer |
 | `Mods/SentryGun` | `SentryGun` | a deployable turret on timers (no Tick), the HMG model reused |
 | `Mods/Tug` | `TugGame` | a round-based team mode: `PreventDeath` (kills convert instead), `RestartRound`, original teams per round |
+| `Mods/Deagle`, `Mods/GrenadeLauncher` | `deagle`, `grenLaunch` | stock weapon subclasses; models from the mod packages when converted, stock fallbacks |
+| `Mods/PredatorMissile` | `PredatorMissile` | a player-guided missile actor, view-target switching, a weapon HUD overlay (`DrawHUD`) |
+| `Mods/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat (`PassengerEntered` / `Left`), a turret, a hidden seat "weapon" |
+| `Mods/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`AMFGameState::LoadoutAccess`, `LoadoutDenied`) |
+| `Mods/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`AMFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
 
 Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icons/` by
 `Tools/artgen` + `mfport.py import --steps art`.
@@ -36,6 +41,10 @@ Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icon
 | `AMFGameMode::VehicleEntered`, `GetVehicleExclusions` | vehicle modes (Trailer) |
 | `AMFWeapon_TripBombs`: `BombClass`, `bNeedLaserTarget`, `CanPlace`, `GetThrowSpeed` | placed / thrown devices |
 | `AMFWeapon::bAddToLoadout` | the item appears in every loadout crate |
+| `AMFGameMode::ChooseTeam`, `GetWeaponClassFor`, `LoadoutDenied` | who plays where, a mode's own item variants, the "no loadout" answer |
+| `AMFGameState::LoadoutAccess`, `TeamLoadoutAccess`, `TeamNameOverrides` | where loadouts open (per team), mode team names |
+| `AMFCharacter::SetBodyScale` | replicated speed / jump / accel / step / fall multipliers (zombies, buffs) |
+| `AMFWeapon::IsMeleeWeapon` | bots run at the target instead of shooting from range |
 
 ## Adding things
 

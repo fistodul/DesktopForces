@@ -84,6 +84,7 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
 | `MFWalk Yaw Seconds [Fwd] [Right]` | hold movement input, logging position + movement mode every 0.25 s (stairs / ladder tests) |
 | `MFMenuPage N`, `MFMenuStart` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits) / press Start |
+| `MFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
 | `MFVehicles` | log every vehicle: position, mass, gravity, physics awake, height above ground, wheel compression |
 | `MFApplyUserSettings` | re-read the player's options (field of view) |
 

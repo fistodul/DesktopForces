@@ -47,11 +47,11 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Chat (T/Y, Say/TeamSay), team orders menu (V/C) with bot orders, MF message list
 - ✅ N teams (`UMFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `MFNavTest` / `MFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
-- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ⬜ passenger seats, mounted guns (BuggyWeapon …), bots driving, wheel blow-outs
+- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret; ⬜ bots driving / riding, wheel blow-outs
 - ✅ Ladders: grab when close / falling in, climb down from the top, floor walks again; ⬜ swimming/drowning, water zones
-- ✅ MF-mods, part of the game (`Source/DesktopForces/Mods`, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame
+- ✅ MF-mods, part of the game (`Source/DesktopForces/Mods`, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
-- ⬜ More MF-mods: ZombieGame (as components, not player subclasses), CoopMode, PredatorMissile, ArmedAPC, arenaMode …
+- ⬜ More MF-mods: jeep, boat, heli, arenaMode, battleRoyale, MoBall, mutPack, vote, TurboCars
 
 ## Presentation
 - ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars, minimap (MF MiniMapInfo texture, team border, team-mates, objectives); ⬜ MF scoreboard

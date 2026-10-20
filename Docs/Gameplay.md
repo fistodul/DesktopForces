@@ -93,6 +93,24 @@ lets go (no regrab for 0.5 s).
   to your team on the spot (full health). A team with nobody left loses the round (+2 to the
   converter); the bigger team wins a round that runs out of time (8 min). 3 rounds; every
   round starts with the original teams and fresh loadouts.
+- **Coop mode** (`coop`, MF-mods CoopMode, `Mods/Coop`): capture the flag with every human on
+  red against a blue team of bots (12 by default, `?Bots=N`); 3 captures, no time limit.
+  `?Weapons=N` limits the humans' loadout: 0 none ("Nice try, human!"), 1-2 only weapons on the
+  ground, 3 + crates (default), 4 + loadout zones.
+- **Zombie Mode** (`zombie`, MF-mods ZombieGame, `Mods/Zombie`): humans (team 0) against
+  zombies. Bots keep about three humans per zombie. A zombie's boost = (humans per zombie) ^ 0.18
+  (1 - 1.253): speed × (min(1.55 boost, 2.2) − 0.2), health 333 × boost, jump × min(1.45 boost, 3),
+  falls hurt less, accel / step × 1.15, two carry blocks fewer, run-over damage ÷ 10. Zombies
+  spawn at neutral starts away from both bases and carry the zombie knife (67, 95 uu; nemesis
+  ×2), zombie armour (120 charge, 80 %) and the zombie shot (alt on an enemy with ≤ 100 health:
+  they change sides, +2); below `?ZombieWeapons=2` they keep nothing ranged, below 3 / 4 no crates
+  / zones. Shotguns become the Zombie Boomstick (one 12 × 15 blast per button) for everyone.
+  A human killed by a zombie turns (the killer heals up to MaxHealth / 11, less with distance);
+  no humans left = zombies take the round, any human alive at the end of the 8 minutes = humans
+  take it; 3 rounds, original teams each round. A lone zombie against 5+ humans is a
+  **NEMESIS** (boost exponent 0.24, cap 10, regenerates 1.5 / s): infection stops and dead humans
+  wait for the next round until it dies. A lone human against 5+ zombies is a **SURVIVOR**
+  (health × max(ratio / 2.5, 2), regenerates). `?Infect=0`: team deathmatch with zombie bodies.
 - Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
   All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
   flag.", Safecracker "Guard the safe." / "Grab the gold."). Bots acknowledge
@@ -121,7 +139,13 @@ within 400 uu in view; alt: +118 over 10 s to the team-mate you aim at; reload: 
 on yourself), **Trip Laser** (group 9, 3: beam passes team-mates, burns the first enemy 280 /
 185 into the open, max 10 out; thrown: 280 on touch), **Seeker Mine** (group 9, 1: thrown
 drone hunts the nearest enemy within 1900 uu, 320 r440, escorts you otherwise, max 3),
-**Molotov** (group 8).
+**Molotov** (group 8), **Desert Eagle** (group 2: 52, head 120, 7 a clip, heavy kick), **Grenade
+Launcher** (group 7, carry 4: one round a load, 6 loads; fire an impact grenade 250 in 200 uu, alt
+a cluster grenade bursting into 15 fragments of 20), **Predator Missile** (group 11, carry 2:
+ready 10 s after you get it; fire launches a missile from the highest free air above you (at
+least 400 uu) and you fly it from its nose: the view steers (dive 5°–89°), Fire held boosts to
+2.5× (turns slower); 1000 damage in 1400 uu; you stand still while guiding; bots aim it at the
+nearest enemy).
 
 Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(rand−0.5)×1000·Z
 + MaxTraceDistance (10000)·X.
@@ -138,10 +162,16 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 | Truck (6 wheels) | 3000 kg | 50 mph | all | 0.78 | 5 |
 | Armadillo APC | 2300 kg | 30 mph | 4x4 | 0.84 | 2 |
 
-- E (TryEnterExit) near a vehicle gets in (driver seat; passengers and mounted guns TODO), E again
-  out of the first free door. WASD drive, Space handbrake, mouse orbits the camera.
+- E (TryEnterExit) near a vehicle gets in: the driver's seat, or the first free passenger seat
+  (MF aSeatsPos) when it's taken; E again out of the first free door. Drivers drive (WASD, Space
+  handbrake, mouse orbits the camera) and can't shoot; passengers ride standing or sitting at
+  their seat, look around and use their own weapons (MF InCarState). Bots don't drive yet.
+- **Armed APC** (MF-mods ArmedAPC, `?ArmedAPC=1`, rockets `=2`, at the Armadillo generators): the
+  gunner seat (the hatch) runs a heavy machine gun aimed with the gunner's view (pitch −11° … 49°,
+  165°/s), Fire shoots: 100 a belt, 10/s, 25 damage, 13500 cm, 4 s reload (R swaps early). The
+  rocket version: 4 rockets, 0.8 s apart, 110°/s.
 - Only explosives hurt vehicles (MF: other damage 0), x (1 - Armour); 100 health; at 0 it blows
-  up (150, 900 cm) and kills whoever is inside. Hitting someone at KillSpeed 8 m/s or more runs
+  up (150, 900 cm) and kills everyone inside. Hitting someone at KillSpeed 8 m/s or more runs
   them over. Upside down and slow for 3 s: back on its wheels.
 - Generators: the map's Buggy/Humvee/Truck/ArmadilloGenerator actors make one each and a new one
   5 s after it's gone. `?Vehicles=0` turns them off.
