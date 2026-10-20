@@ -196,7 +196,10 @@ void AMFHUD::DrawHUD()
 		if (bArt)
 		{
 			DrawPainMF();
-			DrawMiniMapMF(C);
+			if (!(PC && PC->IsScoreboardShown()) && !(GS && GS->HasMatchEnded()))
+			{
+				DrawMiniMapMF(C);   // under the scoreboard in MF
+			}
 			DrawHealthMF(C);
 			DrawInventoryMF(C, PC);
 			if (AMFWeapon* W = C->GetCurrentWeapon())
@@ -480,7 +483,7 @@ void AMFHUD::DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC)
 	{
 		Text(FString::Printf(TEXT("FRAGS %d"), FMath::RoundToInt(PC->PlayerState->GetScore())), 20.f * UIScale, 10.f * UIScale, White, 1.f);
 	}
-	if (GetWorld()->GetTimeSeconds() - AnnouncementTime < 4.f)
+	if (GetWorld()->GetTimeSeconds() - AnnouncementTime < 4.f && !(PC && PC->IsScoreboardShown()) && !GS->HasMatchEnded())
 	{
 		Text(Announcement, CX, Canvas->ClipY * 0.28f, Yellow, 1.5f, true);
 	}
@@ -714,8 +717,100 @@ void AMFHUD::DrawLoadout(AMFCharacter* C, AMFPlayerController* PC)
 	Text(Hint, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.72f, White, 1.f, true);
 }
 
+void AMFHUD::DrawScoreboardMF(AMFGameState* GS)
+{
+	const float CW = Canvas->ClipX, CH = Canvas->ClipY;
+	const FLinearColor Band(0.f, 0.f, 0.12f, 0.75f);
+	// top band: the result (or the game's goal while playing)
+	Box(0.f, 0.f, CW, CH * 0.16f, Band);
+	const FString Title = GS->HasMatchEnded() ? GS->WinnerText : GS->GameName;
+	FVector2D TS = MFTextSize(Title, 2);
+	MFText(Title, (CW - TS.X) * 0.5f, CH * 0.088f - TS.Y * 0.5f, FLinearColor::White, 2);
+	// bottom band: "<Game> in <Map>", remaining time
+	const float BandY = CH * 0.953f;
+	Box(0.f, BandY, CW, CH - BandY, Band);
+	const FString Where = FString::Printf(TEXT("%s in %s"), *GS->GameName, MapInfo && !MapInfo->Title.IsEmpty() ? *MapInfo->Title : *GetWorld()->GetMapName());
+	const int32 Left = FMath::Max(0, GS->GetRemainingTime());
+	const FString Time = FString::Printf(TEXT("Remaining Time:  %02d:%02d"), Left / 60, Left % 60);
+	TS = MFTextSize(Where, 0);
+	MFText(Where, (CW - TS.X) * 0.5f, BandY + 2.f, FLinearColor::White, 0);
+	const FVector2D TT = MFTextSize(Time, 0);
+	MFText(Time, (CW - TT.X) * 0.5f, BandY + 2.f + TS.Y, FLinearColor::White, 0);
+	if (GS->HasMatchEnded())
+	{
+		const FString Over = TEXT("The match is over.  Hit [Fire] to continue!");
+		TS = MFTextSize(Over, 0);
+		MFText(Over, (CW - TS.X) * 0.5f, CH * 0.905f, FLinearColor::White, 0);
+	}
+
+	// squads: ScoreBoxes bars, header opaque, rows see-through, score in its own box
+	const TArray<AMFPlayerState*> Players = GS->GetSortedPlayers();
+	const float RowH = CH * 0.043f, BarH = RowH * 0.8f;
+	auto Bar = [&](float X, float Y, float W, int32 Set, float Alpha)
+	{
+		static const float BoxY[3] = { 64.f, 0.f, 32.f };
+		DrawTexRect(TexScoreBoxes, X, Y, W, BarH, 0.f, BoxY[FMath::Clamp(Set, 0, 2)], 96.f, 32.f, FLinearColor(1.f, 1.f, 1.f, Alpha), SE_BLEND_Translucent);
+	};
+	auto Column = [&](float X, float W, int32 Set, const FString& Head, const FString& HeadScore, TFunctionRef<bool(const AMFPlayerState*)> Filter)
+	{
+		float Y = CH * 0.255f;
+		const float ScoreW = W * 0.12f, NameW = W - ScoreW - 4.f;
+		Bar(X, Y, NameW, Set, 0.95f);
+		Bar(X + NameW + 4.f, Y, ScoreW, Set, 0.95f);
+		const FVector2D H = MFTextSize(Head, 1);
+		MFText(Head, X + 10.f, Y + (BarH - H.Y) * 0.5f, FLinearColor::White, 1);
+		if (!HeadScore.IsEmpty())
+		{
+			const FVector2D HS = MFTextSize(HeadScore, 1);
+			MFText(HeadScore, X + NameW + 4.f + (ScoreW - HS.X) * 0.5f, Y + (BarH - HS.Y) * 0.5f, FLinearColor::White, 1);
+		}
+		Y += RowH;
+		for (const AMFPlayerState* PS : Players)
+		{
+			if (!Filter(PS))
+			{
+				continue;
+			}
+			Bar(X, Y, NameW, Set, 0.4f);
+			Bar(X + NameW + 4.f, Y, ScoreW, Set, 0.4f);
+			const FString Score = FString::FromInt(FMath::RoundToInt(PS->GetScore()));
+			const FVector2D N = MFTextSize(PS->GetPlayerName(), 1), SS = MFTextSize(Score, 1);
+			MFText(PS->GetPlayerName() + (PS->bCaptain ? TEXT(" (C)") : TEXT("")), X + 10.f, Y + (BarH - N.Y) * 0.5f, FLinearColor::White, 1);
+			MFText(Score, X + NameW + 4.f + (ScoreW - SS.X) * 0.5f, Y + (BarH - SS.Y) * 0.5f, FLinearColor::White, 1);
+			Y += RowH;
+		}
+	};
+	if (GS->IsTeamGame())
+	{
+		const UMFGameSettings& Settings = UMFGameSettings::Get();
+		for (int32 T = 0; T < FMath::Min(GS->NumTeams, 2); ++T)
+		{
+			FString Name = Settings.GetTeamName(T).ToString();
+			if (!Name.Contains(TEXT("Squad")))
+			{
+				Name += TEXT(" Squad");
+			}
+			Column(T == 0 ? CW * 0.073f : CW * 0.571f, CW * 0.355f, T, Name, FString::FromInt(GS->GetTeamScore(T)),
+				[T](const AMFPlayerState* PS) { return PS->GetTeam() == T; });
+		}
+		// emblem between the columns (the leading squad's)
+		const int32 Lead = GS->GetTeamScore(1) > GS->GetTeamScore(0) ? 1 : 0;
+		const float EW = Block, EH = Block * 100.f / 64.f;
+		DrawTexRect(TexIcons, (CW - EW) * 0.5f, CH * 0.19f, EW, EH, Lead == 0 ? 64.f : 0.f, 0.f, 64.f, 100.f, FLinearColor::White, SE_BLEND_Translucent);
+	}
+	else
+	{
+		Column(CW * 0.3f, CW * 0.4f, 2, TEXT("Player"), TEXT("Frags"), [](const AMFPlayerState*) { return true; });
+	}
+}
+
 void AMFHUD::DrawScoreboard(AMFGameState* GS)
 {
+	if (TexScoreBoxes && LoadMFArt())
+	{
+		DrawScoreboardMF(GS);
+		return;
+	}
 	const TArray<AMFPlayerState*> Players = GS->GetSortedPlayers();
 	const UMFGameSettings& Settings = UMFGameSettings::Get();
 	const float W = 520.f * UIScale, RowH = 22.f * UIScale;

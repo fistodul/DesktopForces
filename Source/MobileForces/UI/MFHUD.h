@@ -59,6 +59,8 @@ protected:
 	void DrawCaptainMarkers(AMFPlayerController* PC);
 	void DrawLoadout(AMFCharacter* C, AMFPlayerController* PC);
 	void DrawScoreboard(AMFGameState* GS);
+	/** RageTeamScoreBoard look: top band with the result, a column per squad, bottom band. */
+	void DrawScoreboardMF(AMFGameState* GS);
 	void DrawDeadScreen(AMFGameState* GS, AMFPlayerController* PC);
 
 	/** Draw a weapon's icon (or its name if the icon isn't converted). Returns drawn width. */
