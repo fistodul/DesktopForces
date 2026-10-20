@@ -36,6 +36,13 @@ public:
 	UPROPERTY(Config)
 	float FieldOfView = 100.f;
 
+	/**
+	 * 3D render resolution relative to the window (r.ScreenPercentage / 100), 0.25 - 2, the HUD
+	 * stays sharp. Below 1 for very weak GPUs, above 1 supersamples. 1 costs nothing extra.
+	 */
+	UPROPERTY(Config)
+	float RenderScale = 1.f;
+
 	virtual void ApplyNonResolutionSettings() override;
 	virtual void SetToDefaults() override;
 };

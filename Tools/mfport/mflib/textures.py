@@ -141,6 +141,8 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             lum = img.convert('L')
             img = Image.new('RGBA', img.size, (255, 255, 255, 0))
             img.putalpha(lum)
+        if needs_alpha and img.mode == 'RGBA' and not modes & {'ui', 'fontalpha', 'lumalpha'}:
+            img = bleed_alpha(img)
         img = _limit_size(img, cfg.max_texture_size)
         img.save(dst, optimize=True)
         manifest[key] = {
@@ -151,6 +153,35 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             'ui': bool(modes & {'ui', 'fontalpha', 'lumalpha'}),
         }
     return manifest
+
+
+def bleed_alpha(img: Image.Image, passes: int = 32) -> Image.Image:
+    """Give see-through texels the colour of their opaque neighbours (alpha unchanged).
+
+    UE1 masked textures keep palette index 0 (often white or magenta) under the holes;
+    bilinear filtering and mips blend that into the edges (white fringes on tyres, fences).
+    """
+    import numpy as np
+    a = np.asarray(img, dtype=np.float32)
+    rgb, alpha = a[..., :3].copy(), a[..., 3]
+    known = alpha >= 128
+    if known.all() or not known.any():
+        return img
+    for _ in range(passes):
+        if known.all():
+            break
+        acc = np.zeros_like(rgb)
+        cnt = np.zeros(known.shape, dtype=np.float32)
+        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            k = np.roll(known, (dy, dx), axis=(0, 1))     # textures tile: wrap around
+            acc += np.roll(rgb, (dy, dx), axis=(0, 1)) * k[..., None]
+            cnt += k
+        grow = ~known & (cnt > 0)
+        rgb[grow] = acc[grow] / cnt[grow][:, None]
+        known = known | grow
+    rgb[~known] = rgb[known].mean(axis=0)
+    out = np.concatenate([rgb, alpha[..., None]], axis=-1).clip(0, 255).astype(np.uint8)
+    return Image.fromarray(out, 'RGBA')
 
 
 def _read_mips(r: Reader, version: int) -> list[tuple[int, int, bytes]]:

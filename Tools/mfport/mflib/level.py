@@ -187,8 +187,13 @@ class LevelConverter:
                 skipped += 1
                 continue
             polys.append(poly)
-        named = [a for z, a in enumerate(ambients) if z and model.zones[z]]
-        self.map_ambient = max(set(named), key=named.count) if named else (0.0, 0.0, 0.0)
+        # main ambient = area-weighted over the drawn surfaces (zones without a ZoneInfo use the
+        # LevelInfo's, e.g. MF-Filip lights everything that way)
+        weights: dict[tuple, float] = {}
+        for poly in polys:
+            if not poly.poly_flags & PF_INVISIBLE and 0 <= poly.zone < len(ambients):
+                weights[ambients[poly.zone]] = weights.get(ambients[poly.zone], 0.0) + _area(poly.vertices)
+        self.map_ambient = max(weights, key=weights.get) if weights else (0.0, 0.0, 0.0)
         welded, inserted = weld_tjunctions([p.vertices for p in polys])
         print(f'  world: {inserted} T-junction vertices welded')
         for poly, verts in zip(polys, welded):
@@ -208,7 +213,9 @@ class LevelConverter:
                 if mb is None:
                     mb = chunks[ck] = MeshBuilder((f'{"Sky" if sky else "World"}_{cell[0]}_{cell[1]}').replace('-', 'm'))
                     mb.collision = 'none'
-                self._emit_poly(mb, key, poly, verts, cell)
+                # UE1 zone ambient -> vertex colour (alpha 1 = per-zone; see FMFImporter::AddAmbientFloor)
+                amb = ambients[poly.zone] if 0 <= poly.zone < len(ambients) else self.map_ambient
+                self._emit_poly(mb, key, poly, verts, cell, amb)
                 areas[ck] = areas.get(ck, 0.0) + _area(poly.vertices)
             if collide:
                 cb = coll.get(cell)
@@ -238,7 +245,7 @@ class LevelConverter:
     def _cell_pivot(cell):
         return ((cell[0] + 0.5) * CHUNK_SIZE, (cell[1] + 0.5) * CHUNK_SIZE, 0.0)
 
-    def _emit_poly(self, mb: MeshBuilder, key: str, poly, verts, cell):
+    def _emit_poly(self, mb: MeshBuilder, key: str, poly, verts, cell, color=None):
         pivot = self._cell_pivot(cell)
         usize, vsize = self.texture_size(poly.texture)
         n = poly.normal
@@ -256,7 +263,7 @@ class LevelConverter:
         pts, tris = triangulate(verts)
         vs = [vtx(p) for p in pts]
         for a, b, c in tris:
-            mb.add_triangle(key, vs[a], vs[b], vs[c])
+            mb.add_triangle(key, vs[a], vs[b], vs[c], color)
 
     # --- static meshes ----------------------------------------------------
     def convert_static_meshes(self, level: t3d.Block) -> dict[str, dict]:
@@ -335,10 +342,11 @@ class LevelConverter:
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
-        # UE1 zone ambient (flat light everywhere in a zone) becomes UE-native lighting: the
-        # map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
-        # windows pick up) plus a small unshadowed floor in the materials (MPC_MF.Ambient, set
-        # by AMFMapInfo, scaled by the player's brightness); bounced light fills the rest
+        # UE1 zone ambient (flat light everywhere in a zone) becomes mostly UE-native lighting:
+        # the map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
+        # windows pick up) and bounced light fills the rest; a small unshadowed floor stays in the
+        # lit materials: world vertex colour = its zone's ambient, everything else uses the main
+        # one (MPC_MF.Ambient), both scaled by AmbientFloor x the player's brightness
         amb = [round(c, 4) for c in self.map_ambient]
         for rec in spawns:
             if rec['type'] == 'map_info':

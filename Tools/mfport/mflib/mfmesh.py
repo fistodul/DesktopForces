@@ -5,7 +5,8 @@ A mesh is two files:
   <name>.mfmesh.bin   - little-endian float32 vertex data, then uint32 indices
 
 Vertex layout (interleaved, 8 floats): position xyz (UE cm, mesh-local),
-normal xyz, uv0 uv. Triangles are grouped by section; a section is a contiguous
+normal xyz, uv0 uv; `pos3f_nrm3f_uv2f_col3f` adds a linear RGB vertex colour (world
+geometry: the UE1 zone ambient of each polygon). Triangles are grouped by section; a section is a contiguous
 index range drawn with one material. Winding: front faces are clockwise when
 seen from the front (normal side), which is Unreal's convention.
 
@@ -32,6 +33,7 @@ class MeshBuilder:
     collision: str = 'complex'      # complex | none | simple_box
     lightmap_resolution: int = 64
     render: bool = True             # False = collision-only (invisible blocking geometry)
+    has_colors: bool = False        # vertices carry a 4th element (r, g, b)
 
     def material_index(self, key: str) -> int:
         try:
@@ -40,7 +42,11 @@ class MeshBuilder:
             self.materials.append(key)
             return len(self.materials) - 1
 
-    def add_triangle(self, material: str, v0, v1, v2):
+    def add_triangle(self, material: str, v0, v1, v2, color=None):
+        """Vertices are (pos, normal, uv); color (r, g, b) applies to all three corners."""
+        if color is not None:
+            self.has_colors = True
+            v0, v1, v2 = ((*v0[:3], tuple(color)), (*v1[:3], tuple(color)), (*v2[:3], tuple(color)))
         self.tris.setdefault(self.material_index(material), []).append((v0, v1, v2))
 
     @property
@@ -60,18 +66,20 @@ class MeshBuilder:
         sections = []
         vmap: dict = {}
         nverts = 0
+        white = (1.0, 1.0, 1.0)
         for mat in sorted(self.tris):
             first = len(indices)
             for tri in self.tris[mat]:
                 for v in tri:
+                    col = (v[3] if len(v) > 3 else white) if self.has_colors else ()
                     key = (round(v[0][0], 3), round(v[0][1], 3), round(v[0][2], 3),
                            round(v[1][0], 4), round(v[1][1], 4), round(v[1][2], 4),
-                           round(v[2][0], 5), round(v[2][1], 5))
+                           round(v[2][0], 5), round(v[2][1], 5), *(round(c, 4) for c in col))
                     idx = vmap.get(key)
                     if idx is None:
                         idx = vmap[key] = nverts
                         nverts += 1
-                        verts += struct.pack('<8f', *v[0], *v[1], *v[2])
+                        verts += struct.pack(f'<{8 + len(col)}f', *v[0], *v[1], *v[2], *col)
                     indices.append(idx)
             sections.append({'material': mat, 'first_index': first, 'num_triangles': (len(indices) - first) // 3})
         binname = f'{self.name}.mfmesh.bin'
@@ -83,7 +91,7 @@ class MeshBuilder:
             'bin': binname,
             'vertex_count': nverts,
             'index_count': len(indices),
-            'vertex_layout': 'pos3f_nrm3f_uv2f',
+            'vertex_layout': 'pos3f_nrm3f_uv2f_col3f' if self.has_colors else 'pos3f_nrm3f_uv2f',
             'materials': self.materials,
             'sections': sections,
             'collision': self.collision,
@@ -122,13 +130,15 @@ def read(json_path: Path) -> MeshBuilder:
     meta = json.loads(Path(json_path).read_text())
     data = Path(json_path).parent.joinpath(meta['bin']).read_bytes()
     n = meta['vertex_count']
-    verts = [struct.unpack_from('<8f', data, i * 32) for i in range(n)]
-    idx = struct.unpack_from(f"<{meta['index_count']}I", data, n * 32)
+    nf = 11 if meta.get('vertex_layout', '').endswith('col3f') else 8
+    verts = [struct.unpack_from(f'<{nf}f', data, i * nf * 4) for i in range(n)]
+    idx = struct.unpack_from(f"<{meta['index_count']}I", data, n * nf * 4)
     mb = MeshBuilder(meta['name'], materials=list(meta['materials']), collision=meta.get('collision', 'complex'),
                      lightmap_resolution=meta.get('lightmap_resolution', 64), render=meta.get('render', True))
     for sec in meta['sections']:
         tris = mb.tris.setdefault(sec['material'], [])
         for t in range(sec['num_triangles']):
             i0 = sec['first_index'] + 3 * t
-            tris.append(tuple((v[0:3], v[3:6], v[6:8]) for v in (verts[idx[i0 + k]] for k in range(3))))
+            tris.append(tuple((v[0:3], v[3:6], v[6:8], *([v[8:11]] if nf == 11 else [])) for v in (verts[idx[i0 + k]] for k in range(3))))
+    mb.has_colors = nf == 11
     return mb

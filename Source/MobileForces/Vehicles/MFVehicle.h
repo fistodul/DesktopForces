@@ -99,6 +99,9 @@ public:
 	/** HUD readout. */
 	float GetSpeedKmh() const;
 
+	/** Log position, physics state and wheel contacts (MFVehicles cheat). */
+	void DebugDump() const;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	FText DisplayName;
 

@@ -19,7 +19,8 @@ static constexpr ECollisionChannel ECC_MFWeapon = ECC_GameTraceChannel2;
 
 AMFWeapon::AMFWeapon()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;           // falls when dropped, nothing else
+	PrimaryActorTick.bStartWithTickEnabled = false;
 	bReplicates = true;
 	SetReplicatingMovement(false);
 	SetNetUpdateFrequency(10.f);
@@ -590,18 +591,25 @@ void AMFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	// MF Pawn.DropItem: 4 collision radii (17 uu) out, yaw +-13000 of 65536 around the facing,
 	// then PHYS_Falling until it lands
 	const FRotator Dir(0.f, Facing.Yaw + FMath::FRandRange(-71.4f, 71.4f), 0.f);
+	// world geometry only (vehicles too): soldiers, the dropper included, don't hold it up
 	FCollisionQueryParams Params(TEXT("MFDrop"), false, this);
+	const FCollisionObjectQueryParams World(ECC_TO_BITFIELD(ECC_WorldStatic) | ECC_TO_BITFIELD(ECC_WorldDynamic) | ECC_TO_BITFIELD(ECC_PhysicsBody));
 	FHitResult Hit;
 	FVector Spot = From + Dir.Vector() * 153.f;   // 4 x 17 uu
-	if (GetWorld()->LineTraceSingleByChannel(Hit, From, Spot, ECC_WorldStatic, Params))
+	if (GetWorld()->LineTraceSingleByObjectType(Hit, From, Spot, World, Params))
 	{
 		Spot = Hit.Location - Dir.Vector() * 20.f;
 	}
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Spot, Spot - FVector(0, 0, 5000.f), ECC_WorldStatic, Params))
+	// lands with the model's underside on the floor; falls there from where it left the hand
+	const float Bottom = Mesh1P->GetStaticMesh() ? Mesh1P->GetStaticMesh()->GetBoundingBox().Min.Z : -5.f;
+	LandZ = Spot.Z - 5000.f;
+	if (GetWorld()->LineTraceSingleByObjectType(Hit, Spot, Spot - FVector(0, 0, 5000.f), World, Params))
 	{
-		Spot = Hit.Location + FVector(0, 0, 5.f);
+		LandZ = Hit.Location.Z - Bottom + 1.f;
 	}
-	SetActorLocationAndRotation(Spot, Dir);
+	FallSpeed = 0.f;
+	SetActorLocationAndRotation(FVector(Spot.X, Spot.Y, FMath::Max(Spot.Z, LandZ)), Dir);
+	SetActorTickEnabled(GetActorLocation().Z > LandZ);
 	bDropped = true;
 	DroppedTime = GetWorld()->GetTimeSeconds();
 	SetReplicatingMovement(true);
@@ -628,8 +636,24 @@ void AMFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	}
 }
 
+void AMFWeapon::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	FVector L = GetActorLocation();
+	FallSpeed += -GetWorld()->GetGravityZ() * DeltaSeconds;
+	L.Z -= FallSpeed * DeltaSeconds;
+	if (!bDropped || L.Z <= LandZ)
+	{
+		L.Z = FMath::Max(L.Z, LandZ);
+		SetActorTickEnabled(false);
+		UE_LOG(LogMF, Verbose, TEXT("%s landed at %s"), *GetName(), *L.ToCompactString());
+	}
+	SetActorLocation(L);
+}
+
 void AMFWeapon::OnPickedUp(AMFCharacter* NewOwner)
 {
+	SetActorTickEnabled(false);
 	bDropped = false;
 	SetReplicatingMovement(false);
 	UpdateDroppedLook();

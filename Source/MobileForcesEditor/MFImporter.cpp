@@ -14,6 +14,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
+#include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
@@ -611,12 +612,25 @@ UMaterialParameterCollection* FMFImporter::EnsureAmbientCollection()
 {
 	bool bCreated = false;
 	UMaterialParameterCollection* C = FindOrCreateAsset<UMaterialParameterCollection>(TEXT("/Game/MF/Materials"), TEXT("MPC_MF"), bCreated);
+	bool bChanged = false;
 	if (!C->VectorParameters.ContainsByPredicate([](const FCollectionVectorParameter& P) { return P.ParameterName == TEXT("Ambient"); }))
 	{
 		FCollectionVectorParameter P;
 		P.ParameterName = TEXT("Ambient");
 		P.DefaultValue = FLinearColor::Black;
 		C->VectorParameters.Add(P);
+		bChanged = true;
+	}
+	if (!C->ScalarParameters.ContainsByPredicate([](const FCollectionScalarParameter& P) { return P.ParameterName == TEXT("AmbientScale"); }))
+	{
+		FCollectionScalarParameter P;
+		P.ParameterName = TEXT("AmbientScale");
+		P.DefaultValue = 0.35f;
+		C->ScalarParameters.Add(P);
+		bChanged = true;
+	}
+	if (bChanged)
+	{
 		C->PostEditChange();
 		SaveAsset(C);
 	}
@@ -625,64 +639,70 @@ UMaterialParameterCollection* FMFImporter::EnsureAmbientCollection()
 
 bool FMFImporter::AddAmbientFloor(UMaterial* M)
 {
-	// UE1 zone ambient: unshadowed light on every surface. Now mostly baked (sky colour + bounce
-	// light in Lightmass); this adds the map's small ambient floor on top, one global value
-	// (no per-zone meshes or per-component data). Lightmass ignores it (EmissiveBoost 0).
+	// UE1 zone ambient: unshadowed light on every surface. Mostly baked now (sky colour + bounce
+	// light in Lightmass); this keeps a small floor on top: world geometry has its zone's ambient
+	// in the vertex colour (alpha 1), props/actors (alpha 0) use the map's main ambient.
+	//   Emissive = BaseColor * lerp(MPC.Ambient, VertexColor.rgb * MPC.AmbientScale, VertexColor.a)
+	// No per-zone meshes, no per-component data. Lightmass ignores it (EmissiveBoost 0).
 	UMaterialParameterCollection* Collection = EnsureAmbientCollection();
-	UMaterialExpressionVectorParameter* OldCPD = nullptr;
+	UMaterialEditorOnlyData* Data = M->GetEditorOnlyData();
+	TArray<UMaterialExpression*> Remove;
 	for (const TObjectPtr<UMaterialExpression>& E : M->GetExpressions())
 	{
-		if (const UMaterialExpressionCollectionParameter* P = Cast<UMaterialExpressionCollectionParameter>(E); P && P->ParameterName == TEXT("Ambient"))
+		if (Cast<UMaterialExpressionVertexColor>(E))
 		{
-			// the collection's vectors are float4: multiply the RGB only
+			return false;   // already the current version
+		}
+		// earlier versions: per-component vector parameter, or one global collection value
+		const UMaterialExpressionVectorParameter* VP = Cast<UMaterialExpressionVectorParameter>(E);
+		const UMaterialExpressionCollectionParameter* CP = Cast<UMaterialExpressionCollectionParameter>(E);
+		if ((VP && VP->ParameterName == TEXT("Ambient")) || (CP && CP->ParameterName == TEXT("Ambient")))
+		{
+			Remove.Add(E);
 			for (const TObjectPtr<UMaterialExpression>& E2 : M->GetExpressions())
 			{
-				if (UMaterialExpressionMultiply* Mul = Cast<UMaterialExpressionMultiply>(E2); Mul && Mul->B.Expression == P && !Mul->B.Mask)
+				if (UMaterialExpressionMultiply* Mul = Cast<UMaterialExpressionMultiply>(E2); Mul && Mul->B.Expression == E)
 				{
-					Mul->B.SetMask(1, 1, 1, 1, 0);
-					M->PreEditChange(nullptr);
-					M->PostEditChange();
-					SaveAsset(M);
-					return true;
+					Remove.Add(Mul);
 				}
 			}
-			return false;
-		}
-		if (UMaterialExpressionVectorParameter* P = Cast<UMaterialExpressionVectorParameter>(E); P && P->ParameterName == TEXT("Ambient"))
-		{
-			OldCPD = P;   // the earlier per-component version
 		}
 	}
-	UMaterialEditorOnlyData* Data = M->GetEditorOnlyData();
 	UMaterialExpression* BaseColor = Data->BaseColor.Expression;
 	if (!BaseColor)
 	{
 		return false;
 	}
-	if (OldCPD)
+	for (UMaterialExpression* E : Remove)
 	{
-		TArray<UMaterialExpression*> Remove{ OldCPD };
-		for (const TObjectPtr<UMaterialExpression>& E : M->GetExpressions())
-		{
-			if (UMaterialExpressionMultiply* Mul = Cast<UMaterialExpressionMultiply>(E); Mul && Mul->B.Expression == OldCPD)
-			{
-				Remove.Add(Mul);
-			}
-		}
-		for (UMaterialExpression* E : Remove)
-		{
-			M->GetExpressionCollection().RemoveExpression(E);
-		}
+		M->GetExpressionCollection().RemoveExpression(E);
 	}
-	UMaterialExpressionCollectionParameter* Amb = NewObject<UMaterialExpressionCollectionParameter>(M);
-	Amb->Collection = Collection;
-	Amb->ParameterName = TEXT("Ambient");
-	Amb->ParameterId = Collection->GetParameterId(TEXT("Ambient"));
-	M->GetExpressionCollection().AddExpression(Amb);
+	auto AddCollectionParam = [&](const TCHAR* Name)
+	{
+		UMaterialExpressionCollectionParameter* P = NewObject<UMaterialExpressionCollectionParameter>(M);
+		P->Collection = Collection;
+		P->ParameterName = Name;
+		P->ParameterId = Collection->GetParameterId(Name);
+		M->GetExpressionCollection().AddExpression(P);
+		return P;
+	};
+	UMaterialExpressionCollectionParameter* MapAmb = AddCollectionParam(TEXT("Ambient"));
+	UMaterialExpressionCollectionParameter* Scale = AddCollectionParam(TEXT("AmbientScale"));
+	UMaterialExpressionVertexColor* VC = NewObject<UMaterialExpressionVertexColor>(M);
+	M->GetExpressionCollection().AddExpression(VC);
+	UMaterialExpressionMultiply* ZoneAmb = NewObject<UMaterialExpressionMultiply>(M);
+	ZoneAmb->A.Connect(0, VC);                 // RGB
+	ZoneAmb->B.Connect(0, Scale);
+	M->GetExpressionCollection().AddExpression(ZoneAmb);
+	UMaterialExpressionLinearInterpolate* Lerp = NewObject<UMaterialExpressionLinearInterpolate>(M);
+	Lerp->A.Connect(0, MapAmb);
+	Lerp->A.SetMask(1, 1, 1, 1, 0);            // the collection's vectors are float4
+	Lerp->B.Connect(0, ZoneAmb);
+	Lerp->Alpha.Connect(4, VC);                // A
+	M->GetExpressionCollection().AddExpression(Lerp);
 	UMaterialExpressionMultiply* Mul = NewObject<UMaterialExpressionMultiply>(M);
 	Mul->A.Connect(Data->BaseColor.OutputIndex, BaseColor);
-	Mul->B.Connect(0, Amb);
-	Mul->B.SetMask(1, 1, 1, 1, 0);   // the collection's vectors are float4
+	Mul->B.Connect(0, Lerp);
 	M->GetExpressionCollection().AddExpression(Mul);
 	Data->EmissiveColor.Connect(0, Mul);
 	M->PreEditChange(nullptr);
@@ -785,13 +805,16 @@ UStaticMesh* FMFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	const bool bRender = J->GetBoolField(TEXT("render"));
 	const FString Collision = J->GetStringField(TEXT("collision"));
 	const int32 LightmapRes = J->GetIntegerField(TEXT("lightmap_resolution"));
-	if (Bin.Num() < NumVerts * 32 + NumIndices * 4)
+	// pos3f_nrm3f_uv2f[_col3f]: world geometry carries its UE1 zone ambient as vertex colour
+	const bool bZoneColors = J->GetStringField(TEXT("vertex_layout")).EndsWith(TEXT("col3f"));
+	const int32 Stride = bZoneColors ? 11 : 8;
+	if (Bin.Num() < NumVerts * Stride * 4 + NumIndices * 4)
 	{
 		UE_LOG(LogMFEditor, Error, TEXT("Truncated mesh data for %s"), *JsonFile);
 		return nullptr;
 	}
 	const float* V = reinterpret_cast<const float*>(Bin.GetData());
-	const uint32* Idx = reinterpret_cast<const uint32*>(Bin.GetData() + NumVerts * 32);
+	const uint32* Idx = reinterpret_cast<const uint32*>(Bin.GetData() + NumVerts * Stride * 4);
 
 	FMeshDescription MD;
 	FStaticMeshAttributes Attr(MD);
@@ -799,6 +822,7 @@ UStaticMesh* FMFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	TVertexAttributesRef<FVector3f> Positions = Attr.GetVertexPositions();
 	TVertexInstanceAttributesRef<FVector3f> Normals = Attr.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector2f> UVs = Attr.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector4f> Colors = Attr.GetVertexInstanceColors();
 	TPolygonGroupAttributesRef<FName> SlotNames = Attr.GetPolygonGroupMaterialSlotNames();
 	UVs.SetNumChannels(1);
 
@@ -808,7 +832,7 @@ UStaticMesh* FMFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	Instances.SetNum(NumVerts);
 	for (int32 i = 0; i < NumVerts; ++i)
 	{
-		const float* P = V + i * 8;
+		const float* P = V + i * Stride;
 		const FVector3f Pos(P[0], P[1], P[2]);
 		FVertexID* VID = Welded.Find(Pos);
 		if (!VID)
@@ -820,6 +844,8 @@ UStaticMesh* FMFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 		const FVertexInstanceID VI = MD.CreateVertexInstance(*VID);
 		Normals[VI] = FVector3f(P[3], P[4], P[5]);
 		UVs.Set(VI, 0, FVector2f(P[6], P[7]));
+		// alpha 1 = this zone's ambient in RGB; alpha 0 = use the map's main ambient (props)
+		Colors[VI] = bZoneColors ? FVector4f(P[8], P[9], P[10], 1.f) : FVector4f(0.f, 0.f, 0.f, 0.f);
 		Instances[i] = VI;
 	}
 

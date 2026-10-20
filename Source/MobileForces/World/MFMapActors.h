@@ -48,8 +48,9 @@ public:
 
 	/**
 	 * Ambient light of the map's main zone (MF ZoneInfo ambient). Mostly baked (Lightmass sky
-	 * colour + bounces); the unshadowed floor in the lit materials (MPC_MF.Ambient) is this x
-	 * UMFGameSettings::AmbientFloor x the player's brightness.
+	 * colour + bounces); the unshadowed floor in the lit materials is UMFGameSettings::AmbientFloor
+	 * x the player's brightness (MPC_MF.AmbientScale) x the zone ambient in the world's vertex
+	 * colour, or x this for props and actors (MPC_MF.Ambient).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
 	FLinearColor Ambient = FLinearColor::Black;

@@ -51,6 +51,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PostInitializeComponents() override;
 	virtual void Destroyed() override;
+	virtual void Tick(float DeltaSeconds) override;   // only while a dropped weapon falls
 
 	// --- identity / loadout ---------------------------------------------------------
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
@@ -314,6 +315,9 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Dropped)
 	bool bDropped = false;
 	float DroppedTime = 0.f;
+	/** Dropped and falling (MF PHYS_Falling): speed down (cm/s) and where it lands. */
+	float FallSpeed = 0.f;
+	float LandZ = 0.f;
 	UFUNCTION()
 	void OnRep_Dropped();
 	void UpdateDroppedLook();

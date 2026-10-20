@@ -177,6 +177,10 @@ public:
 	/** MF Brightness: set (0.25 - 3) or step through 0.5 ... 2 with no value. */
 	UFUNCTION(Exec)
 	void Brightness(float Value = 0.f);
+
+	/** 3D resolution scale 0.25 - 2 (1 = window resolution); saved like the menu option. */
+	UFUNCTION(Exec)
+	void RenderScale(float Value);
 	/** Re-read UMFUserSettings (field of view; the menu calls it after Apply). */
 	UFUNCTION(Exec)
 	void MFApplyUserSettings();

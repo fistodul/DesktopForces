@@ -45,6 +45,7 @@ void AMFMapInfo::ApplyAmbient(UWorld* World)
 	const UMFUserSettings* User = UMFUserSettings::Get();
 	const float Scale = UMFGameSettings::Get().AmbientFloor * (User ? User->Brightness : 1.f);
 	UKismetMaterialLibrary::SetVectorParameterValue(World, MPC, TEXT("Ambient"), Ambient * Scale);
+	UKismetMaterialLibrary::SetScalarParameterValue(World, MPC, TEXT("AmbientScale"), Scale);   // world: zone ambient in vertex colour
 }
 
 AMFLegacyActor::AMFLegacyActor()

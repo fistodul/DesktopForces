@@ -45,7 +45,8 @@ namespace
 		return FCoreStyle::GetDefaultFontStyle(Style, Size);
 	}
 
-	TSharedPtr<SWidget> GMenu;
+	// the viewport owns the widget; a strong global would outlive Slate at exit (crash on Quit)
+	TWeakPtr<SWidget> GMenu;
 	TWeakObjectPtr<APlayerController> GOwner;
 }
 
@@ -155,6 +156,7 @@ private:
 	float Brightness = 1.f;
 	float Sensitivity = 1.f;
 	float FOV = 100.f;
+	float RenderScale = 1.f;
 	bool bInvert = false;
 
 	// --- helpers ----------------------------------------------------------------------
@@ -188,7 +190,7 @@ private:
 			.OnSelectionChanged_Lambda([Sel](TSharedPtr<FString> Item, ESelectInfo::Type) { *Sel = Item; });
 	}
 
-	TSharedRef<SWidget> Slider(float& Value, float Min, float Max, const TCHAR* Format)
+	TSharedRef<SWidget> Slider(float& Value, float Min, float Max, const TCHAR* Format, float Step = 0.f)
 	{
 		float* V = &Value;
 		const FString Fmt(Format);
@@ -196,6 +198,7 @@ private:
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
 				SNew(SSlider).MinValue(Min).MaxValue(Max).Value(Value)
+				.StepSize(Step > 0.f ? Step : 0.01f).MouseUsesStep(Step > 0.f)
 				.OnValueChanged_Lambda([V](float New) { *V = New; })
 			]
 			+ SHorizontalBox::Slot().AutoWidth().Padding(8.f, 0.f, 0.f, 0.f).VAlign(VAlign_Center)
@@ -204,7 +207,9 @@ private:
 				[
 					SNew(STextBlock).Font(Font(12)).Text_Lambda([V, Fmt]()
 					{
-						return FText::FromString(Fmt == TEXT("int") ? FString::FromInt(FMath::RoundToInt(*V)) : FString::Printf(TEXT("%.2f"), *V));
+						return FText::FromString(Fmt == TEXT("int") ? FString::FromInt(FMath::RoundToInt(*V))
+							: Fmt == TEXT("percent") ? FString::Printf(TEXT("%d%%"), FMath::RoundToInt(*V * 100.f))
+							: FString::Printf(TEXT("%.2f"), *V));
 					})
 				]
 			];
@@ -232,7 +237,9 @@ private:
 		}
 		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Quit", "Quit"), [this]()
 		{
-			UKismetSystemLibrary::QuitGame(Owner.Get(), Owner.Get(), EQuitPreference::Quit, false);
+			APlayerController* PC = Owner.Get();
+			MFMenu::Close(PC);
+			UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
 		})];
 		return Box;
 	}
@@ -331,18 +338,20 @@ private:
 				+ SGridPanel::Slot(1, 2).Padding(2.f)[Combo(WindowModes, SelectedWindowMode)]
 				+ SGridPanel::Slot(0, 3)[Label(LOCTEXT("Quality", "Graphics"))]
 				+ SGridPanel::Slot(1, 3).Padding(2.f)[Combo(Qualities, SelectedQuality)]
-				+ SGridPanel::Slot(0, 4)[Label(LOCTEXT("Bright", "Brightness"))]
-				+ SGridPanel::Slot(1, 4).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))]
-				+ SGridPanel::Slot(0, 5)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))]
-				+ SGridPanel::Slot(1, 5).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))]
-				+ SGridPanel::Slot(0, 6)[Label(LOCTEXT("Invert", "Invert mouse"))]
-				+ SGridPanel::Slot(1, 6).Padding(2.f).HAlign(HAlign_Left)
+				+ SGridPanel::Slot(0, 4)[Label(LOCTEXT("RenderScale", "Render scale"))]
+				+ SGridPanel::Slot(1, 4).Padding(2.f)[Slider(RenderScale, 0.25f, 2.f, TEXT("percent"), 0.25f)]
+				+ SGridPanel::Slot(0, 5)[Label(LOCTEXT("Bright", "Brightness"))]
+				+ SGridPanel::Slot(1, 5).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))]
+				+ SGridPanel::Slot(0, 6)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))]
+				+ SGridPanel::Slot(1, 6).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))]
+				+ SGridPanel::Slot(0, 7)[Label(LOCTEXT("Invert", "Invert mouse"))]
+				+ SGridPanel::Slot(1, 7).Padding(2.f).HAlign(HAlign_Left)
 				[
 					SNew(SCheckBox).IsChecked(bInvert ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 					.OnCheckStateChanged_Lambda([this](ECheckBoxState S) { bInvert = S == ECheckBoxState::Checked; })
 				]
-				+ SGridPanel::Slot(0, 7)[Label(LOCTEXT("FOV", "Field of view"))]
-				+ SGridPanel::Slot(1, 7).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))]
+				+ SGridPanel::Slot(0, 8)[Label(LOCTEXT("FOV", "Field of view"))]
+				+ SGridPanel::Slot(1, 8).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[
@@ -412,6 +421,7 @@ private:
 		Sensitivity = S ? S->MouseSensitivity : 1.f;
 		bInvert = S ? S->bInvertMouse : false;
 		FOV = S ? S->FieldOfView : 100.f;
+		RenderScale = S ? S->RenderScale : 1.f;
 
 		TArray<FIntPoint> Supported;
 		UKismetSystemLibrary::GetSupportedFullscreenResolutions(Supported);
@@ -465,6 +475,7 @@ private:
 		S->MouseSensitivity = Sensitivity;
 		S->bInvertMouse = bInvert;
 		S->FieldOfView = FOV;
+		S->RenderScale = RenderScale;
 		FString W, H;
 		if (SelectedResolution.IsValid() && SelectedResolution->Split(TEXT(" x "), &W, &H))
 		{
@@ -526,9 +537,9 @@ void MFMenu::Open(APlayerController* PC, bool bInGame)
 
 void MFMenu::Close(APlayerController* PC)
 {
-	if (GMenu.IsValid() && GEngine && GEngine->GameViewport)
+	if (TSharedPtr<SWidget> Menu = GMenu.Pin(); Menu && GEngine && GEngine->GameViewport)
 	{
-		GEngine->GameViewport->RemoveViewportWidgetContent(GMenu.ToSharedRef());
+		GEngine->GameViewport->RemoveViewportWidgetContent(Menu.ToSharedRef());
 	}
 	GMenu.Reset();
 	if (PC && PC->IsLocalController() && !PC->IsA<AMFMenuPlayerController>())
@@ -545,17 +556,17 @@ bool MFMenu::IsOpen()
 
 void MFMenu::DebugPage(int32 Page)
 {
-	if (GMenu.IsValid())
+	if (TSharedPtr<SWidget> Menu = GMenu.Pin())
 	{
-		StaticCastSharedPtr<SMFMenu>(GMenu)->ShowPage(Page);
+		StaticCastSharedPtr<SMFMenu>(Menu)->ShowPage(Page);
 	}
 }
 
 void MFMenu::DebugStart()
 {
-	if (GMenu.IsValid())
+	if (TSharedPtr<SWidget> Menu = GMenu.Pin())
 	{
-		StaticCastSharedPtr<SMFMenu>(GMenu)->PressStart();
+		StaticCastSharedPtr<SMFMenu>(Menu)->PressStart();
 	}
 }
 

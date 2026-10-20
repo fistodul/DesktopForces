@@ -113,6 +113,22 @@ float AMFVehicle::GetSpeedKmh() const
 	return GetVelocity().Size() * 0.036f;
 }
 
+void AMFVehicle::DebugDump() const
+{
+	FString Wheel;
+	for (int32 i = 0; i < Wheels.Num(); ++i)
+	{
+		Wheel += FString::Printf(TEXT(" %.0f"), LastCompression.IsValidIndex(i) ? LastCompression[i] : -1.f);
+	}
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFVehicleDump), false, this);
+	const FVector L = GetActorLocation();
+	const bool bGround = GetWorld()->LineTraceSingleByChannel(Hit, L + FVector(0, 0, 200), L - FVector(0, 0, 1000), ECC_Visibility, Params);
+	UE_LOG(LogMF, Log, TEXT("Vehicle %s at %s rot %s mass %.0f gravity %.0f awake %d sim %d ground %.1f (origin %.1f above) compression%s"),
+		*GetName(), *L.ToCompactString(), *GetActorRotation().ToCompactString(), Body->GetMass(), GetWorld()->GetGravityZ(), Body->RigidBodyIsAwake(), Body->IsSimulatingPhysics(),
+		bGround ? Hit.ImpactPoint.Z : -99999.f, bGround ? L.Z - Hit.ImpactPoint.Z : 0.f, *Wheel);
+}
+
 void AMFVehicle::SetDriveInput(float InThrottle, float InSteer, bool bInHandbrake)
 {
 	Throttle = FMath::Clamp(InThrottle, -1.f, 1.f);
@@ -160,7 +176,7 @@ void AMFVehicle::SimulateWheels(float Dt)
 	const FVector Fwd = T.GetUnitAxis(EAxis::X);
 	const float N = FMath::Max(1, Wheels.Num());
 	const float WheelMass = MassKg / N;
-	const float RestLoad = MassKg * 981.f / N;                       // kg cm/s^2 per wheel
+	const float RestLoad = MassKg * -GetWorld()->GetGravityZ() / N;  // kg cm/s^2 per wheel (MF gravity is 2.2x UE's)
 	const float K = SuspensionStiffness * RestLoad / SuspensionTravel; // per cm of compression
 	const float C = SuspensionDamping * 2.f * FMath::Sqrt(K * WheelMass);
 	const float TopSpeed = TopSpeedKmh / 0.036f;                     // cm/s

@@ -46,6 +46,10 @@ public:
 	UFUNCTION(Exec)
 	void MFTraceMat();
 
+	/** Log every vehicle: position, physics, wheel compression. */
+	UFUNCTION(Exec)
+	void MFVehicles();
+
 	UFUNCTION(Exec)
 	void SetTeam(int32 N);
 	/** Kill every enemy (everyone else in deathmatch). */

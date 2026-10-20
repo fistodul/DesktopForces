@@ -250,6 +250,14 @@ void UMFCheatManager::MFCam(float X, float Y, float Z, float Yaw, float Pitch)
 	GetPlayerController()->SetViewTarget(Cam);
 }
 
+void UMFCheatManager::MFVehicles()
+{
+	for (TActorIterator<AMFVehicle> It(GetWorld()); It; ++It)
+	{
+		It->DebugDump();
+	}
+}
+
 void UMFCheatManager::MFTopView(float X, float Y, float Width, float Z)
 {
 	if (Width <= 0.f)

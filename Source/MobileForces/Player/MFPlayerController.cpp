@@ -987,7 +987,7 @@ void AMFPlayerController::ServerSay_Implementation(const FString& Msg, bool bTea
 
 void AMFPlayerController::ClientMessage_Implementation(const FString& S, FName Type, float MsgLifeTime)
 {
-	Super::ClientMessage_Implementation(S, Type, MsgLifeTime);
+	// not Super: it re-sends the line as a chat message from ourselves ("Name: text")
 	UE_LOG(LogMF, Log, TEXT("Message: %s"), *S);
 	if (AMFHUD* HUD = GetHUD<AMFHUD>())
 	{
@@ -1180,6 +1180,17 @@ void AMFPlayerController::Brightness(float Value)
 	S->SaveSettings();
 	AMFMapInfo::ApplyAmbient(GetWorld());
 	ClientMessage(FString::Printf(TEXT("Brightness %.2f"), S->Brightness));
+}
+
+void AMFPlayerController::RenderScale(float Value)
+{
+	if (UMFUserSettings* S = UMFUserSettings::Get())
+	{
+		S->RenderScale = Value;
+		S->ApplyNonResolutionSettings();
+		S->SaveSettings();
+		ClientMessage(FString::Printf(TEXT("Render scale %d%%"), FMath::RoundToInt(S->RenderScale * 100.f)));
+	}
 }
 
 void AMFPlayerController::MFApplyUserSettings()
