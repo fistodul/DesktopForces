@@ -7,10 +7,13 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
+#include "MaterialShared.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionCollectionParameter.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
 #include "Engine/TextureRenderTargetCube.h"
@@ -178,11 +181,12 @@ bool FMFImporter::ImportTextures()
 		Tex->MipGenSettings = TMGS_FromTextureGroup;
 		if (IsUITexture(Keys[i].Key))
 		{
-			// HUD art and bitmap fonts: drawn 1:1 or scaled like MF (point sampled), never mipped
+			// HUD art and bitmap fonts: uncompressed, never mipped; fonts point sampled (crisp
+			// glyphs), the art filtered like MF's canvas (soft palette-alpha glows when scaled)
 			Tex->LODGroup = TEXTUREGROUP_UI;
 			Tex->CompressionSettings = TC_EditorIcon;
 			Tex->MipGenSettings = TMGS_NoMipmaps;
-			Tex->Filter = TF_Nearest;
+			Tex->Filter = Keys[i].Key.StartsWith(TEXT("MobileForceFonts."), ESearchCase::IgnoreCase) ? TF_Nearest : TF_Bilinear;
 		}
 		Tex->PostEditChange();
 		Ok += SaveAsset(Tex) ? 1 : 0;
@@ -478,24 +482,66 @@ UMaterialInterface* FMFImporter::GetMasterMaterial(const FString& Mode)
 		SaveAsset(M);
 		UE_LOG(LogMFEditor, Display, TEXT("Created master material M_MF_%s"), *Mode);
 	}
-	if ((Mode == TEXT("Opaque") || Mode == TEXT("Masked")) && AddZoneAmbient(M))
+	if ((Mode == TEXT("Opaque") || Mode == TEXT("Masked")) && AddAmbientFloor(M))
 	{
-		UE_LOG(LogMFEditor, Display, TEXT("Added zone ambient to M_MF_%s"), *Mode);
+		UE_LOG(LogMFEditor, Display, TEXT("M_MF_%s: ambient floor from MPC_MF"), *Mode);
+	}
+	if (const FMaterialResource* Res = M->GetMaterialResource(GMaxRHIShaderPlatform))
+	{
+		const_cast<FMaterialResource*>(Res)->FinishCompilation();
+		for (const FString& Err : Res->GetCompileErrors())
+		{
+			UE_LOG(LogMFEditor, Error, TEXT("M_MF_%s: %s"), *Mode, *Err);
+		}
 	}
 	MasterCache.Add(Mode, M);
 	return M;
 }
 
-bool FMFImporter::AddZoneAmbient(UMaterial* M)
+UMaterialParameterCollection* FMFImporter::EnsureAmbientCollection()
 {
-	// UE1 zone ambient light: unshadowed, added to every surface in the zone. Emissive =
-	// BaseColor * Ambient, with Ambient a per-component value (custom primitive data 0-2, set
-	// by the level builder from the zone). Lightmass ignores it (EmissiveBoost 0 per level).
+	bool bCreated = false;
+	UMaterialParameterCollection* C = FindOrCreateAsset<UMaterialParameterCollection>(TEXT("/Game/MF/Materials"), TEXT("MPC_MF"), bCreated);
+	if (!C->VectorParameters.ContainsByPredicate([](const FCollectionVectorParameter& P) { return P.ParameterName == TEXT("Ambient"); }))
+	{
+		FCollectionVectorParameter P;
+		P.ParameterName = TEXT("Ambient");
+		P.DefaultValue = FLinearColor::Black;
+		C->VectorParameters.Add(P);
+		C->PostEditChange();
+		SaveAsset(C);
+	}
+	return C;
+}
+
+bool FMFImporter::AddAmbientFloor(UMaterial* M)
+{
+	// UE1 zone ambient: unshadowed light on every surface. Now mostly baked (sky colour + bounce
+	// light in Lightmass); this adds the map's small ambient floor on top, one global value
+	// (no per-zone meshes or per-component data). Lightmass ignores it (EmissiveBoost 0).
+	UMaterialParameterCollection* Collection = EnsureAmbientCollection();
+	UMaterialExpressionVectorParameter* OldCPD = nullptr;
 	for (const TObjectPtr<UMaterialExpression>& E : M->GetExpressions())
 	{
-		if (const UMaterialExpressionVectorParameter* P = Cast<UMaterialExpressionVectorParameter>(E); P && P->ParameterName == TEXT("Ambient"))
+		if (const UMaterialExpressionCollectionParameter* P = Cast<UMaterialExpressionCollectionParameter>(E); P && P->ParameterName == TEXT("Ambient"))
 		{
+			// the collection's vectors are float4: multiply the RGB only
+			for (const TObjectPtr<UMaterialExpression>& E2 : M->GetExpressions())
+			{
+				if (UMaterialExpressionMultiply* Mul = Cast<UMaterialExpressionMultiply>(E2); Mul && Mul->B.Expression == P && !Mul->B.Mask)
+				{
+					Mul->B.SetMask(1, 1, 1, 1, 0);
+					M->PreEditChange(nullptr);
+					M->PostEditChange();
+					SaveAsset(M);
+					return true;
+				}
+			}
 			return false;
+		}
+		if (UMaterialExpressionVectorParameter* P = Cast<UMaterialExpressionVectorParameter>(E); P && P->ParameterName == TEXT("Ambient"))
+		{
+			OldCPD = P;   // the earlier per-component version
 		}
 	}
 	UMaterialEditorOnlyData* Data = M->GetEditorOnlyData();
@@ -504,15 +550,30 @@ bool FMFImporter::AddZoneAmbient(UMaterial* M)
 	{
 		return false;
 	}
-	UMaterialExpressionVectorParameter* Amb = NewObject<UMaterialExpressionVectorParameter>(M);
+	if (OldCPD)
+	{
+		TArray<UMaterialExpression*> Remove{ OldCPD };
+		for (const TObjectPtr<UMaterialExpression>& E : M->GetExpressions())
+		{
+			if (UMaterialExpressionMultiply* Mul = Cast<UMaterialExpressionMultiply>(E); Mul && Mul->B.Expression == OldCPD)
+			{
+				Remove.Add(Mul);
+			}
+		}
+		for (UMaterialExpression* E : Remove)
+		{
+			M->GetExpressionCollection().RemoveExpression(E);
+		}
+	}
+	UMaterialExpressionCollectionParameter* Amb = NewObject<UMaterialExpressionCollectionParameter>(M);
+	Amb->Collection = Collection;
 	Amb->ParameterName = TEXT("Ambient");
-	Amb->DefaultValue = FLinearColor::Black;
-	Amb->bUseCustomPrimitiveData = true;
-	Amb->PrimitiveDataIndex = 0;
+	Amb->ParameterId = Collection->GetParameterId(TEXT("Ambient"));
 	M->GetExpressionCollection().AddExpression(Amb);
 	UMaterialExpressionMultiply* Mul = NewObject<UMaterialExpressionMultiply>(M);
 	Mul->A.Connect(Data->BaseColor.OutputIndex, BaseColor);
 	Mul->B.Connect(0, Amb);
+	Mul->B.SetMask(1, 1, 1, 1, 0);   // the collection's vectors are float4
 	M->GetExpressionCollection().AddExpression(Mul);
 	Data->EmissiveColor.Connect(0, Mul);
 	M->PreEditChange(nullptr);

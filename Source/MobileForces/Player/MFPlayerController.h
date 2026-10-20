@@ -158,6 +158,15 @@ public:
 	/** Level the view (MF End). */
 	UFUNCTION(Exec)
 	void CenterView();
+	/** MF ShowMenu (Esc): the in-game menu (resume, new game, options, leave, quit). */
+	UFUNCTION(Exec)
+	void ShowMenu();
+	/** MF Brightness: set (0.25 - 3) or step through 0.5 ... 2 with no value. */
+	UFUNCTION(Exec)
+	void Brightness(float Value = 0.f);
+	/** Re-read UMFUserSettings (field of view; the menu calls it after Apply). */
+	UFUNCTION(Exec)
+	void MFApplyUserSettings();
 
 	// --- console commands (also used by automated smoke tests via -MFExec) ---
 	/** Take loadout item N (0-based, menu order). */
@@ -169,6 +178,8 @@ public:
 	/** Select inventory group N (like the number keys). */
 	UFUNCTION(Exec)
 	void MFSelect(int32 Group);
+	/** Scripted movement input (forward, right) for Seconds (MFWalk cheat). */
+	void ForceMove(const FVector2D& Input, float Seconds);
 	/** Screenshot to Saved/Screenshots/<platform>/<Name>.png */
 	UFUNCTION(Exec)
 	void MFShot(const FString& Name);
@@ -249,6 +260,11 @@ protected:
 	void LoadoutMove(int32 Dir);
 	void PlayUISound(const TCHAR* Path);
 	bool bLoadoutWasOpen = false;
+
+	// MFWalk: scripted movement input
+	FVector2D ForcedMove = FVector2D::ZeroVector;
+	float ForcedMoveUntil = 0.f;
+	float ForcedMoveNextLog = 0.f;
 	int32 LoadoutOpenSlot = 0;
 	float LoadoutOpenTime = 0.f;
 };

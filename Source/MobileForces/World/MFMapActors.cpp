@@ -9,6 +9,10 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Core/MFGameSettings.h"
+#include "Core/MFUserSettings.h"
 #include "Sound/SoundBase.h"
 
 AMFMapInfo::AMFMapInfo()
@@ -19,10 +23,28 @@ AMFMapInfo::AMFMapInfo()
 void AMFMapInfo::BeginPlay()
 {
 	Super::BeginPlay();
+	ApplyAmbient(GetWorld());
 	if (Music && GetNetMode() != NM_DedicatedServer)
 	{
 		MusicComponent = UGameplayStatics::SpawnSound2D(this, Music, 0.6f);
 	}
+}
+
+void AMFMapInfo::ApplyAmbient(UWorld* World)
+{
+	UMaterialParameterCollection* MPC = World ? UMFGameSettings::Get().MaterialParameters.LoadSynchronous() : nullptr;
+	if (!MPC || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	FLinearColor Ambient = FLinearColor::Black;
+	for (TActorIterator<AMFMapInfo> It(World); It; ++It)
+	{
+		Ambient = It->Ambient;
+	}
+	const UMFUserSettings* User = UMFUserSettings::Get();
+	const float Scale = UMFGameSettings::Get().AmbientFloor * (User ? User->Brightness : 1.f);
+	UKismetMaterialLibrary::SetVectorParameterValue(World, MPC, TEXT("Ambient"), Ambient * Scale);
 }
 
 AMFLegacyActor::AMFLegacyActor()

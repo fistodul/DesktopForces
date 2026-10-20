@@ -1,4 +1,5 @@
 #include "Player/MFCharacter.h"
+#include "Core/MFUserSettings.h"
 #include "Player/MFCharacterMovement.h"
 #include "Weapons/MFWeapon.h"
 #include "Weapons/MFWeapons.h"
@@ -109,6 +110,16 @@ void AMFCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
 	SetActorTickEnabled(IsLocallyControlled());   // owning client: camera FOV + recoil
+	ApplyUserSettings();
+}
+
+void AMFCharacter::ApplyUserSettings()
+{
+	if (const UMFUserSettings* S = UMFUserSettings::Get(); S && IsLocallyControlled())
+	{
+		DefaultFOV = FMath::Clamp(S->FieldOfView, 60.f, 140.f);
+		FirstPersonCamera->SetFieldOfView(GetDesiredFOV());
+	}
 }
 
 void AMFCharacter::Destroyed()

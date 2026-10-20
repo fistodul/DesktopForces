@@ -285,16 +285,16 @@ void AMFHUD::Frame(float X, float Y, float W, float H, const FLinearColor& Fill,
 
 FString AMFHUD::AmmoText(const AMFWeapon* W, bool bLive)
 {
-	// MF HUD badge: total / clip size ("210/30"); single-shot items show their count
-	if (!W || (W->MaxClipAmmo <= 1 && W->MaxClips <= 1 && !W->bDestroyWhenEmpty))
+	// RageWeapon.GetAmmoStatus: "spare/clip"; items without spare clips (grenades, HMG, trip
+	// bombs, adrenaline) show the clip count, knife and armour nothing
+	if (!W || W->bHideAmmoCount || (W->MaxClipAmmo <= 1 && W->MaxClips <= 1 && !W->bDestroyWhenEmpty))
 	{
 		return FString();
 	}
-	if (W->MaxClipAmmo <= 1)
+	if (W->MaxClips <= 1)
 	{
-		return FString::FromInt(bLive ? W->GetAmmoCount() : W->MaxClips);
+		return FString::FromInt(bLive ? W->GetClipAmmo() : W->MaxClipAmmo);
 	}
-	// RageWeapon.GetAmmoStatus: spare / in the clip
 	const int32 Spare = bLive ? W->GetTotalAmmo() : W->MaxClipAmmo * (W->MaxClips - 1);
 	return FString::Printf(TEXT("%d/%d"), Spare, bLive ? W->GetClipAmmo() : W->MaxClipAmmo);
 }

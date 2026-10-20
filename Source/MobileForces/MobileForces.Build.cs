@@ -21,7 +21,9 @@ public class MobileForces : ModuleRules
 			"SlateCore",
 			"NetCore",
 			"PhysicsCore",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"AssetRegistry",
+			"EngineSettings"
 		});
 
 		PublicIncludePaths.Add(ModuleDirectory);

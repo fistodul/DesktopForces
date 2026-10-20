@@ -155,6 +155,9 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Owning client: field of view from the player's settings. */
+	void ApplyUserSettings();
+
 	/** UE1 PlayerPawn.DefaultFOV */
 	UPROPERTY(EditDefaultsOnly, Config, Category = "MF")
 	float DefaultFOV = 100.f;

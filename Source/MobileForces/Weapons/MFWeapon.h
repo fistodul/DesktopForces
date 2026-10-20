@@ -108,6 +108,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF|Ammo")
 	bool bDestroyWhenEmpty = false;
 
+	/** No ammo label on the HUD (MF armour: GetAmmoStatus ""). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|Ammo")
+	bool bHideAmmoCount = false;
+
 	UFUNCTION(BlueprintPure, Category = "MF")
 	int32 GetClipAmmo() const { return ClipAmmo; }
 	UFUNCTION(BlueprintPure, Category = "MF")

@@ -28,6 +28,7 @@ from .upkg import Package
 
 CHUNK_SIZE = 2048.0            # world geometry grid cell, in MF units (~46 m)
 LIGHTMAP_TEXEL = 16.0          # target lightmap texel size, MF units (36 cm)
+LIGHTMASS_BOUNCES = 2          # baked bounce light (free at runtime; fills what UE1 zone ambient lit)
 
 ROT_TO_DEG = 360.0 / 65536.0
 
@@ -91,6 +92,7 @@ class LevelConverter:
         self.out = cfg.out_dir / 'Maps' / map_name
         self.raw = cfg.raw_dir / 'Maps' / map_name
         self.texture_sizes: dict[str, tuple[int, int]] = {}
+        self.texture_polyflags: dict[str, int] = {}
         self.usage: dict[str, set[str]] = {}     # texture key (lower) -> blend modes
 
     # --- inputs -----------------------------------------------------------
@@ -104,17 +106,30 @@ class LevelConverter:
         """Original texture size (UV normalisation). Looked up lazily from the texture's package."""
         if not key:
             return (256, 256)
+        self._load_texture_info(key)
+        return self.texture_sizes[key.lower()]
+
+    def texture_flags(self, key: str | None) -> int:
+        """Poly flags a texture adds to every surface using it (UE1: surface | texture PolyFlags;
+        bMasked textures are see-through at palette index 0 wherever they're used)."""
+        if not key or key == 'None':
+            return 0
+        self._load_texture_info(key)
+        return self.texture_polyflags.get(key.lower(), 0)
+
+    def _load_texture_info(self, key: str):
         lk = key.lower()
-        if lk not in self.texture_sizes:
-            from .textures import texture_index
-            pkg = key.split('.')[0]
-            try:
-                for k, info in texture_index(self.cfg, pkg).items():
-                    self.texture_sizes[k] = (info['usize'] or 256, info['vsize'] or 256)
-            except FileNotFoundError:
-                pass
-            self.texture_sizes.setdefault(lk, (256, 256))
-        return self.texture_sizes[lk]
+        if lk in self.texture_sizes:
+            return
+        from .textures import texture_index
+        pkg = key.split('.')[0]
+        try:
+            for k, info in texture_index(self.cfg, pkg).items():
+                self.texture_sizes[k] = (info['usize'] or 256, info['vsize'] or 256)
+                self.texture_polyflags[k] = info['polyflags'] | (PF_MASKED if info['masked'] else 0)
+        except FileNotFoundError:
+            pass
+        self.texture_sizes.setdefault(lk, (256, 256))
 
     def add_minimap(self, actors: list[dict], spawns: list[dict]):
         """MF MiniMapInfo -> the map_info record: texture + world bounds (cm, MapLeft/Top/Right/Bottom)."""
@@ -172,9 +187,8 @@ class LevelConverter:
                 skipped += 1
                 continue
             polys.append(poly)
-        amb_ids: dict[tuple, int] = {}
         named = [a for z, a in enumerate(ambients) if z and model.zones[z]]
-        default_amb = max(set(named), key=named.count) if named else (0.0, 0.0, 0.0)
+        self.map_ambient = max(set(named), key=named.count) if named else (0.0, 0.0, 0.0)
         welded, inserted = weld_tjunctions([p.vertices for p in polys])
         print(f'  world: {inserted} T-junction vertices welded')
         for poly, verts in zip(polys, welded):
@@ -184,22 +198,15 @@ class LevelConverter:
             c = tuple(sum(v[i] for v in poly.vertices) / len(poly.vertices) for i in range(3))
             cell = (math.floor(c[0] / CHUNK_SIZE), math.floor(c[1] / CHUNK_SIZE))
             if render:
-                key = material_key(poly.texture, f)
+                key = material_key(poly.texture, f | self.texture_flags(poly.texture))
                 self._use(key)
-                # one render chunk per (cell, zone ambient): the ambient is a per-component value
-                z = poly.zone
-                for off in (2.0, 8.0, 16.0, 32.0, 64.0):   # unassigned (0): the zone the polygon faces
-                    if z:
-                        break
-                    z = model.zone_at(tuple(c[i] + poly.normal[i] * off for i in range(3)))
-                amb = ambients[z] if z and z < len(ambients) else default_amb
-                if amb not in amb_ids:
-                    amb_ids[amb] = len(amb_ids)
-                ck = (cell, amb)
+                # sky windows go in their own chunks: drawn, but they cast no shadow, so sunlight
+                # and the sky's ambient come in through them (UE1 sunlight lit what saw the sky)
+                sky = key.endswith('|sky')
+                ck = (cell, sky)
                 mb = chunks.get(ck)
                 if mb is None:
-                    k = amb_ids[amb]
-                    mb = chunks[ck] = MeshBuilder((f'World_{cell[0]}_{cell[1]}' + (f'_a{k}' if k else '')).replace('-', 'm'))
+                    mb = chunks[ck] = MeshBuilder((f'{"Sky" if sky else "World"}_{cell[0]}_{cell[1]}').replace('-', 'm'))
                     mb.collision = 'none'
                 self._emit_poly(mb, key, poly, verts, cell)
                 areas[ck] = areas.get(ck, 0.0) + _area(poly.vertices)
@@ -212,13 +219,13 @@ class LevelConverter:
                 self._emit_poly(cb, 'Engine.DefaultTexture|collision', poly, verts, cell)
         out = []
         geo = self.out / 'geo'
-        for (cell, amb), mb in chunks.items():
-            texels = math.sqrt(areas[(cell, amb)]) / LIGHTMAP_TEXEL
-            mb.lightmap_resolution = int(min(1024, max(64, _next_pow2(texels))))
-            out.append(dict(self._chunk_entry(mb, cell, geo), ambient=list(amb)))
+        for (cell, sky), mb in chunks.items():
+            texels = math.sqrt(areas[(cell, sky)]) / LIGHTMAP_TEXEL
+            mb.lightmap_resolution = 4 if sky else int(min(1024, max(64, _next_pow2(texels))))
+            out.append(dict(self._chunk_entry(mb, cell, geo), sky=sky))
         for cell, cb in coll.items():
             out.append(self._chunk_entry(cb, cell, geo))
-        print(f'  world: {len(chunks)} render chunks, {len(coll)} collision chunks, {skipped} portal polys skipped')
+        print(f'  world: {len(chunks)} render chunks (incl. sky), {len(coll)} collision chunks, {skipped} portal polys skipped')
         return out
 
     def _chunk_entry(self, mb: MeshBuilder, cell, geo: Path) -> dict:
@@ -265,7 +272,7 @@ class LevelConverter:
                 area = 0.0
                 for tri in t3d.static_mesh_triangles(blk):
                     tex = tri.texture
-                    key = material_key(tex, tri.poly_flags)
+                    key = material_key(tex, tri.poly_flags | self.texture_flags(tex))
                     self._use(key)
                     p = [v[0] for v in tri.verts]
                     vs = [(_scale(v[0]), v[1], v[2]) for v in tri.verts]
@@ -323,20 +330,22 @@ class LevelConverter:
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
+        # UE1 zone ambient (flat light everywhere in a zone) becomes UE-native lighting: the
+        # map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
+        # windows pick up) plus a small unshadowed floor in the materials (MPC_MF.Ambient, set
+        # by AMFMapInfo, scaled by the player's brightness); bounced light fills the rest
+        amb = [round(c, 4) for c in self.map_ambient]
         for rec in spawns:
-            if rec['type'] == 'static_mesh':
-                loc = [c / UU_TO_CM for c in rec['location']]
-                rec['ambient'] = list(ambients[model.zone_at(loc)])
-        # UE1 zone ambient is unshadowed and added everywhere in the zone: the lit materials
-        # add BaseColor * Ambient (per component, from its zone), so Lightmass gets none of it
-        env_color, env_intensity = [0.0, 0.0, 0.0], 0.0
+            if rec['type'] == 'map_info':
+                rec['ambient'] = amb
+        env_color, env_intensity = amb, 1.0
         data = {
             'map': self.map,
             'uu_to_cm': UU_TO_CM,
             'world': world,
             'static_meshes': meshes,
             'spawns': spawns,
-            'lightmass': {'environment_color': env_color, 'environment_intensity': env_intensity},
+            'lightmass': {'environment_color': env_color, 'environment_intensity': env_intensity, 'bounces': LIGHTMASS_BOUNCES},
             'actors': actors,
             'zones': model.zones,
             'zone_bounds': {str(z): [list(lo), list(hi)] for z, (lo, hi) in bounds.items()},

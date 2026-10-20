@@ -8,6 +8,7 @@
 #include "Game/MFPlayerState.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFCharacterMovement.h"
+#include "Player/MFPlayerController.h"
 #include "Weapons/MFWeapon.h"
 #include "UObject/UObjectIterator.h"
 #include "World/MFLadder.h"
@@ -127,6 +128,15 @@ void UMFCheatManager::MFFire()
 				Weak->StopFire(false);
 			}
 		}), 0.1f, false);
+	}
+}
+
+void UMFCheatManager::MFWalk(float Yaw, float Seconds, float Forward, float Right)
+{
+	if (AMFPlayerController* PC = Cast<AMFPlayerController>(GetPlayerController()))
+	{
+		PC->SetControlRotation(FRotator(0.f, Yaw, 0.f));
+		PC->ForceMove(FVector2D(Forward, Right), Seconds);
 	}
 }
 

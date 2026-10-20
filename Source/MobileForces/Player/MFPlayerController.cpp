@@ -8,6 +8,10 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "UI/MFHUD.h"
+#include "UI/MFMenu.h"
+#include "Core/MFUserSettings.h"
+#include "World/MFMapActors.h"
+#include "Camera/CameraComponent.h"
 #include "Game/MFGameMode.h"
 #include "AI/MFBotController.h"
 #include "Kismet/GameplayStatics.h"
@@ -260,13 +264,14 @@ void AMFPlayerController::OnLook(const FInputActionValue& Value)
 	}
 	const FVector2D V = Value.Get<FVector2D>();
 	// Slower look while zoomed, like MF (FOV-scaled mouse)
-	float Scale = MouseSensitivity;
+	const UMFUserSettings* User = UMFUserSettings::Get();
+	float Scale = MouseSensitivity * (User ? User->MouseSensitivity : 1.f);
 	if (const AMFCharacter* C = GetMFCharacter())
 	{
 		Scale *= C->GetDesiredFOV() / C->DefaultFOV;
 	}
 	AddYawInput(V.X * Scale);
-	AddPitchInput(V.Y * Scale);
+	AddPitchInput(V.Y * Scale * (User && User->bInvertMouse ? -1.f : 1.f));
 }
 
 void AMFPlayerController::OnJump()
@@ -712,6 +717,36 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 		LoadoutMove(+1);
 	}
 	bLoadoutWasOpen = bOpen;
+
+	if (ForcedMoveUntil > 0.f)
+	{
+		const float Now = GetWorld()->GetTimeSeconds();
+		APawn* P = GetPawn();
+		if (Now > ForcedMoveUntil || !P)
+		{
+			ForcedMoveUntil = 0.f;
+		}
+		else
+		{
+			const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
+			P->AddMovementInput(Yaw.Vector(), ForcedMove.X);
+			P->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), ForcedMove.Y);
+		}
+		if (P && Now >= ForcedMoveNextLog)
+		{
+			ForcedMoveNextLog = Now + 0.25f;
+			const UCharacterMovementComponent* M = Cast<ACharacter>(P) ? Cast<ACharacter>(P)->GetCharacterMovement() : nullptr;
+			UE_LOG(LogMF, Display, TEXT("MFWalk %.1f: %s mode %s"), Now, *P->GetActorLocation().ToCompactString(),
+				M ? *M->GetMovementName() : TEXT("-"));
+		}
+	}
+}
+
+void AMFPlayerController::ForceMove(const FVector2D& Input, float Seconds)
+{
+	ForcedMove = Input;
+	ForcedMoveUntil = GetWorld()->GetTimeSeconds() + Seconds;
+	ForcedMoveNextLog = 0.f;
 }
 
 void AMFPlayerController::PlayUISound(const TCHAR* Path)
@@ -1037,6 +1072,52 @@ void AMFPlayerController::CenterView()
 	FRotator R = GetControlRotation();
 	R.Pitch = 0.f;
 	SetControlRotation(R);
+}
+
+void AMFPlayerController::ShowMenu()
+{
+	if (MFMenu::IsOpen())
+	{
+		MFMenu::Close(this);
+	}
+	else
+	{
+		MFMenu::Open(this, true);
+	}
+}
+
+void AMFPlayerController::Brightness(float Value)
+{
+	UMFUserSettings* S = UMFUserSettings::Get();
+	if (!S)
+	{
+		return;
+	}
+	if (Value > 0.f)
+	{
+		S->Brightness = FMath::Clamp(Value, 0.25f, 3.f);
+	}
+	else
+	{
+		static const float Steps[] = { 0.5f, 0.75f, 1.f, 1.25f, 1.5f, 2.f };
+		int32 Next = 0;
+		while (Next < UE_ARRAY_COUNT(Steps) && Steps[Next] <= S->Brightness + 0.01f)
+		{
+			++Next;
+		}
+		S->Brightness = Steps[Next % UE_ARRAY_COUNT(Steps)];
+	}
+	S->SaveSettings();
+	AMFMapInfo::ApplyAmbient(GetWorld());
+	ClientMessage(FString::Printf(TEXT("Brightness %.2f"), S->Brightness));
+}
+
+void AMFPlayerController::MFApplyUserSettings()
+{
+	if (AMFCharacter* C = GetMFCharacter())
+	{
+		C->ApplyUserSettings();
+	}
 }
 
 void AMFPlayerController::ShrinkHUD()

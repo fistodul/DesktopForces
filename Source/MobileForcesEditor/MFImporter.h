@@ -40,7 +40,9 @@ public:
 	/** M_MF_Sky + RT_MF_Sky: sky windows show the sky zone's cube capture (AMFSkyCapture). */
 	UMaterialInterface* EnsureSkyMaterial();
 	/** Adds the UE1 zone ambient term to a lit master (once). True if it changed. */
-	bool AddZoneAmbient(UMaterial* M);
+	/** Lit masters: Emissive = BaseColor * MPC_MF.Ambient (map ambient floor, see AMFMapInfo). */
+	bool AddAmbientFloor(UMaterial* M);
+	class UMaterialParameterCollection* EnsureAmbientCollection();
 	/** HUD art / fonts (Rage, RageWeapons, MobileForceFonts packages). */
 	static bool IsUITexture(const FString& Key);
 	void ImportFonts();

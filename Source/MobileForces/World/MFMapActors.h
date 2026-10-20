@@ -46,6 +46,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
 	float DrawDistance = 0.f;
 
+	/**
+	 * Ambient light of the map's main zone (MF ZoneInfo ambient). Mostly baked (Lightmass sky
+	 * colour + bounces); the unshadowed floor in the lit materials (MPC_MF.Ambient) is this x
+	 * UMFGameSettings::AmbientFloor x the player's brightness.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MF")
+	FLinearColor Ambient = FLinearColor::Black;
+
+	/** Push the current map's ambient floor into MPC_MF (map start, brightness change). */
+	static void ApplyAmbient(UWorld* World);
+
 protected:
 	virtual void BeginPlay() override;
 

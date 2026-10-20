@@ -1,5 +1,9 @@
 #include "Core/MFGameInstance.h"
 #include "MobileForces.h"
+#include "Core/MFGameSettings.h"
+#include "UI/MFMenu.h"
+#include "Kismet/GameplayStatics.h"
+#include "Misc/PackageName.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -19,6 +23,15 @@ void UMFGameInstance::OnStart()
 {
 	Super::OnStart();
 	ScheduleAutoTest();
+	// Title screen: show the nicer backdrop map when this install has it (generated maps are
+	// local), else stay on the default map
+	UWorld* World = GetWorld();
+	const FString& Backdrop = UMFGameSettings::Get().MenuBackdropMap;
+	if (World && World->GetAuthGameMode<AMFMenuGameMode>() && !Backdrop.IsEmpty()
+		&& World->GetOutermost()->GetName() != Backdrop && FPackageName::DoesPackageExist(Backdrop))
+	{
+		UGameplayStatics::OpenLevel(World, FName(*Backdrop), true, TEXT("game=/Script/MobileForces.MFMenuGameMode"));
+	}
 }
 
 void UMFGameInstance::ScheduleAutoTest()
@@ -67,7 +80,8 @@ void UMFGameInstance::ScheduleAutoTest()
 		World->GetTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			const FString Name = AutoShotName.IsEmpty() ? TEXT("mf_autoshot") : AutoShotName;
-			FScreenshotRequest::RequestScreenshot(Name, false, false);
+			// -MFShotUI: include Slate widgets (menus); the HUD canvas is always in the shot
+			FScreenshotRequest::RequestScreenshot(Name, FParse::Param(FCommandLine::Get(), TEXT("MFShotUI")), false);
 			UE_LOG(LogMF, Display, TEXT("MFAutoShot: requested %s"), *Name);
 		}), ShotAt, false);
 	}

@@ -94,8 +94,8 @@ void AMFLadderVolume::OnBegin(UPrimitiveComponent* Comp, AActor* Other, UPrimiti
 {
 	if (AMFCharacter* C = Cast<AMFCharacter>(Other))
 	{
-		// The climber faces the wall: the wall's normal points back along -Forward
-		C->GetMFMovement()->EnterLadder(-GetActorForwardVector(), ClimbSpeed);
+		// grabbed by the movement component once close enough (UMFCharacterMovement::WantsLadder)
+		C->GetMFMovement()->SetLadder(this);
 	}
 }
 
@@ -103,6 +103,6 @@ void AMFLadderVolume::OnEnd(UPrimitiveComponent* Comp, AActor* Other, UPrimitive
 {
 	if (AMFCharacter* C = Cast<AMFCharacter>(Other))
 	{
-		C->GetMFMovement()->ExitLadder();
+		C->GetMFMovement()->ClearLadder(this);
 	}
 }

@@ -833,6 +833,7 @@ AMFWeapon_Armour::AMFWeapon_Armour()
 	AIRating = -1.f;
 	MaxClipAmmo = 1;
 	MaxClips = 1;
+	bHideAmmoCount = true;
 }
 
 void AMFWeapon_Armour::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -74,6 +74,18 @@ public:
 
 	UMaterialInterface* GetTeamTintMaterial() const { return TeamTintMaterial.LoadSynchronous(); }
 
+	/** Global material parameters (MPC_MF: Ambient). */
+	UPROPERTY(Config, EditAnywhere, Category = "Look")
+	TSoftObjectPtr<class UMaterialParameterCollection> MaterialParameters;
+
+	/** Title screen backdrop, used when it exists (generated maps are local); else the default map. */
+	UPROPERTY(Config, EditAnywhere, Category = "Menu")
+	FString MenuBackdropMap;
+
+	/** Unshadowed ambient floor = map ambient (MF zone ambient) x this; the rest of it is baked. */
+	UPROPERTY(Config, EditAnywhere, Category = "Look")
+	float AmbientFloor = 0.35f;
+
 	FText GetTeamName(uint8 TeamId) const;
 	FLinearColor GetTeamColor(uint8 TeamId) const;
 

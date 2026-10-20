@@ -1,6 +1,7 @@
 #include "Player/MFCharacterMovement.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
+#include "World/MFLadder.h"
 
 UMFCharacterMovement::UMFCharacterMovement()
 {
@@ -14,6 +15,9 @@ UMFCharacterMovement::UMFCharacterMovement()
 	AirControlBoostMultiplier = 1.f;           // UE1 has no low-speed air control boost
 	AirControlBoostVelocityThreshold = 0.f;
 	MaxStepHeight = 56.25f;                    // MF Pawn.MaxStepHeight 25
+	// UE1 collision is a flat-bottomed cylinder: stand on the rim of grated stair treads
+	// instead of sagging into them (warehouse stairs: 54 cm rise, grating 9 cm lower)
+	bUseFlatBaseForFloorChecks = true;
 	SetWalkableFloorZ(0.7f);                   // UE1 MINFLOORZ
 	GravityScale = 1.f;                        // world gravity (project settings) = MF -950 uu/s^2
 
@@ -76,6 +80,58 @@ FNetworkPredictionData_Client* UMFCharacterMovement::GetPredictionData_Client() 
 	return ClientPredictionData;
 }
 
+void UMFCharacterMovement::SetLadder(AMFLadderVolume* Ladder)
+{
+	TouchedLadder = Ladder;
+}
+
+void UMFCharacterMovement::ClearLadder(AMFLadderVolume* Ladder)
+{
+	if (TouchedLadder == Ladder)
+	{
+		TouchedLadder = nullptr;
+		ExitLadder();
+	}
+}
+
+bool UMFCharacterMovement::WantsLadder() const
+{
+	const AMFLadderVolume* L = TouchedLadder.Get();
+	if (!L || !UpdatedComponent || GetWorld()->GetTimeSeconds() < LadderRegrabTime)
+	{
+		return false;
+	}
+	// MF grabs on touch (LadderClimber.Tick); a capsule touches a metre early, so wait until the
+	// centre is over the climbing area, right at the rungs
+	const FVector Rel = UpdatedComponent->GetComponentLocation() - L->GetActorLocation();
+	if (Rel.Size2D() > L->Radius)
+	{
+		return false;
+	}
+	if (IsFalling())
+	{
+		return true;   // walked off the top / jumped at it
+	}
+	// on the floor: only at the bottom half and pushing towards the rungs, so you can walk away
+	// at the foot and step off onto the ledge at the top
+	if (Rel.Z > 0.f)
+	{
+		return false;
+	}
+	const FVector Into = L->GetActorForwardVector().GetSafeNormal2D();
+	return IsMovingOnGround() && FVector::DotProduct(GetCurrentAcceleration().GetSafeNormal2D(), Into) > 0.5f;
+}
+
+void UMFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
+{
+	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
+	if (!IsOnLadder() && WantsLadder())
+	{
+		const AMFLadderVolume* L = TouchedLadder.Get();
+		EnterLadder(-L->GetActorForwardVector(), L->ClimbSpeed);
+	}
+}
+
 void UMFCharacterMovement::EnterLadder(const FVector& WallNormal, float ClimbSpeedScale)
 {
 	LadderWallNormal = WallNormal.GetSafeNormal2D();
@@ -106,6 +162,7 @@ void UMFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 	if (CharacterOwner && CharacterOwner->bPressedJump)
 	{
 		Velocity = LadderWallNormal * 300.f + FVector(0, 0, JumpZVelocity * 0.5f);
+		LadderRegrabTime = GetWorld()->GetTimeSeconds() + 0.5f;
 		SetMovementMode(MOVE_Falling);
 		return;
 	}
@@ -115,7 +172,9 @@ void UMFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 	const FVector Side = FVector::CrossProduct(FVector::UpVector, LadderWallNormal);
 	const float Strafe = FVector::DotProduct(Accel.GetSafeNormal(), Side);
 
-	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f) * GetMaxSpeed();
+	// climbing up also presses against the rungs: the wall stops it, past the top it carries
+	// the climber onto the ledge
+	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f + Into * FMath::Max(Climb, 0.f) * 0.5f) * GetMaxSpeed();
 	if (Accel.IsNearlyZero())
 	{
 		Velocity = FVector::ZeroVector;

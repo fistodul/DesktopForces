@@ -10,8 +10,9 @@ class UCapsuleComponent;
 
 /**
  * Ladder climbing volume (MF LadderClimber: a hidden cylinder in front of the ladder,
- * rotated to face the wall). Touching it switches the player to ladder movement
- * (UMFCharacterMovement, MF PHYS_Ladder); leaving it drops back to walking/falling.
+ * rotated to face the wall). Touching it lets the player grab it (UMFCharacterMovement,
+ * MF PHYS_Ladder): falling into it, or walking at the rungs once the centre is inside;
+ * leaving it drops back to walking/falling.
  * Event driven (overlaps), never ticks.
  *
  * Also a two-way navigation link (like ANavLinkProxy) from the foot of the ladder to the

@@ -51,6 +51,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF|Ladder")
 	float LadderSpeed;
 
+	/** Touching a ladder volume / no longer touching it (overlap events of AMFLadderVolume). */
+	void SetLadder(class AMFLadderVolume* Ladder);
+	void ClearLadder(class AMFLadderVolume* Ladder);
 	void EnterLadder(const FVector& WallNormal, float ClimbSpeedScale);
 	void ExitLadder();
 	bool IsOnLadder() const { return MovementMode == MOVE_Custom && CustomMovementMode == uint8(EMFMoveMode::Ladder); }
@@ -61,9 +64,15 @@ public:
 
 protected:
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
+	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
+	/** Grab the touched ladder now? (falling into it, or walking at it while close) */
+	bool WantsLadder() const;
 
+	TWeakObjectPtr<class AMFLadderVolume> TouchedLadder;
 	FVector LadderWallNormal = FVector::ZeroVector;
 	float LadderClimbScale = 1.f;
+	/** World time before which a released ladder can't be grabbed again (jumped off). */
+	float LadderRegrabTime = 0.f;
 };
 
 /** Saved move carrying the walk flag (FLAG_Custom_0). */

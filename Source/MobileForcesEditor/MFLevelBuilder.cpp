@@ -60,15 +60,8 @@ namespace
 		return FRotator((*R)->GetNumberField(TEXT("pitch")), (*R)->GetNumberField(TEXT("yaw")), (*R)->GetNumberField(TEXT("roll")));
 	}
 
-	/** UE1 zone ambient (record field "ambient") -> custom primitive data 0-2 (M_MF_Opaque/Masked "Ambient"). */
-	void SetZoneAmbient(UPrimitiveComponent* C, const TSharedPtr<FJsonObject>& O)
-	{
-		const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
-		if (O->TryGetArrayField(TEXT("ambient"), A) && A->Num() == 3)
-		{
-			C->SetDefaultCustomPrimitiveDataVector3(0, FVector((*A)[0]->AsNumber(), (*A)[1]->AsNumber(), (*A)[2]->AsNumber()));
-		}
-	}
+	/** UE1 lightmaps had one texel per 32 uu: soft shadows. Light source size for Lightmass penumbras (cm). */
+	constexpr float LightSourceRadius = 40.f;
 
 	FLinearColor Color(const TSharedPtr<FJsonObject>& O)
 	{
@@ -212,11 +205,23 @@ bool FMFImporter::BuildMap(const FString& MapName)
 		UStaticMeshComponent* C = A->GetStaticMeshComponent();
 		C->SetMobility(EComponentMobility::Static);
 		C->SetStaticMesh(Mesh);
-		if (bRender)
+		bool bSky = false;
+		W->TryGetBoolField(TEXT("sky"), bSky);
+		if (bRender && bSky)
+		{
+			// sky windows: drawn (unlit sky material) but transparent to light, so the sun and
+			// the sky colour reach the outdoor areas through them
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->CastShadow = false;
+			C->bAffectDynamicIndirectLighting = false;
+			C->bOverrideLightMapRes = true;
+			C->OverriddenLightMapRes = 4;
+			A->SetActorLabel(FString::Printf(TEXT("Sky_%s"), *Mesh->GetName()));
+		}
+		else if (bRender)
 		{
 			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			C->bOverrideLightMapRes = false;
-			SetZoneAmbient(C, W);
 			WorldBounds += Mesh->GetBoundingBox().ShiftBy(Loc);
 			A->SetActorLabel(FString::Printf(TEXT("World_%s"), *Mesh->GetName()));
 		}
@@ -259,7 +264,6 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			{
 				C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			}
-			SetZoneAmbient(C, R);
 			Actor = A;
 		}
 		else if (Type == TEXT("point_light"))
@@ -274,6 +278,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			C->Intensity = R->GetNumberField(TEXT("intensity"));
 			C->LightColor = Color(R).ToFColor(true);
 			C->CastShadows = true;
+			C->SourceRadius = LightSourceRadius;
 			C->SetMobility(EComponentMobility::Static);
 			C->MarkRenderStateDirty();
 			Actor = L;
@@ -289,6 +294,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			C->LightColor = Color(R).ToFColor(true);
 			C->OuterConeAngle = R->GetNumberField(TEXT("cone"));
 			C->InnerConeAngle = R->GetNumberField(TEXT("cone")) * 0.7f;
+			C->SourceRadius = LightSourceRadius;
 			C->SetMobility(EComponentMobility::Static);
 			C->MarkRenderStateDirty();
 			Actor = L;
@@ -298,6 +304,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			ADirectionalLight* L = World->SpawnActor<ADirectionalLight>(Loc, Rotation, SP);
 			UDirectionalLightComponent* C = Cast<UDirectionalLightComponent>(L->GetLightComponent());
 			C->Intensity = R->GetNumberField(TEXT("intensity"));
+			C->LightSourceAngle = 3.f;   // soft sunset shadows
 			C->LightColor = Color(R).ToFColor(true);
 			C->SetMobility(EComponentMobility::Static);
 			C->MarkRenderStateDirty();
@@ -359,6 +366,11 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			Info->Author = R->GetStringField(TEXT("author"));
 			Info->IdealPlayerCount = R->GetStringField(TEXT("ideal_players"));
 			Info->SourceMap = MapName;
+			const TArray<TSharedPtr<FJsonValue>>* Amb = nullptr;
+			if (R->TryGetArrayField(TEXT("ambient"), Amb) && Amb->Num() == 3)
+			{
+				Info->Ambient = FLinearColor((*Amb)[0]->AsNumber(), (*Amb)[1]->AsNumber(), (*Amb)[2]->AsNumber());
+			}
 			const TSharedPtr<FJsonObject>* MM = nullptr;
 			if (R->TryGetObjectField(TEXT("minimap"), MM))
 			{
@@ -406,12 +418,14 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	const TSharedPtr<FJsonObject>* LM = nullptr;
 	if (Level->TryGetObjectField(TEXT("lightmass"), LM))
 	{
-		// MF zone ambient light -> Lightmass environment colour
+		// MF zone ambient light -> Lightmass sky colour (rays leaving through sky windows)
 		const TArray<TSharedPtr<FJsonValue>>& C = (*LM)->GetArrayField(TEXT("environment_color"));
 		WS->LightmassSettings.EnvironmentColor = FLinearColor(C[0]->AsNumber(), C[1]->AsNumber(), C[2]->AsNumber()).ToFColor(true);
 		WS->LightmassSettings.EnvironmentIntensity = (*LM)->GetNumberField(TEXT("environment_intensity"));
+		int32 Bounces = 2;
+		(*LM)->TryGetNumberField(TEXT("bounces"), Bounces);
+		WS->LightmassSettings.NumIndirectLightingBounces = Bounces;   // baked, free at runtime
 	}
-	WS->LightmassSettings.NumIndirectLightingBounces = 0;   // UE1: direct light + flat zone ambient (material), no bounce
 	WS->LightmassSettings.bUseAmbientOcclusion = false;
 	// UE1 lighting came from light actors only; unlit/sky surfaces (signs, lamps, sky windows)
 	// never lit anything. Lightmass would otherwise gather their emissive as light.

@@ -12,14 +12,16 @@ original texture's size, so replacements of any resolution line up.
 """
 from __future__ import annotations
 
+import io
 import json
+import struct
 from pathlib import Path
 
 from PIL import Image
 
 from . import ucc
 from .config import Config, TOOL_DIR
-from .upkg import Package
+from .upkg import Package, Reader
 
 OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
 
@@ -61,9 +63,14 @@ def texture_index(cfg: Config, package: str) -> dict[str, dict]:
         out[key.lower()] = {
             'key': key,
             'name': e.name,
+            'export': e.index,
+            'format': props.get('Format', 0),
+            'palette': props.get('Palette'),
+            'comp_format': props.get('CompFormat') if props.get('bHasComp') else None,
             'usize': props.get('USize', 0),
             'vsize': props.get('VSize', 0),
             'masked': bool(props.get('bMasked', False)),
+            'polyflags': int(props.get('PolyFlags', 0) or 0),
             'translucent': bool(props.get('bTransparent', False)),
         }
     return out
@@ -100,7 +107,8 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
     """
     package = _package_path(cfg, package).stem   # real spelling
     index = texture_index(cfg, package)
-    raw = export_package(cfg, package)
+    pkg = Package(str(_package_path(cfg, package)))
+    raw = None
     manifest = {}
     for lkey, info in index.items():
         modes = usage.get(lkey)
@@ -115,7 +123,10 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
         override = OVERRIDE_DIR / rel.with_suffix('.png')
         if override.exists():
             img = Image.open(override).convert('RGBA' if needs_alpha else 'RGB')
+        elif (native := decode_p8(pkg, info, needs_alpha)) is not None:
+            img = native
         else:
+            raw = raw or export_package(cfg, package)
             src = raw / f'{info["name"]}.bmp'
             if not src.exists():
                 print(f'  ! missing export for {key}')
@@ -138,6 +149,77 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             'alpha': needs_alpha, 'override': override.exists(),
         }
     return manifest
+
+
+def _read_mips(r: Reader, version: int) -> list[tuple[int, int, bytes]]:
+    """TArray<FMipmap>: (width, height, data) per level."""
+    out = []
+    for _ in range(r.index()):
+        if version >= 63:
+            r.u32()                # lazy array: offset after the data
+        data = r.raw(r.index())
+        w, h = r.u32(), r.u32()
+        r.u8(), r.u8()             # UBits, VBits
+        out.append((w, h, data))
+    return out
+
+
+_DXT_FOURCC = {3: b'DXT1', 7: b'DXT3', 8: b'DXT5'}
+
+
+def _decode_dxt(w: int, h: int, data: bytes, fmt: int) -> Image.Image | None:
+    """S3TC block data -> RGBA, through Pillow's DDS reader (a 128-byte header in front)."""
+    fourcc = _DXT_FOURCC.get(fmt)
+    if not fourcc:
+        return None
+    header = struct.pack('<4s7I44s2I4s5I5I', b'DDS ', 124, 0x1 | 0x2 | 0x4 | 0x1000 | 0x80000, h, w, len(data),
+                         0, 1, b'\0' * 44, 32, 0x4, fourcc, 0, 0, 0, 0, 0, 0x1000, 0, 0, 0, 0)
+    img = Image.open(io.BytesIO(header + data))
+    img.load()
+    return img.convert('RGBA')
+
+
+def decode_p8(pkg: Package, info: dict, alpha: bool) -> Image.Image | None:
+    """Read a texture straight from the package, top mip.
+
+    Rage textures are palettised (P8) and most also carry an S3TC copy (CompMips, bHasComp)
+    which MF's Direct3D renderer drew: true colour, and on some posters the P8 copy is a
+    magenta-keyed fallback. The S3TC copy wins, except over palettes with graded alpha:
+    Rage's HUD art keeps soft alpha in the palette (MF draws it with STY_Alpha), DXT1 only
+    has 1-bit alpha. A palette with one alpha value is opaque; masked P8 textures use index 0
+    as the hole like UE1. None for formats this can't read.
+    """
+    if info.get('format', 0) != 0 or not info.get('palette'):
+        return None
+    pal_exp = pkg.find(info['palette'].split('.')[-1], 'Palette')
+    if pal_exp is None:
+        return None
+    r = Reader(pkg.data, pkg.read_object(pal_exp).native_offset)
+    colors = [tuple(r.raw(4)) for _ in range(r.index())]
+    graded = len({c[3] for c in colors}) > 2
+    exp = pkg.exports[info['export'] - 1]
+    r = Reader(pkg.data, pkg.read_object(exp).native_offset)
+    mips = _read_mips(r, pkg.version)
+    if not mips:
+        return None
+    w, h, data = mips[0]
+    if info.get('comp_format') is not None and not graded:
+        comp = _read_mips(r, pkg.version)
+        img = _decode_dxt(*comp[0], info['comp_format']) if comp else None
+        # a masked use needs the holes: keep P8 when only its index 0 has them
+        if img is not None and alpha and img.getextrema()[3][0] == 255 and 0 in data:
+            img = None
+        if img is not None:
+            return img if alpha else img.convert('RGB')
+    if w * h != len(data):
+        return None
+    pal = []
+    for i, c in enumerate(colors[:256]):
+        pal += [c[0], c[1], c[2], c[3] if graded else (0 if i == 0 and alpha else 255)]
+    img = Image.frombytes('P', (w, h), data)
+    img.putpalette(bytes(pal + [0] * (1024 - len(pal))), rawmode='RGBA')
+    img = img.convert('RGBA')
+    return img if alpha or graded else img.convert('RGB')
 
 
 def _load_bmp(path: Path, alpha: bool) -> Image.Image:

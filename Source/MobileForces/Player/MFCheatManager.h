@@ -28,6 +28,13 @@ public:
 	UFUNCTION(Exec)
 	void MFFire();
 
+	/**
+	 * Developer: hold movement input for Seconds facing Yaw (Forward/Right -1..1), logging the
+	 * position and movement mode every 0.25 s (scripted stairs / ladder tests).
+	 */
+	UFUNCTION(Exec)
+	void MFWalk(float Yaw, float Seconds, float Forward = 1.f, float Right = 0.f);
+
 	/** Developer: move your pawn to X Y Z (scripted tests). */
 	UFUNCTION(Exec)
 	void MFTeleport(float X, float Y, float Z);
