@@ -286,6 +286,22 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   jeep.COL), two front seats and a gunner standing at the back on a machine gun (3000
   round belt, MachineGun damage, aimed with the gunner's view). `?Jeeps=1`: truck generators
   make jeeps (the servers' mutPack placed them per map).
+- **Heli** (MF-mods heli, Gregaras): 1500 kg, flies by hovering: the rotor spins up for about
+  5 s after the pilot gets in, then Jump climbs, Crouch sinks, forward / back / strafe tilt it
+  and push it along (MF hover forces, lift scaled to the world's gravity). Four glass panes
+  (300 hit points each, back after 20 s) crack and shatter. Bots ride along with a player at
+  the controls but don't fly. **HeliHmg**: two side gunners on machine guns (jeep gun, 90°
+  either way). On the servers mutPack's replaceVehicles turned trucks into helis: `?Helis=1`
+  (default) does that, `?Helis=0` keeps the trucks.
+- **Piper** (MF-mods piper, Gregaras; one or two seats, three liveries): drives like a car to
+  50 mph (propeller pull, no rolling resistance); Jump with throttle past 10 m/s lifts off.
+  Airborne it holds its airspeed (up to 30 m/s, slowing in steep climbs, picking up in dives,
+  stalling below 15 m/s flat / 10 m/s climbing), Jump / Crouch pitch, steering rolls and
+  yaws, Fire / AltFire roll alone. Touching down on three wheels lands it, anything else
+  crashes. No bots fly it.
+- **Added vehicles** (mutPack addVehicles): per-map extra vehicles at the servers' spots
+  (`+AddedVehicles=` in `Config/DefaultGame.ini`: pipers, helis, boats, jeeps); `?AddVehicles=0`
+  turns them off.
 - **Trailer** (`trailer`, TrailerGame): a neutral cab (Humvee) towing a bomb trailer (ball-joint
   hitch) starts at the TrailerGenerator. Drive it into the enemy's delivery bay (TrailerDelivery,
   128 + 128 uu): it locks, "Trailer detonation in 5 sec", blows up (600, 1200 uu), team point and

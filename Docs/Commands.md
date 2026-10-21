@@ -23,6 +23,9 @@ where the original had the command; case doesn't matter.
 | `RestartLevel` | restart the map (single player / host) |
 | `AddBots N`, `GoodBot N`, `BadBot N` | add bots of normal / better / worse skill (single player / host) |
 | `ListBots` | bots and their skill |
+| `CallVote travel <map> [mode]`, `CallVote nextmap / restart / addbots N / kickbots / shuffle / balance` | call a vote (Gregaras' vote mutator; you vote yes; over half the players saying yes passes it, 30 s) |
+| `Vote yes`, `Vote no` | vote on the running vote |
+| `Mutate callvote ...`, `Mutate vote y / n` | the same, as typed on the MF servers |
 | `ShowCommandMenu` | team orders menu (V); number keys or a mouse click pick the order, then All / a team-mate (the view holds still while it's open) |
 | `Talk` / `TeamTalk` | type a chat line to everyone / your team (T / Y) |
 | `Say Text` / `TeamSay Text` | send a chat line |
@@ -86,7 +89,7 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFTopView X Y Width [Z]` | orthographic top view (`MFTopView 0 0 0` = back) |
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
-| `MFWalk Yaw Seconds [Fwd] [Right]` | hold movement input, logging position + movement mode every 0.25 s (stairs / ladder tests) |
+| `MFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
 | `MFMenuPage N`, `MFMenuStart` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits) / press Start |
 | `MFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
 | `MFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |

@@ -15,13 +15,13 @@ from pathlib import Path
 
 from . import devmesh, lodmesh
 from .config import Config
-from .level import PF_MASKED, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
+from .level import PF_MASKED, PF_TRANSLUCENT, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
 from .mfmesh import MeshBuilder
 from .textures import _package_path, texture_index
 from .upkg import Package
 
 # + MF-mods packages with weapon models (missing ones are skipped)
-PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'RageEffects', 'deagle', 'grenLaunch', 'battleRoyale', 'boat', 'jeep')
+PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'RageEffects', 'deagle', 'grenLaunch', 'battleRoyale', 'boat', 'jeep', 'heli', 'piper')
 # packages whose StaticMeshes are props too (exported as T3D by UCC: Gregaras' CC0 Battle Royale models)
 STATIC_MESH_PACKAGES = ('battleRoyale',)
 
@@ -67,6 +67,8 @@ def convert(cfg: Config) -> Path:
                 tex = tex or 'Engine.DefaultTexture'
                 info = tex_info.get(tex.lower(), {})
                 flags = PF_MASKED if info.get('masked') else 0
+                if exp.name.lower().startswith('heliglass'):
+                    flags |= PF_TRANSLUCENT   # heliGlass Style=STY_Translucent
                 key = material_key(tex, flags | info.get('polyflags', 0))
                 usage.setdefault(tex.lower(), set()).add(key.split('|')[1].split('_')[0])
                 p = [v[0] for v in vs]

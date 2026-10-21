@@ -46,6 +46,17 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	FString WinnerText;
 
+	/** The vote in progress (Gregaras' vote mutator, voteHUD): what it is, yes / no so far and
+	 *  when it runs out (server world time); empty: none. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	FString VoteText;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	int32 VoteYes = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	int32 VoteNo = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	float VoteEndTime = 0.f;
+
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	FString GameName;
 

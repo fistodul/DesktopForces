@@ -80,6 +80,10 @@ public:
 	void ServerDriveInput(float InThrottle, float InSteer, bool bInHandbrake);
 	/** Nitro (MF-mods TurboCars, crouch key; only with ?TurboCars=1). */
 	void SetNitro(bool bOn);
+	/** The driver's fire buttons (cars ignore them; the heli yaws with them). */
+	void SetDriverFire(bool bFire, bool bAlt);
+	UFUNCTION(Server, Reliable)
+	void ServerSetDriverFire(bool bFire, bool bAlt);
 	UFUNCTION(Server, Reliable)
 	void ServerSetNitro(bool bOn);
 
@@ -116,7 +120,9 @@ public:
 
 	/** How much a bot wants to get in (Vehicle.BotDesireability): 1.1, less per flat tyre,
 	 *  more with team mates inside, less with enemies; <= 0: not at all (full, wrecked, fast). */
-	float BotDesirability(const AMFCharacter* Bot) const;
+	virtual float BotDesirability(const AMFCharacter* Bot) const;
+	/** The seat part of it: 1.1, flat tyres, who's inside; <= 0: full / wrecked / too fast. */
+	float SeatDesirability(const AMFCharacter* Bot) const;
 	/** A bot gave up driving it (Vehicle.bVehicleStuck): bots leave it alone until then. */
 	float BotStuckUntil = -100.f;
 	/** Top speed (cm/s), what RoadPoint.MaxSpeed 255 means for a driving bot. */
@@ -303,6 +309,10 @@ protected:
 	float LastInputTime = -100.f;
 	bool bNitro = false;
 	bool bTurbo = false;
+	bool bDriverFire = false;
+	bool bDriverAltFire = false;
+	/** Engine loop pitch (1 = as recorded). Car: SoundPitch 64 + 2 x speed / 60 uu/s. */
+	virtual float GetEnginePitch() const;
 	TArray<float> LastCompression;
 	TArray<float> WheelSpin;
 	float UpsideDownTime = 0.f;

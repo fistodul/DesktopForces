@@ -28,6 +28,9 @@ of how to extend the game:
 | `Vehicles/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat: a `UMFVehicleTurret` component configured in the constructor |
 | `Vehicles/Jeep` | `jeep` (Marcin, Gregaras) | a new vehicle from its `.COL` / handling data, wheels with blown meshes, a turret seat |
 | `Vehicles/Boat` | `boat` (Gregaras) | a vehicle without wheels: `SimulateDrive` (thrust, rudder), buoyancy from `BuoyancyPercent` |
+| `Vehicles/Heli` | `heli` (Gregaras) | a flying vehicle: `SimulateDrive` hover forces, extra spinning parts, breakable glass in `TakeDamage`, two gunner turrets with yaw limits (`HeliHmg`) |
+| `Vehicles/Piper` | `piper` (Gregaras) | a plane: car on the ground, its own flight model once airborne, landing / crash in `NotifyHit`, a replicated random livery |
+| `Game/Vote` | `vote` (Gregaras) | console commands (`Exec` + server RPC) into the game mode, replicated state on `AMFGameState`, a HUD readout |
 | `Game/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
 | `Game/BattleRoyale` | `battleRoyale` (Gregaras) | no-respawn rounds, nav-mesh scatter spawning, shootable loot props, a placeable-platform weapon, a shrinking damage zone |
 | `Game/MoBall` | `MoBall` | a physics actor as the objective, goals from legacy actors, item limits (`AMFGameState::AllowedItemGroups`) |

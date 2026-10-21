@@ -20,6 +20,27 @@ struct FMFTeamDef
 	FLinearColor Color = FLinearColor::White;
 };
 
+/** An extra vehicle on a map (mutPack addVehicles: its per-map spots, 16 a map). */
+USTRUCT(BlueprintType)
+struct FMFAddedVehicle
+{
+	GENERATED_BODY()
+
+	/** Map file name, any case ("mf-treasure_finders"). */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	FString Map;
+
+	/** MF class: "heli.heli", "piper.piperTs", "jeep.jeep", "boat.boat" ... */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	FString VehicleClass;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	FVector Location = FVector::ZeroVector;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	float Yaw = 0.f;
+};
+
 /** A named bot: who it is and what it takes from the loadout (MF RageBotA-P, BonusBotA-P). */
 USTRUCT(BlueprintType)
 struct FMFBotDef
@@ -63,6 +84,10 @@ public:
 	/** What loadout crates/zones offer unless a map overrides it (MF LoadoutCrate.aWeaponsInStore). */
 	UPROPERTY(Config, EditAnywhere, Category = "Loadout")
 	TArray<TSoftClassPtr<AMFWeapon>> LoadoutItems;
+
+	/** Extra vehicles per map (the community servers' mutPack addVehicles; ?AddVehicles=0 off). */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	TArray<FMFAddedVehicle> AddedVehicles;
 
 	/** Bot roster, used in order (MF: 32 bots). Add as many as you like. */
 	UPROPERTY(Config, EditAnywhere, Category = "Bots")

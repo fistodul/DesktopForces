@@ -51,6 +51,8 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
 	bChangeDamage = UGameplayStatics::GetIntOption(Options, TEXT("ChangeDamage"), bChangeDamage ? 1 : 0) != 0;
 	bJeeps = UGameplayStatics::GetIntOption(Options, TEXT("Jeeps"), bJeeps ? 1 : 0) != 0;
+	bHelis = UGameplayStatics::GetIntOption(Options, TEXT("Helis"), bHelis ? 1 : 0) != 0;
+	bAddVehicles = UGameplayStatics::GetIntOption(Options, TEXT("AddVehicles"), bAddVehicles ? 1 : 0) != 0;
 	bTurboCars = UGameplayStatics::GetIntOption(Options, TEXT("TurboCars"), bTurboCars ? 1 : 0) != 0;
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
@@ -331,11 +333,12 @@ UClass* AMFGameMode::GetVehicleClassFor(UClass* StockClass) const
 			return Replacement;
 		}
 	}
-	if (bJeeps && StockClass && StockClass->GetName() == TEXT("MFVehicle_Truck"))
+	if ((bJeeps || bHelis) && StockClass && StockClass->GetName() == TEXT("MFVehicle_Truck"))
 	{
-		if (UClass* Replacement = LoadClass<AActor>(nullptr, TEXT("/Script/DesktopForces.MFVehicle_Jeep")))
+		// mutPack addVehicles / replaceVehicles style swaps
+		if (UClass* Replacement = LoadClass<AActor>(nullptr, bJeeps ? TEXT("/Script/DesktopForces.MFVehicle_Jeep") : TEXT("/Script/DesktopForces.MFVehicle_Heli")))
 		{
-			return Replacement;   // mutPack addVehicles / replaceVehicles style swap
+			return Replacement;
 		}
 	}
 	return StockClass;

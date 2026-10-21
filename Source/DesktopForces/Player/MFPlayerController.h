@@ -91,6 +91,15 @@ public:
 	/** MF Tab: the one-line console. */
 	UFUNCTION(Exec)
 	void Type();
+
+	/** Votes (Gregaras' vote mutator): "CallVote travel mf-warehouse ctf", "Vote yes" / "Vote no". */
+	UFUNCTION(Exec)
+	void CallVote(const FString& Args);
+	UFUNCTION(Exec)
+	void Vote(const FString& Choice);
+	/** The MF way to say it: "mutate callvote ...", "mutate vote y" / "mutate vote n". */
+	UFUNCTION(Exec)
+	void Mutate(const FString& Args);
 	int32 GetCommandMenuOrder() const { return CommandMenuOrder; }
 	/** Orders offered in this game type (MF RageVoicePack.GetOrderString 0-4). */
 	TArray<FString> GetCommandMenuOrders() const;
@@ -201,7 +210,7 @@ public:
 	UFUNCTION(Exec)
 	void MFSelect(int32 Group);
 	/** Scripted movement input (forward, right) for Seconds (MFWalk cheat). */
-	void ForceMove(const FVector2D& Input, float Seconds);
+	void ForceMove(const FVector2D& Input, float Seconds, float Up = 0.f);
 	/** Screenshot to Saved/Screenshots/<platform>/<Name>.png */
 	UFUNCTION(Exec)
 	void MFShot(const FString& Name);
@@ -221,6 +230,9 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void PlayerTick(float DeltaTime) override;
 	TWeakObjectPtr<class UAudioComponent> AnnouncerAudio;
+	/** Move keys while driving (sent each frame in PlayerTick). */
+	FVector2D DriveMove = FVector2D::ZeroVector;
+	void OnMoveStop(const struct FInputActionValue& Value);
 	/** RageHUD spoken countdown: last remaining second told. */
 	int32 LastReportedTime = -1;
 	void TellTime();
@@ -243,6 +255,10 @@ protected:
 	void ServerSay(const FString& Msg, bool bTeam);
 	UFUNCTION(Server, Reliable)
 	void ServerGiveOrder(int32 Order, APlayerState* Target);
+	UFUNCTION(Server, Reliable)
+	void ServerCallVote(const FString& Args);
+	UFUNCTION(Server, Reliable)
+	void ServerVote(bool bYes);
 
 	virtual void ClientMessage_Implementation(const FString& S, FName Type, float MsgLifeTime) override;
 	virtual void ClientTeamMessage_Implementation(APlayerState* SenderPlayerState, const FString& S, FName Type, float MsgLifeTime) override;
@@ -298,6 +314,8 @@ protected:
 
 	// MFWalk: scripted movement input
 	FVector2D ForcedMove = FVector2D::ZeroVector;
+	/** Up > 0: Jump held (handbrake / climb), < 0: Crouch held (nitro / descend). */
+	float ForcedUp = 0.f;
 	float ForcedMoveUntil = 0.f;
 	float ForcedMoveNextLog = 0.f;
 	int32 LoadoutOpenSlot = 0;

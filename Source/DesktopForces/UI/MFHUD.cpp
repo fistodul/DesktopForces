@@ -230,6 +230,18 @@ void AMFHUD::DrawHUD()
 		DrawDeadScreen(GS, PC);
 	}
 	DrawMessages();
+	if (GS && !GS->VoteText.IsEmpty())
+	{
+		// voteHUDrender: top left under the minimap
+		const float X = 8.f * UIScale, Y0 = Block * 3.4f, LineH = MFTextSize(TEXT("TEST"), 0).Y * 1.2f;
+		const int32 Left = FMath::Max(0, FMath::CeilToInt(GS->VoteEndTime - GS->GetServerWorldTimeSeconds()));
+		const FString Lines[] = { TEXT("Voting in progress"), GS->VoteText, FString::Printf(TEXT("Upvotes: %d (vote yes)"), GS->VoteYes),
+			FString::Printf(TEXT("Downvotes: %d (vote no)"), GS->VoteNo), FString::Printf(TEXT("%d s left"), Left) };
+		for (int32 I = 0; I < UE_ARRAY_COUNT(Lines); ++I)
+		{
+			MFText(Lines[I], X, Y0 + I * LineH, I == 0 ? Yellow : White, 0);
+		}
+	}
 	if (PC)
 	{
 		DrawCommandMenu(PC);

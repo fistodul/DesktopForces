@@ -7,6 +7,8 @@
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
 #include "Vehicles/MFVehicleFrag.h"
+#include "Vehicles/Heli/MFVehicle_Heli.h"
+#include "Core/MFGameSettings.h"
 #include "Weapons/MFWeapon.h"
 #include "World/MFMapActors.h"
 #include "Camera/CameraComponent.h"
@@ -205,6 +207,25 @@ void AMFVehicle::ServerDriveInput_Implementation(float InThrottle, float InSteer
 	SetDriveInput(InThrottle, InSteer, bInHandbrake);
 }
 
+void AMFVehicle::SetDriverFire(bool bFire, bool bAlt)
+{
+	(bAlt ? bDriverAltFire : bDriverFire) = bFire;
+	if (!HasAuthority())
+	{
+		ServerSetDriverFire(bFire, bAlt);
+	}
+}
+
+void AMFVehicle::ServerSetDriverFire_Implementation(bool bFire, bool bAlt)
+{
+	SetDriverFire(bFire, bAlt);
+}
+
+float AMFVehicle::GetEnginePitch() const
+{
+	return FMath::Min(128.f, 56.f + 2.f * GetVelocity().Size() / 2.25f / 60.f) / 64.f;
+}
+
 void AMFVehicle::SetNitro(bool bOn)
 {
 	bNitro = bOn;
@@ -274,7 +295,7 @@ void AMFVehicle::ApplyWater(float Dt)
 void AMFVehicle::SimulateWheels(float Dt)
 {
 	ApplyWater(Dt);
-	if (!Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle))
+	if (!Driver && !Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle))
 	{
 		return;   // parked and settled: no traces, no forces
 	}
@@ -415,8 +436,13 @@ void AMFVehicle::UpdateWheelVisuals(float DeltaSeconds)
 
 float AMFVehicle::BotDesirability(const AMFCharacter* Bot) const
 {
+	return bBotsDrive ? SeatDesirability(Bot) : -1.f;
+}
+
+float AMFVehicle::SeatDesirability(const AMFCharacter* Bot) const
+{
 	// Vehicle.BotDesireability
-	if (!Bot || Health <= 0 || bBlownUp || IsActorBeingDestroyed() || bLocked || !bDriveable || !bBotsDrive || IsUpsideDown()
+	if (!Bot || Health <= 0 || bBlownUp || IsActorBeingDestroyed() || bLocked || !bDriveable || IsUpsideDown()
 		|| GetWorld()->GetTimeSeconds() < BotStuckUntil || GetVelocity().Size() >= KillSpeed)
 	{
 		return -1.f;
@@ -650,6 +676,7 @@ void AMFVehicle::Exit(bool bForce)
 	}
 	AController* PC = GetController();
 	Driver = nullptr;
+	bDriverFire = bDriverAltFire = bNitro = false;
 	if (bForce)
 	{
 		// blown up / gone: passengers out too
@@ -1015,7 +1042,7 @@ void AMFVehicle::UpdateEngineSound()
 	const FVector V = GetVelocity();
 	if (EngineAudio && EngineAudio->IsPlaying())
 	{
-		EngineAudio->SetPitchMultiplier(FMath::Min(128.f, 56.f + 2.f * V.Size() / 2.25f / 60.f) / 64.f);
+		EngineAudio->SetPitchMultiplier(GetEnginePitch());
 	}
 	// SkidSound (WheelSFX.skid) while sliding sideways on the ground
 	const bool bSkid = bDriveable && !bBlownUp && FMath::Abs(FVector::DotProduct(V, GetActorRightVector())) > 400.f && FMath::Abs(V.Z) < 300.f
@@ -1068,6 +1095,7 @@ void AMFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 		const float HitSpeed = FMath::Abs(FVector::DotProduct(GetVelocity(), Hit.ImpactNormal)) / 2.25f;
 		if (HitSpeed > 100.f)
 		{
+			UE_LOG(LogMF, Verbose, TEXT("%s bumped %s (%s) at %s, %.0f uu/s"), *GetName(), *GetNameSafe(Other), *GetNameSafe(OtherComp), *Hit.ImpactPoint.ToCompactString(), HitSpeed);
 			BumpSoundUntil = GetWorld()->GetTimeSeconds() + 0.5f;
 			MulticastBump(FMath::Min(HitSpeed, 700.f) / 700.f * 0.8f);
 		}
@@ -1144,6 +1172,8 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 	static const TPair<const TCHAR*, UClass*> ByClass[] = {
 		{ TEXT("boat.boat"), AMFVehicle_Boat::StaticClass() },
 		{ TEXT("jeep.jeep"), AMFVehicle_Jeep::StaticClass() },
+		{ TEXT("heli.heli"), AMFVehicle_Heli::StaticClass() },
+		{ TEXT("heli.heliHmg"), AMFVehicle_HeliHmg::StaticClass() },
 		{ TEXT("Rage.Buggy"), AMFVehicle_Buggy::StaticClass() },
 		{ TEXT("Rage.Humvee"), AMFVehicle_Humvee::StaticClass() },
 		{ TEXT("Rage.Truck"), AMFVehicle_Truck::StaticClass() },
@@ -1169,6 +1199,36 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 		}
 	}
 	int32 N = 0;
+	// mutPack addVehicles: the extra vehicles the settings list for this map
+	const AMFGameMode* AddGM = World->GetAuthGameMode<AMFGameMode>();
+	if (!AddGM || AddGM->bAddVehicles)
+	{
+		const FString MapName = UWorld::RemovePIEPrefix(World->GetMapName());
+		for (const FMFAddedVehicle& Add : UMFGameSettings::Get().AddedVehicles)
+		{
+			UClass* Class = nullptr;
+			for (const auto& Entry : ByClass)
+			{
+				Class = Add.VehicleClass.Equals(Entry.Key, ESearchCase::IgnoreCase) ? Entry.Value : Class;
+			}
+			if (!Class && Add.VehicleClass.StartsWith(TEXT("piper."), ESearchCase::IgnoreCase))
+			{
+				Class = LoadClass<AMFVehicle>(nullptr, Add.VehicleClass.EndsWith(TEXT("Ts"), ESearchCase::IgnoreCase)
+					? TEXT("/Script/DesktopForces.MFVehicle_PiperTs") : TEXT("/Script/DesktopForces.MFVehicle_Piper"));
+			}
+			if (!Class || !MapName.Equals(Add.Map, ESearchCase::IgnoreCase))
+			{
+				continue;
+			}
+			const FTransform T(FRotator(0.f, Add.Yaw, 0.f), Add.Location);
+			if (AMFVehicleGenerator* G = World->SpawnActorDeferred<AMFVehicleGenerator>(AMFVehicleGenerator::StaticClass(), T))
+			{
+				G->VehicleClass = Class;
+				G->FinishSpawning(T);
+				++N;
+			}
+		}
+	}
 	for (const auto& Spot : Spots)
 	{
 		const TPair<const TCHAR*, UClass*> Entry(nullptr, Spot.Value);

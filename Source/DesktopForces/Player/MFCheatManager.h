@@ -36,7 +36,7 @@ public:
 	 * position and movement mode every 0.25 s (scripted stairs / ladder tests).
 	 */
 	UFUNCTION(Exec)
-	void MFWalk(float Yaw, float Seconds, float Forward = 1.f, float Right = 0.f);
+	void MFWalk(float Yaw, float Seconds, float Forward = 1.f, float Right = 0.f, float Up = 0.f);
 
 	/** Developer: move your pawn to X Y Z (scripted tests). */
 	UFUNCTION(Exec)

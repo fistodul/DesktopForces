@@ -89,6 +89,16 @@ public:
 	 *  getting out (MoBall: the ball). */
 	virtual AActor* GetBotDriveTarget(AController* Bot) const { return nullptr; }
 
+	// --- votes (Gregaras' vote mutator: mutate callvote ..., mutate vote y / n) -------------
+	/** Seconds a vote stays open (votingDuration). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Vote")
+	int32 VoteDuration = 30;
+	/** A player calls a vote: "travel <map> [mode]", "nextmap", "restart", "addbots <n>",
+	 *  "kickbots", "shuffle", "balance". The caller says yes; more than half the players
+	 *  saying yes passes it. */
+	void CallVote(APlayerController* By, const FString& Args);
+	void CastVote(APlayerController* By, bool bYes);
+
 	/** End the match with this winner line (also announced). */
 	void FinishMatch(const FString& Winner);
 
@@ -187,6 +197,13 @@ public:
 	/** MF-mods jeeps (gunner seat) from the truck generators instead of trucks (?Jeeps=1). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bJeeps = false;
+	/** mutPack replaceVehicles on the community servers: helis at the Truck generators
+	 *  (?Helis=0: trucks; ?Jeeps=1 wins). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bHelis = true;
+	/** mutPack addVehicles: UMFGameSettings::AddedVehicles on their maps (?AddVehicles=0 off). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bAddVehicles = true;
 
 	/** MF-mods Armed APC at the Armadillo generators: 0 off, 1 machine gun, 2 rockets (?ArmedAPC=N). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
@@ -229,6 +246,17 @@ protected:
 	void ScheduleRespawn(AController* Victim);
 
 	FTimerHandle TimeLimitTimer;
+	// votes
+	FString VoteCommand;
+	TMap<TWeakObjectPtr<APlayerController>, bool> VoteBallots;
+	FTimerHandle VoteTimer;
+	float VoteRecentlyEndedUntil = 0.f;
+	void CountVotes();
+	void EndVote(bool bPassed);
+	void RunVote(const FString& Command);
+	/** "travel" / "nextmap": the map's package and URL, or empty. */
+	FString VoteMapURL(const FString& Map, const FString& Mode) const;
+	TArray<FString> VoteMapList() const;
 	TMap<TWeakObjectPtr<AController>, FTimerHandle> RespawnTimers;
 	TWeakObjectPtr<AActor> LastStartSpot;
 	int32 BotsAdded = 0;

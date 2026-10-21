@@ -49,6 +49,7 @@ void UMFVehicleTurret::BeginPlay()
 {
 	Super::BeginPlay();
 	ClipAmmo = MaxClipAmmo;
+	TurretRot.Yaw = BaseYaw;
 	AMFVehicle* V = GetVehicle();
 	if (!V)
 	{
@@ -100,6 +101,7 @@ void UMFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 		{
 			FRotator Want = V->GetBody()->GetComponentTransform().InverseTransformRotation(Gunner->GetController()->GetControlRotation().Quaternion()).Rotator();
 			Want.Pitch = FMath::Clamp(FRotator::NormalizeAxis(Want.Pitch), PitchMin, PitchMax);
+			Want.Yaw = BaseYaw + FMath::Clamp(FRotator::NormalizeAxis(Want.Yaw - BaseYaw), -YawLimit, YawLimit);
 			const float Step = TurnRate * DeltaTime;
 			const FRotator Delta = (Want - TurretRot).GetNormalized();
 			TurretRot = FRotator(TurretRot.Pitch + FMath::Clamp(Delta.Pitch, -Step, Step), FRotator::NormalizeAxis(TurretRot.Yaw + FMath::Clamp(Delta.Yaw, -Step, Step)), 0.f);

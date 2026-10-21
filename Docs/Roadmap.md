@@ -52,7 +52,8 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Map actors: teleporters, placed items (respawning), periodic sounds, movers (scenery, spinners, bump doors), invisible walls, spawn room doors; ⬜ trigger / special event chains (Treasure_Finders lighthouse, bells), coop maps' placed RageBots, particle effects / FireyExample, LaserBeam, mineGenerator
 - ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, MoBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
-- ⬜ More MF-mods: heli, piper (plane), vote, FNG (not decompiled yet), mutPack commands; jeep gun model (UE1 vertex Mesh reader)
+- ✅ More MF-mods: heli + heliHmg, piper / piperTs (plane), vote, mutPack replaceVehicles / addVehicles; jeep gun model (UE1 vertex Mesh reader)
+- ⬜ FNG (not decompiled yet), other mutPack commands, server weapon mods (authors unknown)
 - ✅ Water (swimming, drowning, pain / heal zones, currents, floating vehicles)
 
 ## Presentation

@@ -151,12 +151,12 @@ void UMFCheatManager::MFFire(int32 Alt)
 	}
 }
 
-void UMFCheatManager::MFWalk(float Yaw, float Seconds, float Forward, float Right)
+void UMFCheatManager::MFWalk(float Yaw, float Seconds, float Forward, float Right, float Up)
 {
 	if (AMFPlayerController* PC = Cast<AMFPlayerController>(GetPlayerController()))
 	{
 		PC->SetControlRotation(FRotator(0.f, Yaw, 0.f));
-		PC->ForceMove(FVector2D(Forward, Right), Seconds);
+		PC->ForceMove(FVector2D(Forward, Right), Seconds, Up);
 	}
 }
 

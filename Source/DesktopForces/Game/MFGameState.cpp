@@ -8,6 +8,10 @@ void AMFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMFGameState, NumTeams);
+	DOREPLIFETIME(AMFGameState, VoteText);
+	DOREPLIFETIME(AMFGameState, VoteYes);
+	DOREPLIFETIME(AMFGameState, VoteNo);
+	DOREPLIFETIME(AMFGameState, VoteEndTime);
 	DOREPLIFETIME(AMFGameState, LoadoutAccess);
 	DOREPLIFETIME(AMFGameState, TeamLoadoutAccess);
 	DOREPLIFETIME(AMFGameState, TeamNameOverrides);

@@ -191,6 +191,7 @@ void AMFPlayerController::SetupInputComponent()
 	}
 	auto A = [this](const TCHAR* Name) { return Actions.FindRef(Name).Get(); };
 	EIC->BindAction(A(TEXT("Move")), ETriggerEvent::Triggered, this, &AMFPlayerController::OnMove);
+	EIC->BindAction(A(TEXT("Move")), ETriggerEvent::Completed, this, &AMFPlayerController::OnMoveStop);
 	EIC->BindAction(A(TEXT("Look")), ETriggerEvent::Triggered, this, &AMFPlayerController::OnLook);
 	EIC->BindAction(A(TEXT("Jump")), ETriggerEvent::Started, this, &AMFPlayerController::OnJump);
 	EIC->BindAction(A(TEXT("Jump")), ETriggerEvent::Completed, this, &AMFPlayerController::OnJumpReleased);
@@ -246,10 +247,9 @@ void AMFPlayerController::SetupInputComponent()
 
 void AMFPlayerController::OnMove(const FInputActionValue& Value)
 {
-	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	if (Cast<AMFVehicle>(GetPawn()))
 	{
-		const FVector2D In = Value.Get<FVector2D>();
-		V->SetDriveInput(In.Y, In.X, bVehicleHandbrake);   // forward = throttle, strafe = steer
+		DriveMove = Value.Get<FVector2D>();   // sent every frame by PlayerTick (with the handbrake)
 		return;
 	}
 	AMFCharacter* C = GetMFCharacter();
@@ -261,6 +261,11 @@ void AMFPlayerController::OnMove(const FInputActionValue& Value)
 	const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
 	C->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X), V.Y);
 	C->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), V.X);
+}
+
+void AMFPlayerController::OnMoveStop(const FInputActionValue& Value)
+{
+	DriveMove = FVector2D::ZeroVector;
 }
 
 void AMFPlayerController::OnLook(const FInputActionValue& Value)
@@ -361,6 +366,11 @@ void AMFPlayerController::OnFire()
 		}
 		return;
 	}
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->SetDriverFire(true, false);
+		return;
+	}
 	AMFCharacter* C = GetMFCharacter();
 	if (C && C->IsInLoadout())
 	{
@@ -375,6 +385,11 @@ void AMFPlayerController::OnFire()
 
 void AMFPlayerController::OnFireReleased()
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->SetDriverFire(false, false);
+		return;
+	}
 	if (AMFCharacter* C = GetMFCharacter())
 	{
 		C->StopFire(false);
@@ -383,6 +398,11 @@ void AMFPlayerController::OnFireReleased()
 
 void AMFPlayerController::OnAltFire()
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->SetDriverFire(true, true);
+		return;
+	}
 	if (AMFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout())
 	{
 		C->StartFire(true);
@@ -391,6 +411,11 @@ void AMFPlayerController::OnAltFire()
 
 void AMFPlayerController::OnAltFireReleased()
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->SetDriverFire(false, true);
+		return;
+	}
 	if (AMFCharacter* C = GetMFCharacter())
 	{
 		C->StopFire(true);
@@ -870,6 +895,12 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 	if (IsLocalController())
 	{
 		TellTime();
+		// driving: forward = throttle, strafe = steer, jump = handbrake (the heli climbs on it),
+		// every frame while held (vehicles let go after 0.15 s without input)
+		if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()); V && (!DriveMove.IsNearlyZero() || bVehicleHandbrake) && ForcedMoveUntil <= 0.f)
+		{
+			V->SetDriveInput(DriveMove.Y, DriveMove.X, bVehicleHandbrake);
+		}
 	}
 	// RagePlayer Loadout.PlayerTick -> CheckLoadoutState: keep the cursor on something usable
 	const bool bOpen = IsLoadoutOpen();
@@ -894,7 +925,8 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 		}
 		else if (AMFVehicle* V = Cast<AMFVehicle>(P))
 		{
-			V->SetDriveInput(ForcedMove.X, ForcedMove.Y, false);
+			V->SetDriveInput(ForcedMove.X, ForcedMove.Y, ForcedUp > 0.f);
+			V->SetNitro(ForcedUp < 0.f);
 		}
 		else
 		{
@@ -912,8 +944,9 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 	}
 }
 
-void AMFPlayerController::ForceMove(const FVector2D& Input, float Seconds)
+void AMFPlayerController::ForceMove(const FVector2D& Input, float Seconds, float Up)
 {
+	ForcedUp = Up;
 	ForcedMove = Input;
 	ForcedMoveUntil = GetWorld()->GetTimeSeconds() + Seconds;
 	ForcedMoveNextLog = 0.f;
@@ -1027,6 +1060,49 @@ void AMFPlayerController::ServerAddBots_Implementation(int32 N, float SkillOffse
 		return;
 	}
 	GM->AddBots(FMath::Clamp(N, 1, 64), FMath::Clamp(GM->BotSkill + SkillOffset, 0.f, 1.f));
+}
+
+void AMFPlayerController::CallVote(const FString& Args)
+{
+	ServerCallVote(Args.Left(200));
+}
+
+void AMFPlayerController::Vote(const FString& Choice)
+{
+	ServerVote(Choice.StartsWith(TEXT("y"), ESearchCase::IgnoreCase));
+}
+
+void AMFPlayerController::Mutate(const FString& Args)
+{
+	const FString A = Args.TrimStartAndEnd();
+	if (A.StartsWith(TEXT("callvote"), ESearchCase::IgnoreCase))
+	{
+		CallVote(A.Mid(8).TrimStart());
+	}
+	else if (A.StartsWith(TEXT("vote "), ESearchCase::IgnoreCase))
+	{
+		Vote(A.Mid(5).TrimStart());
+	}
+	else
+	{
+		ClientMessage(TEXT("mutate callvote <travel <map> [mode] | nextmap | restart | addbots <n> | kickbots | shuffle | balance>, mutate vote y / n"));
+	}
+}
+
+void AMFPlayerController::ServerCallVote_Implementation(const FString& Args)
+{
+	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+	{
+		GM->CallVote(this, Args);
+	}
+}
+
+void AMFPlayerController::ServerVote_Implementation(bool bYes)
+{
+	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+	{
+		GM->CastVote(this, bYes);
+	}
 }
 
 void AMFPlayerController::ListBots()

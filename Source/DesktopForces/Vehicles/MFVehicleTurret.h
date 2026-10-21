@@ -52,6 +52,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Turret") float PitchMax = 49.4f;
 	/** Degrees per second. */
 	UPROPERTY(EditDefaultsOnly, Category = "Turret") float TurnRate = 164.8f;
+	/** Where it faces at rest and how far it turns from there (aSeatsRot / aSeatsRotLimit .Yaw; 180 = all round). */
+	UPROPERTY(EditDefaultsOnly, Category = "Turret") float BaseYaw = 0.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret") float YawLimit = 180.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Turret") FString TurretMeshName = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	UPROPERTY(EditDefaultsOnly, Category = "Turret") float TurretDrawScale = 1.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Turret") float FireInterval = 0.1f;
