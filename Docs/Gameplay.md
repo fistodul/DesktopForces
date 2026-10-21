@@ -37,6 +37,11 @@ radius 1000; splashes in water; none while walking), jump (jump1), landing thump
 grunt on hard landings (land10, PlayLanded), pain by damage (injurL2 / L04 / M04 / H5, 0.3 s
 apart), death (deathc*), bullet impacts (WallHitSFX ricochet / imp01 / imp02, flesh
 RageChunkHit at 100 uu). One-shot sounds fade out over MF's default 1600 uu.
+Weapons (RageWeapons): knife one of five slashes; shotgun FireBoth for both barrels; grenades
+pull the pin (teeth or hand) and hum (Powering) while winding up, a timed grenade ticks every
+second; rifle hums while charging and chimes at full power (PoweredUp); the HMG deploy plays
+tripod / magazine / step back over its 2.5 s (ActivateGun01-03), picking it up 1 s (Pickup);
+rockets roar in flight (RocketFly).
 
 **Water** (RageWaterZone, ZoneInfo bWaterZone): a water volume over the zone; swimming at
 WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for UnderWaterTime
@@ -217,7 +222,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   graph at each RoadPoint's MaxSpeed, steers round parked cars, backs out when stuck (after six
   tries the vehicle counts as stuck for 30 s) and gets out at the node nearest its goal, in water
   or on its roof. Seated bots fight from the seat (the gunner aims the turret); they get out once
-  the driver has gone and it stopped. Bots told to follow get in with you.
+  the driver has gone and it stopped. Bots told to follow get in with you. In MoBall a bot at
+  the wheel never gets out: it drives at the ball, straight when it can see it, else along the
+  road graph towards it (MoBallGame.FindSpecialAttractionForX).
 - **Armed APC** (MF-mods ArmedAPC, `?ArmedAPC=1`, rockets `=2`, at the Armadillo generators): the
   gunner seat (the hatch) runs a heavy machine gun aimed with the gunner's view (pitch −11° … 49°,
   165°/s), Fire shoots: 100 a belt, 10/s, 25 damage, 13500 cm, 4 s reload (R swaps early). The
@@ -235,6 +242,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too.
 - Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
   there and the vehicle blows up. A small target: aim at the tank.
+- Blowing up throws 16 chunks (RageEffects.VehicleFrag carfrag01-09) that spin, bounce with
+  half their speed and clank (FragHit1-3), then lie there 10-17 s. Tyres landing hard thump
+  (Wheel.HitWall, HitWheel); bumping into things clunks (Bump1-4).
 - Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical); MF ignores bullets,
   pellets and knives, but the community servers ran mutPack's **changeDamage**, the default
   here (`?ChangeDamage=0` for MF's rules): bullets / pellets x 0.125 x (1 - Armour) (10 / 80

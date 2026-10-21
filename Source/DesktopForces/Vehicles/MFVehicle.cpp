@@ -6,6 +6,7 @@
 #include "DesktopForces.h"
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
+#include "Vehicles/MFVehicleFrag.h"
 #include "Weapons/MFWeapon.h"
 #include "World/MFMapActors.h"
 #include "Camera/CameraComponent.h"
@@ -310,7 +311,18 @@ void AMFVehicle::SimulateWheels(float Dt)
 		if (!GetWorld()->LineTraceSingleByChannel(Hit, Top, Top - Up * RayLen, ECC_Visibility, Params))
 		{
 			LastCompression[i] = 0.f;
+			AirborneWheels |= 1 << i;
 			continue;
+		}
+		if (AirborneWheels & (1 << i))
+		{
+			AirborneWheels &= ~(1 << i);
+			const float Fall = -Body->GetPhysicsLinearVelocityAtPoint(Hit.ImpactPoint).Z;
+			if (Fall > 200.f && GetWorld()->GetTimeSeconds() >= WheelThumpUntil)
+			{
+				WheelThumpUntil = GetWorld()->GetTimeSeconds() + 0.25f;
+				MulticastWheelThump(FMath::Min(Fall / 900.f, 1.f));
+			}
 		}
 		++Grounded;
 		const float Compression = FMath::Clamp(RayLen - Hit.Distance, 0.f, SuspensionTravel);
@@ -945,8 +957,17 @@ void AMFVehicle::BlowUp(AController* By)
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 150.f, 0.f, GetActorLocation(), 0.f, 900.f, 1.f,
 		UMFDamage_Explosion::StaticClass(), Ignore, this, By, ECC_Visibility);
-	UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode"), nullptr, LOAD_NoWarn | LOAD_Quiet), GetActorLocation());
+	MulticastBlowUpFX();
 	SetLifeSpan(0.1f);
+}
+
+void AMFVehicle::MulticastBlowUpFX_Implementation()
+{
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode"), nullptr, LOAD_NoWarn | LOAD_Quiet), GetActorLocation());
+		AMFVehicleFrag::Burst(GetWorld(), GetActorLocation());
+	}
 }
 
 void AMFVehicle::UpdateEngineSound()
@@ -1026,6 +1047,11 @@ void AMFVehicle::PassengerLeft(AMFCharacter* C, int32 Seat)
 	{
 		T->SeatLeft(C, Seat);
 	}
+}
+
+void AMFVehicle::MulticastWheelThump_Implementation(float Volume)
+{
+	MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/WheelSFX/HitWheel")), GetActorLocation(), Volume, 1600.f, 0.75f + FMath::FRand() * 0.25f);
 }
 
 void AMFVehicle::MulticastBump_Implementation(float Volume)

@@ -49,6 +49,8 @@ public:
 	virtual void InitGameState() override;
 	virtual void HandleMatchHasStarted() override;
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const override;
+	/** FindSpecialAttractionForX: a bot at the wheel drives at the ball. */
+	virtual AActor* GetBotDriveTarget(AController* Bot) const override;
 
 	void BallGone(AMFMoBallBall* Ball);
 

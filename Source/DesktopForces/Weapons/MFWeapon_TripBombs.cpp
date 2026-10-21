@@ -51,6 +51,7 @@ void AMFWeapon_TripBombs::StartFire(bool bAlt)
 	{
 		bWinding = true;
 		WindUpStart = GetWorld()->GetTimeSeconds();
+		SetAmbientMFSound(TEXT("WeaponSFX_TripBombs.Powering"));   // PlayAltFiringAnim: SlideBack
 		return;
 	}
 	if (GetLocalRole() < ROLE_Authority)
@@ -67,6 +68,7 @@ void AMFWeapon_TripBombs::StopFire(bool bAlt)
 		return;
 	}
 	bWinding = false;
+	SetAmbientMFSound(nullptr);   // ClientThrowTripBomb
 	const float Power = GetThrowPower();
 	if (GetLocalRole() < ROLE_Authority)
 	{

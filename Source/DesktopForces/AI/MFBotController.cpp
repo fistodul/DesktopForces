@@ -646,11 +646,31 @@ void AMFBotController::Drive(AMFVehicle* V)
 	{
 		DriveDest = G->GetActorLocation();
 	}
+	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	ChaseTarget = GM ? GM->GetBotDriveTarget(this) : nullptr;
 	// PrepareToLeaveVehicle: landed in water, on its roof, about to blow
-	if (!Net || V->IsFloating() || V->IsUpsideDown() || V->Health < 25 || Now - DriveStart > 180.f)
+	if (V->IsFloating() || V->IsUpsideDown() || V->Health < 25 || (!ChaseTarget.IsValid() && (!Net || Now - DriveStart > 180.f)))
 	{
 		LeaveVehicle(V, TEXT("water / roof / wrecked / too long"));
 		return;
+	}
+	if (const AActor* Chase = ChaseTarget.Get())
+	{
+		// in plain sight: straight at it; else the road towards it (FindPathTowardVeh),
+		// planned again when it has moved away from the end of the route
+		FCollisionQueryParams Clear(SCENE_QUERY_STAT(MFBotChase), false, V);
+		Clear.AddIgnoredActor(Chase);
+		if (!Net || !GetWorld()->SweepTestByChannel(V->GetActorLocation(), Chase->GetActorLocation(), FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeSphere(60.f), Clear))
+		{
+			Route.Reset();
+			CheckDriveStuck(V);
+			return;
+		}
+		DriveDest = Chase->GetActorLocation();
+		if (Route.Num() && Net->FindNearestNode(DriveDest, 4500.f, Chase) != Route.Last())
+		{
+			Route.Reset();
+		}
 	}
 	if (Route.Num() == 0)
 	{
@@ -670,6 +690,12 @@ void AMFBotController::Drive(AMFVehicle* V)
 			return;
 		}
 		RouteStep = 0;
+		if (ChaseTarget.IsValid() && Route.Num() <= 1)
+		{
+			Route.Reset();   // at the road's end already: straight at it
+			CheckDriveStuck(V);
+			return;
+		}
 		UE_LOG(LogMF, Verbose, TEXT("%s: driving %s, %d road nodes to %s"), *GetName(), *V->GetName(), Route.Num(), *DriveDest.ToCompactString());
 	}
 	// next node: reached, or already passed on the way to the one after it (that one closer
@@ -691,13 +717,25 @@ void AMFBotController::Drive(AMFVehicle* V)
 	}
 	if (RouteStep >= Route.Num() || FVector::Dist2D(Here, DriveDest) < 1500.f)
 	{
+		if (ChaseTarget.IsValid())
+		{
+			Route.Reset();   // nearly there: straight at it from here
+			CheckDriveStuck(V);
+			return;
+		}
 		LeaveVehicle(V, TEXT("arrived"));   // MoveDone: the rest on foot
 		return;
 	}
 	UE_LOG(LogMF, VeryVerbose, TEXT("%s: %s at %s speed %.0f node %d/%d at %s%s"), *GetName(), *V->GetName(), *Here.ToCompactString(), V->GetVelocity().Size(),
 		RouteStep, Route.Num(), *Net->Nodes[Route[RouteStep]].ToCompactString(), Now < ReverseUntil ? TEXT(" reversing") : TEXT(""));
+	CheckDriveStuck(V);
+}
+
+void AMFBotController::CheckDriveStuck(AMFVehicle* V)
+{
 	// VehicleStuck: back off a moment and try again; after a few goes give the vehicle up
 	// (bVehicleStuck: other bots leave it alone for a while)
+	const float Now = GetWorld()->GetTimeSeconds();
 	if (Now < ReverseUntil)
 	{
 		return;
@@ -725,12 +763,13 @@ void AMFBotController::Drive(AMFVehicle* V)
 void AMFBotController::Steer(AMFVehicle* V)
 {
 	const AMFRoadNetwork* Net = AMFRoadNetwork::Get(GetWorld());
-	if (!Net || !Route.IsValidIndex(RouteStep))
+	const AActor* Chase = Route.Num() ? nullptr : ChaseTarget.Get();   // on a route: its nodes first
+	if (!Chase && (!Net || !Route.IsValidIndex(RouteStep)))
 	{
 		V->SetDriveInput(0.f, 0.f, true);
 		return;
 	}
-	const FVector Local = V->GetActorTransform().InverseTransformPositionNoScale(Net->Nodes[Route[RouteStep]]);
+	const FVector Local = V->GetActorTransform().InverseTransformPositionNoScale(Chase ? Chase->GetActorLocation() : Net->Nodes[Route[RouteStep]]);
 	const float Angle = FMath::RadiansToDegrees(FMath::Atan2(Local.Y, Local.X));   // + : to the right
 	if (GetWorld()->GetTimeSeconds() < ReverseUntil || (FMath::Abs(Angle) > 110.f && Local.Size2D() < 1500.f))
 	{
@@ -739,7 +778,7 @@ void AMFBotController::Steer(AMFVehicle* V)
 		return;
 	}
 	// RoadPoint.MaxSpeed caps the speed (255 = flat out), slower into bends
-	const float Limit = V->GetTopSpeed() * Net->MaxSpeed[Route[RouteStep]] / 255.f;
+	const float Limit = V->GetTopSpeed() * (Chase ? 1.f : Net->MaxSpeed[Route[RouteStep]] / 255.f);
 	const float Want = FMath::Max(Limit * FMath::Lerp(1.f, 0.35f, FMath::Min(FMath::Abs(Angle) / 90.f, 1.f)), 500.f);
 	const float Speed = FVector::DotProduct(V->GetVelocity(), V->GetActorForwardVector());
 	V->SetDriveInput(Speed < Want ? 1.f : (Speed > Want * 1.25f ? -1.f : 0.f), FMath::Clamp(Angle / 30.f, -1.f, 1.f), false);

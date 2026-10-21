@@ -211,6 +211,11 @@ void AMFGameMode_MoBall::OnTimeLimit()
 	FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(GS->TeamScores[0] > GS->TeamScores[1] ? 0 : 1).ToString()));
 }
 
+AActor* AMFGameMode_MoBall::GetBotDriveTarget(AController* Bot) const
+{
+	return Ball;
+}
+
 void AMFGameMode_MoBall::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const
 {
 	if (Ball)

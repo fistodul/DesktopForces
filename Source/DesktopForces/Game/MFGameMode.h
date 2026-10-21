@@ -83,6 +83,9 @@ public:
 
 	/** Something that isn't a player but bots should shoot at when no enemy is in sight (e.g. a safe). */
 	virtual AActor* GetBotShootTarget(AController* Bot) const { return nullptr; }
+	/** Something a driving bot keeps driving at instead of taking the road to its goal and
+	 *  getting out (MoBall: the ball). */
+	virtual AActor* GetBotDriveTarget(AController* Bot) const { return nullptr; }
 
 	/** End the match with this winner line (also announced). */
 	void FinishMatch(const FString& Winner);

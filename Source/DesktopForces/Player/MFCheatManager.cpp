@@ -520,3 +520,21 @@ void UMFCheatManager::MFOrder(int32 Order)
 		GM->GiveOrder(GetPlayerController(), Order, nullptr);
 	}
 }
+
+void UMFCheatManager::MFBlowUp()
+{
+	const APawn* Me = GetPlayerController()->GetPawn();
+	AMFVehicle* Nearest = nullptr;
+	for (TActorIterator<AMFVehicle> It(GetWorld()); It && Me; ++It)
+	{
+		if (!Nearest || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Nearest->GetActorLocation(), Me->GetActorLocation()))
+		{
+			Nearest = *It;
+		}
+	}
+	if (Nearest)
+	{
+		UE_LOG(LogMF, Display, TEXT("MFBlowUp: %s at %s"), *Nearest->GetName(), *Nearest->GetActorLocation().ToCompactString());
+		Nearest->TakeDamage(100000.f, FDamageEvent(UMFDamage_Explosion::StaticClass()), GetPlayerController(), nullptr);
+	}
+}

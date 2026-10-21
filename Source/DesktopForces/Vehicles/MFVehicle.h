@@ -332,10 +332,18 @@ protected:
 	void UpdateEngineSound();
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastBump(float Volume);
+	/** Wheel.HitWall: a tyre landing hard thumps (WheelSFX.HitWheel). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastWheelThump(float Volume);
+	uint8 AirborneWheels = 0;
+	float WheelThumpUntil = 0.f;
 
 	/** Sparks and a clang where it was hit (MF Vehicle.TakeDamage: HitMetal; tyres HitRubber). */
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastHitFX(FVector_NetQuantize At, bool bTyre);
+	/** Blown up: the bang and 16 frags flying (Vehicle.BlowUp, RageEffects.VehicleFrag). */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastBlowUpFX();
 	/** MF damage rules plus the server's changeDamage mutator (AMFGameMode::VehicleDamage...). */
 	int32 ScaleDamage(float Damage, const class UMFDamageType* Type, AController* By) const;
 	void ApplyHitPush(const FDamageEvent& DamageEvent, AActor* DamageCauser);

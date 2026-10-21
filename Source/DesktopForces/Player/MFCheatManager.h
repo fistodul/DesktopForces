@@ -58,6 +58,9 @@ public:
 	void MFEnterSeat(int32 Seat);
 
 	/** Log every vehicle: position, physics, wheel compression. */
+	/** Blow up the nearest vehicle (explosive damage, as a rocket would). */
+	UFUNCTION(Exec)
+	void MFBlowUp();
 	UFUNCTION(Exec)
 	void MFVehicles();
 
