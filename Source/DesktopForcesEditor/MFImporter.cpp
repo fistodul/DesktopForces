@@ -12,6 +12,7 @@
 #include "MaterialShared.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionDecalLifetimeOpacity.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
@@ -514,7 +515,93 @@ bool FMFImporter::ImportArt()
 		}
 	}
 	EnsureCrateMaterial();
+	EnsureDecalMaterials();
 	return true;
+}
+
+void FMFImporter::EnsureDecalMaterials()
+{
+	// bullet holes and scorch marks (Tools/artgen: T_MF_BulletHole0-3, T_MF_Scorch0-1):
+	// M_MF_Decal projects them (deferred decal into the DBuffer, fading out with the decal's
+	// lifetime); M_MF_DecalQuad draws them on a flat quad (darkens what's behind: modulate),
+	// the cheap way for small marks on walls
+	auto Build = [this](const TCHAR* Name, bool bDecal) -> UMaterial*
+	{
+		bool bCreated = false;
+		UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), Name, bCreated);
+		if (!bCreated)
+		{
+			return M;
+		}
+		UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+		UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+		T->ParameterName = TEXT("Texture");
+		T->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Game/MF/Art/Decals/T_MF_BulletHole0.T_MF_BulletHole0"));
+		M->GetExpressionCollection().AddExpression(T);
+		if (bDecal)
+		{
+			M->MaterialDomain = MD_DeferredDecal;
+			M->BlendMode = BLEND_Translucent;
+			UMaterialExpressionDecalLifetimeOpacity* Fade = NewObject<UMaterialExpressionDecalLifetimeOpacity>(M);
+			M->GetExpressionCollection().AddExpression(Fade);
+			UMaterialExpressionMultiply* Opacity = NewObject<UMaterialExpressionMultiply>(M);
+			Opacity->A.Connect(4, T);
+			Opacity->B.Connect(0, Fade);
+			M->GetExpressionCollection().AddExpression(Opacity);
+			E->BaseColor.Connect(0, T);
+			E->Opacity.Connect(0, Opacity);
+		}
+		else
+		{
+			M->SetShadingModel(MSM_Unlit);
+			M->BlendMode = BLEND_Modulate;
+			UMaterialExpressionConstant* One = NewObject<UMaterialExpressionConstant>(M);
+			One->R = 1.f;
+			M->GetExpressionCollection().AddExpression(One);
+			UMaterialExpressionLinearInterpolate* Lerp = NewObject<UMaterialExpressionLinearInterpolate>(M);
+			Lerp->A.Connect(0, One);
+			Lerp->B.Connect(0, T);
+			Lerp->Alpha.Connect(4, T);
+			M->GetExpressionCollection().AddExpression(Lerp);
+			E->EmissiveColor.Connect(0, Lerp);
+			M->SetMaterialUsage(MATUSAGE_InstancedStaticMeshes);
+		}
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+		UE_LOG(LogMFEditor, Display, TEXT("Created %s"), Name);
+		return M;
+	};
+	UMaterial* Decal = Build(TEXT("M_MF_Decal"), true);
+	UMaterial* Quad = Build(TEXT("M_MF_DecalQuad"), false);
+	TArray<FString> Textures;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Textures.Add(FString::Printf(TEXT("BulletHole%d"), i));
+	}
+	for (int32 i = 0; i < 2; ++i)
+	{
+		Textures.Add(FString::Printf(TEXT("Scorch%d"), i));
+	}
+	for (const FString& T : Textures)
+	{
+		UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *FString::Printf(TEXT("/Game/MF/Art/Decals/T_MF_%s.T_MF_%s"), *T, *T), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Tex)
+		{
+			UE_LOG(LogMFEditor, Warning, TEXT("Decal texture T_MF_%s missing (Tools/artgen)"), *T);
+			continue;
+		}
+		for (const bool bDecal : { true, false })
+		{
+			bool bCreated = false;
+			UMaterialInstanceConstant* MI = FindOrCreateAsset<UMaterialInstanceConstant>(TEXT("/Game/MF/Materials/Decals"),
+				FString::Printf(TEXT("MI_MF_%s%s"), *T, bDecal ? TEXT("") : TEXT("_Quad")), bCreated);
+			MI->SetParentEditorOnly(bDecal ? Decal : Quad);
+			MI->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Tex);
+			MI->PostEditChange();
+			SaveAsset(MI);
+		}
+	}
 }
 
 void FMFImporter::EnsureCrateMaterial()

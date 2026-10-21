@@ -1,4 +1,5 @@
 #include "Weapons/MFWeapon.h"
+#include "World/MFDecals.h"
 #include "Sound/SoundWave.h"
 #include "Components/AudioComponent.h"
 #include "Game/MFGameMode.h"
@@ -762,8 +763,10 @@ void AMFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 		MF::SpawnEffect(this, TEXT("Blood"), At);
 		return;
 	}
-	// RageEffect.AddWallHit: windy smoke and specks off the wall (+X of the effect: the normal)
+	// RageEffect.AddWallHit: windy smoke and specks off the wall (+X of the effect: the normal),
+	// a hole (RagePock: BulletHole01-04 at DrawScale 0.15, ~11 cm)
 	MF::SpawnEffect(this, TEXT("WallHit"), At, 1.f, FVector(Normal).Rotation());
+	MF::SpawnDecal(this, MF::EDecal::BulletHole, At, Normal, 12.f);
 	// RageEffect.AddWallHit: a ricochet, one of two impacts, or nothing (a quarter each)
 	const float R = FMath::FRand();
 	if (R < 0.25f)

@@ -18,6 +18,8 @@ Textures:
   crate   T_MF_Crate (512): olive military crate face, planks in a frame, nails; alpha
           holds the stencil (a chevron emblem + "LOADOUT"), which M_MF_Crate paints in the
           team colour.
+  bullethole0-3  Decals/T_MF_BulletHole* (128): a pit, crushed ring, flecks (RGBA)
+  scorch0-1      Decals/T_MF_Scorch* (256): a blast mark with a ragged sooty edge (RGBA)
 """
 from __future__ import annotations
 
@@ -118,7 +120,50 @@ def crate(size: int = 512) -> Image.Image:
     return rgba
 
 
-GENERATORS = {'crate': ('Art/T_MF_Crate.png', crate)}
+def bullet_hole(variant: int, size: int = 128) -> Image.Image:
+    """A bullet hole for decals: a dark pit, a ring of crushed material and chipped flecks
+    around it; colour darkens the surface, alpha says how much (soft edges)."""
+    rng = np.random.default_rng(4200 + variant)
+    y, x = np.mgrid[0:size, 0:size].astype(np.float32)
+    c = size / 2 + rng.uniform(-3, 3, 2)
+    ang = np.arctan2(y - c[1], x - c[0])
+    # a ragged radius: a few sine wobbles plus noise
+    wobble = sum(rng.uniform(0.04, 0.12) * np.sin(k * ang + rng.uniform(0, 6.3)) for k in (3, 5, 7))
+    r = np.hypot(x - c[0], y - c[1]) / (size * 0.5) * (1.0 + wobble) * rng.uniform(0.9, 1.1)
+    noise = _noise(rng, size, 4)
+    pit = np.clip((0.3 - r) / 0.08, 0, 1)                       # the hole itself
+    ring = np.clip(1 - np.abs(r - 0.4) / 0.14, 0, 1) * (0.5 + 0.5 * noise)
+    flecks = (noise > 0.7).astype(np.float32) * np.clip((0.9 - r) / 0.4, 0, 1)
+    alpha = np.clip(pit + ring * 0.8 + flecks * 0.5, 0, 1)
+    shade = 0.08 + 0.35 * (1 - pit) * (0.6 + 0.4 * noise)   # near black in the pit, grey dust around
+    rgb = np.stack([shade * 0.95, shade * 0.92, shade * 0.88], -1)
+    img = np.concatenate([rgb * 255, alpha[..., None] * 255], -1)
+    return Image.fromarray(img.clip(0, 255).astype(np.uint8), 'RGBA')
+
+
+def scorch(variant: int, size: int = 256) -> Image.Image:
+    """A blast mark for decals: soot fading out from the middle with a ragged, streaky edge."""
+    rng = np.random.default_rng(5300 + variant)
+    y, x = np.mgrid[0:size, 0:size].astype(np.float32)
+    c = size / 2
+    ang = np.arctan2(y - c, x - c)
+    rays = sum(rng.uniform(0.01, 0.04) * np.sin(k * ang + rng.uniform(0, 6.3)) for k in (5, 9, 13, 17))
+    r = np.hypot(x - c, y - c) / (size * 0.5)
+    fbm = _fbm(rng, size)
+    edge = 0.8 + rays + (fbm - 0.5) * 0.35
+    alpha = np.clip(1 - r / np.maximum(edge, 0.1), 0, 1) ** 0.8 * (0.6 + 0.4 * fbm)
+    shade = 0.05 + 0.18 * fbm * np.clip(r * 1.5, 0, 1)        # black core, brownish soot outside
+    rgb = np.stack([shade * 1.1, shade * 0.95, shade * 0.8], -1)
+    img = np.concatenate([rgb * 255, alpha[..., None] * 255], -1)
+    return Image.fromarray(img.clip(0, 255).astype(np.uint8), 'RGBA')
+
+
+GENERATORS = {
+    'crate': ('Art/T_MF_Crate.png', crate),
+    # decals: bullet holes and scorch marks (MF's own RagePock / Scorch art stays in the classic pack)
+    **{f'bullethole{i}': (f'Art/Decals/T_MF_BulletHole{i}.png', (lambda i=i: bullet_hole(i))) for i in range(4)},
+    **{f'scorch{i}': (f'Art/Decals/T_MF_Scorch{i}.png', (lambda i=i: scorch(i))) for i in range(2)},
+}
 
 
 def convert_source_art() -> int:

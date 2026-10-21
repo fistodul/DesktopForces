@@ -1,4 +1,6 @@
 #include "Player/MFCheatManager.h"
+#include "World/MFDecals.h"
+#include "Materials/MaterialInterface.h"
 #include "Engine/DamageEvents.h"
 #include "TimerManager.h"
 #include "DesktopForces.h"
@@ -92,6 +94,12 @@ void UMFCheatManager::MFNavPath(float X, float Y, float Z)
 	if (!P || !Nav)
 	{
 		return;
+	}
+	for (const float Ext : { 100.f, 1000.f, 10000.f })
+	{
+		FNavLocation Proj;
+		const bool bOn = Nav->ProjectPointToNavigation(P->GetActorLocation(), Proj, FVector(Ext, Ext, Ext));
+		UE_LOG(LogMF, Display, TEXT("MFNavPath: project within %.0f: %d %s"), Ext, bOn ? 1 : 0, *Proj.Location.ToCompactString());
 	}
 	UNavigationPath* Path = Nav->FindPathToLocationSynchronously(GetWorld(), P->GetActorLocation(), FVector(X, Y, Z), P);
 	if (!Path || !Path->GetPath().IsValid())
@@ -561,12 +569,30 @@ void UMFCheatManager::MFNavRelevant()
 	}
 	if (const UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
 	{
-		UE_LOG(LogMF, Display, TEXT("Navigation dirty: %d (%s, dirty areas queued %d)"), Nav->IsNavigationDirty() ? 1 : 0, *Nav->GetClass()->GetName(), Nav->HasDirtyAreasQueued() ? 1 : 0);
+		UE_LOG(LogMF, Display, TEXT("Navigation dirty: %d (%s, dirty areas queued %d, agents %d, default nav data %s, main %s)"), Nav->IsNavigationDirty() ? 1 : 0,
+			*Nav->GetClass()->GetName(), Nav->HasDirtyAreasQueued() ? 1 : 0, Nav->GetSupportedAgents().Num(), *GetNameSafe(Nav->GetDefaultNavDataInstance()),
+			*GetNameSafe(Nav->MainNavData));
 		for (const ANavigationData* D : Nav->NavDataSet)
 		{
 			const ARecastNavMesh* R = Cast<ARecastNavMesh>(D);
 			UE_LOG(LogMF, Display, TEXT("  nav data %s needs rebuild %d tiles %d generator %d runtime gen %d"), *GetNameSafe(D), D && D->NeedsRebuild() ? 1 : 0,
 				R ? R->GetNavMeshTilesCount() : -1, D && D->GetGenerator() ? 1 : 0, D ? int32(D->GetRuntimeGenerationMode()) : -1);
 		}
+	}
+}
+
+void UMFCheatManager::MFDecal(int32 Kind, float Size)
+{
+	APlayerController* PC = GetPlayerController();
+	FVector Eye;
+	FRotator View;
+	PC->GetPlayerViewPoint(Eye, View);
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFDecalCheat), false, PC->GetPawn());
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + View.Vector() * 10000.f, ECC_GameTraceChannel2, Params))   // the Weapon channel: what bullets hit
+	{
+		const MF::EDecal K = Kind == 0 ? MF::EDecal::BulletHole : MF::EDecal::Scorch;
+		MF::SpawnDecal(PC, K, Hit.ImpactPoint, Hit.ImpactNormal, Size > 0.f ? Size : (Kind == 0 ? 12.f : 300.f));
+		UE_LOG(LogMF, Display, TEXT("MFDecal %d at %s normal %s on %s"), Kind, *Hit.ImpactPoint.ToCompactString(), *Hit.ImpactNormal.ToCompactString(), *GetNameSafe(Hit.GetActor()));
 	}
 }

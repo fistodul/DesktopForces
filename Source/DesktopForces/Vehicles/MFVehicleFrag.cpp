@@ -1,4 +1,5 @@
 #include "Vehicles/MFVehicleFrag.h"
+#include "World/MFDecals.h"
 #include "Core/MFContent.h"
 #include "Core/MFProps.h"
 #include "Components/SphereComponent.h"
@@ -103,6 +104,7 @@ void AMFVehicleFrag::Explosion(UWorld* World, const FVector& Location, float Sca
 		return;
 	}
 	MF::SpawnEffect(World, TEXT("VehicleExplosion"), Location, Scale);
+	MF::SpawnScorchBelow(World, Location, 500.f * Scale);
 	// "Create some after fires": Location + VRand() * (100, 100, 0), on whatever is 80 uu below
 	for (int32 I = 2 + FMath::RandRange(0, 2); I > 0; --I)
 	{

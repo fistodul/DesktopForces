@@ -1,6 +1,7 @@
 #include "Weapons/MFTripBomb.h"
 #include "Player/MFCharacter.h"
 #include "Core/MFContent.h"
+#include "World/MFDecals.h"
 #include "Core/MFGameSettings.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -148,6 +149,7 @@ void AMFTripBomb::MulticastExplodeFX_Implementation(FVector_NetQuantize At)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), At);
 		MF::SpawnEffect(this, TEXT("Explosion"), At, 0.4f);
+		MF::SpawnScorchBelow(this, At, 180.f);
 	}
 	SetActorHiddenInGame(true);
 }

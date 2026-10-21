@@ -6,6 +6,7 @@
 #include "Components/BoxComponent.h"
 #include "ActorFactories/ActorFactory.h"
 #include "World/MFLadder.h"
+#include "AI/MFNavigationSystem.h"
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "EngineUtils.h"
@@ -15,6 +16,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Dom/JsonObject.h"
+#include "GameFramework/PlayerStart.h"
 #include "AI/NavigationSystemConfig.h"
 #include "Particles/Emitter.h"
 #include "Particles/ParticleSystem.h"
@@ -134,6 +136,7 @@ namespace
 	/** Bake the navmesh into the level (bots need no runtime rebuild; mobile-friendly). */
 	void BuildNavigation(UWorld* World)
 	{
+		UseMFNavigation(World);
 		FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
 		UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 		if (!Nav)
@@ -143,6 +146,16 @@ namespace
 		}
 		// Editor worlds start locked (AsyncLoadLock / InitialLock) - this world is complete
 		Nav->RemoveNavigationBuildLock(ENavigationBuildLock::AsyncLoadLock | ENavigationBuildLock::InitialLock, UNavigationSystemV1::ELockRemovalRebuildAction::NoRebuild);
+		if (UMFNavigationSystem* MFNav = Cast<UMFNavigationSystem>(Nav))
+		{
+			MFNav->GatherLevelGeometry();
+		}
+		// a map loaded from disk registered its geometry before this navigation system existed:
+		// hand every actor to it, or the bake comes out empty (tiles without a walkable polygon)
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(**It, false);
+		}
 		Nav->Build();   // synchronous, like Build > Build Paths
 		// Ladder ends that missed the navmesh (top traced onto a beam, foot in a corner):
 		// snap them to the nearest walkable spot and build again so the links connect
@@ -166,9 +179,20 @@ namespace
 			UE_LOG(LogMFEditor, Display, TEXT("Snapped %d ladder link ends to the navmesh, rebuilding"), Snapped);
 			Nav->Build();
 		}
+		int32 Starts = 0, OnMesh = 0;
+		for (TActorIterator<APlayerStart> It(World); It; ++It)
+		{
+			FNavLocation L;
+			++Starts;
+			OnMesh += Nav->ProjectPointToNavigation(It->GetActorLocation(), L, FVector(100.f, 100.f, 250.f)) ? 1 : 0;
+		}
 		for (TActorIterator<ARecastNavMesh> It(World); It; ++It)
 		{
-			UE_LOG(LogMFEditor, Display, TEXT("Navmesh %s: %d tiles"), *It->GetName(), It->GetNavMeshTilesCount());
+			UE_LOG(LogMFEditor, Display, TEXT("Navmesh %s: %d tiles, %d / %d player starts on it"), *It->GetName(), It->GetNavMeshTilesCount(), OnMesh, Starts);
+		}
+		if (Starts > 0 && OnMesh == 0)
+		{
+			UE_LOG(LogMFEditor, Error, TEXT("Navmesh is empty: bots won't move"));
 		}
 	}
 
@@ -718,10 +742,15 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 		return false;
 	}
 	World->AddToRoot();
+	// an editor world, so its subsystems come up (UNavigationObjectRepository: without it the
+	// navigation system gathers no geometry and a rebuilt navmesh is empty)
+	World->WorldType = EWorldType::Editor;
 	if (!World->bIsWorldInitialized)
 	{
 		UWorld::InitializationValues IVS;
-		IVS.RequiresHitProxies(false).ShouldSimulatePhysics(false).EnableTraceCollision(false).CreateNavigation(false)
+		// navigation first: the map's geometry joins its octree as it registers (else a navmesh
+		// rebuilt here comes out empty)
+		IVS.RequiresHitProxies(false).ShouldSimulatePhysics(false).EnableTraceCollision(false).CreateNavigation(true)
 			.CreateAISystem(false).AllowAudioPlayback(false).CreatePhysicsScene(true);
 		World->InitWorld(IVS);
 		World->UpdateWorldComponents(true, false);

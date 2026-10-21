@@ -85,6 +85,8 @@ public:
 	/** Gameplay meshes from the game packages (work/out/Props, mfport.py props) -> /MobileForcesClassic/Props/<Package>/<Mesh>. */
 	bool ImportProps();
 	void EnsureCrateMaterial();
+	/** M_MF_Decal / M_MF_DecalQuad and their instances for Tools/artgen's bullet holes and scorch marks. */
+	void EnsureDecalMaterials();
 
 	/**
 	 * MF sprite particles (MFEffectsImport.cpp, work/out/Effects from mfport.py effects):

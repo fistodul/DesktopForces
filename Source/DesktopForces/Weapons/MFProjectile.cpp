@@ -3,6 +3,7 @@
 #include "DesktopForces.h"
 #include "TimerManager.h"
 #include "Core/MFContent.h"
+#include "World/MFDecals.h"
 #include "Weapons/MFWeapon_Knife.h"
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
@@ -186,6 +187,7 @@ void AMFProjectile::MulticastExplosionFX_Implementation(FVector_NetQuantize Loca
 	if (ExplosionEffectScale > 0.f)
 	{
 		MF::SpawnEffect(this, TEXT("Explosion"), Location, ExplosionEffectScale);
+		MF::SpawnScorchBelow(this, Location, ExplosionEffectScale * 450.f);   // grenade ~1.8 m, rocket ~5.4 m
 	}
 	SetActorHiddenInGame(true);
 }

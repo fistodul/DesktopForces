@@ -1,4 +1,5 @@
 #include "World/MFEffectActor.h"
+#include "World/MFDecals.h"
 #include "Core/MFContent.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
@@ -67,5 +68,6 @@ void AMFEffectActor::BeginPlay()
 	else if (!Effect.IsNone())
 	{
 		MF::SpawnEffect(this, *Effect.ToString(), At, Scale);
+		MF::SpawnScorchBelow(this, At, 450.f * Scale);
 	}
 }

@@ -60,4 +60,5 @@ void UMFUserSettings::SetToDefaults()
 	bInvertMouse = false;
 	FieldOfView = 100.f;
 	RenderScale = 1.f;
+	DecalQuality = 2;
 }

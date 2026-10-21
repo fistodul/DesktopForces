@@ -25,6 +25,10 @@ public:
 	/** Forget the changes made while setting the map up for the game type. */
 	void ForgetStartupChanges() { ResetDefaultDirtyAreasController(); }
 
+	/** Importer: take in the geometry of a map loaded before the navigation system existed
+	 *  (otherwise a bake of it comes out empty). */
+	void GatherLevelGeometry() { ConditionalPopulateNavOctree(); }
+
 #if !UE_BUILD_SHIPPING
 private:
 	void GetMFOnScreenMessages(TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText>& OutMessages);

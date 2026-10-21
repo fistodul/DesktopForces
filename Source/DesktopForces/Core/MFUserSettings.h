@@ -43,6 +43,11 @@ public:
 	UPROPERTY(Config)
 	float RenderScale = 1.f;
 
+	/** Bullet holes and scorch marks: 0 none, 1 simple (flat quads), 2 full (scorch marks as
+	 *  projected decals). World/MFDecals.h */
+	UPROPERTY(Config)
+	int32 DecalQuality = 2;
+
 	virtual void ApplyNonResolutionSettings() override;
 	virtual void SetToDefaults() override;
 

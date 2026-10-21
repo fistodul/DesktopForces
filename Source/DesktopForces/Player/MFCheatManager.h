@@ -63,6 +63,9 @@ public:
 	void MFBlowUp();
 	UFUNCTION(Exec)
 	void MFVehicles();
+	/** Put a mark where you look: 0 bullet hole, 1 scorch (decal tests). */
+	UFUNCTION(Exec)
+	void MFDecal(int32 Kind, float Size = 0.f);
 	/** Log movable components that can change the navmesh ("NAVMESH NEEDS TO BE REBUILT" hunt). */
 	UFUNCTION(Exec)
 	void MFNavRelevant();
