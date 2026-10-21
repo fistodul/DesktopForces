@@ -512,3 +512,9 @@ void AMFGameMode_CTF::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) c
 		OutGoals.Add(MyFlag->HomeBase);
 	}
 }
+
+FName AMFGameMode_CTF::GetOrderSound(int32 Order) const
+{
+	// RageVoicePack.SetOrderMessage: OrderSound 7 / 8
+	return Order == 0 ? FName(TEXT("Guard_the_flag")) : Order == 2 ? FName(TEXT("Capture_their_flag")) : Super::GetOrderSound(Order);
+}

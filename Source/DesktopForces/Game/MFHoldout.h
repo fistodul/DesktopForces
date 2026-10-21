@@ -66,6 +66,7 @@ public:
 
 	virtual void HandleMatchHasStarted() override;
 	virtual void HandleMatchHasEnded() override;
+	virtual FName GetOrderSound(int32 Order) const override;
 
 	/** A team took a point (called by the point). */
 	virtual void PointCaptured(AMFHoldoutPoint* Point, AMFCharacter* By);

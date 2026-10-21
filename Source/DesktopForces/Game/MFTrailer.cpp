@@ -229,3 +229,9 @@ void AMFGameMode_Trailer::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoal
 	}
 	OutGoals.Add(Cab);
 }
+
+FName AMFGameMode_Trailer::GetOrderSound(int32 Order) const
+{
+	// RageVoicePack.SetOrderMessage: OrderSound 13 / 14
+	return Order == 0 ? FName(TEXT("Defend_the_command_post")) : Order == 2 ? FName(TEXT("Take_The_Trailer")) : Super::GetOrderSound(Order);
+}

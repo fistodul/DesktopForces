@@ -261,3 +261,9 @@ void AMFGameMode_Captains::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoa
 		OutGoals.Add(Own->GetPawn());
 	}
 }
+
+FName AMFGameMode_Captains::GetOrderSound(int32 Order) const
+{
+	// RageVoicePack.SetOrderMessage: OrderSound 5 / 6
+	return Order == 0 ? FName(TEXT("Support_the_Captain")) : Order == 2 ? FName(TEXT("Seek_and_destroy")) : Super::GetOrderSound(Order);
+}

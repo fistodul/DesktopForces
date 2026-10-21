@@ -108,6 +108,8 @@ public:
 	static FString GetOrderAbbrev(int32 Order);
 	/** The spoken order line; modes rename Defend / Attack (MF OrderString 5-14). */
 	virtual FString GetOrderString(int32 Order) const;
+	/** Its RagePlayerVoice line (RageVoicePack.SetOrderMessage, OrderSound 0-14). */
+	virtual FName GetOrderSound(int32 Order) const;
 	/** Order a team-mate (Target) or the whole team (null): message + bots follow it. */
 	void GiveOrder(AController* Giver, int32 Order, APlayerState* Target);
 

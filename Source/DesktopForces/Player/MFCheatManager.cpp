@@ -512,3 +512,11 @@ void UMFCheatManager::MFAimAt(float X, float Y, float Z)
 	PC->SetControlRotation((FVector(X, Y, Z) - From).Rotation());
 	UE_LOG(LogMF, Display, TEXT("MFAimAt %s from %s"), *PC->GetControlRotation().ToCompactString(), *From.ToCompactString());
 }
+
+void UMFCheatManager::MFOrder(int32 Order)
+{
+	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
+	{
+		GM->GiveOrder(GetPlayerController(), Order, nullptr);
+	}
+}

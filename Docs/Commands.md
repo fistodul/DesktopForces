@@ -80,6 +80,8 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
 | `MFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
 | `MFTeleport X Y Z`, `MFHurt N`, `MFFire` | move your pawn (a driven vehicle takes its trailer along), take damage, press fire once (scripted tests) |
+| `MFAimAt X Y Z`, `MFFire 1` | turn to a point; alt fire |
+| `MFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
 | `MFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `MFTopView X Y Width [Z]` | orthographic top view (`MFTopView 0 0 0` = back) |
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |

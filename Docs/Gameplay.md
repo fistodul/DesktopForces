@@ -54,7 +54,16 @@ heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigislan
   games (no team yet counts as team 0, RageTeamGame.FindPlayerStart; never the captain starts
   or the neutral ones, e.g. warehouse's captain's room); random score, −10000 for the last spot
   used, players nearby lower the score.
-- Kill +1, suicide −1; killing sprees every 5 kills; first blood message.
+- Kill +1, suicide −1; first blood; killing sprees at 5 / 10 / 15 / 20 / 25 kills ("is a one
+  man killing machine!", "is seriously deranged!", "has gone ballistic!", "is gunning for
+  blood!", "is a MOBILE WAR HERO!!!", RageMessageKillingSpree), "'s killing spree was ended by".
+- Announcer (Sounds/Announcer): the mode's order a second after joining ("Kill them all",
+  "Destroy the enemy", "Get the flag", "Hold the point", "Get the key", "Get the trailer",
+  "Get their captain", Safecracker "Crack their safe" / "Defend your safe"), then the time left
+  ("You've got N minutes"); "Battle ends in 5 / 3 minutes", "30 seconds left", 10 .. 1; first
+  kill, sprees and "Decapitation" only to the player who made them; flag / gold taken and
+  returned, "Blue / Red score", "key captured", "Detonation imminent", "Trailer capture",
+  "Blue / Red switches"; "Winner" / "You lose" / "Draw" at the end.
 - Map end: 15 s (RestartWait) then restart.
 
 ## Loadout
@@ -146,8 +155,10 @@ heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigislan
   (health × max(ratio / 2.5, 2), regenerates). `?Infect=0`: team deathmatch with zombie bodies.
 - Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
   All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
-  flag.", Safecracker "Guard the safe." / "Grab the gold."). Bots acknowledge
-  ("Roger that", Rage.int AckString), hold the spot, follow, defend or attack.
+  flag.", Safecracker "Guard the safe." / "Grab the gold."), spoken aloud by whoever gives it
+  (RagePlayerVoice, heard nearby; "Improvise" is "Fire at will!" 2 times in 5). Bots acknowledge
+  3-4 s later ("Roger that", Rage.int AckString, with the voice), hold the spot, follow, defend
+  or attack.
 
 ## Weapons
 Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.

@@ -450,6 +450,15 @@ void AMFCharacter::OnJumped_Implementation()
 	}
 }
 
+void AMFCharacter::MulticastVoice_Implementation(FName Line)
+{
+	UE_LOG(LogMF, Verbose, TEXT("%s says %s"), *GetName(), *Line.ToString());
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/RagePlayerVoice/") + Line.ToString()), GetActorLocation());
+	}
+}
+
 void AMFCharacter::MulticastBodySound_Implementation(uint8 Kind, float Volume, uint8 Variant)
 {
 	// the UT male set MF ships in RagePlayerSounds (HitSound1-4, Deaths[6], JumpSound, LandGrunt)

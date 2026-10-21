@@ -247,3 +247,9 @@ void AMFGameMode_Holdout::OnTimeLimit()
 {
 	Super::OnTimeLimit();   // team with the highest score (= hold time) wins
 }
+
+FName AMFGameMode_Holdout::GetOrderSound(int32 Order) const
+{
+	// RageVoicePack.SetOrderMessage: OrderSound 9 / 10 (both "Take the point")
+	return Order == 0 || Order == 2 ? FName(TEXT("Take_The_Point")) : Super::GetOrderSound(Order);
+}

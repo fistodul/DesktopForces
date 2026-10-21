@@ -591,11 +591,14 @@ FString AMFGameMode::GetOrderString(int32 Order) const
 {
 	static const TCHAR* Lines[] = { TEXT("Defend the command post."), TEXT("Defend this area."),
 		TEXT("Attack the enemy base."), TEXT("Cover me."), TEXT("Improvise, you're on your own.") };
-	if (Order == 4 && FMath::FRand() < 0.4f)
-	{
-		return TEXT("Fire at will.");   // RageVoicePack.SetOrderMessage: OrderString[15] 40% of the time
-	}
 	return Order >= 0 && Order < 5 ? Lines[Order] : FString();
+}
+
+FName AMFGameMode::GetOrderSound(int32 Order) const
+{
+	static const TCHAR* Lines[] = { TEXT("Defend_the_command_post"), TEXT("Defend_this_area"), TEXT("Attack_the_enemy_base"),
+		TEXT("Cover_me"), TEXT("You_re_on_your_own") };
+	return Order >= 0 && Order < 5 ? FName(Lines[Order]) : NAME_None;
 }
 
 void AMFGameMode::GiveOrder(AController* Giver, int32 Order, APlayerState* Target)
@@ -605,10 +608,23 @@ void AMFGameMode::GiveOrder(AController* Giver, int32 Order, APlayerState* Targe
 	{
 		return;
 	}
-	// MF chat line: "Sender: Heywood, Defend this area." (to the team)
-	const FString Line = GetOrderString(Order);
+	// MF chat line: "Sender: Heywood, Defend this area." (to the team), said aloud; "Improvise"
+	// comes out as "Fire at will" 40% of the time (SetOrderMessage: OrderSound / OrderString 15)
+	const bool bFireAtWill = Order == 4 && FMath::FRand() < 0.4f;
+	const FString Line = bFireAtWill ? TEXT("Fire at will.") : GetOrderString(Order);
 	BroadcastChat(Giver, Target ? FString::Printf(TEXT("%s, %s"), *Target->GetPlayerName(), *Line) : Line, true);
+	AMFCharacter* Speaker = Cast<AMFCharacter>(Giver->GetPawn());
+	if (const AMFVehicle* V = Cast<AMFVehicle>(Giver->GetPawn()))
+	{
+		Speaker = V->GetDriver();   // the soldier at the wheel
+	}
+	if (Speaker)
+	{
+		Speaker->MulticastVoice(bFireAtWill ? FName(TEXT("Fire_At_Will")) : GetOrderSound(Order));
+	}
+	// RagePlayerVoicePack AckSound / AckString
 	static const TCHAR* Acks[] = { TEXT("Acknowledged"), TEXT("Roger that"), TEXT("Moving out"), TEXT("I'm on my way") };
+	static const TCHAR* AckSounds[] = { TEXT("Acknowledged"), TEXT("Rodger_that"), TEXT("Moving_out"), TEXT("I_m_on_my_way") };
 	for (TActorIterator<AMFBotController> It(GetWorld()); It; ++It)
 	{
 		const AMFPlayerState* PS = It->GetPlayerState<AMFPlayerState>();
@@ -617,16 +633,21 @@ void AMFGameMode::GiveOrder(AController* Giver, int32 Order, APlayerState* Targe
 			continue;
 		}
 		It->SetOrder(static_cast<EMFBotOrder>(Order), Giver->GetPawn());
-		// RageVoicePack ack (Rage.int AckString), from the bot to its team, a moment later
+		// the bot answers its team once the order has been spoken (SetAckMessage: 3 + FRand s)
 		TWeakObjectPtr<AMFBotController> Bot = *It;
 		FTimerHandle H;
 		GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this, Bot]()
 		{
 			if (Bot.IsValid())
 			{
-				BroadcastChat(Bot.Get(), Acks[FMath::RandRange(0, 3)], true);
+				const int32 Ack = FMath::RandRange(0, 3);
+				BroadcastChat(Bot.Get(), Acks[Ack], true);
+				if (AMFCharacter* C = Cast<AMFCharacter>(Bot->GetPawn()))
+				{
+					C->MulticastVoice(AckSounds[Ack]);
+				}
 			}
-		}), FMath::FRandRange(0.6f, 1.5f), false);
+		}), 3.f + FMath::FRand(), false);
 	}
 }
 

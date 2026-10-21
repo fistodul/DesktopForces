@@ -43,6 +43,9 @@ public:
 	void MFTeleport(float X, float Y, float Z);
 
 	/** Turn to look at a world point (tests: then MFFire). */
+	/** Give team order N (0 Defend .. 4 Freelance) to everyone, like the V menu. */
+	UFUNCTION(Exec)
+	void MFOrder(int32 Order);
 	UFUNCTION(Exec)
 	void MFAimAt(float X, float Y, float Z);
 

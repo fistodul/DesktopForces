@@ -88,6 +88,7 @@ public:
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const override;
 	virtual AActor* GetBotShootTarget(AController* Bot) const override;
 	virtual FString GetOrderString(int32 Order) const override;
+	virtual FName GetOrderSound(int32 Order) const override;
 	virtual void RestartGame() override;
 	virtual void FlagTouchedAtHome(AMFFlag* Flag, AMFCharacter* C) override;
 	virtual void FlagCaptured(AMFFlag* Flag, AMFCharacter* By) override;

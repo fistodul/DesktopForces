@@ -434,3 +434,9 @@ AActor* AMFGameMode_Safecracker::GetBotShootTarget(AController* Bot) const
 	}
 	return nullptr;
 }
+
+FName AMFGameMode_Safecracker::GetOrderSound(int32 Order) const
+{
+	// RageVoicePack.SetOrderMessage: OrderSound 11 / 12
+	return Order == 0 ? FName(TEXT("Guard_the_safe")) : Order == 2 ? FName(TEXT("Grab_the_gold")) : Super::GetOrderSound(Order);
+}

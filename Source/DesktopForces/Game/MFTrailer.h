@@ -26,6 +26,7 @@ public:
 	virtual void GetVehicleExclusions(TArray<FVector>& OutPoints) const override;
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const override;
 	virtual FString GetOrderString(int32 Order) const override;
+	virtual FName GetOrderSound(int32 Order) const override;
 
 	AMFVehicle* GetCab() const { return Cab; }
 	/** Delivery bays: centre and team (HUD minimap). */

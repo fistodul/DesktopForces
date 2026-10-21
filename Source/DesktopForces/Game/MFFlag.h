@@ -159,6 +159,7 @@ public:
 	virtual void FlagTouchedAtHome(AMFFlag* Flag, AMFCharacter* C) override;
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const override;
 	virtual FString GetOrderString(int32 Order) const override;
+	virtual FName GetOrderSound(int32 Order) const override;
 
 protected:
 	virtual void OnTimeLimit() override;

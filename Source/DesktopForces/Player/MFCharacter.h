@@ -186,6 +186,10 @@ public:
 	enum class EBodySound : uint8 { Pain, Death, Jump, Land, LandGrunt, Gasp };
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastBodySound(uint8 Kind, float Volume, uint8 Variant);
+	/** Says a RagePlayerVoice line (orders, acknowledgements), heard nearby (RageVoicePack:
+	 *  Speaker.PlaySound, "only hear messages from nearby players"). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastVoice(FName Line);
 
 	/** Owning client: field of view from the player's settings. */
 	void ApplyUserSettings();
