@@ -282,6 +282,10 @@ public:
 	bool IsDropped() const { return bDropped; }
 	/** Server: leave the owner and come to rest on the floor near From (MF Pawn.DropItem). */
 	virtual void DropFrom(const FVector& From, const FRotator& Facing);
+	/** Server: lie at Spot (falling onto the floor below) for anyone to pick up. */
+	void PlaceAsPickup(const FVector& Spot, const FRotator& Facing);
+	/** Placed by the map (AMFPickupSpot): not one of the MaxDroppedWeapons. */
+	bool bMapPickup = false;
 	/** Server: taken from the ground by NewOwner (before AMFCharacter adds it to the inventory). */
 	virtual void OnPickedUp(AMFCharacter* NewOwner);
 

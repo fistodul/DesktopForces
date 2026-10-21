@@ -71,6 +71,17 @@ heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigislan
   "Blue / Red switches"; "Winner" / "You lose" / "Draw" at the end.
 - Map end: 15 s (RestartWait) then restart.
 
+## Map items
+
+- Teleporters (Engine.Teleporter): walking into one with a URL puts you at a random teleporter
+  Tagged URL (bChangesYaw turns you its way, keeping your angle to the source; speed carried
+  over, or TargetVelocity / reversed). mf-Space_station 23, Toreford 15, City_Rush 8 ...
+- Items the map placed (weapons, grenades, armour ...) lie there to be picked up and come back
+  after their RespawnTime (RageDeathMatch.ShouldRespawn; 30 s by default, mappers' own values and
+  MaxClipAmmo / MaxClips kept: Space_station's armour respawns at once). Modes that limit the
+  items leave them out; Coop's "weapons on the ground" setting uses them.
+- PeriodicSound: ambient loops that play Period s and pause Interval s (birds, wolves, wind).
+
 ## Loadout
 - Crate trigger radius 129, height 26. DM crates only exist in non-team games, team crates
   and loadout zones only in team games.

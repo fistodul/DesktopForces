@@ -647,30 +647,17 @@ void AMFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	{
 		Spot = Hit.Location - Dir.Vector() * 20.f;
 	}
-	// lands with the model's underside on the floor; falls there from where it left the hand
-	const float Bottom = Mesh1P->GetStaticMesh() ? Mesh1P->GetStaticMesh()->GetBoundingBox().Min.Z : -5.f;
-	LandZ = Spot.Z - 5000.f;
-	if (GetWorld()->LineTraceSingleByObjectType(Hit, Spot, Spot - FVector(0, 0, 5000.f), World, Params))
-	{
-		LandZ = Hit.Location.Z - Bottom + 1.f;
-	}
-	FallSpeed = 0.f;
-	SetActorLocationAndRotation(FVector(Spot.X, Spot.Y, FMath::Max(Spot.Z, LandZ)), Dir);
-	SetActorTickEnabled(GetActorLocation().Z > LandZ);
-	bDropped = true;
-	DroppedTime = GetWorld()->GetTimeSeconds();
-	SetReplicatingMovement(true);
-	UpdateDroppedLook();
-	ForceNetUpdate();
+	PlaceAsPickup(Spot, Dir);
 
 	// keep the world tidy: the oldest dropped weapon goes beyond the mode's MaxDroppedWeapons
+	// (items the map placed don't count)
 	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
 	const int32 MaxDropped = GM ? GM->MaxDroppedWeapons : 32;
 	AMFWeapon* Oldest = nullptr;
 	int32 Count = 0;
 	for (TActorIterator<AMFWeapon> It(GetWorld()); It; ++It)
 	{
-		if (It->IsDropped())
+		if (It->IsDropped() && !It->bMapPickup)
 		{
 			++Count;
 			if (!Oldest || It->DroppedTime < Oldest->DroppedTime)
@@ -683,6 +670,28 @@ void AMFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	{
 		Oldest->Destroy();
 	}
+}
+
+void AMFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing)
+{
+	// lands with the model's underside on the floor; falls there from Spot
+	FCollisionQueryParams Params(TEXT("MFDrop"), false, this);
+	const FCollisionObjectQueryParams World(ECC_TO_BITFIELD(ECC_WorldStatic) | ECC_TO_BITFIELD(ECC_WorldDynamic) | ECC_TO_BITFIELD(ECC_PhysicsBody));
+	const float Bottom = Mesh1P->GetStaticMesh() ? Mesh1P->GetStaticMesh()->GetBoundingBox().Min.Z : -5.f;
+	FHitResult Hit;
+	LandZ = Spot.Z - 5000.f;
+	if (GetWorld()->LineTraceSingleByObjectType(Hit, Spot, Spot - FVector(0, 0, 5000.f), World, Params))
+	{
+		LandZ = Hit.Location.Z - Bottom + 1.f;
+	}
+	FallSpeed = 0.f;
+	SetActorLocationAndRotation(FVector(Spot.X, Spot.Y, FMath::Max(Spot.Z, LandZ)), Facing);
+	SetActorTickEnabled(GetActorLocation().Z > LandZ);
+	bDropped = true;
+	DroppedTime = GetWorld()->GetTimeSeconds();
+	SetReplicatingMovement(true);
+	UpdateDroppedLook();
+	ForceNetUpdate();
 }
 
 void AMFWeapon::Tick(float DeltaSeconds)
@@ -704,6 +713,7 @@ void AMFWeapon::OnPickedUp(AMFCharacter* NewOwner)
 {
 	SetActorTickEnabled(false);
 	bDropped = false;
+	bMapPickup = false;
 	SetReplicatingMovement(false);
 	UpdateDroppedLook();
 	OnGiven(NewOwner);

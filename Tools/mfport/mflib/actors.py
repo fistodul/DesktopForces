@@ -8,6 +8,9 @@ All Mobile Forces knowledge about actors lives here; the C++ builder
   {"type": "actor", "class": "/Script/DesktopForces.MFPlayerStart", "props": {UE property: text}}
   {"type": "loadout_zone", "team", "box_min", "box_max"}
   {"type": "ambient_sound", "sound", "radius", "volume"}
+  {"type": "periodic_sound", "sound", "radius", "volume", "pitch", "period", "interval", "phase"}
+  {"type": "teleporter", "url", "tag", "event", "enabled", "changes_yaw", "changes_velocity", ...}
+  {"type": "pickup", "weapon": class path, "respawn_time", "max_clip_ammo", "max_clips"}
   {"type": "legacy", "mf_class", "mf_name", "team", "props"}   (kept for future game modes)
 
 T3D only lists properties that differ from the class defaults, so the defaults the
@@ -20,6 +23,16 @@ import math
 
 from . import t3d
 from .config import UU_TO_CM
+
+# MF items placed in maps -> the game's weapon classes
+PICKUP_CLASSES = {
+    'RageKnife': '/Script/DesktopForces.MFWeapon_Knife', 'Pistol': '/Script/DesktopForces.MFWeapon_Pistol',
+    'MachineGun': '/Script/DesktopForces.MFWeapon_MachineGun', 'shotgun': '/Script/DesktopForces.MFWeapon_Shotgun',
+    'RageRifle': '/Script/DesktopForces.MFWeapon_Rifle', 'RocketLauncher': '/Script/DesktopForces.MFWeapon_RocketLauncher',
+    'HeavyMachineGun': '/Script/DesktopForces.MFWeapon_HeavyMachineGun', 'Grenades': '/Script/DesktopForces.MFWeapon_Grenades',
+    'TripBombs': '/Script/DesktopForces.MFWeapon_TripBombs', 'AdrenalineShot': '/Script/DesktopForces.MFWeapon_AdrenalineShot',
+    'RageArmour': '/Script/DesktopForces.MFWeapon_Armour',
+}
 
 # --- UE1 defaults (Engine/Classes/Light.uc, Actor.uc, ZoneInfo.uc) ------------------
 LIGHT_DEFAULTS = {'LightType': 'LT_Steady', 'LightBrightness': 64, 'LightHue': 0, 'LightSaturation': 255,
@@ -210,13 +223,41 @@ class ActorMapper:
                          ideal_players=props.get('IdealPlayerCount', '').strip('"'),
                          song=t3d.parse_object_ref(props.get('Song')))]
 
-        if cls == 'AmbientSound':
+        if cls in ('AmbientSound', 'PeriodicSound'):
             sound = t3d.parse_object_ref(props.get('AmbientSound'))
             if not sound:
-                return []
+                return [] if cls == 'AmbientSound' else [self._legacy(a)]
             radius = 25.0 * (_int(props, 'SoundRadius', {'SoundRadius': 32}) + 1) * UU_TO_CM  # UE1 WorldSoundRadius
             volume = _int(props, 'SoundVolume', {'SoundVolume': 128}) / 255.0
-            return [dict(base, type='ambient_sound', sound=sound, radius=radius, volume=volume)]
+            if cls == 'AmbientSound':
+                return [dict(base, type='ambient_sound', sound=sound, radius=radius, volume=volume)]
+            # PeriodicSound: the loop plays Period s, then pauses Interval s, PhaseShift out of step
+            return [self._legacy(a), dict(base, type='periodic_sound', sound=sound, radius=radius, volume=volume,
+                                          pitch=_int(props, 'SoundPitch', {'SoundPitch': 64}) / 64.0,
+                                          period=t3d.parse_float(props.get('Period')), interval=t3d.parse_float(props.get('Interval')),
+                                          phase=t3d.parse_float(props.get('PhaseShift')))]
+
+        if cls in PICKUP_CLASSES:
+            # an item lying in the map: RageDeathMatch.ShouldRespawn brings it back after its
+            # RespawnTime (Inventory default 30 s; 0 = never); mappers' MaxClipAmmo / MaxClips
+            out = [self._legacy(a), dict(base, type='pickup', weapon=PICKUP_CLASSES[cls],
+                                         respawn_time=t3d.parse_float(props.get('RespawnTime'), 30.0),
+                                         max_clip_ammo=_int(props, 'MaxClipAmmo', {'MaxClipAmmo': 0}),
+                                         max_clips=_int(props, 'MaxClips', {'MaxClips': 0}))]
+            return out
+
+        if cls == 'Teleporter':
+            # Engine.Teleporter: touching one with a URL moves you to (a random) one Tagged URL
+            vel = t3d.parse_vector(props.get('TargetVelocity'))
+            return [self._legacy(a), dict(base, type='teleporter', url=props.get('URL', '').strip('"'),
+                                          tag=props.get('Tag', cls).strip('"'), event=props.get('Event', '').strip('"'),
+                                          enabled=t3d.parse_bool(props.get('bEnabled'), True),
+                                          changes_yaw=t3d.parse_bool(props.get('bChangesYaw')),
+                                          changes_velocity=t3d.parse_bool(props.get('bChangesVelocity')),
+                                          target_velocity=[c * UU_TO_CM for c in vel],
+                                          reverses=[t3d.parse_bool(props.get(f'bReverses{c}')) for c in 'XYZ'],
+                                          radius=t3d.parse_float(props.get('CollisionRadius'), 18.0) * UU_TO_CM,
+                                          height=t3d.parse_float(props.get('CollisionHeight'), 40.0) * UU_TO_CM)]
 
         return [self._legacy(a)]
 

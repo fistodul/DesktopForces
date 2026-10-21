@@ -27,6 +27,10 @@
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "World/MFZoneVolume.h"
 #include "World/MFRoadNetwork.h"
+#include "World/MFTeleporter.h"
+#include "World/MFPickupSpot.h"
+#include "Weapons/MFWeapon.h"
+#include "Components/CapsuleComponent.h"
 #include "Lightmass/PrecomputedVisibilityVolume.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
@@ -149,11 +153,62 @@ namespace
 	}
 
 	/** Records a built map can take in place, without a rebuild or a new bake (`--steps patch`):
-	 *  actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box) and the road graph
-	 *  (road_network). nullptr for any other record. */
-	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP)
+	 *  actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box), the road graph
+	 *  (road_network), teleporters, periodic sounds, pickups. nullptr for any other record. */
+	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP, TFunctionRef<USoundWave*(const FString&)> FindSound)
 	{
 		const FString Type = R->GetStringField(TEXT("type"));
+		if (Type == TEXT("teleporter"))
+		{
+			AMFTeleporter* T = World->SpawnActor<AMFTeleporter>(Vec(R, TEXT("location")), Rot(R), SP);
+			T->URL = R->GetStringField(TEXT("url"));
+			T->TeleporterTag = FName(*R->GetStringField(TEXT("tag")));
+			T->bEnabled = R->GetBoolField(TEXT("enabled"));
+			T->bChangesYaw = R->GetBoolField(TEXT("changes_yaw"));
+			T->bChangesVelocity = R->GetBoolField(TEXT("changes_velocity"));
+			T->TargetVelocity = Vec(R, TEXT("target_velocity"));
+			const TArray<TSharedPtr<FJsonValue>>& Rev = R->GetArrayField(TEXT("reverses"));
+			T->bReversesX = Rev[0]->AsBool();
+			T->bReversesY = Rev[1]->AsBool();
+			T->bReversesZ = Rev[2]->AsBool();
+			T->Trigger->SetCapsuleSize(R->GetNumberField(TEXT("radius")), R->GetNumberField(TEXT("height")));
+			return T;
+		}
+		if (Type == TEXT("pickup"))
+		{
+			UClass* Item = LoadClass<AMFWeapon>(nullptr, *R->GetStringField(TEXT("weapon")));
+			if (!Item)
+			{
+				return nullptr;
+			}
+			AMFPickupSpot* P = World->SpawnActor<AMFPickupSpot>(Vec(R, TEXT("location")), Rot(R), SP);
+			P->ItemClass = Item;
+			P->RespawnTime = R->GetNumberField(TEXT("respawn_time"));
+			P->MaxClipAmmo = int32(R->GetNumberField(TEXT("max_clip_ammo")));
+			P->MaxClips = int32(R->GetNumberField(TEXT("max_clips")));
+			return P;
+		}
+		if (Type == TEXT("periodic_sound"))
+		{
+			USoundWave* Sound = FindSound(R->GetStringField(TEXT("sound")));
+			if (!Sound)
+			{
+				return nullptr;   // sounds not imported yet
+			}
+			Sound->bLooping = true;
+			AMFPeriodicSound* P = World->SpawnActor<AMFPeriodicSound>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			UAudioComponent* AC = P->Audio;
+			AC->SetSound(Sound);
+			AC->VolumeMultiplier = R->GetNumberField(TEXT("volume"));
+			AC->PitchMultiplier = R->GetNumberField(TEXT("pitch"));
+			AC->bOverrideAttenuation = true;
+			AC->AttenuationOverrides.FalloffDistance = R->GetNumberField(TEXT("radius"));
+			AC->AttenuationOverrides.AttenuationShapeExtents = FVector(R->GetNumberField(TEXT("radius")) * 0.25f, 0, 0);
+			P->Period = R->GetNumberField(TEXT("period"));
+			P->Interval = R->GetNumberField(TEXT("interval"));
+			P->PhaseShift = R->GetNumberField(TEXT("phase"));
+			return P;
+		}
 		if (Type == TEXT("road_network"))
 		{
 			AMFRoadNetwork* Net = World->SpawnActor<AMFRoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
@@ -381,7 +436,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 				Actor->RerunConstructionScripts();
 			}
 		}
-		else if (AActor* Data = SpawnMapData(World, R, SP))
+		else if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); }))
 		{
 			Actor = Data;
 		}
@@ -547,7 +602,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	int32 Removed = 0, Added = 0;
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>())
+		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>()
+			|| It->IsA<AMFTeleporter>() || It->IsA<AMFPeriodicSound>() || It->IsA<AMFPickupSpot>())
 		{
 			World->EditorDestroyActor(*It, true);
 			++Removed;
@@ -558,14 +614,14 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
-		if (AActor* Data = SpawnMapData(World, R, SP))
+		if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); }))
 		{
 			Data->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;
 		}
 	}
 	const bool bSaved = (Removed || Added) ? SaveAsset(World) : true;
-	UE_LOG(LogMFEditor, Display, TEXT("Patch %s: %d zone / road actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
+	UE_LOG(LogMFEditor, Display, TEXT("Patch %s: %d map data actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
 	World->RemoveFromRoot();

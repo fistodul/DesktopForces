@@ -731,7 +731,7 @@ void AMFGameMode::RestartRound()
 	// what the last round left lying around: trip bombs, mines, thrown items, dropped weapons
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
-		if (It->IsA<AMFTripBomb>() || It->IsA<AMFProjectile>() || (It->IsA<AMFWeapon>() && Cast<AMFWeapon>(*It)->IsDropped()))
+		if (It->IsA<AMFTripBomb>() || It->IsA<AMFProjectile>() || (It->IsA<AMFWeapon>() && Cast<AMFWeapon>(*It)->IsDropped() && !Cast<AMFWeapon>(*It)->bMapPickup))
 		{
 			It->Destroy();
 		}
