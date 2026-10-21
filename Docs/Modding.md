@@ -25,7 +25,9 @@ of how to extend the game:
 | `Game/Tug` | `TugGame` | a round-based team mode: `PreventDeath` (kills convert instead), `RestartRound`, original teams per round |
 | `Weapons/Deagle`, `Weapons/GrenadeLauncher` | `deagle`, `grenLaunch` (Gian / Peto / "Secret Dude") | stock weapon subclasses; models from the mod packages when converted, stock fallbacks |
 | `Weapons/PredatorMissile` | `PredatorMissile` | a player-guided missile actor, view-target switching, a weapon HUD overlay (`DrawHUD`) |
-| `Vehicles/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat (`PassengerEntered` / `Left`), a turret, a hidden seat "weapon" |
+| `Vehicles/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat: a `UMFVehicleTurret` component configured in the constructor |
+| `Vehicles/Jeep` | `jeep` (Marcin, Gregaras) | a new vehicle from its `.COL` / handling data, wheels with blown meshes, a turret seat |
+| `Vehicles/Boat` | `boat` (Gregaras) | a vehicle without wheels: `SimulateDrive` (thrust, rudder), buoyancy from `BuoyancyPercent` |
 | `Game/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
 | `Game/BattleRoyale` | `battleRoyale` (Gregaras) | no-respawn rounds, nav-mesh scatter spawning, shootable loot props, a placeable-platform weapon, a shrinking damage zone |
 | `Game/MoBall` | `MoBall` | a physics actor as the objective, goals from legacy actors, item limits (`AMFGameState::AllowedItemGroups`) |
@@ -39,6 +41,9 @@ Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icon
 
 | Hook | For |
 |---|---|
+| `UMFVehicleTurret` (component on an `AMFVehicle`) | a gun worked from a seat: aim, fire, belts, reload, the gunner's HUD |
+| `AMFVehicle::SimulateDrive`, `BuoyancyPercent`, `EngineSounds` / `Engine*Sound` | own propulsion (boats, aircraft), floating, engine sounds |
+| `AMFZoneVolume` | water / pain / current areas (placed from UE1 zones; usable by hand) |
 | `AMFWeapon::AbsorbDamage` / `GetAbsorbPriority` | armour-like items, run highest priority first (armour 10, Totem -1) |
 | `IMFDamageFilter` (any component on a character) | buffs, shields, grace periods: see damage before armour |
 | `AMFGameMode::PreventDeath` | keep a dying player alive (convert, revive, last stand) |

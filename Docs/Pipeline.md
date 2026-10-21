@@ -30,7 +30,7 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
-| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,sounds,music,maps`; maps also get their navmesh baked) |
+| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,sounds,music,maps`; maps also get their navmesh baked). `--steps zones` puts water / pain / current volumes into already built maps in place (no rebuild, the bake stays) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 

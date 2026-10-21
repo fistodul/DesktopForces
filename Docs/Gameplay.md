@@ -27,11 +27,22 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 | Recoil | AddRecoil(RecoilPower×6); per frame pitch += r×20 rot units, yaw ±r×20, r halves | stepped at 30 Hz |
 | Floor checks | flat cylinder bottom | `bUseFlatBaseForFloorChecks` (stands on stair grating rims like MF) |
 
-**Ladders** (LadderClimber): grabbed when falling into the volume (walking off the top,
-jumping at it) or when walking at the rungs with the centre inside the volume's radius
-(MF grabbed on touch; a capsule touches a metre early, which felt wrong). Forward climbs and
-presses onto the ledge at the top; back climbs down; reaching the floor walks again; jump
-lets go (no regrab for 0.5 s).
+**Ladders** (LadderClimber): grabbed on touch like MF (the soldier's cylinder meeting the
+climber's: falling into it, or walking at the rungs) and put onto the ladder's line at once,
+no gliding in. Forward climbs and presses onto the ledge at the top; back climbs down;
+reaching the floor walks again; jump lets go (no regrab for 0.5 s).
+
+**Sounds** (RPlayer, Pawn): footsteps every stride while running (RagePlayerSounds stone01-03,
+radius 1000; splashes in water; none while walking), jump (jump1), landing thump (Land1) and
+grunt on hard landings (land10, PlayLanded), pain by damage (injurL2 / L04 / M04 / H5, 0.3 s
+apart), death (deathc*), bullet impacts (WallHitSFX ricochet / imp01 / imp02, flesh
+RageChunkHit at 100 uu). One-shot sounds fade out over MF's default 1600 uu.
+
+**Water** (RageWaterZone, ZoneInfo bWaterZone): a water volume over the zone; swimming at
+WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for UnderWaterTime
+20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
+hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
+heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigisland's current).
 
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.
@@ -213,7 +224,18 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   up (150, 900 cm) and kills everyone inside. Hitting someone at KillSpeed 8 m/s or more runs
   them over. Upside down and slow for 3 s: back on its wheels.
 - Generators: the map's Buggy/Humvee/Truck/ArmadilloGenerator actors make one each and a new one
-  5 s after it's gone. `?Vehicles=0` turns them off.
+  5 s after it's gone; VehicleGenerators with a VehicleClass too (boat.boat, jeep.jeep,
+  Rage.*). `?Vehicles=0` turns them off.
+- Water: vehicles float on the map's water plane (PhysicalWaterInfo.WaterHeight) with their
+  handling.hnd2 Buoyancy (65: cars float two thirds under; boat 50) and water drag. Maps
+  without a PhysicalWaterInfo have none: cars drive along the bottom, as in MF.
+- **Boat** (MF-mods boat, Gregaras; CC0 model): only drives afloat - keel in the water, deck
+  out (MF waterCollider test). Throttle ramps 0.004 a tick to 0.85 (MF), top 0.85 x 12 m/s,
+  reverse 0.2 x 12; steering spins it (0.05 a tick), reversed when backing. Three seats.
+- **Jeep** (MF-mods jeep: model Marcin, code Gregaras): 1000 kg 4x4, 60 mph (handling JEEP,
+  jeep.COL), two front seats and a gunner standing at the back on a machine gun (3000
+  round belt, MachineGun damage, aimed with the gunner's view). `?Jeeps=1`: truck generators
+  make jeeps (the servers' mutPack placed them per map).
 - **Trailer** (`trailer`, TrailerGame): a neutral cab (Humvee) towing a bomb trailer (ball-joint
   hitch) starts at the TrailerGenerator. Drive it into the enemy's delivery bay (TrailerDelivery,
   128 + 128 uu): it locks, "Trailer detonation in 5 sec", blows up (600, 1200 uu), team point and
