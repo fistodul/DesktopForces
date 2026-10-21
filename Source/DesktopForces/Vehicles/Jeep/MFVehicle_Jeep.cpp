@@ -44,12 +44,12 @@ AMFVehicle_Jeep::AMFVehicle_Jeep()
 	Gun = CreateDefaultSubobject<UMFVehicleTurret>(TEXT("Gun"));
 	Gun->GunnerSeat = 2;                                         // hmgSeat 2
 	Gun->TurretPivot = FVector(-51.75f, -3.4f, 157.5f);         // vehicleWeapPos (-23, -1.5, 70)
-	Gun->GunOffset = FVector(20.f, 0.f, 0.f);
-	Gun->MuzzleOffset = FVector(90.f, 0.f, 0.f);
+	Gun->GunOffset = FVector::ZeroVector;                        // vehWeapFake sits at vehicleWeapPos
+	Gun->MuzzleOffset = FVector(107.f, 0.f, 0.f);                // jeepWeapMesh barrel end X 47.6
 	Gun->PitchMin = -60.f;                                       // aSeatsRotLimit(2) Pitch 16384
 	Gun->PitchMax = 60.f;
 	Gun->TurnRate = 720.f;                                       // the gunner's own view
-	Gun->TurretMeshName = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");   // jeepWeapMesh: not converted yet
+	Gun->TurretMeshName = TEXT("jeep/jeepWeapMesh");             // vehWeapFake Mesh
 	Gun->FireInterval = 0.117f;                                  // MachineGun
 	Gun->MaxClipAmmo = 3000;                                     // vehWeap MaxClipAmmo 3000
 	Gun->ReloadTime = 4.f;

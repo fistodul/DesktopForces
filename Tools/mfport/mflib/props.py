@@ -44,7 +44,7 @@ def convert(cfg: Config) -> Path:
                 mesh = devmesh.read(pkg, exp.name)
                 tris = [(_qualify(pkg_name, sec.material, tex_info) if sec.material else None, [mesh.vertices[i] for i in idx])
                         for sec, idx in mesh.triangles()] if mesh else None
-            elif cls == 'LodMesh':
+            elif cls in ('LodMesh', 'Mesh'):   # Mesh: plain vertex mesh (#exec MESH IMPORT in mods)
                 mesh = lodmesh.read(pkg, exp.name)
                 tris = []
                 for tex_index, _flags, corners in (mesh.triangles if mesh else []):
