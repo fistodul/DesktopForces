@@ -1,4 +1,5 @@
 #include "Game/MFGameState.h"
+#include "Weapons/MFWeapon.h"
 #include "Core/MFGameSettings.h"
 #include "Game/MFPlayerState.h"
 #include "Net/UnrealNetwork.h"
@@ -10,6 +11,7 @@ void AMFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(AMFGameState, LoadoutAccess);
 	DOREPLIFETIME(AMFGameState, TeamLoadoutAccess);
 	DOREPLIFETIME(AMFGameState, TeamNameOverrides);
+	DOREPLIFETIME(AMFGameState, AllowedItemGroups);
 	DOREPLIFETIME(AMFGameState, FragLimit);
 	DOREPLIFETIME(AMFGameState, TimeLimit);
 	DOREPLIFETIME(AMFGameState, TimeLimitSeconds);
@@ -45,4 +47,9 @@ FText AMFGameState::GetTeamName(uint8 Team) const
 		return FText::FromString(TeamNameOverrides[Team]);
 	}
 	return UMFGameSettings::Get().GetTeamName(Team);
+}
+
+bool AMFGameState::IsItemAllowed(TSubclassOf<AMFWeapon> Item) const
+{
+	return AllowedItemGroups.Num() == 0 || (Item && AllowedItemGroups.Contains(Item->GetDefaultObject<AMFWeapon>()->InventoryGroup));
 }

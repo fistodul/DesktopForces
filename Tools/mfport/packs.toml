@@ -13,8 +13,11 @@
 # A core map can still use classic textures; `mfport.py packs` lists what each core map still
 # needs from the original game (the backlog for replacement art).
 #
-# Authors who agreed so far (Filip, 2026-10-20): Filip (AKVARI), Edgaras "Gregaras" Ziaugra,
-# Marcin / Marcinbydg / Loser (the Polish maps), Ahmed Isaac Alizai, BR-thebigisland.
+# Authors who agreed so far (Filip, 2026-10-20 / 21): AKVARI (Akvarinja: MF-Filip, MF-Stuck,
+# MF-RandomLand, MF-TurpowiaV1, the Zombura and Coop maps), Edgaras "Gregaras" Ziaugra,
+# Marcin / Marcinbydg / Loser (the Polish maps), Ahmed Isaac Alizai, Gian (also Peto /
+# "Secret Dude": MF-Aquarius, the grenade launcher), BR-thebigisland. MF-SpaceZombura is an old
+# copy of ZM-SpaceZombura: left out.
 # Ask before adding anyone else.
 
 core_root = "/Game/MF/Community"      # core textures, sounds, music of community content
@@ -23,12 +26,13 @@ classic_root = "/MobileForcesClassic" # the plugin (Plugins/MobileForcesClassic)
 remaster_classic = false              # true: classic maps use replacement art too
 
 [core.maps]
-"COOP-CoopOneUpdate" = "AKVARI (Filip Stojanovic)"
-"MF-Filip" = "AKVARI (Filip Stojanovic)"
-"MF-SpaceZombura" = "AKVARI (Filip Stojanovic)"
-"ZM-SpaceZombura" = "AKVARI (Filip Stojanovic)"
-"MF-Stuck" = "AKVARI (Filip Stojanovic)"
-"MF-TurpowiaV1" = "AKVARI (Filip Stojanovic)"
+"COOP-CoopOneUpdate" = "AKVARI (Akvarinja)"
+"MF-Filip" = "AKVARI (Akvarinja)"
+"ZM-SpaceZombura" = "AKVARI (Akvarinja)"
+"MF-Stuck" = "AKVARI (Akvarinja)"
+"MF-TurpowiaV1" = "AKVARI (Akvarinja)"
+"MF-RandomLand" = "AKVARI (Akvarinja)"
+"MF-Aquarius" = "Gianfrutta (Gian)"
 "MF-Test_Facility" = "Ahmed Isaac Alizai"
 "BR-thebigisland" = "mashup of Filip's and Gregaras' maps"
 "DM-Warship" = "Marcinbydg"
@@ -65,3 +69,5 @@ remaster_classic = false              # true: classic maps use replacement art t
 "holidaztown" = "Marcin (dm-HolidayTown)"
 "WarriorDwarfe" = "Marcin (mf-BraveDwarfes)"
 "CoopOne" = "AKVARI (COOP-CoopOneUpdate)"
+# MF-mods code packages with their own art
+"battleRoyale" = "Gregaras (Battle Royale: crate, tower, platform, safe zone models and metal textures CC0; ammoBox CC0 pxhere.com/en/photo/673938)"

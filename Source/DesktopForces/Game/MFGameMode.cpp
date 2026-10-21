@@ -48,6 +48,8 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
 	bVehicles = UGameplayStatics::GetIntOption(Options, TEXT("Vehicles"), bVehicles ? 1 : 0) != 0;
 	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
+	bChangeDamage = UGameplayStatics::GetIntOption(Options, TEXT("ChangeDamage"), bChangeDamage ? 1 : 0) != 0;
+	bTurboCars = UGameplayStatics::GetIntOption(Options, TEXT("TurboCars"), bTurboCars ? 1 : 0) != 0;
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 	{
@@ -139,8 +141,10 @@ bool AMFGameMode::IsStartAllowed(const AMFPlayerStart* Start, AController* Playe
 	{
 		return Start->IsNeutral();
 	}
+	// RageTeamGame.FindPlayerStart (bSpawnInTeamArea): the team's own starts; no team yet = team 0
 	const AMFPlayerState* PS = Player ? Player->GetPlayerState<AMFPlayerState>() : nullptr;
-	return PS && Start->TeamNumber == PS->GetTeam();
+	const uint8 Team = PS && PS->HasTeam() ? PS->GetTeam() : uint8(0);
+	return Start->TeamNumber == Team;
 }
 
 AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -157,7 +161,19 @@ AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	}
 	if (Candidates.Num() == 0)
 	{
-		Candidates = All;   // e.g. team 3 on a map built for 2 teams
+		// e.g. team 3 on a map built for 2 teams: any start but the captains' (warehouse: the
+		// captain's room has neutral starts too, for deathmatch only)
+		for (AMFPlayerStart* S : All)
+		{
+			if (S->bEnabled && !S->bCaptainStart && (!IsTeamGame() || !S->IsNeutral()))
+			{
+				Candidates.Add(S);
+			}
+		}
+	}
+	if (Candidates.Num() == 0)
+	{
+		Candidates = All;
 	}
 	if (Candidates.Num() == 0)
 	{
@@ -309,7 +325,7 @@ void AMFGameMode::AddBots(int32 Count, float Skill)
 
 // --- damage & kills ----------------------------------------------------------------
 
-float AMFGameMode::ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator) const
+float AMFGameMode::ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator, AActor* DamageCauser) const
 {
 	if (!Instigator)
 	{
@@ -323,6 +339,18 @@ float AMFGameMode::ModifyDamage(float Damage, AMFCharacter* Victim, AController*
 	if (IsTeamGame() && InstPS && Victim && Victim->GetController() != Instigator && InstPS->GetTeam() == Victim->GetTeam())
 	{
 		Damage *= FriendlyFireScale;
+	}
+	// changeDamage.mutatorTakeDamage: players' rockets x2; bots / 5 on people in vehicles
+	if (bChangeDamage && Victim)
+	{
+		if (Instigator->IsPlayerController() && DamageCauser && DamageCauser->IsA<AMFProjectile_Rocket>())
+		{
+			Damage *= RocketDamageScaleOnFoot;
+		}
+		else if (!Instigator->IsPlayerController() && Victim->IsPlayerControlled() && Cast<AMFVehicle>(Victim->GetAttachParentActor()))
+		{
+			Damage *= BotOccupantDamageScale;
+		}
 	}
 	return Damage;
 }

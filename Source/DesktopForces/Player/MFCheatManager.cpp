@@ -133,18 +133,19 @@ void UMFCheatManager::MFHurtEnemies(int32 N)
 	}
 }
 
-void UMFCheatManager::MFFire()
+void UMFCheatManager::MFFire(int32 Alt)
 {
 	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()))
 	{
-		C->StartFire(false);
+		const bool bAlt = Alt != 0;
+		C->StartFire(bAlt);
 		TWeakObjectPtr<AMFCharacter> Weak = C;
 		FTimerHandle H;
-		GetWorld()->GetTimerManager().SetTimer(H, FTimerDelegate::CreateLambda([Weak]()
+		GetWorld()->GetTimerManager().SetTimer(H, FTimerDelegate::CreateLambda([Weak, bAlt]()
 		{
 			if (Weak.IsValid())
 			{
-				Weak->StopFire(false);
+				Weak->StopFire(bAlt);
 			}
 		}), 0.1f, false);
 	}
@@ -490,4 +491,21 @@ void UMFCheatManager::SetJumpZ(float Velocity)
 void UMFCheatManager::ViewMe()
 {
 	ViewSelf();
+}
+
+void UMFCheatManager::MFAimAt(float X, float Y, float Z)
+{
+	APlayerController* PC = GetPlayerController();
+	APawn* P = PC ? PC->GetPawn() : nullptr;
+	if (!P)
+	{
+		return;
+	}
+	FVector From = P->GetActorLocation();
+	if (const AMFCharacter* C = Cast<AMFCharacter>(P); C && C->GetFirstPersonCamera())
+	{
+		From = C->GetFirstPersonCamera()->GetComponentLocation();
+	}
+	PC->SetControlRotation((FVector(X, Y, Z) - From).Rotation());
+	UE_LOG(LogMF, Display, TEXT("MFAimAt %s from %s"), *PC->GetControlRotation().ToCompactString(), *From.ToCompactString());
 }

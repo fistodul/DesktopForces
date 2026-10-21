@@ -17,6 +17,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Core/MFContent.h"
+#include "Components/AudioComponent.h"
+#include "Components/SphereComponent.h"
+#include "Weapons/MFProjectile.h"
 #include "Game/MFGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
@@ -45,9 +49,16 @@ AMFVehicle::AMFVehicle()
 	Body->BodyInstance.bUseCCD = true;
 	RootComponent = Body;
 
+	// bullets and knives hit the model itself, not the physics box (the "Weapon" trace channel,
+	// ECC_GameTraceChannel2): gaps stay gaps, the petrol cap can be aimed at
+	Body->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Ignore);
 	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
 	BodyMesh->SetupAttachment(Body);
-	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BodyMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BodyMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BodyMesh->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
+	BodyMesh->BodyInstance.bAutoWeld = false;   // its own query body following the car, not part of the physics one
+	BodyMesh->SetCanEverAffectNavigation(false);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (Cube.Succeeded())
 	{
@@ -68,6 +79,7 @@ void AMFVehicle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMFVehicle, Health);
 	DOREPLIFETIME(AMFVehicle, Driver);
+	DOREPLIFETIME(AMFVehicle, BlownWheels);
 	DOREPLIFETIME(AMFVehicle, Passengers);
 }
 
@@ -95,12 +107,40 @@ void AMFVehicle::BeginPlay()
 			C->SetRelativeScale3D(FVector(W.Radius / 50.f, W.Radius / 50.f, 0.3f));
 		}
 		WheelMeshes.Add(C);
+		// MF WheelCollision: a sphere round the tyre that only weapon traces see
+		USphereComponent* S = NewObject<USphereComponent>(this);
+		S->SetupAttachment(C);
+		S->SetSphereRadius(W.Radius);
+		S->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		S->SetCollisionResponseToAllChannels(ECR_Ignore);
+		S->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
+		S->BodyInstance.bAutoWeld = false;
+		S->SetCanEverAffectNavigation(false);
+		S->RegisterComponent();
+		WheelColliders.Add(S);
 	}
+	if (bDriveable || !PetrolCapPosition.IsZero())
+	{
+		PetrolCapCollider = NewObject<USphereComponent>(this);
+		PetrolCapCollider->SetupAttachment(Body);
+		PetrolCapCollider->SetRelativeLocation(PetrolCapPosition - BoxCenter);
+		PetrolCapCollider->SetSphereRadius(PetrolCapRadius);
+		PetrolCapCollider->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		PetrolCapCollider->SetCollisionResponseToAllChannels(ECR_Ignore);
+		PetrolCapCollider->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
+		PetrolCapCollider->BodyInstance.bAutoWeld = false;
+		PetrolCapCollider->SetCanEverAffectNavigation(false);
+		PetrolCapCollider->RegisterComponent();
+	}
+	WheelDamage.Init(0, Wheels.Num());
+	ReInflateTimers.SetNum(Wheels.Num());
 	LastCompression.Init(0.f, Wheels.Num());
 	WheelSpin.Init(0.f, Wheels.Num());
 	Body->OnComponentHit.AddDynamic(this, &AMFVehicle::OnBodyHit);
 	if (HasAuthority())
 	{
+		const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+		bTurbo = GM && GM->bTurboCars;
 		Body->SetMassOverrideInKg(NAME_None, MassKg, true);
 		Body->SetCenterOfMass(CenterOfMass);
 		Body->SetLinearDamping(0.02f);
@@ -147,6 +187,20 @@ void AMFVehicle::ServerDriveInput_Implementation(float InThrottle, float InSteer
 	SetDriveInput(InThrottle, InSteer, bInHandbrake);
 }
 
+void AMFVehicle::SetNitro(bool bOn)
+{
+	bNitro = bOn;
+	if (!HasAuthority())
+	{
+		ServerSetNitro(bOn);
+	}
+}
+
+void AMFVehicle::ServerSetNitro_Implementation(bool bOn)
+{
+	bNitro = bOn;
+}
+
 void AMFVehicle::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -157,6 +211,7 @@ void AMFVehicle::Tick(float DeltaSeconds)
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		UpdateWheelVisuals(DeltaSeconds);
+		UpdateEngineSound();
 	}
 	// controllers send input only while keys are held: let go of everything otherwise
 	if (!Driver || bLocked || GetWorld()->GetTimeSeconds() - LastInputTime > 0.15f)
@@ -197,8 +252,10 @@ void AMFVehicle::SimulateWheels(float Dt)
 	for (int32 i = 0; i < Wheels.Num(); ++i)
 	{
 		const FMFWheelSetup& W = Wheels[i];
+		// a flat tyre (MF BlowOutWheel) runs on the rim: lower, little grip, little drive
+		const bool bFlat = IsWheelBlown(i);
 		const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f));
-		const float RayLen = SuspensionTravel + W.Radius;
+		const float RayLen = SuspensionTravel + W.Radius * (bFlat ? 0.75f : 1.f);
 		FHitResult Hit;
 		if (!GetWorld()->LineTraceSingleByChannel(Hit, Top, Top - Up * RayLen, ECC_Visibility, Params))
 		{
@@ -219,7 +276,7 @@ void AMFVehicle::SimulateWheels(float Dt)
 		const float VLat = FVector::DotProduct(V, WRight);
 		const float VLong = FVector::DotProduct(V, WFwd);
 		// sideways grip, weaker on the rear with the handbrake (slides)
-		const float GripHere = (bHandbrake && !W.bSteer) ? Grip * 0.25f : Grip;
+		const float GripHere = ((bHandbrake && !W.bSteer) ? Grip * 0.25f : Grip) * (bFlat ? 0.35f : 1.f);
 		const float MaxFriction = 1.3f * Fz;
 		float FLat = FMath::Clamp(-VLat * GripHere * WheelMass, -MaxFriction, MaxFriction);
 		// engine, brakes, rolling resistance
@@ -233,11 +290,16 @@ void AMFVehicle::SimulateWheels(float Dt)
 		else if (W.bDrive && Driven > 0)
 		{
 			const float Reverse = Throttle < 0.f ? 0.5f : 1.f;   // reverse is slower
-			FLong += Throttle * Reverse * EngineForce / Driven;
+			FLong += Throttle * Reverse * EngineForce / Driven * (bFlat ? 0.5f : 1.f);
 		}
 		FLong = FMath::Clamp(FLong, -MaxFriction * 1.2f, MaxFriction * 1.2f);
 		Body->AddForceAtLocation(Up * Fz + WRight * FLat + WFwd * FLong, Contact);
 		WheelSpin[i] += VLong / FMath::Max(W.Radius, 1.f) * Dt;
+	}
+	// TurboCars: crouch held in the driver's seat, on the ground, below the nitro top speed
+	if (bTurbo && bNitro && Driver && Grounded > 0 && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed)
+	{
+		Body->AddForce(Fwd * MassKg * NitroAccel);
 	}
 	// air drag caps the top speed; some downforce keeps it planted
 	const FVector Vel = Body->GetPhysicsLinearVelocity();
@@ -582,19 +644,197 @@ void AMFVehicle::LockDown()
 
 float AMFVehicle::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	// MF: only explosive damage hurts vehicles, scaled by 1 - Armour
-	const UMFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UMFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
-	if (!HasAuthority() || bBlownUp || !Type || !Type->bExplosive)
+	if (!HasAuthority() || bBlownUp || Damage <= 0.f)
 	{
 		return 0.f;
 	}
-	const int32 Applied = FMath::Max(1, FMath::RoundToInt(Damage * (1.f - Armour)));
+	const UMFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UMFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
+	const FTransform T = Body->GetComponentTransform();
+	FVector At = GetActorLocation();
+	bool bTyre = false;
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
+		At = Point.HitInfo.ImpactPoint;
+		UE_LOG(LogMF, Verbose, TEXT("%s hit: %s at %s (%.0f)"), *GetName(), *GetNameSafe(Point.HitInfo.GetComponent()),
+			*GetActorTransform().InverseTransformPosition(At).ToCompactString(), Damage);
+		// MF Collidables: a tyre (WheelCollision, 35 health, any damage) ...
+		const int32 Wheel = WheelColliders.IndexOfByKey(Point.HitInfo.GetComponent());
+		if (Wheel != INDEX_NONE)
+		{
+			bTyre = true;
+			WheelDamage[Wheel] += FMath::RoundToInt(Damage);
+			if (WheelDamage[Wheel] >= WheelHealth)
+			{
+				BlowOutWheel(Wheel);
+			}
+		}
+		// ... or the petrol cap (PetrolCap: 150, bullets and pellets only): its sphere was hit
+		// through a gap, or the shot hit the skin right over it
+		else if (PetrolCapHealth > 0 && Type && (Type->IsA<UMFDamage_Bullet>() || Type->IsA<UMFDamage_Shotgun>()))
+		{
+			const FVector Cap = T.TransformPosition(PetrolCapPosition - BoxCenter);
+			const FVector Dir = Point.ShotDirection.GetSafeNormal();
+			const float Along = FVector::DotProduct(Cap - At, Dir);
+			const bool bOverCap = Along > -PetrolCapRadius && Along < PetrolCapRadius + 20.f && FVector::DistSquared(At + Dir * Along, Cap) <= FMath::Square(PetrolCapRadius);
+			if (Point.HitInfo.GetComponent() == PetrolCapCollider || bOverCap)
+			{
+				UE_LOG(LogMF, Log, TEXT("%s: petrol cap hit, %d left"), *GetName(), PetrolCapHealth - FMath::RoundToInt(Damage));
+				PetrolCapHealth -= FMath::RoundToInt(Damage);
+				if (PetrolCapHealth < 0)
+				{
+					MulticastHitFX(At, false);
+					BlowUp(EventInstigator);
+					return Damage;
+				}
+			}
+		}
+	}
+	else if (DamageEvent.IsOfType(FRadialDamageEvent::ClassID))
+	{
+		// HurtRadius hits the tyres too (they are actors in MF)
+		const FRadialDamageEvent& Radial = static_cast<const FRadialDamageEvent&>(DamageEvent);
+		const float Radius = FMath::Max(Radial.Params.OuterRadius, 1.f);
+		for (int32 i = 0; i < WheelMeshes.Num(); ++i)
+		{
+			const float Dist = FVector::Dist(WheelMeshes[i]->GetComponentLocation(), Radial.Origin);
+			WheelDamage[i] += FMath::RoundToInt(Radial.Params.BaseDamage * FMath::Max(0.f, 1.f - Dist / Radius));
+			if (WheelDamage[i] >= WheelHealth)
+			{
+				BlowOutWheel(i);
+			}
+		}
+	}
+	MulticastHitFX(At, bTyre);
+	ApplyHitPush(DamageEvent, DamageCauser);
+	if (bTyre)
+	{
+		return Damage;   // the tyre took it, not the car
+	}
+	const int32 Applied = ScaleDamage(Damage, Type, EventInstigator);
+	if (Applied <= 0)
+	{
+		return 0.f;
+	}
 	Health -= Applied;
 	if (Health <= 0)
 	{
 		BlowUp(EventInstigator);
 	}
 	return float(Applied);
+}
+
+int32 AMFVehicle::ScaleDamage(float Damage, const UMFDamageType* Type, AController* By) const
+{
+	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	const bool bChange = GM && GM->bChangeDamage;
+	if (!Type)
+	{
+		return 0;
+	}
+	float D = Damage;
+	if (Type->bExplosive)
+	{
+		// Vehicle.TakeDamage: explosives x 1.5, then Physical: x (1 - Armour)
+		D *= 1.5f * (1.f - Armour);
+	}
+	else if (!bChange || (Type->IsA<UMFDamage_Knife>() && !GM->bKnivesDamageVehicles))
+	{
+		return 0;   // MF: bullets, pellets and knives only push it
+	}
+	else
+	{
+		D *= GM->VehicleBulletDamageScale * (1.f - Armour);   // changeDamage
+	}
+	if (bChange && By && !By->IsPlayerController())
+	{
+		D *= GM->BotVehicleDamageScale;
+	}
+	return D > 0.f ? FMath::Max(1, FMath::RoundToInt(D)) : 0;
+}
+
+void AMFVehicle::ApplyHitPush(const FDamageEvent& DamageEvent, AActor* DamageCauser)
+{
+	// Physical.TakeDamage: ApplyForce(Normal(Momentum) * Sqrt(Min(|Momentum|, 100000) * 0.1)),
+	// pellets only 40 % of the time. MF momentum in uu; the push is a jolt sized for an 800 kg car
+	float Momentum = 0.f;
+	if (const AMFWeapon* W = Cast<AMFWeapon>(DamageCauser))
+	{
+		Momentum = W->HitMomentum / 2.25f;
+	}
+	else if (const AMFProjectile* P = Cast<AMFProjectile>(DamageCauser))
+	{
+		Momentum = P->Momentum / 2.25f;
+	}
+	FVector Dir = FVector::ZeroVector, At = GetActorLocation();
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
+		Dir = Point.ShotDirection.GetSafeNormal();
+		At = Point.HitInfo.ImpactPoint;
+		if (Point.DamageTypeClass && Point.DamageTypeClass->IsChildOf<UMFDamage_Shotgun>() && FMath::FRand() >= 0.4f)
+		{
+			return;
+		}
+	}
+	else if (DamageEvent.IsOfType(FRadialDamageEvent::ClassID))
+	{
+		const FRadialDamageEvent& Radial = static_cast<const FRadialDamageEvent&>(DamageEvent);
+		Dir = (GetActorLocation() - Radial.Origin).GetSafeNormal();
+		Momentum *= FMath::Max(0.f, 1.f - FVector::Dist(GetActorLocation(), Radial.Origin) / FMath::Max(Radial.Params.OuterRadius, 1.f));
+	}
+	if (Momentum > 0.f && !Dir.IsNearlyZero() && Body->IsSimulatingPhysics())
+	{
+		Body->AddImpulseAtLocation(Dir * FMath::Sqrt(FMath::Min(Momentum, 100000.f) * 0.1f) * 2.25f * 800.f, At);
+	}
+}
+
+void AMFVehicle::BlowOutWheel(int32 Index)
+{
+	if (!HasAuthority() || !WheelMeshes.IsValidIndex(Index) || IsWheelBlown(Index))
+	{
+		return;
+	}
+	// MF DestroyWheel: smoke, a jolt up at the wheel, flat for ReInflatePause
+	UE_LOG(LogMF, Log, TEXT("%s: tyre %d burst"), *GetName(), Index);
+	BlownWheels |= uint8(1 << Index);
+	WheelDamage[Index] = 0;
+	OnRep_BlownWheels();
+	if (Body->IsSimulatingPhysics())
+	{
+		Body->AddImpulseAtLocation(GetActorUpVector() * 50.f * 2.25f * 800.f, WheelMeshes[Index]->GetComponentLocation());
+	}
+	GetWorldTimerManager().SetTimer(ReInflateTimers[Index], FTimerDelegate::CreateWeakLambda(this, [this, Index]()
+	{
+		BlownWheels &= uint8(~(1 << Index));
+		OnRep_BlownWheels();
+	}), ReInflatePause, false);
+}
+
+void AMFVehicle::OnRep_BlownWheels()
+{
+	for (int32 i = 0; i < WheelMeshes.Num() && i < Wheels.Num(); ++i)
+	{
+		const FString& Want = IsWheelBlown(i) && !Wheels[i].BlownMesh.IsEmpty() ? Wheels[i].BlownMesh : Wheels[i].Mesh;
+		const FVector Loc = WheelMeshes[i]->GetRelativeLocation();
+		const FRotator Rot = WheelMeshes[i]->GetRelativeRotation();
+		if (MF::ApplyPropMesh(WheelMeshes[i], *Want, 1.f, Loc))
+		{
+			WheelMeshes[i]->SetRelativeRotation(Rot);
+		}
+	}
+	if (BlownWheels && GetNetMode() != NM_DedicatedServer)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/HitRubber")), GetActorLocation());
+	}
+}
+
+void AMFVehicle::MulticastHitFX_Implementation(FVector_NetQuantize At, bool bTyre)
+{
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, MF::LoadClassic<USoundBase>(bTyre ? TEXT("Sounds/MiscSFX/HitRubber") : TEXT("Sounds/MiscSFX/HitMetal")), At);
+	}
 }
 
 void AMFVehicle::BlowUp(AController* By)
@@ -636,8 +876,85 @@ void AMFVehicle::BlowUp(AController* By)
 	SetLifeSpan(0.1f);
 }
 
+void AMFVehicle::UpdateEngineSound()
+{
+	// Car state Driving: EngineStartSound, 0.5 s later the engine loop at SoundPitch 64 + 2 x
+	// speed / 60 (uu/s; 64 = normal pitch), EndState: EngineStopSound
+	const bool bWant = bDriveable && Driver && !bBlownUp && !EngineSounds.IsEmpty();
+	if (bWant != bEngineOn)
+	{
+		bEngineOn = bWant;
+		if (bWant)
+		{
+			UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/EngineStart"), *EngineSounds)), Body,
+				NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.8f, 1.f, 0.f, MF::GetAttenuation(1600.f));
+			GetWorldTimerManager().SetTimer(EngineStartTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				if (!bEngineOn)
+				{
+					return;
+				}
+				if (!EngineAudio)
+				{
+					EngineAudio = UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/Engine1"), *EngineSounds)), Body,
+						NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.5f, 1.f, 0.f, MF::GetAttenuation(2500.f), nullptr, false);
+				}
+				else
+				{
+					EngineAudio->Play();
+				}
+			}), 0.5f, false);
+		}
+		else
+		{
+			GetWorldTimerManager().ClearTimer(EngineStartTimer);
+			if (EngineAudio)
+			{
+				EngineAudio->Stop();
+			}
+			if (!bBlownUp && !EngineSounds.IsEmpty())
+			{
+				MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/EngineStop"), *EngineSounds)), GetActorLocation(), 0.8f);
+			}
+		}
+	}
+	const FVector V = GetVelocity();
+	if (EngineAudio && EngineAudio->IsPlaying())
+	{
+		EngineAudio->SetPitchMultiplier(FMath::Min(128.f, 56.f + 2.f * V.Size() / 2.25f / 60.f) / 64.f);
+	}
+	// SkidSound (WheelSFX.skid) while sliding sideways on the ground
+	const bool bSkid = bDriveable && !bBlownUp && FMath::Abs(FVector::DotProduct(V, GetActorRightVector())) > 400.f && FMath::Abs(V.Z) < 300.f
+		&& LastCompression.ContainsByPredicate([](float C) { return C > 0.f; });
+	if (bSkid && !SkidAudio)
+	{
+		SkidAudio = UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(TEXT("Sounds/WheelSFX/skid")), Body,
+			NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.6f, 1.f, 0.f, MF::GetAttenuation(1600.f), nullptr, false);
+	}
+	else if (SkidAudio && bSkid != SkidAudio->IsPlaying())
+	{
+		bSkid ? SkidAudio->Play() : SkidAudio->Stop();
+	}
+}
+
+void AMFVehicle::MulticastBump_Implementation(float Volume)
+{
+	static const TCHAR* Bumps[] = { TEXT("Sounds/MiscSFX/bump1"), TEXT("Sounds/MiscSFX/bump2"), TEXT("Sounds/MiscSFX/bump3"), TEXT("Sounds/MiscSFX/bump4") };
+	MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(Bumps[FMath::RandRange(0, 3)]), GetActorLocation(), Volume);
+}
+
 void AMFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	// Vehicle.HitWall: a bump over 100 uu/s (louder up to 700), one at a time
+	if (HasAuthority() && !Cast<APawn>(Other) && GetWorld()->GetTimeSeconds() >= BumpSoundUntil)
+	{
+		const float HitSpeed = FMath::Abs(FVector::DotProduct(GetVelocity(), Hit.ImpactNormal)) / 2.25f;
+		if (HitSpeed > 100.f)
+		{
+			BumpSoundUntil = GetWorld()->GetTimeSeconds() + 0.5f;
+			MulticastBump(FMath::Min(HitSpeed, 700.f) / 700.f * 0.8f);
+		}
+	}
 	// MF Vehicle: hitting someone at KillSpeed or faster runs them over
 	AMFCharacter* C = Cast<AMFCharacter>(Other);
 	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE)

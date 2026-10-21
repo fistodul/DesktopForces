@@ -40,8 +40,8 @@ Tools/play.sh mf-warehouse tdm 8
 ```
 
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,
-Ctrl crouch, Shift walk, E get in / out of vehicles, G drop the flag, V/C orders, F1/Tab scores,
-Esc menu), plus X for armour/gadgets; in the loadout screen a number picks a row, a second
+Ctrl / C crouch (nitro when driving), Shift walk, E get in / out of vehicles, G drop the flag,
+V orders (keys or mouse), F1 scores, Tab one-line console, `~` full console, Esc menu), plus X for armour/gadgets; in the loadout screen a number picks a row, a second
 number the item in it. Map URL options: `?game=/Script/DesktopForces.MFGameMode_TDM` (also
 `MFGameMode_Holdout`, `MFGameMode_KOH`, ...), `?Bots=8?BotSkill=0.7`, `?Teams=4`,
 `?FragLimit=10?TimeLimit=5`, `?Vehicles=0`.
@@ -51,7 +51,7 @@ number the item in it. Map URL options: `?game=/Script/DesktopForces.MFGameMode_
 | Path | What |
 |---|---|
 | `Source/DesktopForces/` | Game module: player, movement, weapons (one file each), loadout, game modes, vehicles, HUD, menu |
-| `Source/DesktopForces/Mods/` | The MF-mods (Totem, Trip Lasers, Seeker Mines, Sentry Gun, Molotov, King of the Hill, Tug of War), part of the game |
+| `Source/DesktopForces/Game/<Mode>/`, `Weapons/<Name>/`, `Vehicles/<Name>/` | The MF-mods (game modes, weapons and items, vehicles), part of the game - list in [Modding](Docs/Modding.md) |
 | `Source/DesktopForcesEditor/` | Editor module: importer commandlet (`-run=MFImport`) that builds assets and maps from the pipeline output |
 | `SourceArt/` | The team's own art and music (menu pictures, start-up theme, mod icons) - see [CREDITS.md](CREDITS.md) |
 | `Tools/artgen/` | Procedural textures + SourceArt conversion |

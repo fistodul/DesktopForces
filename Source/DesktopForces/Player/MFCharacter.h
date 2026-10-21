@@ -51,6 +51,7 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void PawnClientRestart() override;
 	virtual void Landed(const FHitResult& Hit) override;
+	virtual bool CanJumpInternal_Implementation() const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
@@ -68,6 +69,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "MF")
 	bool IsAlive() const { return Health > 0 && !bDying; }
+
+	/** Deployed HMG and the like (AMFWeapon::IsDeployed): rooted to the spot. */
+	bool IsDeployed() const;
+
+	/** The next landing does no harm (dropped in from the air by the mode). */
+	bool bNoFallDamageOnce = false;
 
 	/** Total armour charge of carried armour items (HUD). */
 	UFUNCTION(BlueprintPure, Category = "MF")
@@ -173,6 +180,12 @@ public:
 	void AddRecoil(float Amount) { CurrentRecoil += Amount; }
 
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void OnJumped_Implementation() override;
+
+	/** RPlayer sounds (RagePlayerSounds, MiscSFX), heard by everyone around. */
+	enum class EBodySound : uint8 { Pain, Death, Jump, Land, LandGrunt };
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastBodySound(uint8 Kind, float Volume, uint8 Variant);
 
 	/** Owning client: field of view from the player's settings. */
 	void ApplyUserSettings();
@@ -187,6 +200,11 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "MF")
 	TObjectPtr<USceneComponent> WeaponAttach;
+
+	/** RPlayer.CheckBob footsteps: stride phase; time of the last pain sound (0.3 s apart). */
+	float StepBobTime = 0.f;
+	float LastPainSound = -10.f;
+	void UpdateFootsteps(float DeltaSeconds);
 
 	/** Simple body shown to other players until the MF soldier meshes are converted. */
 	UPROPERTY(VisibleAnywhere, Category = "MF")

@@ -1,6 +1,8 @@
 #include "Core/MFUserSettings.h"
 #include "World/MFMapActors.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "UnrealClient.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 
@@ -14,9 +16,11 @@ void UMFUserSettings::ApplyNonResolutionSettings()
 	Super::ApplyNonResolutionSettings();
 	Brightness = FMath::Clamp(Brightness, 0.25f, 3.f);
 	RenderScale = FMath::Clamp(RenderScale, 0.25f, 2.f);
-	if (IConsoleVariable* ScreenPercentage = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage")))
+	UpdateScreenPercentage();
+	if (!ResizedHandle.IsValid())
 	{
-		ScreenPercentage->Set(RenderScale * 100.f, ECVF_SetByGameSetting);
+		// the window may only get its new size a frame later (or never: borderless stays desktop size)
+		ResizedHandle = FViewport::ViewportResizedEvent.AddWeakLambda(this, [this](FViewport*, uint32) { UpdateScreenPercentage(); });
 	}
 	if (GEngine)
 	{
@@ -27,6 +31,24 @@ void UMFUserSettings::ApplyNonResolutionSettings()
 				AMFMapInfo::ApplyAmbient(Context.World());
 			}
 		}
+	}
+}
+
+void UMFUserSettings::UpdateScreenPercentage()
+{
+	// Render scale x the chosen resolution: in a borderless window (and fullscreen where the
+	// desktop can't switch modes) the window keeps the desktop size, so a smaller resolution
+	// renders smaller and is scaled up, as a real mode switch would look
+	float Scale = RenderScale;
+	const FViewport* Viewport = GEngine && GEngine->GameViewport ? GEngine->GameViewport->Viewport : nullptr;
+	const FIntPoint Res = GetScreenResolution();
+	if (Viewport && GetFullscreenMode() != EWindowMode::Windowed && Res.Y > 0 && Viewport->GetSizeXY().Y > Res.Y)
+	{
+		Scale *= float(Res.Y) / float(Viewport->GetSizeXY().Y);
+	}
+	if (IConsoleVariable* ScreenPercentage = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage")))
+	{
+		ScreenPercentage->Set(FMath::Clamp(Scale, 0.1f, 2.f) * 100.f, ECVF_SetByGameSetting);
 	}
 }
 

@@ -21,7 +21,9 @@ from .textures import _package_path, texture_index
 from .upkg import Package
 
 # + MF-mods packages with weapon models (missing ones are skipped)
-PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'deagle', 'grenLaunch')
+PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'deagle', 'grenLaunch', 'battleRoyale')
+# packages whose StaticMeshes are props too (exported as T3D by UCC: Gregaras' CC0 Battle Royale models)
+STATIC_MESH_PACKAGES = ('battleRoyale',)
 
 
 def convert(cfg: Config) -> Path:
@@ -79,7 +81,42 @@ def convert(cfg: Config) -> Path:
             mb.write(out_root / pkg_name)
             meshes[f'{pkg_name}/{exp.name}'] = {'mesh': f'{pkg_name}/{exp.name}', 'triangles': mb.triangle_count}
             n += 1
+        if pkg_name in STATIC_MESH_PACKAGES:
+            n += _static_meshes(cfg, pkg_name, tex_info, out_root, usage, meshes)
         print(f'[props] {pkg_name}: {n} meshes')
     path = out_root / 'props.json'
     path.write_text(json.dumps({'meshes': meshes, 'texture_usage': {k: sorted(v) for k, v in sorted(usage.items())}}, indent=1))
     return path
+
+
+def _static_meshes(cfg: Config, pkg_name: str, tex_info: dict, out_root: Path,
+                   usage: dict[str, set[str]], meshes: dict[str, dict]) -> int:
+    from . import t3d, ucc
+    raw = cfg.work_dir / 'raw' / 'StaticMeshes' / pkg_name
+    if not list(raw.glob('*.t3d')):
+        ucc.batch_export(cfg, _package_path(cfg, pkg_name).relative_to(cfg.game_dir).as_posix(),
+                         'StaticMesh', 't3d', raw)
+    n = 0
+    for f in sorted(raw.glob('*.t3d')):
+        for blk in t3d.parse(t3d.read_text(f)).find('StaticMesh'):
+            mb = MeshBuilder(blk.name)
+            mb.collision = 'complex'
+            area = 0.0
+            for tri in t3d.static_mesh_triangles(blk):
+                tex = tri.texture or 'Engine.DefaultTexture'
+                info = tex_info.get(tex.lower(), {})
+                key = material_key(tex, tri.poly_flags | (PF_MASKED if info.get('masked') else 0) | info.get('polyflags', 0))
+                usage.setdefault(tex.lower(), set()).add(key.split('|')[1].split('_')[0])
+                p = [v[0] for v in tri.verts]
+                verts = [((v[0][0] * UU_TO_CM, v[0][1] * UU_TO_CM, v[0][2] * UU_TO_CM), v[1], v[2]) for v in tri.verts]
+                geo_n = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
+                avg_n = tuple(sum(v[1][i] for v in tri.verts) for i in range(3))
+                if _dot(avg_n, avg_n) > 1e-12 and _dot(geo_n, avg_n) < 0:
+                    verts = [verts[0], verts[2], verts[1]]
+                mb.add_triangle(key, *verts)
+                area += _area(p)
+            mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / 16.0))))
+            mb.write(out_root / pkg_name)
+            meshes[f'{pkg_name}/{blk.name}'] = {'mesh': f'{pkg_name}/{blk.name}', 'triangles': mb.triangle_count}
+            n += 1
+    return n

@@ -5,7 +5,7 @@ original game's converted content, and the Python pipeline.
 
 | Part | What | Committed |
 |---|---|---|
-| `Source/DesktopForces` | the game (incl. the MF-mods in `Mods/`) | yes |
+| `Source/DesktopForces` | the game (incl. the MF-mods, filed under `Game/`, `Weapons/`, `Vehicles/`) | yes |
 | `Source/DesktopForcesEditor` | importer commandlet | yes |
 | `Content/MF` | our assets: master materials, menu art, crate, test map | yes (music: generated) |
 | `Content/Maps`, `Content/MF/Community` | community maps cleared for the game ([packs](Pipeline.md#content-packs)) | generated |
@@ -43,7 +43,7 @@ The project was called `MobileForces` until 2026-10-20; `[CoreRedirects]` in
 | `Vehicles/` | `AMFVehicle` (+`_Buggy`, `_Humvee`, `_Truck`, `_Armadillo`, `_TrailerCab`, `_Trailer`), `AMFVehicleGenerator` | `RageVehicle`s, `*Generator` | physics box + raycast wheels (springs use the world's gravity: MF's is 2.2x UE's), handling from `handling.hnd2` / `.COL` |
 | `Game/` | `AMFGameMode_Safecracker`, `_CTF`, `_Detonation`, `_Captains`, `_Trailer` | the MF team modes | see [Gameplay](Gameplay.md) |
 | `UI/` | `MFMenu` (Slate), `AMFMenuGameMode` | `RageMenu` | title screen over a picture (`UMFGameSettings::MenuBackgrounds`, start-up music `MenuMusic`), play / join / options (render scale, brightness ...) / credits, Esc menu in game |
-| `Mods/<Name>/` | `AMFWeapon_Totem`, `AMFGameMode_KOH`, ... | MF-mods | the community mods, see [Modding](Modding.md) |
+| `Game/<Mode>/`, `Weapons/<Name>/`, `Vehicles/<Name>/` | `AMFGameMode_KOH`, `AMFWeapon_Totem`, `AMFVehicle_ArmedAPC`, ... | MF-mods | the community mods, one folder each, see [Modding](Modding.md) |
 
 ### Networking
 Server-authoritative, UE replication from day one (listen and dedicated servers).

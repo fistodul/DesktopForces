@@ -7,25 +7,30 @@ class the game uses.
 
 ## The MF-mods are part of the game
 
-The community's MF-mods were ported once as plugins; they are now ordinary code in
-`Source/DesktopForces/Mods/<Name>/` (2026-10-20: they always ship, so separate modules only
-added build steps). They are still the best examples of how to extend the game:
+The community's MF-mods were ported once as plugins; they are now ordinary code (2026-10-20:
+they always ship, so separate modules only added build steps), filed by kind next to the stock
+classes: game modes in `Source/DesktopForces/Game/<Mode>/`, weapons and items in
+`Weapons/<Name>/`, vehicles in `Vehicles/<Name>/` (2026-10-21; one folder per mod, so where a
+class came from stays obvious - the table below lists them). They are still the best examples
+of how to extend the game:
 
-| Folder | Original (MF-mods, fistodul) | Shows |
+| Folder | Original (MF-mods; fistodul unless noted) | Shows |
 |---|---|---|
-| `Mods/Molotov` | `Molotov` | a new weapon (subclass of Grenades), its projectiles, a burning area actor, a damage type, its own icon art |
-| `Mods/KOH` | `KOH` | a new game mode (subclass of Holdout): several capture points chosen from the map's objectives, per-second scoring |
-| `Mods/Totem` | `Totem` | a carried item that cheats death (`AbsorbDamage` + `GetAbsorbPriority`), fire / alt fire / reload actions, a heal-over-time **component** with a damage filter (`IMFDamageFilter`) |
-| `Mods/TripLasers` | `TripLasers` | a trip bomb variant through the trip bomb hooks (`BombClass`, `CanPlace`, `Arm`/`CheckBeam`, mine `ShouldTrigger`/`Trigger`) |
-| `Mods/SeekerMines` | `SeekerMines` | a thrown drone: an `APawn` with `UFloatingPawnMovement` + `AAIController` navmesh moves, hunting / escorting / roaming on a 5 Hz timer |
-| `Mods/SentryGun` | `SentryGun` | a deployable turret on timers (no Tick), the HMG model reused |
-| `Mods/Tug` | `TugGame` | a round-based team mode: `PreventDeath` (kills convert instead), `RestartRound`, original teams per round |
-| `Mods/Deagle`, `Mods/GrenadeLauncher` | `deagle`, `grenLaunch` | stock weapon subclasses; models from the mod packages when converted, stock fallbacks |
-| `Mods/PredatorMissile` | `PredatorMissile` | a player-guided missile actor, view-target switching, a weapon HUD overlay (`DrawHUD`) |
-| `Mods/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat (`PassengerEntered` / `Left`), a turret, a hidden seat "weapon" |
-| `Mods/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
-| `Mods/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`AMFGameState::LoadoutAccess`, `LoadoutDenied`) |
-| `Mods/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`AMFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
+| `Weapons/Molotov` | `Molotov` | a new weapon (subclass of Grenades), its projectiles, a burning area actor, a damage type, its own icon art |
+| `Game/KOH` | `KOH` | a new game mode (subclass of Holdout): several capture points chosen from the map's objectives, per-second scoring |
+| `Weapons/Totem` | `Totem` | a carried item that cheats death (`AbsorbDamage` + `GetAbsorbPriority`), fire / alt fire / reload actions, a heal-over-time **component** with a damage filter (`IMFDamageFilter`) |
+| `Weapons/TripLasers` | `TripLasers` | a trip bomb variant through the trip bomb hooks (`BombClass`, `CanPlace`, `Arm`/`CheckBeam`, mine `ShouldTrigger`/`Trigger`) |
+| `Weapons/SeekerMines` | `SeekerMines` | a thrown drone: an `APawn` with `UFloatingPawnMovement` + `AAIController` navmesh moves, hunting / escorting / roaming on a 5 Hz timer |
+| `Weapons/SentryGun` | `SentryGun` | a deployable turret on timers (no Tick), the HMG model reused |
+| `Game/Tug` | `TugGame` | a round-based team mode: `PreventDeath` (kills convert instead), `RestartRound`, original teams per round |
+| `Weapons/Deagle`, `Weapons/GrenadeLauncher` | `deagle`, `grenLaunch` (Gian / Peto / "Secret Dude") | stock weapon subclasses; models from the mod packages when converted, stock fallbacks |
+| `Weapons/PredatorMissile` | `PredatorMissile` | a player-guided missile actor, view-target switching, a weapon HUD overlay (`DrawHUD`) |
+| `Vehicles/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat (`PassengerEntered` / `Left`), a turret, a hidden seat "weapon" |
+| `Game/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
+| `Game/BattleRoyale` | `battleRoyale` (Gregaras) | no-respawn rounds, nav-mesh scatter spawning, shootable loot props, a placeable-platform weapon, a shrinking damage zone |
+| `Game/MoBall` | `MoBall` | a physics actor as the objective, goals from legacy actors, item limits (`AMFGameState::AllowedItemGroups`) |
+| `Game/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`AMFGameState::LoadoutAccess`, `LoadoutDenied`) |
+| `Game/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`AMFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
 
 Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icons/` by
 `Tools/artgen` + `mfport.py import --steps art`.
@@ -43,7 +48,7 @@ Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icon
 | `AMFWeapon_TripBombs`: `BombClass`, `bNeedLaserTarget`, `CanPlace`, `GetThrowSpeed` | placed / thrown devices |
 | `AMFWeapon::bAddToLoadout` | the item appears in every loadout crate |
 | `AMFGameMode::ChooseTeam`, `GetWeaponClassFor`, `LoadoutDenied` | who plays where, a mode's own item variants, the "no loadout" answer |
-| `AMFGameState::LoadoutAccess`, `TeamLoadoutAccess`, `TeamNameOverrides` | where loadouts open (per team), mode team names |
+| `AMFGameState::LoadoutAccess`, `TeamLoadoutAccess`, `TeamNameOverrides`, `AllowedItemGroups` | where loadouts open (per team), mode team names, which items loadouts hand out |
 | `AMFCharacter::SetBodyScale` | replicated speed / jump / accel / step / fall multipliers (zombies, buffs) |
 | `AMFWeapon::IsMeleeWeapon` | bots run at the target instead of shooting from range |
 
@@ -125,7 +130,8 @@ before).
 ## Checklist for porting an MF-mods package
 
 1. Read the `.uc` classes; find the stock class each one extends.
-2. Add `Source/DesktopForces/Mods/<Name>/` with one C++ class per mod class that adds behaviour.
+2. Add `Source/DesktopForces/Game|Weapons|Vehicles/<Name>/` (by what it mostly is) with one C++
+   class per mod class that adds behaviour, and a row in the table above.
    Constants go in constructors with a comment giving the original value (`// MF 300 uu`).
    Use UE cm in code.
 3. Things MF did with subclass chains (player classes per mod, e.g. zombies) become components

@@ -146,6 +146,7 @@ AMFGameMode_Detonation::AMFGameMode_Detonation()
 	GameName = TEXT("Detonation");
 	GoalTeamScore = 4;      // RageDetonation.GoalTeamScore
 	TimeLimit = 10;
+	RespawnWait = 5;        // the community servers' MobileForces.ini
 	ObjectName = TEXT("Detonation Key");
 	CarryLine = TEXT("");
 }

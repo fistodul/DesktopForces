@@ -1,4 +1,5 @@
 #include "Weapons/MFWeapon_Knife.h"
+#include "DesktopForces.h"
 #include "Weapons/MFProjectile.h"
 #include "Weapons/MFTripBomb.h"
 #include "Player/MFCharacterMovement.h"
@@ -50,6 +51,7 @@ void AMFWeapon_Knife::FireShot(bool bAlt)
 			const FVector Start = GetFireStart();
 			const FVector Dir = GetAimRotation().Vector();
 			FCollisionQueryParams Params(SCENE_QUERY_STAT(MFKnife), false, GetOwner());
+			Params.AddIgnoredActor(GetOwner() ? GetOwner()->GetAttachParentActor() : nullptr);
 			FHitResult Hit;
 			if (GetWorld()->SweepSingleByChannel(Hit, Start, Start + Dir * MeleeRange, FQuat::Identity, ECC_GameTraceChannel2,
 				FCollisionShape::MakeSphere(10.f), Params))
@@ -68,8 +70,13 @@ void AMFWeapon_Knife::FireShot(bool bAlt)
 	if (HasAuthority())
 	{
 		++BurstCounter;
-		SpawnProjectile(AltProjectileClass, 0.f, true);
-		GetWorldTimerManager().SetTimer(ReturnTimer, this, &AMFWeapon_Knife::KnifeReturned, KnifeReturnTime, false);
+		if (AMFProjectile_Knife* K = Cast<AMFProjectile_Knife>(SpawnProjectile(AltProjectileClass, 0.f, true)))
+		{
+			K->OwnerKnife = this;
+			K->ReturnTime = KnifeReturnTime;
+		}
+		// safety net only: the knife itself says when it's back
+		GetWorldTimerManager().SetTimer(ReturnTimer, this, &AMFWeapon_Knife::KnifeReturned, KnifeReturnTime + 30.f, false);
 	}
 }
 
@@ -85,7 +92,9 @@ void AMFWeapon_Knife::Finish()
 
 void AMFWeapon_Knife::KnifeReturned()
 {
+	GetWorldTimerManager().ClearTimer(ReturnTimer);
 	ClipAmmo = 1;
+	UE_LOG(LogMF, Verbose, TEXT("%s: the thrown knife is back"), *GetName());
 }
 
 #undef LOCTEXT_NAMESPACE

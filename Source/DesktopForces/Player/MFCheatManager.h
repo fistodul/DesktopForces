@@ -27,9 +27,9 @@ public:
 	/** Developer: N damage from you to every enemy (mode rules apply: Tug converts, Totem saves). */
 	UFUNCTION(Exec)
 	void MFHurtEnemies(int32 N);
-	/** Developer: press and release fire once (scripted tests). */
+	/** Developer: press and release fire once (scripted tests); MFFire 1 = alt fire. */
 	UFUNCTION(Exec)
-	void MFFire();
+	void MFFire(int32 Alt = 0);
 
 	/**
 	 * Developer: hold movement input for Seconds facing Yaw (Forward/Right -1..1), logging the
@@ -41,6 +41,10 @@ public:
 	/** Developer: move your pawn to X Y Z (scripted tests). */
 	UFUNCTION(Exec)
 	void MFTeleport(float X, float Y, float Z);
+
+	/** Turn to look at a world point (tests: then MFFire). */
+	UFUNCTION(Exec)
+	void MFAimAt(float X, float Y, float Z);
 
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)

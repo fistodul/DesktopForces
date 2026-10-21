@@ -1,5 +1,7 @@
 #include "Weapons/MFWeapon.h"
+#include "Game/MFGameMode.h"
 #include "Core/MFProps.h"
+#include "Core/MFContent.h"
 #include "Weapons/MFProjectile.h"
 #include "Player/MFCharacter.h"
 #include "DesktopForces.h"
@@ -452,6 +454,8 @@ void AMFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFWeaponTrace), true, C);
 	Params.AddIgnoredActor(this);
+	bImpactSoundSent = bFleshSoundSent = false;   // one of each per shot (pellets)
+	Params.AddIgnoredActor(C->GetAttachParentActor());   // passengers shoot out of their vehicle
 
 	for (int32 i = 0; i < FMath::Max(1, InPellets); ++i)
 	{
@@ -490,6 +494,11 @@ void AMFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, b
 	FPointDamageEvent Event(Damage, Hit, ShotDir, Type);
 	APawn* Shooter = Cast<APawn>(GetOwner());
 	Other->TakeDamage(Damage, Event, Shooter ? Shooter->GetController() : nullptr, this);
+	if (Cast<AMFCharacter>(Other) ? !bFleshSoundSent : (!Cast<APawn>(Other) && !bImpactSoundSent))
+	{
+		(Cast<AMFCharacter>(Other) ? bFleshSoundSent : bImpactSoundSent) = true;
+		MulticastImpactSound(Hit.ImpactPoint, Cast<AMFCharacter>(Other) != nullptr);
+	}
 
 	if (UPrimitiveComponent* Comp = Hit.GetComponent(); Comp && Comp->IsSimulatingPhysics())
 	{
@@ -616,7 +625,9 @@ void AMFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	UpdateDroppedLook();
 	ForceNetUpdate();
 
-	// keep the world tidy: the oldest dropped weapon goes beyond MaxDropped
+	// keep the world tidy: the oldest dropped weapon goes beyond the mode's MaxDroppedWeapons
+	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	const int32 MaxDropped = GM ? GM->MaxDroppedWeapons : 32;
 	AMFWeapon* Oldest = nullptr;
 	int32 Count = 0;
 	for (TActorIterator<AMFWeapon> It(GetWorld()); It; ++It)
@@ -692,4 +703,24 @@ void AMFWeapon::ForceInactive()
 	bPendingReload = false;
 	ZoomLevel = 0;
 	SetActorHiddenInGame(true);
+}
+
+void AMFWeapon::MulticastImpactSound_Implementation(FVector_NetQuantize At, bool bFlesh)
+{
+	if (bFlesh)
+	{
+		// PlaySound(Sound'MiscSFX.RageChunkHit',, 4.0,,100): only right next to it
+		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/RageChunkHit")), At, 1.f, 100.f);
+		return;
+	}
+	// RageEffect.AddWallHit: a ricochet, one of two impacts, or nothing (a quarter each)
+	const float R = FMath::FRand();
+	if (R < 0.25f)
+	{
+		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/WallHitSFX/Ricochet")), At, 0.6f, 1200.f, 0.5f + FMath::FRand());
+	}
+	else if (R < 0.75f)
+	{
+		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(R < 0.5f ? TEXT("Sounds/WallHitSFX/imp01") : TEXT("Sounds/WallHitSFX/imp02")), At, 0.9f, 1000.f);
+	}
 }

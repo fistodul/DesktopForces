@@ -46,6 +46,8 @@ protected:
 
 	void Think();
 	void DoLoadout(AMFCharacter* C);
+	/** Took its kit since spawning (a mode may allow none of it: knife only, still fights). */
+	bool bDidLoadout = false;
 	AMFCharacter* FindEnemy(AMFCharacter* C) const;
 	void Fight(AMFCharacter* C, AMFCharacter* Target);
 	void Roam(AMFCharacter* C);

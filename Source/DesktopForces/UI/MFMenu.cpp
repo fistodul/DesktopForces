@@ -94,7 +94,7 @@ public:
 				.Visibility(Background.IsValid() ? EVisibility::Visible : EVisibility::Collapsed)
 				.Padding(0.f)
 				[
-					SNew(SScaleBox).Stretch(EStretch::ScaleToFill)
+					SNew(SScaleBox).Stretch(EStretch::ScaleToFit)   // the whole framed picture, black around it
 					[
 						SNew(SImage).Image(&BackgroundBrush)
 					]
@@ -433,6 +433,10 @@ private:
 			{ LOCTEXT("CrGame", "Desktop Forces"), LOCTEXT("CrGameB", "A remake and spiritual successor of Mobile Forces (Rage Games, 2002) by its community, mf.nofisto.com. Code MPL-2.0.") },
 			{ LOCTEXT("CrLead", "Project lead, code"), LOCTEXT("CrLeadB", "Filip Stojanovic and the Desktop Forces contributors") },
 			{ LOCTEXT("CrMods", "Mods (MF-mods)"), LOCTEXT("CrModsB", "fistodul: Totem of Undying, Trip Lasers, Seeker Mines, Sentry Gun, Tug of War, King of the Hill, Molotov") },
+			{ LOCTEXT("CrModsG", "Battle Royale, Arena"), LOCTEXT("CrModsGB", "Edgaras \"Gregaras\" Ziaugra (design, Battle Royale models and textures)") },
+			{ LOCTEXT("CrModsA", "Coop, Zombie modes"), LOCTEXT("CrModsAB", "Animeman (for AKVARI)") },
+			{ LOCTEXT("CrModsGL", "Grenade launcher"), LOCTEXT("CrModsGLB", "Gian, Peto, \"Secret Dude\"") },
+			{ LOCTEXT("CrModsMB", "MoBall, Turbo cars, mutPack"), LOCTEXT("CrModsMBB", "the MF community (mutPack: Gregaras)") },
 			{ LOCTEXT("CrBg", "Menu pictures"), LOCTEXT("CrBgB", "Edgaras \"Gregaras\" Ziaugra (Mobile Forces Source)") },
 			{ LOCTEXT("CrMusic", "Start-up theme"), LOCTEXT("CrMusicB", "Dawid Edward Kmita (Mobile Forces Source)") },
 			{ LOCTEXT("CrMFS", "Mobile Forces Source team (World Gamers)"), LOCTEXT("CrMFSB", "Filip Stojanovic, Junaid Malik, Edgaras Ziaugra, Ahmed Isaac Alizai, Augustinas Jatutas, Dawid Edward Kmita") },

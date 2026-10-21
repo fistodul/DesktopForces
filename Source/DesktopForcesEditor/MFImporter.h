@@ -53,6 +53,7 @@ public:
 
 	bool ImportTextures();
 	/** Import WAVs under work/out/<SubDir>/<package>/... to <package root>/<SubDir>/<package>/... */
+	class USoundAttenuation* EnsureSoundAttenuation();
 	bool ImportSounds(const FString& SubDir = TEXT("Sounds"), bool bLooping = false);
 	bool BuildMap(const FString& MapName);
 

@@ -11,13 +11,17 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 |---|---|
 | Project lead, code | Filip Stojanovic and the Desktop Forces contributors (git history) |
 | Mods (MF-mods, now part of the game) | fistodul: Totem of Undying, Trip Lasers, Seeker Mines, Sentry Gun, Tug of War, King of the Hill, Molotov |
+| Coop, Zombie modes | Animeman (for AKVARI) |
+| Grenade launcher | Gian, Peto, "Secret Dude" |
+| MoBall, TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
+| Battle Royale, Arena | Edgaras "Gregaras" Ziaugra (design, models: item crate, metal tower, platform, safe zone; metal textures; all CC0) |
 
 ## Art and music in this repository
 
 | File | Author | Origin |
 |---|---|---|
-| `SourceArt/UI/T_MenuBackground1.png` | Edgaras "Gregaras" Ziaugra | Mobile Forces Source menu background (`background02.vtf`), cropped: frame, team badge and engine logo removed |
-| `SourceArt/UI/T_MenuBackground2.png` | Edgaras "Gregaras" Ziaugra | Mobile Forces Source menu background (`background01.vtf`), cropped the same way. A screenshot of an MFS map: some of its textures may come from the Source SDK - replace it if that matters |
+| `SourceArt/UI/T_MenuBackground1.png` | Edgaras "Gregaras" Ziaugra | Mobile Forces Source menu background (`background02.vtf`), whole; Valve's "source" logo in the corner replaced by an "unreal" box (`Tools/artgen/mfs_backgrounds.py`) |
+| `SourceArt/UI/T_MenuBackground2.png` | Edgaras "Gregaras" Ziaugra | Mobile Forces Source menu background (`background01.vtf`), the same. A screenshot of an MFS map: some of its textures may come from the Source SDK - replace it if that matters |
 | `SourceArt/Music/GameStartup.mp3` | Dawid Edward Kmita | Mobile Forces Source start-up theme (`gamestartup1.mp3`) |
 | `SourceArt/Mods/Icons/*.bmp` | fistodul | MF-mods HUD icons |
 | `Tools/artgen` output (crate) | generated | procedural, made for this project |
@@ -27,6 +31,15 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 Filip Stojanovic, Junaid Malik (code); Filip Stojanovic, Edgaras Ziaugra, Ahmed Isaac Alizai
 (maps); Edgaras Ziaugra, Augustinas Jatutas (materials); Edgaras Ziaugra (models); Dawid Edward
 Kmita (sounds, music).
+
+## Licence status of ported mod code
+
+The MF-mods are re-written in C++ here, not copied, but a port written from someone's code is
+still based on it. Gregaras' files (battleRoyale, arenaMode, mutPack, and his jeep / boat /
+heli edits) ask for GPL 3 "if legally possible"; GPL code can't ship inside an Unreal Engine game
+(UE EULA, "Non-Compatible Licenses"), so `Game/BattleRoyale`, `Game/Arena` and the changeDamage
+rules in `AMFGameMode` / `AMFVehicle` wait on his agreement to MPL-2.0 (which stays usable in
+GPL projects, MPL 2.0 section 3.3). His models and textures are CC0 and fine either way.
 
 ## Maps
 

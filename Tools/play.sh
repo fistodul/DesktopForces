@@ -8,9 +8,9 @@
 #   Tools/play.sh editor                       open the editor instead
 #   Tools/play.sh build                        compile the C++ modules first
 #
-# Modes: dm, tdm, holdout, sc (Safecracker), ctf, det (Detonation), cap (Captains), trailer, koh, tug, coop, zombie, arena.
+# Modes: dm, tdm, holdout, sc (Safecracker), ctf, det (Detonation), cap (Captains), trailer, koh, tug, coop, zombie, arena, moball, br.
 # No arguments at all would start the main menu: run the editor binary with -game and no map. Extra arguments after the bot count go to the engine
-# (e.g. -ResX=1600 -ResY=900, -log). Engine path: mfport.toml `ue_root` or $UE_ROOT.
+# (e.g. -windowed -ResX=1600 -ResY=900, -log; without them the saved video settings apply). Engine path: mfport.toml `ue_root` or $UE_ROOT.
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UPROJECT="$PROJECT_DIR/DesktopForces.uproject"     # UE needs an absolute path here
@@ -51,8 +51,10 @@ case "$MODE" in
   coop)    GAME="/Script/DesktopForces.MFGameMode_Coop" ;;
   zombie)  GAME="/Script/DesktopForces.MFGameMode_Zombie" ;;
   arena)   GAME="/Script/DesktopForces.MFGameMode_Arena" ;;
+  moball)  GAME="/Script/DesktopForces.MFGameMode_MoBall" ;;
+  br)      GAME="/Script/DesktopForces.MFGameMode_BattleRoyale" ;;
   *)       GAME="$MODE" ;;
 esac
 
 # MF_OPTS: extra URL options, e.g. MF_OPTS="?TimeLimit=5?Part=2"
-exec "$EDITOR" "$UPROJECT" "$MAP_PATH?game=$GAME?Bots=$BOTS${MF_OPTS:-}" -game -windowed -ResX=1280 -ResY=720 "$@"
+exec "$EDITOR" "$UPROJECT" "$MAP_PATH?game=$GAME?Bots=$BOTS${MF_OPTS:-}" -game "$@"

@@ -1,4 +1,5 @@
 #include "AI/MFBotController.h"
+#include "Game/MFGameState.h"
 #include "DesktopForces.h"
 #include "Player/MFCharacter.h"
 #include "Game/MFGameMode.h"
@@ -28,6 +29,7 @@ void AMFBotController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 	Enemy = nullptr;
+	bDidLoadout = false;
 	ReactionDue = 0.f;
 	GetWorldTimerManager().SetTimer(ThinkTimer, this, &AMFBotController::Think, 0.2f, true, 0.3f);
 }
@@ -42,13 +44,15 @@ void AMFBotController::DoLoadout(AMFCharacter* C)
 {
 	for (const TSoftClassPtr<AMFWeapon>& Item : Profile.Loadout)
 	{
-		if (UClass* Class = Item.LoadSynchronous())
+		const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+		if (UClass* Class = Item.LoadSynchronous(); Class && (!GS || GS->IsItemAllowed(Class)))
 		{
 			C->GiveWeapon(Class, false);
 		}
 	}
 	C->SetInLoadout(false);
 	C->SwitchToBestWeapon();
+	bDidLoadout = true;
 }
 
 AMFCharacter* AMFBotController::FindEnemy(AMFCharacter* C) const
@@ -81,7 +85,7 @@ void AMFBotController::Think()
 	{
 		return;
 	}
-	if (C->IsInLoadout() || C->GetInventory().Num() <= 1)
+	if (C->IsInLoadout() || (!bDidLoadout && C->GetInventory().Num() <= 1))
 	{
 		DoLoadout(C);   // bots spawning away from a crate still get their favourite kit
 		return;

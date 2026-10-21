@@ -118,9 +118,9 @@ void AMFPlayerController::BuildInput()
 		{ TEXT("Fire"), EKeys::LeftMouseButton, EKeys::Gamepad_RightTrigger },
 		{ TEXT("AltFire"), EKeys::RightMouseButton, EKeys::Gamepad_LeftTrigger },
 		{ TEXT("Jump"), EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom },
-		// MF DefUser.ini has Ctrl and C = Duck; C opens the orders menu here (with V, MF's key)
+		// MF DefUser.ini: Ctrl and C = Duck (V = ShowCommandMenu, see CommandBindings)
 		{ TEXT("Crouch"), EKeys::LeftControl, EKeys::Gamepad_FaceButton_Right },
-		{ TEXT("CrouchAlt"), EKeys::RightControl, FKey() },
+		{ TEXT("CrouchAlt"), EKeys::RightControl, EKeys::C },
 		{ TEXT("Walk"), EKeys::LeftShift, FKey() },
 		{ TEXT("Reload"), EKeys::R, EKeys::Gamepad_FaceButton_Left },
 		{ TEXT("Loadout"), EKeys::Q, EKeys::Gamepad_Special_Right },
@@ -133,7 +133,6 @@ void AMFPlayerController::BuildInput()
 		{ TEXT("Throw"), EKeys::Semicolon, FKey() },
 		{ TEXT("LoadoutAlt"), EKeys::BackSpace, FKey() },
 		{ TEXT("Scores"), EKeys::F1, EKeys::Gamepad_Special_Left },
-		{ TEXT("ScoresTab"), EKeys::Tab, FKey() },
 		// in loadout W/S walk the cursor too (MF MoveForward = LoadoutPrev, MoveBackward = LoadoutNext)
 		{ TEXT("MenuUp"), EKeys::Up, EKeys::W },
 		{ TEXT("MenuDown"), EKeys::Down, EKeys::S },
@@ -231,8 +230,6 @@ void AMFPlayerController::SetupInputComponent()
 	EIC->BindAction(A(TEXT("PrevWeaponKey")), ETriggerEvent::Started, this, &AMFPlayerController::OnPrevWeapon);
 	EIC->BindAction(A(TEXT("Scores")), ETriggerEvent::Started, this, &AMFPlayerController::OnScores);
 	EIC->BindAction(A(TEXT("Scores")), ETriggerEvent::Completed, this, &AMFPlayerController::OnScoresReleased);
-	EIC->BindAction(A(TEXT("ScoresTab")), ETriggerEvent::Started, this, &AMFPlayerController::OnScores);
-	EIC->BindAction(A(TEXT("ScoresTab")), ETriggerEvent::Completed, this, &AMFPlayerController::OnScoresReleased);
 	EIC->BindAction(A(TEXT("MenuUp")), ETriggerEvent::Started, this, &AMFPlayerController::OnMenuUp);
 	EIC->BindAction(A(TEXT("MenuDown")), ETriggerEvent::Started, this, &AMFPlayerController::OnMenuDown);
 	EIC->BindAction(A(TEXT("MenuSelect")), ETriggerEvent::Started, this, &AMFPlayerController::OnMenuSelect);
@@ -266,7 +263,7 @@ void AMFPlayerController::OnMove(const FInputActionValue& Value)
 
 void AMFPlayerController::OnLook(const FInputActionValue& Value)
 {
-	if (IsLoadoutOpen())
+	if (IsLoadoutOpen() || CommandMenuStage > 0)
 	{
 		return;   // MF: the view is frozen in the loadout screen
 	}
@@ -302,6 +299,11 @@ void AMFPlayerController::OnJumpReleased()
 
 void AMFPlayerController::OnCrouch()
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->SetNitro(true);   // TurboCars: Player.bDuck in the driver's seat
+		return;
+	}
 	if (AMFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout())
 	{
 		C->Crouch();
@@ -310,6 +312,11 @@ void AMFPlayerController::OnCrouch()
 
 void AMFPlayerController::OnCrouchReleased()
 {
+	if (AMFVehicle* V = Cast<AMFVehicle>(GetPawn()))
+	{
+		V->SetNitro(false);
+		return;
+	}
 	if (AMFCharacter* C = GetMFCharacter())
 	{
 		C->UnCrouch();
@@ -336,6 +343,22 @@ void AMFPlayerController::OnWalkReleased()
 
 void AMFPlayerController::OnFire()
 {
+	if (CommandMenuStage > 0)
+	{
+		// the orders menu takes mouse clicks (MF OrdersWindow is a UWindow)
+		float X = 0.f, Y = 0.f;
+		const AMFHUD* HUD = Cast<AMFHUD>(GetHUD());
+		const int32 Slot = HUD && GetMousePosition(X, Y) ? HUD->GetCommandMenuSlotAt(FVector2D(X, Y)) : 0;
+		if (Slot > 0)
+		{
+			CommandMenuKey(Slot);
+		}
+		else
+		{
+			SetCommandMenuStage(0);
+		}
+		return;
+	}
 	AMFCharacter* C = GetMFCharacter();
 	if (C && C->IsInLoadout())
 	{
@@ -547,7 +570,8 @@ TArray<TSubclassOf<AMFWeapon>> AMFPlayerController::GetLoadoutItems() const
 			Items.Add(W->GetClass());
 		}
 	}
-	Items.RemoveAll([](const TSubclassOf<AMFWeapon>& W) { return !W; });
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	Items.RemoveAll([GS](const TSubclassOf<AMFWeapon>& W) { return !W || (GS && !GS->IsItemAllowed(W)); });
 	Items.StableSort([](const TSubclassOf<AMFWeapon>& A, const TSubclassOf<AMFWeapon>& B)
 	{
 		return A->GetDefaultObject<AMFWeapon>()->GetSlotKey() < B->GetDefaultObject<AMFWeapon>()->GetSlotKey();
@@ -571,9 +595,9 @@ void AMFPlayerController::ServerToggleLoadout_Implementation()
 	{
 		ExitLoadout();
 	}
-	else if (C->GetCharacterMovement()->IsMovingOnGround())
+	else if (C->GetCharacterMovement()->IsMovingOnGround() && !C->IsDeployed())
 	{
-		// MF: "Can only get loadout when walking". Away from crates and loadout zones it still
+		// MF: "Can only get loadout when walking" (PHYS_Walking: not with a deployed HMG). Away from crates and loadout zones it still
 		// opens: take weapons lying around, put carried ones down (MF only opened it there).
 		const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
 		if (GS && GS->GetLoadoutAccess(C->GetTeam()) <= 0)
@@ -1063,8 +1087,35 @@ TArray<APlayerState*> AMFPlayerController::GetCommandTargets() const
 
 void AMFPlayerController::ShowCommandMenu()
 {
-	CommandMenuStage = CommandMenuStage > 0 ? 0 : 1;
+	SetCommandMenuStage(CommandMenuStage > 0 ? 0 : 1);
 	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/click.click"));
+}
+
+void AMFPlayerController::SetCommandMenuStage(int32 Stage)
+{
+	// open: a mouse cursor to click orders with, the view stays put
+	CommandMenuStage = Stage;
+	bShowMouseCursor = Stage > 0;
+	if (Stage > 0)
+	{
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
+		SetInputMode(Mode);
+	}
+	else
+	{
+		SetInputMode(FInputModeGameOnly());
+	}
+}
+
+void AMFPlayerController::Type()
+{
+	// MF Tab = Type: the one-line console (the console key opens the full one, UMFConsole)
+	if (UGameViewportClient* VC = GetWorld()->GetGameViewport(); VC && VC->ViewportConsole)
+	{
+		VC->ViewportConsole->FakeGotoState(FName(TEXT("Typing")));
+	}
 }
 
 void AMFPlayerController::CommandMenuKey(int32 Slot)
@@ -1086,7 +1137,7 @@ void AMFPlayerController::CommandMenuKey(int32 Slot)
 		else
 		{
 			ServerGiveOrder(Index, nullptr);
-			CommandMenuStage = 0;
+			SetCommandMenuStage(0);
 		}
 	}
 	else if (CommandMenuStage == 2)
@@ -1095,7 +1146,7 @@ void AMFPlayerController::CommandMenuKey(int32 Slot)
 		if (Index == 0 || Targets.IsValidIndex(Index - 1))
 		{
 			ServerGiveOrder(CommandMenuOrder, Index == 0 ? nullptr : Targets[Index - 1]);
-			CommandMenuStage = 0;
+			SetCommandMenuStage(0);
 		}
 	}
 	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/click.click"));
@@ -1227,7 +1278,8 @@ void AMFPlayerController::ServerLoadoutPick_Implementation(TSubclassOf<AMFWeapon
 {
 	AMFCharacter* C = GetMFCharacter();
 	const AMFLoadoutSource* Src = C ? UMFLoadoutLibrary::FindLoadoutSourceFor(C) : nullptr;
-	if (!C || !C->IsInLoadout() || !Item)
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	if (!C || !C->IsInLoadout() || !Item || (GS && !GS->IsItemAllowed(Item) && !C->FindWeaponOfClass(Item)))
 	{
 		return;
 	}

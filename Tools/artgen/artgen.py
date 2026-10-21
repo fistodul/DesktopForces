@@ -133,7 +133,9 @@ def convert_source_art() -> int:
             dst = (OUT / rel).with_suffix('.png')
             dst.parent.mkdir(parents=True, exist_ok=True)
             img = Image.open(src)
-            if img.mode == 'P':
+            if img.mode in ('P', 'L'):
+                # UE1 masked import (#exec ... Flags=2): colour index 0 is see-through; greyscale
+                # BMPs (Totem's icon) are 8-bit too, index 0 = black
                 mask = img.point(lambda i: 0 if i == 0 else 255, mode='L')
                 img = img.convert('RGBA')
                 img.putalpha(mask)

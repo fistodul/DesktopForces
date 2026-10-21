@@ -1,7 +1,8 @@
 # Console commands
 
-Open the console with **`~`** (tilde / the key left of 1). Names follow Mobile Forces where
-the original had the command; case doesn't matter.
+Like Mobile Forces: **Tab** opens the one-line console (MF `Type`), **`~`** (tilde / the key
+left of 1) the full console with the log, `~` again closes either. Names follow Mobile Forces
+where the original had the command; case doesn't matter.
 
 ## Everyone
 
@@ -13,7 +14,8 @@ the original had the command; case doesn't matter.
 | `SwitchWeapon N` | select group N (1-9, 10 = key 0, 11 = X) |
 | `NextWeapon` / `PrevWeapon` | cycle weapons (wheel down / up, `]` / `[`); zoom the sniper scope out / in |
 | `ThrowWeapon`, `Drop` | drop the held weapon (`;`) |
-| `ShowScores` | toggle the scoreboard (F1 / Tab hold) |
+| `ShowScores` | toggle the scoreboard (F1 hold) |
+| `Type` | the one-line console (Tab) |
 | `SShot` | screenshot (`Saved/Screenshots/...`) |
 | `GrowHUD` / `ShrinkHUD` | HUD size 0-4 (32 … 128 px item boxes), saved |
 | `ChangeCrosshair` | next of the 24 MF crosshairs, saved |
@@ -21,7 +23,7 @@ the original had the command; case doesn't matter.
 | `RestartLevel` | restart the map (single player / host) |
 | `AddBots N`, `GoodBot N`, `BadBot N` | add bots of normal / better / worse skill (single player / host) |
 | `ListBots` | bots and their skill |
-| `ShowCommandMenu` | team orders menu (V, C); number keys pick the order, then All / a team-mate |
+| `ShowCommandMenu` | team orders menu (V); number keys or a mouse click pick the order, then All / a team-mate (the view holds still while it's open) |
 | `Talk` / `TeamTalk` | type a chat line to everyone / your team (T / Y) |
 | `Say Text` / `TeamSay Text` | send a chat line |
 | `ViewTeam` | watch the next team-mate (F5); `ViewPlayerNum N`: NumPad1 = yourself, NumPad2.. = team-mates |
@@ -35,7 +37,7 @@ the original had the command; case doesn't matter.
 
 Keys that run commands are a config table, like MF's User.ini: `[/Script/DesktopForces.MFPlayerController]`
 `+CommandBindings=(Key=F9,Command="SShot")` in `Config/DefaultGame.ini` (or your user Game.ini).
-Built-in keys: WASD / arrows / `,` `.` move, Ctrl crouch (MF also had C; C opens orders here),
+Built-in keys (MF DefUser.ini): WASD / arrows / `,` `.` move, Ctrl / C crouch (drivers: nitro),
 Delete / PageDown look up / down, Q / Backspace loadout, `;` throw, `[` `]` / wheel weapons.
 UE's development-build debug keys (F1 wireframe, F2-F5 view modes, PageUp/PageDown, `;` debug
 camera) are switched off in `Config/DefaultInput.ini`; only Ctrl+Shift+`.` (recompile shaders)

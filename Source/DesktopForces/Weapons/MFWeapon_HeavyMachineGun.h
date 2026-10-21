@@ -15,6 +15,7 @@ class DESKTOPFORCES_API AMFWeapon_HeavyMachineGun : public AMFWeapon
 	GENERATED_BODY()
 public:
 	AMFWeapon_HeavyMachineGun();
+	virtual bool IsDeployed() const override { return ZoomLevel > 0; }
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
 	virtual void ForceInactive() override;

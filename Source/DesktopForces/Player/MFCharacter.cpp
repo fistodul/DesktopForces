@@ -1,4 +1,6 @@
 #include "Player/MFCharacter.h"
+#include "Sound/SoundBase.h"
+#include "Core/MFContent.h"
 #include "Vehicles/MFVehicle.h"
 #include "Core/MFUserSettings.h"
 #include "Player/MFCharacterMovement.h"
@@ -159,6 +161,10 @@ float AMFCharacter::GetDesiredFOV() const
 void AMFCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		UpdateFootsteps(DeltaSeconds);
+	}
 
 	// Zoom: MF interpolates the FOV over ZoomInTime (~0.35 s)
 	const float Target = GetDesiredFOV();
@@ -263,7 +269,7 @@ float AMFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AC
 	}
 	if (AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>())
 	{
-		Damage = GM->ModifyDamage(Damage, this, EventInstigator);
+		Damage = GM->ModifyDamage(Damage, this, EventInstigator, DamageCauser);
 		if (Damage <= 0.f)
 		{
 			return 0.f;
@@ -272,6 +278,13 @@ float AMFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AC
 	const UMFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UMFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
 	const int32 Applied = AbsorbWithArmour(FMath::RoundToInt(Damage), Type);
 	Health -= Applied;
+	// PlayTakeHitSound: 0.3 s apart; damage x rand < 8 light, < 25 medium, else heavy
+	if (Applied > 0 && Health > 0 && GetWorld()->GetTimeSeconds() - LastPainSound >= 0.3f)
+	{
+		LastPainSound = GetWorld()->GetTimeSeconds();
+		const float D = Applied * FMath::FRand();
+		MulticastBodySound(uint8(EBodySound::Pain), 1.f, D < 8.f ? 0 : D < 25.f ? (FMath::FRand() < 0.5f ? 1 : 2) : 3);
+	}
 	Super::TakeDamage(float(Applied), DamageEvent, EventInstigator, DamageCauser);
 	if (Applied > 0)
 	{
@@ -293,6 +306,16 @@ float AMFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AC
 	return float(Applied);
 }
 
+bool AMFCharacter::IsDeployed() const
+{
+	return CurrentWeapon && CurrentWeapon->IsDeployed();
+}
+
+bool AMFCharacter::CanJumpInternal_Implementation() const
+{
+	return !IsDeployed() && Super::CanJumpInternal_Implementation();   // MF PHYS_Gunnery: no jumping
+}
+
 void AMFCharacter::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
@@ -300,6 +323,25 @@ void AMFCharacter::Landed(const FHitResult& Hit)
 	const float VZ = GetCharacterMovement()->Velocity.Z;
 	const float Threshold = -1687.5f * BodyScale.FallDamage;   // MF FallDamageThreshold -750
 	const float Death = -2700.f * BodyScale.FallDeath;         // MF FallDeathThreshold -1200
+	// Pawn.PlayLanded: impact = 0.1 x (Vz / JumpZ)^2; > 0.17 a grunt, > 0.01 the thump
+	if (HasAuthority())
+	{
+		const float Ratio = VZ / FMath::Max(GetCharacterMovement()->JumpZVelocity, 1.f);
+		const float Impact = 0.1f * Ratio * Ratio;
+		if (Impact > 0.17f)
+		{
+			MulticastBodySound(uint8(EBodySound::LandGrunt), FMath::Min(1.f, 5.f * Impact / 4.f), 0);
+		}
+		if (Impact > 0.01f)
+		{
+			MulticastBodySound(uint8(EBodySound::Land), FMath::Clamp(4.f * Impact, 0.5f, 5.f) / 5.f, 0);
+		}
+	}
+	if (bNoFallDamageOnce)
+	{
+		bNoFallDamageOnce = false;
+		return;
+	}
 	if (HasAuthority() && VZ <= Threshold)
 	{
 		const float Ratio = (VZ - Threshold) / (Death - Threshold);
@@ -338,6 +380,56 @@ void AMFCharacter::FellOutOfWorld(const UDamageType& DmgType)
 	}
 }
 
+void AMFCharacter::UpdateFootsteps(float DeltaSeconds)
+{
+	// RPlayer.CheckBob: BobTime runs at 0.3 + 0.7 x speed / GroundSpeed; a step each time
+	// 9 x BobTime / pi passes a whole number - never while walking (the walk key)
+	const UCharacterMovementComponent* Move = GetCharacterMovement();
+	const float Speed = GetVelocity().Size2D();
+	const float Max = FMath::Max(Move->MaxWalkSpeed, 1.f);
+	const UMFCharacterMovement* MFMove = GetMFMovement();
+	const bool bWalking = IsLocallyControlled() ? (MFMove && MFMove->bWantsToWalk) : Speed < Max * 0.55f;
+	if (!IsAlive() || !Move->IsMovingOnGround() || Speed < 22.5f || bWalking || GetAttachParentActor())
+	{
+		return;
+	}
+	const int32 Before = FMath::FloorToInt(0.5f * PI + 9.f * StepBobTime / PI);
+	StepBobTime += DeltaSeconds * (0.3f + 0.7f * FMath::Min(Speed / Max, 1.f));
+	if (FMath::FloorToInt(0.5f * PI + 9.f * StepBobTime / PI) != Before)
+	{
+		static const TCHAR* Steps[] = { TEXT("Sounds/RagePlayerSounds/stone01"), TEXT("Sounds/RagePlayerSounds/stone02"), TEXT("Sounds/RagePlayerSounds/stone03") };
+		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(Steps[FMath::RandRange(0, 2)]),
+			GetActorLocation() - FVector(0.f, 0.f, GetSimpleCollisionHalfHeight()), 0.6f, 1000.f);   // volume 2.2, radius 1000
+	}
+}
+
+void AMFCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+	if (HasAuthority())
+	{
+		MulticastBodySound(uint8(EBodySound::Jump), 0.7f, 0);   // PlayOwnedSound(JumpSound, , 1.5, , 1200)
+	}
+}
+
+void AMFCharacter::MulticastBodySound_Implementation(uint8 Kind, float Volume, uint8 Variant)
+{
+	// the UT male set MF ships in RagePlayerSounds (HitSound1-4, Deaths[6], JumpSound, LandGrunt)
+	static const TCHAR* Pain[] = { TEXT("injurL2"), TEXT("injurL04"), TEXT("injurM04"), TEXT("injurH5") };
+	static const TCHAR* Deaths[] = { TEXT("deathc1"), TEXT("deathc51"), TEXT("deathc3"), TEXT("deathc4"), TEXT("deathc53"), TEXT("deathc53") };
+	FString Rel;
+	float Radius = 1600.f, Pitch = 1.f;
+	switch (EBodySound(Kind))
+	{
+	case EBodySound::Pain: Rel = FString(TEXT("Sounds/RagePlayerSounds/")) + Pain[Variant % 4]; Pitch = FMath::FRandRange(0.9f, 1.05f); break;
+	case EBodySound::Death: Rel = FString(TEXT("Sounds/RagePlayerSounds/")) + Deaths[Variant % 6]; break;
+	case EBodySound::Jump: Rel = TEXT("Sounds/RagePlayerSounds/jump1"); Radius = 1200.f; break;
+	case EBodySound::LandGrunt: Rel = TEXT("Sounds/RagePlayerSounds/land10"); Radius = 1200.f; Pitch = FMath::FRandRange(0.8f, 1.2f); break;
+	case EBodySound::Land: Rel = TEXT("Sounds/MiscSFX/Land1"); Radius = 1000.f; break;
+	}
+	MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(Rel), GetActorLocation(), Volume, Radius, Pitch);
+}
+
 void AMFCharacter::Die(AController* Killer, TSubclassOf<UDamageType> DamageType, AActor* DamageCauser)
 {
 	if (bDying)
@@ -345,6 +437,7 @@ void AMFCharacter::Die(AController* Killer, TSubclassOf<UDamageType> DamageType,
 		return;
 	}
 	bDying = true;
+	MulticastBodySound(uint8(EBodySound::Death), 1.f, uint8(FMath::RandRange(0, 5)));   // PlayDyingSound
 	Health = FMath::Min(Health, 0);
 	if (AMFVehicle* Riding = Cast<AMFVehicle>(GetAttachParentActor()))
 	{

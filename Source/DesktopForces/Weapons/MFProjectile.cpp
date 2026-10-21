@@ -1,4 +1,8 @@
 #include "Weapons/MFProjectile.h"
+#include "DesktopForces.h"
+#include "TimerManager.h"
+#include "Core/MFContent.h"
+#include "Weapons/MFWeapon_Knife.h"
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
 #include "Components/SphereComponent.h"
@@ -58,6 +62,10 @@ void AMFProjectile::BeginPlay()
 	if (AActor* Inst = GetInstigator())
 	{
 		Collision->IgnoreActorWhenMoving(Inst, true);
+		if (AActor* Ride = Inst->GetAttachParentActor())
+		{
+			Collision->IgnoreActorWhenMoving(Ride, true);   // fired by a passenger
+		}
 	}
 	if (HasAuthority() && FuseTime > 0.f)
 	{
@@ -196,44 +204,152 @@ AMFProjectile_Knife::AMFProjectile_Knife()
 {
 	Movement->InitialSpeed = 1350.f;          // MF Knife_Thrown.speed 600
 	Movement->MaxSpeed = 2250.f;
-	Movement->ProjectileGravityScale = 1.f;
+	Movement->ProjectileGravityScale = 1.f;   // PHYS_Falling
+	Movement->bShouldBounce = true;           // bBounce
+	Movement->Bounciness = 0.4f;              // Bounce: Velocity = 0.4 * reflected
+	Movement->Friction = 0.4f;
+	Movement->BounceVelocityStopSimulatingThreshold = 45.f;   // speed < 20 uu: lies still
+	Collision->InitSphereRadius(9.f);         // CollisionRadius 4
 	Damage = 60.f;
 	DamageRadius = 0.f;
+	bExplodeOnImpact = false;
 	DamageType = UMFDamage_Knife::StaticClass();
-	InitialLifeSpan = 6.f;                    // MF TimeBeforeReturn
+	InitialLifeSpan = 0.f;                    // goes when it's back with its owner
 	PropMesh = TEXT("RageWeapons/KnifePickupCarryMesh");
 }
 
-void AMFProjectile_Knife::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
+void AMFProjectile_Knife::BeginPlay()
 {
-	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
-	LastHit = Hit;
+	Super::BeginPlay();
+	Movement->OnProjectileBounce.AddDynamic(this, &AMFProjectile_Knife::OnKnifeBounce);
+	Movement->OnProjectileStop.AddDynamic(this, &AMFProjectile_Knife::OnKnifeStop);
+	Collision->OnComponentBeginOverlap.AddDynamic(this, &AMFProjectile_Knife::OnKnifeOverlap);
+	if (HasAuthority())
+	{
+		SetLifeSpan(60.f);   // lost in the void: back after a minute anyway (Destroyed returns it)
+	}
 }
 
-void AMFProjectile_Knife::Explode(const FVector& Location, const FVector& Normal)
+void AMFProjectile_Knife::HitVictim(AActor* Other, const FHitResult& Hit)
 {
-	if (bExploded)
+	if (!Other || (Other == GetInstigator() && !bCanHitOwner))
 	{
 		return;
 	}
-	bExploded = true;
-	// Direct hit only: 60 damage, or 250 'decapitated' to the head (Knife_Thrown.ProcessTouch)
-	TArray<FOverlapResult> Overlaps;
-	FCollisionShape Shape = FCollisionShape::MakeSphere(30.f);
-	GetWorld()->OverlapMultiByChannel(Overlaps, Location, FQuat::Identity, ECC_Pawn, Shape);
-	for (const FOverlapResult& O : Overlaps)
+	const AMFCharacter* Victim = Cast<AMFCharacter>(Other);
+	const bool bHead = Victim && Victim->IsHeadshot(GetActorLocation());
+	const float D = bHead ? 250.f : Damage;
+	TSubclassOf<UDamageType> T = bHead ? TSubclassOf<UDamageType>(UMFDamage_Headshot::StaticClass()) : TSubclassOf<UDamageType>(DamageType);
+	FHitResult H = Hit;
+	if (!H.bBlockingHit)
 	{
-		AMFCharacter* Victim = Cast<AMFCharacter>(O.GetActor());
-		if (!Victim || Victim == GetInstigator())
-		{
-			continue;
-		}
-		const bool bHead = Victim->IsHeadshot(Location);
-		const float D = bHead ? 250.f : Damage;
-		TSubclassOf<UDamageType> T = bHead ? TSubclassOf<UDamageType>(UMFDamage_Headshot::StaticClass()) : TSubclassOf<UDamageType>(DamageType);
-		FPointDamageEvent Ev(D, LastHit, GetVelocity().GetSafeNormal(), T);
-		Victim->TakeDamage(D, Ev, GetInstigatorController(), this);
-		break;
+		H.ImpactPoint = GetActorLocation();
+		H.Location = GetActorLocation();
 	}
+	FPointDamageEvent Ev(D, H, GetVelocity().GetSafeNormal(), T);
+	Other->TakeDamage(D, Ev, GetInstigatorController(), this);
+}
+
+void AMFProjectile_Knife::OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep)
+{
+	if (!HasAuthority() || !Other)
+	{
+		return;
+	}
+	if (bSafe)
+	{
+		if (Other == GetInstigator())
+		{
+			Return();   // Safe.ProcessTouch: the owner takes it back
+		}
+		return;
+	}
+	if (Cast<APawn>(Other) && (Other != GetInstigator() || bCanHitOwner))
+	{
+		HitVictim(Other, Sweep);
+		Movement->Velocity = FVector::ZeroVector;   // stops in them and drops
+		Movement->bShouldBounce = false;
+	}
+}
+
+void AMFProjectile_Knife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVelocity)
+{
+	if (!HasAuthority() || bSafe)
+	{
+		return;
+	}
+	if (Cast<APawn>(Hit.GetActor()))
+	{
+		HitVictim(Hit.GetActor(), Hit);   // vehicles: a clang and a push
+		return;
+	}
+	bCanHitOwner = true;
+	if (AActor* Inst = GetInstigator())
+	{
+		Collision->IgnoreActorWhenMoving(Inst, false);
+	}
+	// HitWall: sticks in walls (and anything steep); off the floor it bounces (Landed -> Bounce)
+	if (FMath::Abs(Hit.ImpactNormal.Z) < 0.7f)
+	{
+		if (USoundBase* S = MF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, S, Hit.ImpactPoint);
+		}
+		SetActorRotation(ImpactVelocity.Rotation());
+		BecomeSafe(Hit.GetComponent());
+	}
+}
+
+void AMFProjectile_Knife::OnKnifeStop(const FHitResult& Hit)
+{
+	if (HasAuthority() && !bSafe)
+	{
+		BecomeSafe(nullptr);
+	}
+}
+
+void AMFProjectile_Knife::BecomeSafe(USceneComponent* StickTo)
+{
+	// state Safe: 8 x 16 uu to touch, back to the owner after TimeBeforeReturn
+	bSafe = true;
+	UE_LOG(LogMF, Verbose, TEXT("%s lies at %s%s"), *GetName(), *GetActorLocation().ToCompactString(), StickTo ? TEXT(" (stuck)") : TEXT(""));
+	Movement->StopMovementImmediately();
+	Movement->ProjectileGravityScale = 0.f;
+	Movement->Deactivate();
+	if (StickTo && StickTo->Mobility == EComponentMobility::Movable)
+	{
+		AttachToComponent(StickTo, FAttachmentTransformRules::KeepWorldTransform);   // SetBase(Wall)
+	}
+	Collision->SetSphereRadius(27.f);
+	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	GetWorldTimerManager().SetTimer(ReturnTimer, this, &AMFProjectile_Knife::Return, ReturnTime, false);
+	// already standing on it
+	TArray<AActor*> Touching;
+	Collision->UpdateOverlaps();
+	Collision->GetOverlappingActors(Touching, APawn::StaticClass());
+	if (Touching.Contains(GetInstigator()))
+	{
+		Return();
+	}
+}
+
+void AMFProjectile_Knife::Return()
+{
+	if (AMFWeapon_Knife* K = OwnerKnife.Get())
+	{
+		K->KnifeReturned();
+	}
+	OwnerKnife = nullptr;
 	Destroy();
+}
+
+void AMFProjectile_Knife::Destroyed()
+{
+	if (AMFWeapon_Knife* K = OwnerKnife.Get(); K && HasAuthority())
+	{
+		K->KnifeReturned();
+	}
+	Super::Destroyed();
 }

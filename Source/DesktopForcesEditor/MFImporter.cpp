@@ -1,4 +1,5 @@
 #include "MFImporter.h"
+#include "Sound/SoundAttenuation.h"
 #include "DesktopForcesEditor.h"
 #include "AssetImportTask.h"
 #include "AssetToolsModule.h"
@@ -402,6 +403,28 @@ void FMFImporter::ImportFonts()
 
 // --- sounds ----------------------------------------------------------------------------
 
+USoundAttenuation* FMFImporter::EnsureSoundAttenuation()
+{
+	// UE1 PlaySound: Radius 0 -> TransientSoundRadius 0 -> the engine's 1600 uu; full volume close
+	// by, falling off linearly to nothing at the radius
+	const TCHAR* Path = TEXT("/Game/MF/Audio/ATT_MF");
+	if (USoundAttenuation* Existing = LoadObject<USoundAttenuation>(nullptr, *FString::Printf(TEXT("%s.ATT_MF"), Path), nullptr, LOAD_NoWarn | LOAD_Quiet))
+	{
+		return Existing;
+	}
+	UPackage* Pkg = CreatePackage(Path);
+	USoundAttenuation* A = NewObject<USoundAttenuation>(Pkg, TEXT("ATT_MF"), RF_Public | RF_Standalone);
+	A->Attenuation.bAttenuate = true;
+	A->Attenuation.bSpatialize = true;
+	A->Attenuation.DistanceAlgorithm = EAttenuationDistanceModel::Linear;
+	A->Attenuation.AttenuationShape = EAttenuationShape::Sphere;
+	A->Attenuation.AttenuationShapeExtents = FVector(225.f, 0.f, 0.f);   // 100 uu at full volume
+	A->Attenuation.FalloffDistance = 3600.f - 225.f;                     // silent at 1600 uu
+	FAssetRegistryModule::AssetCreated(A);
+	SaveAsset(A);
+	return A;
+}
+
 bool FMFImporter::ImportSounds(const FString& SubDir, bool bLooping)
 {
 	const FString SoundDir = WorkDir / SubDir;
@@ -431,6 +454,30 @@ bool FMFImporter::ImportSounds(const FString& SubDir, bool bLooping)
 	}
 	UE_LOG(LogMFEditor, Display, TEXT("Importing %d files from %s"), Tasks.Num(), *SubDir);
 	AssetTools.ImportAssetTasks(Tasks);
+	if (!bLooping)
+	{
+		// one-shot sounds fade out with distance like MF's (PlaySound without a radius: 1600 uu)
+		USoundAttenuation* Attenuation = EnsureSoundAttenuation();
+		for (UAssetImportTask* Task : Tasks)
+		{
+			for (UObject* Obj : Task->GetObjects())
+			{
+				if (USoundWave* Wave = Cast<USoundWave>(Obj))
+				{
+					// sounds MF plays as an actor's AmbientSound loop: vehicle engines, skids, fires
+					const FString Name = Wave->GetName();
+					const bool bLoop = Name.Equals(TEXT("Engine1"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("skid"), ESearchCase::IgnoreCase)
+						|| Name.EndsWith(TEXT("Loop"), ESearchCase::IgnoreCase);
+					if (Wave->AttenuationSettings != Attenuation || Wave->bLooping != bLoop)
+					{
+						Wave->AttenuationSettings = Attenuation;
+						Wave->bLooping = bLoop;
+						SaveAsset(Wave);
+					}
+				}
+			}
+		}
+	}
 	if (bLooping)
 	{
 		for (UAssetImportTask* Task : Tasks)
@@ -463,7 +510,7 @@ bool FMFImporter::ImportProps()
 	{
 		const FString Rel = Pair.Value->AsObject()->GetStringField(TEXT("mesh"));   // Package/Name
 		++Total;
-		Ok += BuildStaticMesh(WorkDir / TEXT("Props") / (Rel + TEXT(".mfmesh.json")), FString::Printf(TEXT("%s/Props/%s"), *Packs.ClassicRoot, *Rel)) ? 1 : 0;
+		Ok += BuildStaticMesh(WorkDir / TEXT("Props") / (Rel + TEXT(".mfmesh.json")), FString::Printf(TEXT("%s/Props/%s"), *Packs.PackageRoot(FPaths::GetPath(Rel)), *Rel)) ? 1 : 0;
 	}
 	UE_LOG(LogMFEditor, Display, TEXT("Props: %d / %d meshes"), Ok, Total);
 	return Ok > 0;

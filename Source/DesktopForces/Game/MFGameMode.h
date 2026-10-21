@@ -45,7 +45,7 @@ public:
 	virtual void HandleMatchHasEnded() override;
 
 	/** Damage modifiers (hardcore x1.5, friendly fire). */
-	virtual float ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator) const;
+	virtual float ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator, AActor* DamageCauser = nullptr) const;
 	/** A pawn died. */
 	virtual void Killed(AController* Killer, AController* Victim, AMFCharacter* VictimPawn, TSubclassOf<UDamageType> DamageType);
 	/** A blow would kill Victim: return true to keep them alive (mods: Tug of War converts instead). */
@@ -129,6 +129,38 @@ public:
 	/** Vehicles at the map's generators (URL ?Vehicles=0 turns them off). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bVehicles = true;
+
+	/**
+	 * mutPack changeDamage (Gregaras), the community servers' damage rules, on by default:
+	 * players' rockets hit soldiers twice as hard, bullets and pellets hurt vehicles (MF: never),
+	 * bots hurt vehicles and the people in them a fifth as much. ?ChangeDamage=0: MF's rules.
+	 */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
+	bool bChangeDamage = true;
+	/** rocketDamageMultToPlayersOnFoot 2 (rockets fired by players). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
+	float RocketDamageScaleOnFoot = 2.f;
+	/** Bullets / pellets on vehicles, x (1 - Armour): nEWeaponDamageMultToVehicles 10 against
+	 *  vehicle health 100 x 8 x 10 (eWeaponDamageMultToVehicles keeps explosives as they were). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
+	float VehicleBulletDamageScale = 0.125f;
+	/** knivesDamageVehicles */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
+	bool bKnivesDamageVehicles = false;
+	/** 1 / botDamageDivToVehicles (5) and 1 / botDamageDivToPlayerVehOccupants (5). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
+	float BotVehicleDamageScale = 0.2f;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
+	float BotOccupantDamageScale = 0.2f;
+
+	/** Most weapons lying around at once; the oldest disappears beyond it. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	int32 MaxDroppedWeapons = 32;
+
+	/** MF-mods TurboCars: drivers get nitro on the crouch key; on by default like the community
+	 *  servers (mutPack replaceVehicles: TurboBuggy, TurboHumvee, TurboArmadillo). ?TurboCars=0 */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bTurboCars = true;
 
 	/** MF-mods Armed APC at the Armadillo generators: 0 off, 1 machine gun, 2 rockets (?ArmedAPC=N). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")

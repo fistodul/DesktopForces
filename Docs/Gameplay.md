@@ -40,7 +40,9 @@ lets go (no regrab for 0.5 s).
   Trailer 4/10, Captains 5/12 (frag-or-goal / minutes; to port).
 - Respawn after max(1, RespawnWait) s; RespawnWait 0 for DM/TDM, 5 for CTF/Det/SC/Trailer.
 - Spawn choice: neutral starts (TeamNumber ≥ 2) in non-team games, own team's starts in team
-  games; random score, −10000 for the last spot used, players nearby lower the score.
+  games (no team yet counts as team 0, RageTeamGame.FindPlayerStart; never the captain starts
+  or the neutral ones, e.g. warehouse's captain's room); random score, −10000 for the last spot
+  used, players nearby lower the score.
 - Kill +1, suicide −1; killing sprees every 5 kills; first blood message.
 - Map end: 15 s (RestartWait) then restart.
 
@@ -89,19 +91,35 @@ lets go (no regrab for 0.5 s).
   `AMFZoneBox` tagged `CaptainProhibited`). 5 points / 12 min. "CAPTAIN" label over them.
 - Holdout (Domination), DM, TDM as before; Trailer waits for vehicles (its map actors are
   already in the converted maps).
-- **Tug of War** (`tug`, MF-mods TugGame, `Mods/Tug`): killing an enemy converts them
+- **Tug of War** (`tug`, MF-mods TugGame, `Game/Tug`): killing an enemy converts them
   to your team on the spot (full health). A team with nobody left loses the round (+2 to the
   converter); the bigger team wins a round that runs out of time (8 min). 3 rounds; every
   round starts with the original teams and fresh loadouts.
-- **Arena** (`arena`, MF-mods arenaMode by Gregaras, `Mods/Arena`): rounds without respawning.
+- **Arena** (`arena`, MF-mods arenaMode by Gregaras, `Game/Arena`): rounds without respawning.
   The map's Holdout point is locked for 50 s ("Get ready" at 10, a countdown from 5); then a team
   that stands on it alone for 10 s takes the round; stepping off, or an enemy stepping on, starts
   the count over. Wiping out the other team takes the round too. 5 rounds, 10 min.
-- **Coop mode** (`coop`, MF-mods CoopMode, `Mods/Coop`): capture the flag with every human on
+- **MoBall** (`moball`, MF-mods MoBall, `Game/MoBall`): football with vehicles. A rubber ball
+  (MF `ball.COL`: 1 m radius) appears at the trailer generator; vehicles, soldiers and shots push
+  it (by the square root of the damage, shotgun pellets 40 % of the time); into the other team's
+  trailer park (192 + 128 uu, 64 up or down) scores, the ball goes 5 s later and a new one comes.
+  Loadouts only hand out groups 1, 2, 9, 10, 11 (knife, pistol, gadgets; `bRestrictWeapons`).
+  First to 4; a draw after 15 min goes to sudden death. Works on any map with a trailer generator.
+- **Battle Royale** (`br`, MF-mods battleRoyale by Gregaras, `Game/BattleRoyale`): free for all,
+  no respawning within a round. Everyone drops in from the air (no fall damage on that landing)
+  at a random spot on the nav mesh with 500 health and only the default kit (no loadouts). Up to
+  200 spots (900 cm apart) get Gregaras' metal towers and, every fourth, an item box: touch it
+  for five random weapons. Towers (500 health) drop builder ammo every 50 damage; the builder
+  (fire: a platform 300 uu along your view, alt fire: flat / 22.5° ramp / wall, a ghost shows
+  where) puts up 150-health platforms, 5 per pickup. A safe zone around the domination timer
+  shrinks from 450 m to 11 m (67.5 cm/s); outside costs 5 health a second. The last one standing
+  ends the round: new loot, new cars, full zone. Kills score (`bScoreLastedRounds`: survived
+  rounds) to 30 in 12 min. Bots go for unopened boxes while poorly armed and back into the zone.
+- **Coop mode** (`coop`, MF-mods CoopMode, `Game/Coop`): capture the flag with every human on
   red against a blue team of bots (12 by default, `?Bots=N`); 3 captures, no time limit.
   `?Weapons=N` limits the humans' loadout: 0 none ("Nice try, human!"), 1-2 only weapons on the
   ground, 3 + crates (default), 4 + loadout zones.
-- **Zombie Mode** (`zombie`, MF-mods ZombieGame, `Mods/Zombie`): humans (team 0) against
+- **Zombie Mode** (`zombie`, MF-mods ZombieGame, `Game/Zombie`): humans (team 0) against
   zombies. Bots keep about three humans per zombie. A zombie's boost = (humans per zombie) ^ 0.18
   (1 - 1.253): speed × (min(1.55 boost, 2.2) − 0.2), health 333 × boost, jump × min(1.45 boost, 3),
   falls hurt less, accel / step × 1.15, two carry blocks fewer, run-over damage ÷ 10. Zombies
@@ -125,12 +143,12 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 
 | Weapon | Group | Carry | Clip × clips | Damage | Spread (Acc / zoomed) | Fire time | Reload | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Knife | 1 | 0 | — | 30 slash (range 90) | — | ~0.55 s | — | alt: throw, 60 (head 250), returns after 6 s |
+| Knife | 1 | 0 | — | 30 slash (range 90) | — | ~0.55 s | — | alt: throw, 60 (head 250); sticks in walls, bounces off floors; walk over it to take it back, else back 6 s after it stops |
 | Pistol | 2 | 1 | 8 × 6 | 26 (head 40) | 0.4 / 0.05 | 0.342 s | 1.55 s | alt: aim 1.5× |
 | Machine gun | 3 | 2 | 48 × 5 | 20 | 0.7 / 0.1 | 0.117 s | 2.25 s | alt: aim 2× (single shots, 0.333 s) |
 | Shotgun | 4 | 2 | 2 × 20 | 10 pellets × 12 per barrel | 0.8 / 1.0 | 0.472 s | 0.867 s | fire = left, alt = right, both within 0.1 s = both; range 5000 |
 | Sniper rifle | 5 | 3 | 4 × 4 | 20 × power (1–10), head ×3 | 0.3 / 0 | 0.55 s | 1.383 s | power +2/s; scope 3×–30× (wheel); range 20000 |
-| HMG | 6 | 4 | 900 × 1 | 45 | 0.6 / 1.2 | — | — | must deploy (alt); TODO |
+| HMG | 6 | 4 | 900 × 1 | 45 | 0.6 / 1.2 | — | — | must deploy (alt, standing on the ground): then no walking, jumping or loadout until packed up (MF PHYS_Gunnery) |
 | Rocket launcher | 7 | 4 | 1 × 11 | 135, radius 400 | — | 0.79 s | 3.38 s | rocket 1200 uu/s; alt: scope 4× + lock-on (TODO) |
 | Grenades | 8 | 1 (max 3) | 3 | 160 r400 (timed 3 s) / 120 impact | — | 0.333 s | — | throw power 1.5–10 (+8/s), speed power × 150 uu/s, +210 up |
 | Trip bombs | 9 | 1 (max 3) | 2 | — | — | — | — | laser 1024 uu; alt: proximity mine (TODO) |
@@ -174,7 +192,24 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   gunner seat (the hatch) runs a heavy machine gun aimed with the gunner's view (pitch −11° … 49°,
   165°/s), Fire shoots: 100 a belt, 10/s, 25 damage, 13500 cm, 4 s reload (R swaps early). The
   rocket version: 4 rockets, 0.8 s apart, 110°/s.
-- Only explosives hurt vehicles (MF: other damage 0), x (1 - Armour); 100 health; at 0 it blows
+- **TurboCars** (MF-mods TurboCars, on by default like the community servers' mutPack
+  replaceVehicles; `?TurboCars=0` off): drivers hold Crouch (Ctrl / C) for nitro, pushing
+  forward on the ground up to the vehicle's nitro top speed (Buggy 50 m/s, Humvee 40,
+  Armadillo 50; trucks and trailer cabs never had it).
+- Hits (MF Vehicle / Physical.TakeDamage): every hit clangs (MiscSFX.HitMetal) and shoves the
+  car by √momentum (knife slashes and bullets a little, rockets a lot; pellets 40 % of the
+  time). Bullets and knives hit the model itself, not a box around it. Soldiers can't push cars
+  by walking into or standing on them.
+- Tyres (MF WheelCollision): 35 damage of anything bursts one (HitRubber, a jolt): it runs on
+  the rim - lower, a third of the grip, half the drive, so a flat front tyre steers badly - and
+  re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too.
+- Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
+  there and the vehicle blows up. A small target: aim at the tank.
+- Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical); MF ignores bullets,
+  pellets and knives, but the community servers ran mutPack's **changeDamage**, the default
+  here (`?ChangeDamage=0` for MF's rules): bullets / pellets x 0.125 x (1 - Armour) (10 / 80
+  against 8000 health), knives nothing, bots do a fifth to vehicles and to players riding in
+  them, and players' rockets hit soldiers twice as hard. 100 health; at 0 it blows
   up (150, 900 cm) and kills everyone inside. Hitting someone at KillSpeed 8 m/s or more runs
   them over. Upside down and slow for 3 s: back on its wheels.
 - Generators: the map's Buggy/Humvee/Truck/ArmadilloGenerator actors make one each and a new one

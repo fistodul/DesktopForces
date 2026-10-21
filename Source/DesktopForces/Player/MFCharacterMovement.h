@@ -59,6 +59,9 @@ public:
 	bool IsOnLadder() const { return MovementMode == MOVE_Custom && CustomMovementMode == uint8(EMFMoveMode::Ladder); }
 
 	virtual float GetMaxSpeed() const override;
+	/** Soldiers don't shove vehicles about by walking into or standing on them (MF). */
+	virtual void ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity) override;
+	virtual void ApplyDownwardForce(float DeltaSeconds) override;
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 	virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 

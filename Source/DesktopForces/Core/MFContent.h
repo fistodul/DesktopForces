@@ -24,4 +24,12 @@ namespace MF
 	{
 		return Cast<T>(LoadClassicObject(T::StaticClass(), Rel));
 	}
+
+	/**
+	 * MF PlaySound(Sound, Slot, Volume, , Radius): a one-shot at Location heard out to RadiusUU
+	 * (UE1 units: 1600 = the default, 100 = right next to it), on this machine only (call it
+	 * where the event is seen: clients, listen servers; a dedicated server skips it).
+	 */
+	DESKTOPFORCES_API class USoundAttenuation* GetAttenuation(float RadiusUU);
+	DESKTOPFORCES_API void PlaySoundRadius(const UObject* WorldContext, class USoundBase* Sound, const FVector& Location, float Volume = 1.f, float RadiusUU = 1600.f, float Pitch = 1.f);
 }

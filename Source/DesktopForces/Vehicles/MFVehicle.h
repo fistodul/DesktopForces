@@ -42,6 +42,10 @@ struct FMFWheelSetup
 	/** Converted MF wheel mesh ("Rage/BuggyWheelFR"); mirrored for the other side when bMirror. */
 	UPROPERTY(EditDefaultsOnly, Category = "Wheel")
 	FString Mesh;
+
+	/** The flat tyre (MF WheelBlownMesh, "Rage/BuggyWheelFRD"). */
+	UPROPERTY(EditDefaultsOnly, Category = "Wheel")
+	FString BlownMesh;
 };
 
 /**
@@ -74,6 +78,10 @@ public:
 	void SetDriveInput(float InThrottle, float InSteer, bool bInHandbrake);
 	UFUNCTION(Server, Unreliable)
 	void ServerDriveInput(float InThrottle, float InSteer, bool bInHandbrake);
+	/** Nitro (MF-mods TurboCars, crouch key; only with ?TurboCars=1). */
+	void SetNitro(bool bOn);
+	UFUNCTION(Server, Reliable)
+	void ServerSetNitro(bool bOn);
 
 	// --- seats -------------------------------------------------------------------------------
 	/** Server: put a soldier in (driver if the driver seat is free). False if full / too far. */
@@ -101,6 +109,10 @@ public:
 	/** Server: brakes on, nobody can drive it any more (MF LockDown). */
 	void LockDown();
 	bool IsLocked() const { return bLocked; }
+
+	/** Server: blow out a tyre (MF DestroyWheel); it re-inflates after ReInflatePause. */
+	void BlowOutWheel(int32 Index);
+	bool IsWheelBlown(int32 Index) const { return (BlownWheels >> Index) & 1; }
 
 	/** Vehicle health (MF Pawn.Health 100 by default). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle")
@@ -135,6 +147,13 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> WheelMeshes;
+
+	/** Shot at, a tyre: spheres round the wheels for weapon traces only (MF WheelCollision). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class USphereComponent>> WheelColliders;
+	/** The petrol cap the same way (MF PetrolCap). */
+	UPROPERTY(Transient)
+	TObjectPtr<class USphereComponent> PetrolCapCollider;
 
 	// --- tuning (constructors of the vehicle classes, MF values in comments) -------------------
 	/** Has an engine and a driver's seat (a trailer doesn't). */
@@ -183,6 +202,28 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float Grip = 6.f;
 
+	/** TurboCars nitro: push forward at this many cm/s^2 up to NitroMaxSpeed (cm/s). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float NitroAccel = 600.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float NitroMaxSpeed = 4000.f;
+
+	/** MF PetrolCapPos / PetrolCapRadius (body space, cm): bullets and pellets there (150) blow it up. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	FVector PetrolCapPosition = FVector::ZeroVector;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float PetrolCapRadius = 15.75f;
+	/** MF WheelCollision: a tyre takes this much (WheelRadius 20 uu spheres) before it bursts, ... */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	int32 WheelHealth = 35;
+	/** ... and re-inflates this long after (MF ReInflatePause 30). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float ReInflatePause = 30.f;
+
+	/** Engine sounds: <package>.EngineStart / Engine1 (loop, pitch with speed) / EngineStop. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	FString EngineSounds;
+
 	/** MF Armour: explosive damage taken x (1 - Armour). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float Armour = 0.5f;
@@ -226,10 +267,40 @@ protected:
 	float Steer = 0.f;
 	bool bHandbrake = false;
 	float LastInputTime = -100.f;
+	bool bNitro = false;
+	bool bTurbo = false;
 	TArray<float> LastCompression;
 	TArray<float> WheelSpin;
 	float UpsideDownTime = 0.f;
 	bool bBlownUp = false;
+
+	/** Flat tyres, one bit per wheel (replicated: the flat mesh, the car pulls). */
+	UPROPERTY(ReplicatedUsing = OnRep_BlownWheels)
+	uint8 BlownWheels = 0;
+	UFUNCTION()
+	void OnRep_BlownWheels();
+	TArray<int32> WheelDamage;
+	TArray<FTimerHandle> ReInflateTimers;
+	int32 PetrolCapHealth = 150;
+
+	/** Engine running / skidding loops (clients; MF AmbientSound in state Driving, SkidSound). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> EngineAudio;
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> SkidAudio;
+	bool bEngineOn = false;
+	FTimerHandle EngineStartTimer;
+	float BumpSoundUntil = 0.f;
+	void UpdateEngineSound();
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastBump(float Volume);
+
+	/** Sparks and a clang where it was hit (MF Vehicle.TakeDamage: HitMetal; tyres HitRubber). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastHitFX(FVector_NetQuantize At, bool bTyre);
+	/** MF damage rules plus the server's changeDamage mutator (AMFGameMode::VehicleDamage...). */
+	int32 ScaleDamage(float Damage, const class UMFDamageType* Type, AController* By) const;
+	void ApplyHitPush(const FDamageEvent& DamageEvent, AActor* DamageCauser);
 
 	UFUNCTION()
 	void OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);

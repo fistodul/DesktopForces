@@ -675,19 +675,30 @@ void AMFHUD::DrawCommandMenu(AMFPlayerController* PC)
 	const float RowH = 32.f * Ref, ColW = 256.f * Ref, Top = Block * 3.25f;
 	const FLinearColor Team = SetColour(TeamSet());
 	const FLinearColor Fill(Team.R * 0.25f, Team.G * 0.25f, Team.B * 0.25f, 0.6f);
-	auto Column = [&](float X, float Y0, const TArray<FString>& Items, int32 Highlight)
+	// rows of the column being picked from take mouse clicks (GetCommandMenuSlotAt); the one
+	// under the cursor lights up
+	CommandMenuRows.Reset();
+	float MX = -1.f, MY = -1.f;
+	PC->GetMousePosition(MX, MY);
+	auto Column = [&](float X, float Y0, const TArray<FString>& Items, int32 Highlight, bool bActive)
 	{
 		Frame(X, Y0, ColW, RowH * (Items.Num() + 1), Fill, Team);
 		for (int32 i = 0; i < Items.Num(); ++i)
 		{
 			const float Y = Y0 + RowH * (i + 0.5f);
 			const float TY = Y - MFTextSize(TEXT("TEST"), 1).Y * 0.5f + RowH * 0.5f;
+			const FBox2D Row(FVector2D(X, Y), FVector2D(X + ColW, Y + RowH));
+			const bool bHover = bActive && Row.IsInside(FVector2D(MX, MY));
+			if (bActive)
+			{
+				CommandMenuRows.Add({ Row, i + 1 });
+			}
 			MFText(FString::Printf(TEXT("%d"), (i + 1) % 10), X + 6.f * Ref, TY, FLinearColor(0.6f, 0.7f, 1.f), 0);
-			MFText(Items[i], X + 26.f * Ref, TY, i == Highlight ? Yellow : White, 1);
+			MFText(Items[i], X + 26.f * Ref, TY, i == Highlight || bHover ? Yellow : White, 1);
 		}
 	};
 	const TArray<FString> Orders = PC->GetCommandMenuOrders();
-	Column(0.f, Top, Orders, Stage == 2 ? PC->GetCommandMenuOrder() : -1);
+	Column(0.f, Top, Orders, Stage == 2 ? PC->GetCommandMenuOrder() : -1, Stage == 1);
 	if (Stage == 2)
 	{
 		TArray<FString> Names = { TEXT("All") };
@@ -695,8 +706,20 @@ void AMFHUD::DrawCommandMenu(AMFPlayerController* PC)
 		{
 			Names.Add(PS->GetPlayerName());
 		}
-		Column(ColW, Top + RowH * PC->GetCommandMenuOrder(), Names, -1);
+		Column(ColW, Top + RowH * PC->GetCommandMenuOrder(), Names, -1, true);
 	}
+}
+
+int32 AMFHUD::GetCommandMenuSlotAt(const FVector2D& Screen) const
+{
+	for (const TPair<FBox2D, int32>& Row : CommandMenuRows)
+	{
+		if (Row.Key.IsInside(Screen))
+		{
+			return Row.Value;
+		}
+	}
+	return 0;
 }
 
 void AMFHUD::DrawLoadout(AMFCharacter* C, AMFPlayerController* PC)

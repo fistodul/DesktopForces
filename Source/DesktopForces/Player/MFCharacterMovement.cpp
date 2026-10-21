@@ -1,4 +1,5 @@
 #include "Player/MFCharacterMovement.h"
+#include "Vehicles/MFVehicle.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "World/MFLadder.h"
@@ -101,10 +102,11 @@ bool UMFCharacterMovement::WantsLadder() const
 	{
 		return false;
 	}
-	// MF grabs on touch (LadderClimber.Tick); a capsule touches a metre early, so wait until the
-	// centre is over the climbing area, right at the rungs
+	// MF grabs on touch (LadderClimber touch -> PHYS_Ladder): the soldier's cylinder meeting the
+	// climber's (EnterLadder then puts them on the rungs at once, no gliding in)
 	const FVector Rel = UpdatedComponent->GetComponentLocation() - L->GetActorLocation();
-	if (Rel.Size2D() > L->Radius)
+	const float Reach = L->Radius + (CharacterOwner ? CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius() : 0.f);
+	if (Rel.Size2D() > Reach)
 	{
 		return false;
 	}
@@ -129,6 +131,15 @@ void UMFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds
 	{
 		const AMFLadderVolume* L = TouchedLadder.Get();
 		EnterLadder(-L->GetActorForwardVector(), L->ClimbSpeed);
+		// straight onto the ladder's line (swept: walls still stop it)
+		FVector Offset = L->GetActorLocation() - UpdatedComponent->GetComponentLocation();
+		Offset.Z = 0.f;
+		if (!Offset.IsNearlyZero())
+		{
+			FHitResult Hit;
+			SafeMoveUpdatedComponent(Offset, UpdatedComponent->GetComponentQuat(), true, Hit);
+		}
+		Velocity = FVector::ZeroVector;
 	}
 }
 
@@ -235,5 +246,21 @@ void FMFSavedMove::PrepMoveFor(ACharacter* Character)
 	if (UMFCharacterMovement* Move = Cast<UMFCharacterMovement>(Character->GetCharacterMovement()))
 	{
 		Move->bWantsToWalk = bSavedWantsToWalk;
+	}
+}
+
+void UMFCharacterMovement::ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity)
+{
+	if (!Cast<AMFVehicle>(Impact.GetActor()))
+	{
+		Super::ApplyImpactPhysicsForces(Impact, ImpactAcceleration, ImpactVelocity);
+	}
+}
+
+void UMFCharacterMovement::ApplyDownwardForce(float DeltaSeconds)
+{
+	if (!CurrentFloor.HitResult.IsValidBlockingHit() || !Cast<AMFVehicle>(CurrentFloor.HitResult.GetActor()))
+	{
+		Super::ApplyDownwardForce(DeltaSeconds);
 	}
 }

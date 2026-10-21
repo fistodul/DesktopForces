@@ -12,6 +12,21 @@ namespace
 		W.bSteer = bSteer;
 		W.bDrive = bDrive;
 		W.Mesh = Mesh;
+		// MF WheelBlownMesh: BuggyWheelFR -> BuggyWheelFRD, humwheelL -> HumveeWheelDL,
+		// TruckWheelL -> TruckWheelDL (Armadillo, Trailer the same)
+		const FString M(Mesh);
+		if (M.Contains(TEXT("Buggy")))
+		{
+			W.BlownMesh = M + TEXT("D");
+		}
+		else if (M.Contains(TEXT("humwheel")))
+		{
+			W.BlownMesh = TEXT("Rage/HumveeWheelD") + M.Right(1);
+		}
+		else
+		{
+			W.BlownMesh = M.LeftChop(1) + TEXT("D") + M.Right(1);
+		}
 		return W;
 	}
 	constexpr float Mph = 1.609344f;   // handling MaxSpeed is in mph
@@ -19,6 +34,11 @@ namespace
 
 AMFVehicle_Buggy::AMFVehicle_Buggy()
 {
+	EngineSounds = TEXT("BuggySFX");   // EngineSound / EngineStartSound / EngineStopSound
+	PetrolCapPosition = FVector(-63.f, 1.7f, 61.4f);   // PetrolCapPos (-28, 0.75, 27.3), PetrolCapRadius 7
+	PetrolCapRadius = 15.75f;
+	NitroAccel = 930.f;              // TurboCars nitroScale (x 60 Hz, m -> cm)
+	NitroMaxSpeed = 5000.f;           // TurboCars MaxSpeed 50 m/s
 	DisplayName = LOCTEXT("Buggy", "Buggy");
 	BodyMeshName = TEXT("Rage/BuggyMesh");
 	BoxCenter = FVector(9.f, 0.f, 60.f);
@@ -43,6 +63,11 @@ AMFVehicle_Buggy::AMFVehicle_Buggy()
 
 AMFVehicle_Humvee::AMFVehicle_Humvee()
 {
+	EngineSounds = TEXT("HumveeSFX");   // EngineSound / EngineStartSound / EngineStopSound
+	PetrolCapPosition = FVector(-213.75f, -123.75f, 79.9f);   // PetrolCapPos (-95, -55, 35.5), PetrolCapRadius 7
+	PetrolCapRadius = 15.75f;
+	NitroAccel = 900.f;              // TurboCars nitroScale (x 60 Hz, m -> cm)
+	NitroMaxSpeed = 4000.f;           // TurboCars MaxSpeed 40 m/s
 	DisplayName = LOCTEXT("Humvee", "Humvee");
 	BodyMeshName = TEXT("Rage/humveeMesh");
 	BoxCenter = FVector(20.f, 0.f, 110.f);
@@ -68,6 +93,11 @@ AMFVehicle_Humvee::AMFVehicle_Humvee()
 
 AMFVehicle_Truck::AMFVehicle_Truck()
 {
+	EngineSounds = TEXT("TruckSFX");   // EngineSound / EngineStartSound / EngineStopSound
+	PetrolCapPosition = FVector(63.f, -163.7f, -128.25f);   // PetrolCapPos (28, -72.75, -57), PetrolCapRadius 12
+	PetrolCapRadius = 27.f;
+	NitroAccel = 0.f;                // TurboTruck (nitroScale 0.11, 40 m/s) wasn't on the servers: no nitro
+	NitroMaxSpeed = 4000.f;
 	DisplayName = LOCTEXT("Truck", "Truck");
 	BodyMeshName = TEXT("Rage/TruckMesh");
 	BoxCenter = FVector(0.f, 0.f, 20.f);
@@ -95,6 +125,11 @@ AMFVehicle_Truck::AMFVehicle_Truck()
 
 AMFVehicle_Armadillo::AMFVehicle_Armadillo()
 {
+	EngineSounds = TEXT("ArmadilloSFX");   // EngineSound / EngineStartSound / EngineStopSound
+	PetrolCapPosition = FVector(-123.75f, -51.75f, 102.5f);   // PetrolCapPos (-55, -23, 45.6), PetrolCapRadius 7
+	PetrolCapRadius = 15.75f;
+	NitroAccel = 600.f;              // TurboCars nitroScale (x 60 Hz, m -> cm)
+	NitroMaxSpeed = 5000.f;           // TurboCars MaxSpeed 50 m/s
 	DisplayName = LOCTEXT("Armadillo", "Armadillo APC");
 	BodyMeshName = TEXT("Rage/ArmadilloMesh");
 	BoxCenter = FVector(30.f, 0.f, 40.f);
@@ -120,12 +155,15 @@ AMFVehicle_Armadillo::AMFVehicle_Armadillo()
 AMFVehicle_TrailerCab::AMFVehicle_TrailerCab()
 {
 	DisplayName = LOCTEXT("TrailerCab", "Trailer cab");
+	NitroAccel = 0.f;   // RageGame.TrailerCab: never a turbo
 	AccelTime = 9.f;   // pulling 1500 kg
 	CameraDistance = 900.f;
 }
 
 AMFVehicle_Trailer::AMFVehicle_Trailer()
 {
+	PetrolCapPosition = FVector(166.5f, 0.f, 68.75f);   // TrailerX PetrolCapPos (74, 0, 30.6), PetrolCapRadius 7
+	PetrolCapRadius = 15.75f;
 	DisplayName = LOCTEXT("Trailer", "Bomb trailer");
 	bDriveable = false;
 	BodyMeshName = TEXT("Rage/TrailerMesh");

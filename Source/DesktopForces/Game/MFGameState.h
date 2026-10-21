@@ -65,6 +65,12 @@ public:
 		return TeamLoadoutAccess.IsValidIndex(Team) ? TeamLoadoutAccess[Team] : LoadoutAccess;
 	}
 
+	/** Inventory groups loadouts may hand out (MoBall: knife, pistol, gadgets); empty = all. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
+	TArray<int32> AllowedItemGroups;
+
+	bool IsItemAllowed(TSubclassOf<class AMFWeapon> Item) const;
+
 	/** Mode-specific team names ("Human", "Zombie"); empty = UMFGameSettings::Teams. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	TArray<FString> TeamNameOverrides;

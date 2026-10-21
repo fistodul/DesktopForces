@@ -86,6 +86,11 @@ public:
 	// --- orders menu (MF OrdersMainWindow / TargetChildWindow), drawn by AMFHUD -----------
 	/** 0 closed, 1 choosing the order, 2 choosing who gets it. */
 	int32 GetCommandMenuStage() const { return CommandMenuStage; }
+	void SetCommandMenuStage(int32 Stage);
+
+	/** MF Tab: the one-line console. */
+	UFUNCTION(Exec)
+	void Type();
 	int32 GetCommandMenuOrder() const { return CommandMenuOrder; }
 	/** Orders offered in this game type (MF RageVoicePack.GetOrderString 0-4). */
 	TArray<FString> GetCommandMenuOrders() const;

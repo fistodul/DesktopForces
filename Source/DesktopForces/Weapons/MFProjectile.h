@@ -119,15 +119,37 @@ public:
 	AMFProjectile_ImpactGrenade();
 };
 
-/** RageWeapons.Knife_Thrown: 60 damage (headshot 250 'decapitated'). */
+/**
+ * RageWeapons.Knife_Thrown: 60 damage (headshot 250 'decapitated'). Sticks in walls, bounces
+ * off floors (40 %), stops in whoever it hits; then lies there (state Safe) until its thrower
+ * touches it or ReturnTime runs out, and goes back to their knife.
+ */
 UCLASS()
 class DESKTOPFORCES_API AMFProjectile_Knife : public AMFProjectile
 {
 	GENERATED_BODY()
 public:
 	AMFProjectile_Knife();
+	virtual void Destroyed() override;
+
+	TWeakObjectPtr<class AMFWeapon_Knife> OwnerKnife;
+	float ReturnTime = 6.f;
+
 protected:
-	virtual void Explode(const FVector& Location, const FVector& Normal) override;
-	FHitResult LastHit;
-	virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
+	virtual void BeginPlay() override;
+	UFUNCTION()
+	void OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVelocity);
+	UFUNCTION()
+	void OnKnifeStop(const FHitResult& Hit);
+	UFUNCTION()
+	void OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
+	/** Dangerous.ProcessTouch: hurt Other once (not the thrower until it has hit a wall). */
+	void HitVictim(AActor* Other, const FHitResult& Hit);
+	/** state Safe: lying still, waiting for its owner. */
+	void BecomeSafe(USceneComponent* StickTo);
+	void Return();
+
+	bool bSafe = false;
+	bool bCanHitOwner = false;
+	FTimerHandle ReturnTimer;
 };

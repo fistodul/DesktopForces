@@ -25,6 +25,8 @@ class DESKTOPFORCES_API AMFHUD : public AHUD
 	GENERATED_BODY()
 
 public:
+	/** Orders menu slot (1..) under a screen point, 0 for none. */
+	int32 GetCommandMenuSlotAt(const FVector2D& Screen) const;
 	AMFHUD();
 	virtual void DrawHUD() override;
 
@@ -55,6 +57,8 @@ protected:
 	void DrawGameInfo(AMFGameState* GS, AMFPlayerController* PC);
 	void DrawMessages();
 	void DrawCommandMenu(AMFPlayerController* PC);
+	/** Rows of the orders menu drawn last frame: screen box -> key slot. */
+	TArray<TPair<FBox2D, int32>> CommandMenuRows;
 	/** Captains: label over each captain in sight (MF captain ID sprite). */
 	void DrawCaptainMarkers(AMFPlayerController* PC);
 	void DrawLoadout(AMFCharacter* C, AMFPlayerController* PC);

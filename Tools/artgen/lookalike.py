@@ -769,7 +769,7 @@ def main(argv: list[str]) -> None:
                 out.paste(src.convert('RGB').resize((cell, cell)), (x, y))
             out.paste(img.resize((cell, cell)), (x + cell, y))
             ImageDraw.Draw(out).text((x + 2, y + 2), key.split('.')[-1], fill=(255, 255, 0))
-        path = HERE / 'out' / 'lookalikes_sheet.png'
+        path = HERE / 'preview' / 'lookalikes_sheet.png'   # not out/: that is imported as game art
         path.parent.mkdir(parents=True, exist_ok=True)
         out.save(path)
         print(f'[lookalike] comparison sheet -> {path}')

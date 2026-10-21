@@ -284,12 +284,12 @@ public:
 	virtual void DropFrom(const FVector& From, const FRotator& Facing);
 	/** Server: taken from the ground by NewOwner (before AMFCharacter adds it to the inventory). */
 	virtual void OnPickedUp(AMFCharacter* NewOwner);
-	/** Most weapons lying around per map; the oldest disappears beyond it. */
-	static constexpr int32 MaxDropped = 32;
 
 	virtual void StartFire(bool bAlt);
 	/** Close-combat weapon: bots run at the target instead of shooting from range. */
 	virtual bool IsMeleeWeapon() const { return false; }
+	/** Set up on the spot (deployed HMG, MF PHYS_Gunnery): no walking, jumping or loadout. */
+	virtual bool IsDeployed() const { return false; }
 	virtual void StopFire(bool bAlt);
 	virtual void StartReload();
 
@@ -334,6 +334,12 @@ protected:
 	bool bAltFireHeld = false;
 	bool bPendingReload = false;
 	bool bLastShotAlt = false;
+
+	/** RageEffect.AddWallHit (ricochet / impact) and RageChunkHit on a soldier, for everyone. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastImpactSound(FVector_NetQuantize At, bool bFlesh);
+	bool bImpactSoundSent = false;
+	bool bFleshSoundSent = false;
 
 	UFUNCTION(Server, Reliable)
 	void ServerStartFire(bool bAlt);

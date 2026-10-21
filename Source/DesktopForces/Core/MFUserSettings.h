@@ -45,4 +45,9 @@ public:
 
 	virtual void ApplyNonResolutionSettings() override;
 	virtual void SetToDefaults() override;
+
+protected:
+	/** r.ScreenPercentage from RenderScale and the resolution (UpdateScreenPercentage). */
+	void UpdateScreenPercentage();
+	FDelegateHandle ResizedHandle;
 };
