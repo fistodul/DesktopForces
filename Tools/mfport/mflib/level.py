@@ -153,11 +153,12 @@ class LevelConverter:
 
     # --- world geometry ---------------------------------------------------
     def zone_bounds(self, model: LevelModel) -> dict[int, tuple]:
-        """Axis-aligned bounds (UE cm) of every BSP zone, from the polygons facing into it."""
+        """Axis-aligned bounds (UE cm) of every BSP zone, from the polygons on either side of it:
+        a water brush's sheet faces point out of the water (iZone[0] = water), its floor faces in."""
         lo: dict[int, list] = {}
         hi: dict[int, list] = {}
         for poly in model.polygons():
-            for z in {poly.zone}:
+            for z in {poly.zone, poly.back_zone or poly.zone}:
                 l = lo.setdefault(z, [1e18] * 3)
                 h = hi.setdefault(z, [-1e18] * 3)
                 for v in poly.vertices:

@@ -147,6 +147,41 @@ namespace
 		}
 	}
 
+	/** Actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box records); nullptr for any other record. */
+	AActor* SpawnZone(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP)
+	{
+		const FString Type = R->GetStringField(TEXT("type"));
+		if (Type != TEXT("loadout_zone") && Type != TEXT("zone_volume") && Type != TEXT("zone_box"))
+		{
+			return nullptr;
+		}
+		const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
+		const FVector Center = (Min + Max) * 0.5f, Extent = (Max - Min) * 0.5f;
+		if (Type == TEXT("loadout_zone"))
+		{
+			AMFLoadoutZone* Z = World->SpawnActor<AMFLoadoutZone>(Center, FRotator::ZeroRotator, SP);
+			Z->Volume->SetBoxExtent(Extent);
+			Z->Team = Team(R->GetStringField(TEXT("team")));
+			return Z;
+		}
+		if (Type == TEXT("zone_volume"))
+		{
+			// UE1 zone with gameplay (water, pain, current) -> a physics volume over its bounds
+			AMFZoneVolume* Z = World->SpawnActor<AMFZoneVolume>(Center, FRotator::ZeroRotator, SP);
+			MakeBoxBrush(World, Z, Extent);
+			Z->bWaterVolume = R->GetBoolField(TEXT("water"));
+			Z->DamagePerSec = R->GetNumberField(TEXT("damage_per_sec"));
+			Z->ZoneVelocity = Vec(R, TEXT("velocity"));
+			Z->ZoneName = R->GetStringField(TEXT("zone_name"));
+			Z->Priority = Z->bWaterVolume ? 1 : 2;
+			return Z;
+		}
+		AMFZoneBox* Z = World->SpawnActor<AMFZoneBox>(Center, FRotator::ZeroRotator, SP);
+		Z->Volume->SetBoxExtent(Extent);
+		Z->Tags.Add(FName(*R->GetStringField(TEXT("tag"))));
+		return Z;
+	}
+
 	/** Generated maps are rebuilt from scratch: drop the old level + its built data first. */
 	void DeleteOldMap(const FString& PackageName)
 	{
@@ -328,34 +363,9 @@ bool FMFImporter::BuildMap(const FString& MapName)
 				Actor->RerunConstructionScripts();
 			}
 		}
-		else if (Type == TEXT("loadout_zone"))
+		else if (AActor* Zone = SpawnZone(World, R, SP))
 		{
-			const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
-			AMFLoadoutZone* Z = World->SpawnActor<AMFLoadoutZone>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
-			Z->Volume->SetBoxExtent((Max - Min) * 0.5f);
-			Z->Team = Team(R->GetStringField(TEXT("team")));
-			Actor = Z;
-		}
-		else if (Type == TEXT("zone_volume"))
-		{
-			// UE1 zone with gameplay (water, pain, current) -> a physics volume over its bounds
-			const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
-			AMFZoneVolume* Z = World->SpawnActor<AMFZoneVolume>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
-			MakeBoxBrush(World, Z, (Max - Min) * 0.5f);
-			Z->bWaterVolume = R->GetBoolField(TEXT("water"));
-			Z->DamagePerSec = R->GetNumberField(TEXT("damage_per_sec"));
-			Z->ZoneVelocity = Vec(R, TEXT("velocity"));
-			Z->ZoneName = R->GetStringField(TEXT("zone_name"));
-			Z->Priority = Z->bWaterVolume ? 1 : 2;
-			Actor = Z;
-		}
-		else if (Type == TEXT("zone_box"))
-		{
-			const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
-			AMFZoneBox* Z = World->SpawnActor<AMFZoneBox>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
-			Z->Volume->SetBoxExtent((Max - Min) * 0.5f);
-			Z->Tags.Add(FName(*R->GetStringField(TEXT("tag"))));
-			Actor = Z;
+			Actor = Zone;
 		}
 		else if (Type == TEXT("ambient_sound"))
 		{
@@ -488,8 +498,8 @@ bool FMFImporter::BuildMap(const FString& MapName)
 
 bool FMFImporter::PatchZones(const FString& MapName)
 {
-	// water / pain / current volumes into an already built (and baked) map: they don't touch
-	// the lighting, so no rebuild
+	// zone actors (water / pain / current volumes, loadout zones, captain boxes) into an already
+	// built (and baked) map: they don't touch the lighting, so no rebuild
 	FString Text;
 	TSharedPtr<FJsonObject> Level;
 	if (!FFileHelper::LoadFileToString(Text, *(WorkDir / TEXT("Maps") / MapName / TEXT("level.json"))) ||
@@ -517,32 +527,27 @@ bool FMFImporter::PatchZones(const FString& MapName)
 	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Editor);
 	Context.SetCurrentWorld(World);
 	int32 Removed = 0, Added = 0;
-	for (TActorIterator<AMFZoneVolume> It(World); It; ++It)
+	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		World->EditorDestroyActor(*It, true);
-		++Removed;
+		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>())
+		{
+			World->EditorDestroyActor(*It, true);
+			++Removed;
+		}
 	}
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
-		if (R->GetStringField(TEXT("type")) != TEXT("zone_volume"))
+		if (AActor* Zone = SpawnZone(World, R, SP))
 		{
-			continue;
+			Zone->SetActorLabel(R->GetStringField(TEXT("name")));
+			++Added;
 		}
-		const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
-		AMFZoneVolume* Z = World->SpawnActor<AMFZoneVolume>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
-		MakeBoxBrush(World, Z, (Max - Min) * 0.5f);
-		Z->bWaterVolume = R->GetBoolField(TEXT("water"));
-		Z->DamagePerSec = R->GetNumberField(TEXT("damage_per_sec"));
-		Z->ZoneVelocity = Vec(R, TEXT("velocity"));
-		Z->ZoneName = R->GetStringField(TEXT("zone_name"));
-		Z->Priority = Z->bWaterVolume ? 1 : 2;
-		++Added;
 	}
 	const bool bSaved = (Removed || Added) ? SaveAsset(World) : true;
-	UE_LOG(LogMFEditor, Display, TEXT("Zones %s: %d volumes (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
+	UE_LOG(LogMFEditor, Display, TEXT("Zones %s: %d zone actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
 	World->RemoveFromRoot();

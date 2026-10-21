@@ -182,9 +182,15 @@ AActor* AMFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	}
 	AActor* Best = nullptr;
 	float BestScore = -FLT_MAX;
+	const UClass* PawnClass = GetDefaultPawnClassForController(Player);
+	const APawn* PawnCDO = PawnClass ? PawnClass->GetDefaultObject<APawn>() : nullptr;
 	for (AMFPlayerStart* Start : Candidates)
 	{
 		float Score = Start == LastStartSpot.Get() ? -10000.f : 3000.f * FMath::FRand();
+		if (PawnCDO && GetWorld()->EncroachingBlockingGeometry(PawnCDO, Start->GetActorLocation(), Start->GetActorRotation()))
+		{
+			Score -= 500000.f;              // in geometry: only when nothing else is left
+		}
 		for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
 		{
 			if (!It->IsAlive() || It->GetController() == Player)
@@ -220,6 +226,26 @@ void AMFGameMode::RestartPlayer(AController* NewPlayer)
 {
 	RespawnTimers.Remove(NewPlayer);
 	Super::RestartPlayer(NewPlayer);
+}
+
+APawn* AMFGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform)
+{
+	// UE1 Spawn ran FindSpot and some MF starts sit low over a crate or a step (mf-Tropics):
+	// when UE's own push-out fails, try again a little higher instead of leaving the player
+	// without a body
+	FTransform T = SpawnTransform;
+	for (int32 Try = 0; Try < 4; ++Try, T.AddToTranslation(FVector(0.f, 0.f, 40.f)))
+	{
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.Instigator = GetInstigator();
+		SpawnInfo.ObjectFlags |= RF_Transient;
+		if (APawn* P = GetWorld()->SpawnActor<APawn>(GetDefaultPawnClassForController(NewPlayer), T, SpawnInfo))
+		{
+			return P;
+		}
+	}
+	UE_LOG(LogMF, Warning, TEXT("No room for a pawn at %s"), *SpawnTransform.GetLocation().ToString());
+	return nullptr;
 }
 
 void AMFGameMode::SetPlayerDefaults(APawn* PlayerPawn)

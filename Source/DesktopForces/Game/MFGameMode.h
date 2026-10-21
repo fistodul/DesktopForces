@@ -39,6 +39,7 @@ public:
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	virtual bool ShouldSpawnAtStartSpot(AController* Player) override { return false; }
 	virtual void RestartPlayer(AController* NewPlayer) override;
+	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 	virtual void SetPlayerDefaults(APawn* PlayerPawn) override;
 	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
 	virtual void HandleMatchHasStarted() override;

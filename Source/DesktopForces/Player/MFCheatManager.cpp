@@ -175,7 +175,10 @@ void UMFCheatManager::MFTeleport(float X, float Y, float Z)
 	}
 	if (APawn* P = GetPlayerController()->GetPawn())
 	{
-		P->TeleportTo(FVector(X, Y, Z), P->GetActorRotation());
+		if (!P->TeleportTo(FVector(X, Y, Z), P->GetActorRotation()))
+		{
+			UE_LOG(LogMF, Warning, TEXT("MFTeleport: (%.0f %.0f %.0f) blocked"), X, Y, Z);
+		}
 	}
 }
 

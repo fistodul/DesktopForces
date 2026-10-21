@@ -90,9 +90,10 @@ class WorldPoly:
     texture_v: tuple[float, float, float]
     pan_u: int
     pan_v: int
-    zone: int
+    zone: int           # the zone the polygon faces (iZone[1])
     surf_index: int
     brush: str | None
+    back_zone: int = 0  # the zone behind it (iZone[0]; 0 = solid)
 
 
 class LevelModel:
@@ -179,5 +180,6 @@ class LevelModel:
                 zone=node.i_zone[1],
                 surf_index=node.i_surf,
                 brush=surf.actor,
+                back_zone=node.i_zone[0],
             ))
         return out
