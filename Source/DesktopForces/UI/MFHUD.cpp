@@ -1002,6 +1002,19 @@ void AMFHUD::DrawPainMF()
 	if (Side[3]) { Piece(CX - HW, Canvas->ClipY - HH, HW, HH, true, false); Piece(CX, Canvas->ClipY - HH, HW, HH, false, false); }
 }
 
+FString AMFHUD::LoadoutKeyName()
+{
+	// the player's Loadout key (Options > Controls), upper case like MF's hint
+	for (const FMFBinding& B : AMFPlayerController::GetBindings())
+	{
+		if (B.Action == TEXT("Loadout"))
+		{
+			return AMFPlayerController::GetBoundKey(B).GetDisplayName().ToString().ToUpper();
+		}
+	}
+	return TEXT("Q");
+}
+
 void AMFHUD::ChangeCrosshair(int32 Delta)
 {
 	if (UMFUserSettings* S = UMFUserSettings::Get())
@@ -1245,7 +1258,7 @@ void AMFHUD::DrawLoadoutMF(AMFCharacter* C, AMFPlayerController* PC)
 	}
 	const FString Msg = OpenSlot
 		? FString::Printf(TEXT("Row %s: press the item's number"), *AMFWeapon::SlotKeyName(OpenSlot))
-		: TEXT("Press BACKSPACE or Q to Exit Loadout");   // RagePlayer loadout hint
+		: FString::Printf(TEXT("Press BACKSPACE or %s to Exit Loadout"), *LoadoutKeyName());   // RagePlayer loadout hint
 	const FVector2D MS = MFTextSize(Msg, 1);
 	MFText(Msg, (Canvas->ClipX - MS.X) * 0.5f, Canvas->ClipY - Block * 4.f, White, 1);
 }

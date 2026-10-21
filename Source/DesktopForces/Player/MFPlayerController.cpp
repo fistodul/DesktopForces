@@ -11,6 +11,7 @@
 #include "UI/MFHUD.h"
 #include "UI/MFMenu.h"
 #include "Vehicles/MFVehicle.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "GameFramework/CheatManager.h"
 #include "Misc/StringOutputDevice.h"
@@ -58,6 +59,32 @@ void AMFPlayerController::BeginPlay()
 		AddCheats(true);
 		SetInputMode(FInputModeGameOnly());
 		bShowMouseCursor = false;
+		// until we stand somewhere the camera sits wherever the map starts it, textures still
+		// streaming in: black, then a fade in on the first spawn (MF showed its loading screen)
+		if (PlayerCameraManager)
+		{
+			PlayerCameraManager->SetManualCameraFade(1.f, FLinearColor::Black, false);
+			GetWorldTimerManager().SetTimer(FadeInTimer, this, &AMFPlayerController::FadeIn, 4.f, false);   // spectators, waiting
+		}
+	}
+}
+
+void AMFPlayerController::AcknowledgePossession(APawn* P)
+{
+	Super::AcknowledgePossession(P);
+	if (P && !bFadedIn)
+	{
+		// a moment for the spawn spot's textures, then in
+		GetWorldTimerManager().SetTimer(FadeInTimer, this, &AMFPlayerController::FadeIn, 0.15f, false);
+	}
+}
+
+void AMFPlayerController::FadeIn()
+{
+	if (!bFadedIn && PlayerCameraManager)
+	{
+		bFadedIn = true;
+		PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.4f, FLinearColor::Black, false, false);
 	}
 }
 

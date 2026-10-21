@@ -264,6 +264,11 @@ protected:
 	void TellTime();
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
+	virtual void AcknowledgePossession(APawn* P) override;
+	/** Black from the map's start until the first spawn (no glimpse of the world half streamed in). */
+	void FadeIn();
+	bool bFadedIn = false;
+	FTimerHandle FadeInTimer;
 
 	UFUNCTION(Server, Reliable)
 	void ServerToggleLoadout();

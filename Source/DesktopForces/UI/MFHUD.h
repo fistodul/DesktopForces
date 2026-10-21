@@ -41,6 +41,7 @@ public:
 	/** MF GrowHUD / ShrinkHUD. */
 	void ChangeHUDSize(int32 Delta);
 
+	static FString LoadoutKeyName();
 	/** MF ChangeCrosshair (UMFUserSettings::Crosshair, HUDSize: Options > Game). */
 	void ChangeCrosshair(int32 Delta);
 
