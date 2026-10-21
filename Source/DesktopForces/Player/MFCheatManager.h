@@ -63,6 +63,9 @@ public:
 	void MFBlowUp();
 	UFUNCTION(Exec)
 	void MFVehicles();
+	/** Log movable components that can change the navmesh ("NAVMESH NEEDS TO BE REBUILT" hunt). */
+	UFUNCTION(Exec)
+	void MFNavRelevant();
 
 	UFUNCTION(Exec)
 	void SetTeam(int32 N);

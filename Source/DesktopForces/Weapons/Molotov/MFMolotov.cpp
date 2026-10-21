@@ -21,6 +21,7 @@ namespace MFMolotovLocal
 UMFDamage_Fire::UMFDamage_Fire()
 {
 	DeathVerb = LOCTEXT("SetOnFire", "set on fire");
+	VehicleDamageScale = 0.125f;   // burning: like any other non-explosive hit (changeDamage)
 }
 
 AMFMolotovFire::AMFMolotovFire()

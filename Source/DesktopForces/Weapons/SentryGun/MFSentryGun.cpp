@@ -33,6 +33,9 @@ namespace MFSentryLocal
 UMFDamage_Sentry::UMFDamage_Sentry()
 {
 	DeathVerb = LOCTEXT("Shredded", "shredded");
+	VehicleDamageScale = 0.125f;   // gun rounds: like bullets
+	bBallistic = true;
+	bHitsPetrolCap = true;
 }
 
 // --- turret -------------------------------------------------------------------------------

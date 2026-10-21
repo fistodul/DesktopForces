@@ -24,9 +24,27 @@ class DESKTOPFORCES_API UMFDamageType : public UDamageType
 {
 	GENERATED_BODY()
 public:
-	/** Explosive damage hurts vehicles; MF gives 0 damage to vehicles from everything else. */
+	/** Explosions (rockets, grenades, mines, burning wrecks). */
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	bool bExplosive = false;
+
+	/**
+	 * Damage to a vehicle's hull, times (1 - its Armour). MF: explosives x 1.5, nothing else;
+	 * the community servers' mutPack changeDamage let other hits through at 10 / 80 (the
+	 * Desktop Forces default; ?ChangeDamage=0 goes back to explosives only). Knives, fire
+	 * and the like carry 0 or a small share; mods give their damage types their own value.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|Vehicles")
+	float VehicleDamageScale = 0.f;
+
+	/** Gunpowder (bullets, pellets): bulletproof vehicles (Armadillo APCs) shrug it off. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|Vehicles")
+	bool bBallistic = false;
+
+	/** Can hit a vehicle's petrol cap (150 of it and the vehicle blows up): MF's bullets and
+	 *  pellets; a knife too (its one way to hurt a vehicle). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|Vehicles")
+	bool bHitsPetrolCap = false;
 
 	/** Armour does not absorb this ('Drowned', 'Fell' in RageArmour.ArmorAbsorbDamage). */
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
@@ -42,18 +60,25 @@ UCLASS()
 class DESKTOPFORCES_API UMFDamage_Bullet : public UMFDamageType
 {
 	GENERATED_BODY()
+public:
+	UMFDamage_Bullet() { VehicleDamageScale = 0.125f; bBallistic = true; bHitsPetrolCap = true; }
 };
 /** 'scattershot' - shotgun pellets. */
 UCLASS()
 class DESKTOPFORCES_API UMFDamage_Shotgun : public UMFDamageType
 {
 	GENERATED_BODY()
+public:
+	UMFDamage_Shotgun() { VehicleDamageScale = 0.125f; bBallistic = true; bHitsPetrolCap = true; }
 };
-/** 'ArmourPiercing' - knife slash. */
+/** 'ArmourPiercing' - knife slash and throw: no harm to a vehicle's hull (changeDamage
+ *  knivesDamageVehicles off), only to its petrol cap. */
 UCLASS()
 class DESKTOPFORCES_API UMFDamage_Knife : public UMFDamageType
 {
 	GENERATED_BODY()
+public:
+	UMFDamage_Knife() { bHitsPetrolCap = true; }
 };
 /** 'Decapitated' - headshots and thrown knife to the head. */
 UCLASS()
@@ -67,7 +92,7 @@ class DESKTOPFORCES_API UMFDamage_Explosion : public UMFDamageType
 {
 	GENERATED_BODY()
 public:
-	UMFDamage_Explosion() { bExplosive = true; }
+	UMFDamage_Explosion() { bExplosive = true; VehicleDamageScale = 1.5f; }
 };
 /** 'Fell' */
 UCLASS()

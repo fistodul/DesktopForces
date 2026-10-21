@@ -25,6 +25,7 @@ namespace MFTripLasersLocal
 UMFDamage_TripLaser::UMFDamage_TripLaser()
 {
 	DeathVerb = LOCTEXT("Disintegrated", "disintegrated");
+	VehicleDamageScale = 0.125f;   // a burning beam: like any other non-explosive hit (changeDamage)
 }
 
 // --- planted ------------------------------------------------------------------------------

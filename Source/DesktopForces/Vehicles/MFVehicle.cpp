@@ -53,6 +53,9 @@ AMFVehicle::AMFVehicle()
 	Body->SetCollisionProfileName(TEXT("PhysicsActor"));
 	Body->SetNotifyRigidBodyCollision(true);
 	Body->BodyInstance.bUseCCD = true;
+	// the navmesh is baked with the map: a car moving (or appearing at a generator) would only
+	// mark it dirty ("NAVMESH NEEDS TO BE REBUILT"); bots steer round vehicles themselves
+	Body->SetCanEverAffectNavigation(false);
 	RootComponent = Body;
 
 	// bullets and knives hit the model itself, not the physics box (the "Weapon" trace channel,
@@ -362,8 +365,8 @@ void AMFVehicle::SimulateWheels(float Dt)
 		const float GripHere = ((bHandbrake && !W.bSteer) ? Grip * 0.25f : Grip) * (bFlat ? 0.35f : 1.f);
 		const float MaxFriction = 1.3f * Fz;
 		float FLat = FMath::Clamp(-VLat * GripHere * WheelMass, -MaxFriction, MaxFriction);
-		// engine, brakes, rolling resistance
-		float FLong = -VLong * 0.3f * WheelMass;
+		// engine, brakes, rolling resistance (strong when coasting: cars roll to a stop like MF's)
+		float FLong = -VLong * (FMath::IsNearlyZero(Throttle) ? CoastDrag : RollingDrag) * WheelMass;
 		const bool bBraking = !FMath::IsNearlyZero(Throttle) && FMath::Abs(Speed) > 60.f && FMath::Sign(Throttle) != FMath::Sign(Speed);
 		if (bBraking || bHandbrake)
 		{
@@ -385,9 +388,10 @@ void AMFVehicle::SimulateWheels(float Dt)
 	{
 		Body->AddForce(Fwd * MassKg * NitroAccel);
 	}
-	// air drag caps the top speed; some downforce keeps it planted
+	// air drag caps the top speed: at TopSpeed (MF MaxSpeed) the engine just matches drag plus
+	// rolling resistance; some downforce keeps it planted
 	const FVector Vel = Body->GetPhysicsLinearVelocity();
-	const float DragK = EngineForce / (TopSpeed * TopSpeed);
+	const float DragK = FMath::Max(EngineForce - RollingDrag * MassKg * TopSpeed, 0.1f * EngineForce) / (TopSpeed * TopSpeed);
 	Body->AddForce(-Vel * Vel.Size() * DragK);
 	if (Grounded > 0)
 	{
@@ -783,7 +787,7 @@ float AMFVehicle::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACon
 		}
 		// ... or the petrol cap (PetrolCap: 150, bullets and pellets only): its sphere was hit
 		// through a gap, or the shot hit the skin right over it
-		else if (PetrolCapHealth > 0 && Type && (Type->IsA<UMFDamage_Bullet>() || Type->IsA<UMFDamage_Shotgun>()))
+		else if (PetrolCapHealth > 0 && Type && Type->bHitsPetrolCap)
 		{
 			const FVector Cap = T.TransformPosition(PetrolCapPosition - BoxCenter);
 			const FVector Dir = Point.ShotDirection.GetSafeNormal();
@@ -838,27 +842,17 @@ float AMFVehicle::TakeDamage(float Damage, const FDamageEvent& DamageEvent, ACon
 
 int32 AMFVehicle::ScaleDamage(float Damage, const UMFDamageType* Type, AController* By) const
 {
+	// the damage type says how much reaches the hull (UMFDamageType::VehicleDamageScale: MF
+	// Vehicle.TakeDamage x 1.5 for explosives, the servers' changeDamage for the rest), then
+	// Physical's armour; bulletproof hulls ignore gunpowder; bots do a fifth (changeDamage)
 	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
-	const bool bChange = GM && GM->bChangeDamage;
-	if (!Type)
+	const bool bChange = !GM || GM->bChangeDamage;
+	if (!Type || (!Type->bExplosive && !bChange) || (Type->bBallistic && bBulletproof))
 	{
 		return 0;
 	}
-	float D = Damage;
-	if (Type->bExplosive)
-	{
-		// Vehicle.TakeDamage: explosives x 1.5, then Physical: x (1 - Armour)
-		D *= 1.5f * (1.f - Armour);
-	}
-	else if (!bChange || (Type->IsA<UMFDamage_Knife>() && !GM->bKnivesDamageVehicles))
-	{
-		return 0;   // MF: bullets, pellets and knives only push it
-	}
-	else
-	{
-		D *= GM->VehicleBulletDamageScale * (1.f - Armour);   // changeDamage
-	}
-	if (bChange && By && !By->IsPlayerController())
+	float D = Damage * Type->VehicleDamageScale * (1.f - Armour);
+	if (bChange && GM && By && !By->IsPlayerController())
 	{
 		D *= GM->BotVehicleDamageScale;
 	}
@@ -1049,23 +1043,11 @@ void AMFVehicle::UpdateEngineSound()
 			}
 		}
 	}
-	const FVector V = GetVelocity();
 	if (EngineAudio && EngineAudio->IsPlaying())
 	{
 		EngineAudio->SetPitchMultiplier(GetEnginePitch());
 	}
-	// SkidSound (WheelSFX.skid) while sliding sideways on the ground
-	const bool bSkid = bDriveable && !bBlownUp && FMath::Abs(FVector::DotProduct(V, GetActorRightVector())) > 400.f && FMath::Abs(V.Z) < 300.f
-		&& LastCompression.ContainsByPredicate([](float C) { return C > 0.f; });
-	if (bSkid && !SkidAudio)
-	{
-		SkidAudio = UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(TEXT("Sounds/WheelSFX/skid")), Body,
-			NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.6f, 1.f, 0.f, MF::GetAttenuation(1600.f), nullptr, false);
-	}
-	else if (SkidAudio && bSkid != SkidAudio->IsPlaying())
-	{
-		bSkid ? SkidAudio->Play() : SkidAudio->Stop();
-	}
+	// no skid sound: MF's Vehicle.Driving had its PlaySound(SkidSound) commented out
 }
 
 void AMFVehicle::PassengerEntered(AMFCharacter* C, int32 Seat)
@@ -1170,15 +1152,10 @@ void AMFVehicleGenerator::VehicleGone()
 	GetWorldTimerManager().SetTimer(Timer, this, &AMFVehicleGenerator::Generate, 5.f, false);
 }
 
-void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude)
+UClass* AMFVehicleGenerator::ClassForMF(const FString& MFClass)
 {
-	static const TPair<const TCHAR*, UClass*> Map[] = {
-		{ TEXT("BuggyGenerator"), AMFVehicle_Buggy::StaticClass() },
-		{ TEXT("HumveeGenerator"), AMFVehicle_Humvee::StaticClass() },
-		{ TEXT("TruckGenerator"), AMFVehicle_Truck::StaticClass() },
-		{ TEXT("ArmadilloGenerator"), AMFVehicle_Armadillo::StaticClass() },
-	};
-	// MF VehicleGenerator with VehicleClass=Class'boat.boat' (MF-mods vehicles on community maps)
+	// MF vehicle classes as maps and server configs name them ("heli.heli", "Rage.Truck"); the
+	// plane is looked up by name (Vehicles/Piper)
 	static const TPair<const TCHAR*, UClass*> ByClass[] = {
 		{ TEXT("boat.boat"), AMFVehicle_Boat::StaticClass() },
 		{ TEXT("jeep.jeep"), AMFVehicle_Jeep::StaticClass() },
@@ -1189,6 +1166,29 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 		{ TEXT("Rage.Truck"), AMFVehicle_Truck::StaticClass() },
 		{ TEXT("Rage.Armadillo"), AMFVehicle_Armadillo::StaticClass() },
 	};
+	for (const auto& Entry : ByClass)
+	{
+		if (MFClass.Equals(Entry.Key, ESearchCase::IgnoreCase))
+		{
+			return Entry.Value;
+		}
+	}
+	if (MFClass.StartsWith(TEXT("piper."), ESearchCase::IgnoreCase))
+	{
+		return LoadClass<AMFVehicle>(nullptr, MFClass.EndsWith(TEXT("Ts"), ESearchCase::IgnoreCase)
+			? TEXT("/Script/DesktopForces.MFVehicle_PiperTs") : TEXT("/Script/DesktopForces.MFVehicle_Piper"));
+	}
+	return nullptr;
+}
+
+void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude)
+{
+	static const TPair<const TCHAR*, UClass*> Map[] = {
+		{ TEXT("BuggyGenerator"), AMFVehicle_Buggy::StaticClass() },
+		{ TEXT("HumveeGenerator"), AMFVehicle_Humvee::StaticClass() },
+		{ TEXT("TruckGenerator"), AMFVehicle_Truck::StaticClass() },
+		{ TEXT("ArmadilloGenerator"), AMFVehicle_Armadillo::StaticClass() },
+	};
 	TArray<TPair<AMFLegacyActor*, UClass*>> Spots;
 	for (const auto& Entry : Map)
 	{
@@ -1197,15 +1197,15 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 			Spots.Add({ L, Entry.Value });
 		}
 	}
+	// MF VehicleGenerator with VehicleClass=Class'boat.boat' (MF-mods vehicles on community maps)
 	for (AMFLegacyActor* L : AMFLegacyActor::FindAll(World, TEXT("VehicleGenerator")))
 	{
-		const FString* Class = L->Properties.Find(TEXT("VehicleClass"));
-		for (const auto& Entry : ByClass)
+		FString Class = L->Properties.FindRef(TEXT("VehicleClass"));
+		Class.Split(TEXT("'"), nullptr, &Class);
+		Class.Split(TEXT("'"), &Class, nullptr);
+		if (UClass* C = ClassForMF(Class))
 		{
-			if (Class && Class->Contains(FString(Entry.Key) + TEXT("'"), ESearchCase::IgnoreCase))
-			{
-				Spots.Add({ L, Entry.Value });
-			}
+			Spots.Add({ L, C });
 		}
 	}
 	int32 N = 0;
@@ -1216,16 +1216,7 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 		const FString MapName = UWorld::RemovePIEPrefix(World->GetMapName());
 		for (const FMFAddedVehicle& Add : UMFGameSettings::Get().AddedVehicles)
 		{
-			UClass* Class = nullptr;
-			for (const auto& Entry : ByClass)
-			{
-				Class = Add.VehicleClass.Equals(Entry.Key, ESearchCase::IgnoreCase) ? Entry.Value : Class;
-			}
-			if (!Class && Add.VehicleClass.StartsWith(TEXT("piper."), ESearchCase::IgnoreCase))
-			{
-				Class = LoadClass<AMFVehicle>(nullptr, Add.VehicleClass.EndsWith(TEXT("Ts"), ESearchCase::IgnoreCase)
-					? TEXT("/Script/DesktopForces.MFVehicle_PiperTs") : TEXT("/Script/DesktopForces.MFVehicle_Piper"));
-			}
+			UClass* Class = ClassForMF(Add.VehicleClass);
 			if (!Class || !MapName.Equals(Add.Map, ESearchCase::IgnoreCase))
 			{
 				continue;

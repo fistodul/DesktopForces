@@ -88,7 +88,7 @@ void AMFVehicle_Piper::BeginPlay()
 	}
 	BodyMeshName = Liveries.IsValidIndex(Livery) ? Liveries[Livery] : BodyMeshName;
 	Super::BeginPlay();
-	MF::ApplyPropMesh(Propeller, TEXT("piper/piperPropeller"));
+	MF::ApplyPropMesh(Propeller, TEXT("piper/piperPropeller"), 1.f, Propeller->GetRelativeLocation());
 }
 
 void AMFVehicle_Piper::OnRep_Livery()
@@ -96,7 +96,7 @@ void AMFVehicle_Piper::OnRep_Livery()
 	if (Liveries.IsValidIndex(Livery))
 	{
 		BodyMeshName = Liveries[Livery];
-		MF::ApplyPropMesh(BodyMesh, *BodyMeshName);
+		MF::ApplyPropMesh(BodyMesh, *BodyMeshName, 1.f, -BoxCenter);
 	}
 }
 
@@ -230,12 +230,7 @@ void AMFVehicle_Piper::SimulateDrive(float Dt)
 	{
 		Body->SetPhysicsLinearVelocity(X * AirSpeed * 100.f);   // setTransVel(rotXaxis * smallSpeed)
 	}
-	else if (bAccel)
-	{
-		// the propeller pulls and the wheels roll free: none of the cars' rolling resistance
-		// (AMFVehicle::SimulateWheels), so it gets to MaxSpeed and past TakeoffSpeed
-		Body->AddForce(X * MassKg * 0.3f * FMath::Max(0.f, FVector::DotProduct(Vel * 100.f, X)));
-	}
+
 	Body->SetPhysicsAngularVelocityInRadians(Body->GetPhysicsAngularVelocityInRadians() - RotVel * Ticks);
 }
 

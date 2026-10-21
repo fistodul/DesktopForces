@@ -121,6 +121,8 @@ public:
 	bool HasAmmoInClip() const { return ClipAmmo > 0; }
 	bool CanReload() const { return TotalAmmo > 0 && ClipAmmo < MaxClipAmmo; }
 	bool HasAnyAmmo() const { return GetAmmoCount() > 0; }
+	/** Uses ammo and has none left (ammo-less items - armour, the knife in hand - never are). */
+	bool IsOutOfAmmo() const { return MaxClipAmmo > 0 && !HasAnyAmmo(); }
 
 	/** RageWeapon.GiveFullAmmo: full clip + (MaxClips - 1) spare clips. */
 	virtual void GiveFullAmmo();
@@ -344,6 +346,8 @@ protected:
 	void MulticastImpactFX(FVector_NetQuantize At, FVector_NetQuantizeNormal Normal, bool bFlesh);
 	bool bImpactSoundSent = false;
 	bool bFleshSoundSent = false;
+	/** Bullet impacts on walls (RageEffect.AddWallHit: ricochet, puff); the knife has none. */
+	bool bWallImpactFX = true;
 
 	UFUNCTION(Server, Reliable)
 	void ServerStartFire(bool bAlt);

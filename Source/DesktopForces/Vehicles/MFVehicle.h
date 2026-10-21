@@ -209,6 +209,9 @@ protected:
 	/** Seconds from standstill to near top speed. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float AccelTime = 6.f;
+	/** Rolling resistance per second of speed, under throttle / coasting. */
+	float RollingDrag = 0.05f;
+	float CoastDrag = 0.3f;
 	/** Steering lock, degrees (handling Lock). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float SteerLock = 35.f;
@@ -264,9 +267,12 @@ protected:
 	virtual void SimulateDrive(float Dt) {}
 	float GetWaterPlaneZ() const { return WaterPlaneZ; }
 
-	/** MF Armour: explosive damage taken x (1 - Armour). */
+	/** MF Armour: damage taken x (1 - Armour). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float Armour = 0.5f;
+	/** Bulletproof hull (Armadillo APCs): bullets and pellets don't hurt it, only its petrol cap. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	bool bBulletproof = false;
 	/** MF KillSpeed 8 (m/s): faster than this it runs people over. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float KillSpeed = 800.f;
@@ -333,11 +339,9 @@ protected:
 	TArray<FTimerHandle> ReInflateTimers;
 	int32 PetrolCapHealth = 150;
 
-	/** Engine running / skidding loops (clients; MF AmbientSound in state Driving, SkidSound). */
+	/** Engine running loop (clients; MF AmbientSound in state Driving). */
 	UPROPERTY(Transient)
 	TObjectPtr<class UAudioComponent> EngineAudio;
-	UPROPERTY(Transient)
-	TObjectPtr<class UAudioComponent> SkidAudio;
 	bool bEngineOn = false;
 	FTimerHandle EngineStartTimer;
 	float BumpSoundUntil = 0.f;
@@ -389,6 +393,8 @@ public:
 
 	/** Spawn generators for every legacy *Generator actor in the world (server), except within 8 m of Exclude. */
 	static void SpawnAll(UWorld* World, const TArray<FVector>& Exclude = TArray<FVector>());
+	/** "heli.heli", "Rage.Truck", "piper.piperTs" ... -> the game's class (null if unknown). */
+	static UClass* ClassForMF(const FString& MFClass);
 
 protected:
 	virtual void BeginPlay() override;

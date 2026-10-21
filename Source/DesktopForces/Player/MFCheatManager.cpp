@@ -29,6 +29,7 @@
 #include "GameFramework/PlayerStart.h"
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
+#include "NavMesh/RecastNavMesh.h"
 
 void UMFCheatManager::MFNavTest()
 {
@@ -536,5 +537,36 @@ void UMFCheatManager::MFBlowUp()
 	{
 		UE_LOG(LogMF, Display, TEXT("MFBlowUp: %s at %s"), *Nearest->GetName(), *Nearest->GetActorLocation().ToCompactString());
 		Nearest->TakeDamage(100000.f, FDamageEvent(UMFDamage_Explosion::StaticClass()), GetPlayerController(), nullptr);
+	}
+}
+
+void UMFCheatManager::MFNavRelevant()
+{
+	TMap<FString, int32> Counts;
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		TInlineComponentArray<UPrimitiveComponent*> Prims(*It);
+		for (const UPrimitiveComponent* P : Prims)
+		{
+			const bool bSpawned = !It->HasAnyFlags(RF_WasLoaded);
+			if ((P->Mobility == EComponentMobility::Movable || bSpawned) && P->CanEverAffectNavigation() && P->IsNavigationRelevant())
+			{
+				Counts.FindOrAdd(FString::Printf(TEXT("%s.%s (%s)"), *It->GetClass()->GetName(), *P->GetName(), *P->GetClass()->GetName()))++;
+			}
+		}
+	}
+	for (const auto& C : Counts)
+	{
+		UE_LOG(LogMF, Display, TEXT("Nav relevant movable: %s x%d"), *C.Key, C.Value);
+	}
+	if (const UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		UE_LOG(LogMF, Display, TEXT("Navigation dirty: %d (%s, dirty areas queued %d)"), Nav->IsNavigationDirty() ? 1 : 0, *Nav->GetClass()->GetName(), Nav->HasDirtyAreasQueued() ? 1 : 0);
+		for (const ANavigationData* D : Nav->NavDataSet)
+		{
+			const ARecastNavMesh* R = Cast<ARecastNavMesh>(D);
+			UE_LOG(LogMF, Display, TEXT("  nav data %s needs rebuild %d tiles %d generator %d runtime gen %d"), *GetNameSafe(D), D && D->NeedsRebuild() ? 1 : 0,
+				R ? R->GetNavMeshTilesCount() : -1, D && D->GetGenerator() ? 1 : 0, D ? int32(D->GetRuntimeGenerationMode()) : -1);
+		}
 	}
 }

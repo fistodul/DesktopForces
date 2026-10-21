@@ -32,6 +32,7 @@ namespace MFSeekerLocal
 UMFDamage_SeekerMine::UMFDamage_SeekerMine()
 {
 	bExplosive = true;
+	VehicleDamageScale = 1.5f;
 	DeathVerb = LOCTEXT("HuntedDown", "hunted down");
 }
 

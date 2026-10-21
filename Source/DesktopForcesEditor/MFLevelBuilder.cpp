@@ -15,6 +15,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Dom/JsonObject.h"
+#include "AI/NavigationSystemConfig.h"
 #include "Particles/Emitter.h"
 #include "Particles/ParticleSystem.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -119,6 +120,15 @@ namespace
 		Builder->Z = Extent.Z * 2.f;
 		// Same path as dragging a volume into the editor: creates the brush model + body setup
 		UActorFactory::CreateBrushForVolumeActor(Volume, Builder);
+	}
+
+	/** The game's navigation system (AI/MFNavigationSystem.h) for this map. */
+	void UseMFNavigation(UWorld* World)
+	{
+		if (UNavigationSystemConfig* Cfg = World->GetWorldSettings() ? World->GetWorldSettings()->GetNavigationSystemConfig() : nullptr)
+		{
+			Cfg->NavigationSystemClass = FSoftClassPath(TEXT("/Script/DesktopForces.MFNavigationSystem"));
+		}
 	}
 
 	/** Bake the navmesh into the level (bots need no runtime rebuild; mobile-friendly). */
@@ -677,6 +687,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	}
 	LinkTeleporters(World);
 	BuildNavigation(World);
+	UseMFNavigation(World);
 	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Map %s: %d actors -> %s (%s)"), *MapName, Spawned, *PackageName, bSaved ? TEXT("saved") : TEXT("SAVE FAILED"));
 
@@ -750,7 +761,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 		World->UpdateWorldComponents(true, false);
 		BuildNavigation(World);
 	}
-	const bool bSaved = (Removed || Added) ? SaveAsset(World) : true;
+	UseMFNavigation(World);
+	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Patch %s: %d map data actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
@@ -866,6 +878,7 @@ bool FMFImporter::BuildTestMap()
 
 	World->UpdateWorldComponents(true, false);
 	BuildNavigation(World);
+	UseMFNavigation(World);
 	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Test map -> %s (%s)"), *PackageName, bSaved ? TEXT("saved") : TEXT("SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);

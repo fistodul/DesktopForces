@@ -41,6 +41,26 @@ struct FMFAddedVehicle
 	float Yaw = 0.f;
 };
 
+/** One map's vehicle generators of one kind make another vehicle (BR-thebigisland's trucks
+ *  were placed for mutPack replaceVehicles to turn into helis). */
+USTRUCT()
+struct FMFVehicleSwap
+{
+	GENERATED_BODY()
+
+	/** Map file name, any case. */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	FString Map;
+
+	/** The generator's MF vehicle: "Rage.Truck", "Rage.Buggy" ... */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	FString From;
+
+	/** What it makes instead: "heli.heli", "jeep.jeep" ... */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	FString To;
+};
+
 /** A named bot: who it is and what it takes from the loadout (MF RageBotA-P, BonusBotA-P). */
 USTRUCT(BlueprintType)
 struct FMFBotDef
@@ -88,6 +108,10 @@ public:
 	/** Extra vehicles per map (the community servers' mutPack addVehicles; ?AddVehicles=0 off). */
 	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
 	TArray<FMFAddedVehicle> AddedVehicles;
+
+	/** Per-map generator swaps (+VehicleSwaps=(Map=...,From=...,To=...)). */
+	UPROPERTY(Config, EditAnywhere, Category = "Vehicles")
+	TArray<FMFVehicleSwap> VehicleSwaps;
 
 	/** Bot roster, used in order (MF: 32 bots). Add as many as you like. */
 	UPROPERTY(Config, EditAnywhere, Category = "Bots")

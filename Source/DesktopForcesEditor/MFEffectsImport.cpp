@@ -48,6 +48,7 @@ namespace
 	constexpr float MFGravity = -950.f;      // ZoneInfo.ZoneGravity, uu/s^2
 	constexpr float LoopFps = 16.f;          // frames a second of sprites that loop their animation
 	constexpr float FullRotation = 1.f;      // turns a second at ROTRATE FULL
+	constexpr float SpriteScale = 0.5f;      // RageSprite Size 1: half the texture's width across
 
 	FVector JVec(const TSharedPtr<FJsonObject>& O, const TCHAR* Field)
 	{
@@ -403,9 +404,10 @@ UParticleSystem* FMFImporter::BuildParticleSystem(const FString& PackagePath, co
 		UParticleModuleLifetime* LifeM = AddModule<UParticleModuleLifetime>(LOD);
 		LifeM->Lifetime.Distribution = Const(LifeM, Life);
 
-		// RageSprite Size x the texture's width (UE1 sprites: DrawScale x USize)
+		// RageSprite Size x half the texture's width: MF's own footage shows the fires left after
+		// an explosion about 1 m tall (full width made them and every blast twice too big)
 		const TArray<TSharedPtr<FJsonValue>>& S = E->GetArrayField(TEXT("size"));
-		const float W = (*Book)->GetNumberField(TEXT("usize")) * Uu, H = (*Book)->GetNumberField(TEXT("vsize")) * Uu;
+		const float W = (*Book)->GetNumberField(TEXT("usize")) * Uu * SpriteScale, H = (*Book)->GetNumberField(TEXT("vsize")) * Uu * SpriteScale;
 		UParticleModuleSize* SizeM = AddModule<UParticleModuleSize>(LOD);
 		SizeM->StartSize.Distribution = VRange(SizeM, FVector(W, H, W) * S[0]->AsNumber(), FVector(W, H, W) * S[1]->AsNumber(), true);
 

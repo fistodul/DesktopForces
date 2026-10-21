@@ -531,7 +531,7 @@ void AMFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, b
 	FPointDamageEvent Event(Damage, Hit, ShotDir, Type);
 	APawn* Shooter = Cast<APawn>(GetOwner());
 	Other->TakeDamage(Damage, Event, Shooter ? Shooter->GetController() : nullptr, this);
-	if (Cast<AMFCharacter>(Other) ? !bFleshSoundSent : (!Cast<APawn>(Other) && !bImpactSoundSent))
+	if (Cast<AMFCharacter>(Other) ? !bFleshSoundSent : (bWallImpactFX && !Cast<APawn>(Other) && !bImpactSoundSent))
 	{
 		(Cast<AMFCharacter>(Other) ? bFleshSoundSent : bImpactSoundSent) = true;
 		MulticastImpactFX(Hit.ImpactPoint, Hit.ImpactNormal, Cast<AMFCharacter>(Other) != nullptr);

@@ -163,22 +163,16 @@ public:
 	bool bVehicles = true;
 
 	/**
-	 * mutPack changeDamage (Gregaras), the community servers' damage rules, on by default:
-	 * players' rockets hit soldiers twice as hard, bullets and pellets hurt vehicles (MF: never),
-	 * bots hurt vehicles and the people in them a fifth as much. ?ChangeDamage=0: MF's rules.
+	 * The community servers' damage rules (mutPack changeDamage by Gregaras), on by default:
+	 * players' rockets hit soldiers twice as hard, non-explosive hits hurt vehicles (each damage
+	 * type's VehicleDamageScale; MF: never), bots hurt vehicles and the people in them a fifth
+	 * as much. ?ChangeDamage=0: MF's rules.
 	 */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
 	bool bChangeDamage = true;
 	/** rocketDamageMultToPlayersOnFoot 2 (rockets fired by players). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
 	float RocketDamageScaleOnFoot = 2.f;
-	/** Bullets / pellets on vehicles, x (1 - Armour): nEWeaponDamageMultToVehicles 10 against
-	 *  vehicle health 100 x 8 x 10 (eWeaponDamageMultToVehicles keeps explosives as they were). */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
-	float VehicleBulletDamageScale = 0.125f;
-	/** knivesDamageVehicles */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
-	bool bKnivesDamageVehicles = false;
 	/** 1 / botDamageDivToVehicles (5) and 1 / botDamageDivToPlayerVehOccupants (5). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
 	float BotVehicleDamageScale = 0.2f;
@@ -197,10 +191,11 @@ public:
 	/** MF-mods jeeps (gunner seat) from the truck generators instead of trucks (?Jeeps=1). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bJeeps = false;
-	/** mutPack replaceVehicles on the community servers: helis at the Truck generators
-	 *  (?Helis=0: trucks; ?Jeeps=1 wins). */
+	/** Helis at every Truck generator, as the community servers' mutPack replaceVehicles did
+	 *  (?Helis=1; ?Jeeps=1 wins). Off: helis only where a map has them (its own generators,
+	 *  UMFGameSettings::AddedVehicles and VehicleSwaps). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
-	bool bHelis = true;
+	bool bHelis = false;
 	/** mutPack addVehicles: UMFGameSettings::AddedVehicles on their maps (?AddVehicles=0 off). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bAddVehicles = true;

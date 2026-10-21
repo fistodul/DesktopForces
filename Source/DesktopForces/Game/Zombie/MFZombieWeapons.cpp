@@ -10,6 +10,7 @@ AMFWeapon_ZombieKnife::AMFWeapon_ZombieKnife()
 {
 	HitDamage = 67.f;          // ZombieKnife.SlashDamage
 	MeleeRange = 213.75f;      // Range 95
+	KnifeReturnTime = 4.5f;    // ZombieKnife_Thrown.TimeBeforeReturn
 }
 
 void AMFWeapon_ZombieKnife::FireShot(bool bAlt)
@@ -17,6 +18,13 @@ void AMFWeapon_ZombieKnife::FireShot(bool bAlt)
 	const AMFGameMode_Zombie* GM = GetWorld()->GetAuthGameMode<AMFGameMode_Zombie>();
 	HitDamage = GM && GM->IsNemesis(GetOwnerCharacter()) ? 134.f : 67.f;   // Slash: SlashDamage * 2
 	Super::FireShot(bAlt);
+}
+
+void AMFWeapon_ZombieKnife::GetThrowDamage(float& Body, float& Head) const
+{
+	const AMFGameMode_Zombie* GM = GetWorld()->GetAuthGameMode<AMFGameMode_Zombie>();
+	Body = GM && GM->IsNemesis(GetOwnerCharacter()) ? 316.f : 158.f;
+	Head = Body * 3.f;
 }
 
 AMFWeapon_ZombieShotgun::AMFWeapon_ZombieShotgun()

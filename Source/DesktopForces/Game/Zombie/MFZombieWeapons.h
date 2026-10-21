@@ -18,6 +18,13 @@ public:
 	AMFWeapon_ZombieKnife();
 protected:
 	virtual void FireShot(bool bAlt) override;
+	/** ThrowKnife: 1000 (a tap) .. 2500 uu/s (held 1.25 s). */
+	virtual float GetThrowSpeed(float Power) const override { return (1000.f + Power * Power * 15.f) * 2.25f; }
+	virtual bool ShowsThrowPower() const override { return true; }
+	/** ZombieKnife_Thrown: 158, a nemesis twice that; head x 3. */
+	virtual void GetThrowDamage(float& Body, float& Head) const override;
+	/** MyDamageType RageWeaponsDOTRocketLauncher: it blows vehicles up like a rocket. */
+	virtual TSubclassOf<UDamageType> GetThrowDamageType() const override { return UMFDamage_Explosion::StaticClass(); }
 };
 
 /** ZombieShotgun ("Zombie Boomstick"): both buttons fire one blast of 12 pellets x 15. */

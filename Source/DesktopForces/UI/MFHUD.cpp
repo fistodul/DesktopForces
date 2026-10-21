@@ -627,7 +627,7 @@ void AMFHUD::DrawMiniMapMF(AMFCharacter* C)
 		}
 	}
 	// us: PlayerIcon_Team (Y=0), turned with the view (MF draws a 3D arrow here)
-	DrawIcon(P, TeamU, 0.f, C->GetControlRotation().Yaw + 90.f, true);
+	DrawIcon(P, TeamU, 0.f, C->GetControlRotation().Yaw - 90.f, true);   // the icon points down the map (+Y) unturned
 
 	// border: 16 px pieces around MiniMapSize + 4, team rects in MinimapNewIcons
 	const float BX = 6.f * RS, Edge = 16.f * RS, BS = (192.f + 4.f) * RS;

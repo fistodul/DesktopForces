@@ -1,4 +1,5 @@
 #include "Game/MFGameMode.h"
+#include "AI/MFNavigationSystem.h"
 #include "Vehicles/MFVehicle.h"
 #include "Weapons/MFTripBomb.h"
 #include "Weapons/MFProjectile.h"
@@ -120,6 +121,15 @@ void AMFGameMode::HandleMatchHasStarted()
 		AMFVehicleGenerator::SpawnAll(GetWorld(), Exclude);   // the map's Buggy/Humvee/Truck/ArmadilloGenerators
 	}
 	GetWorldTimerManager().SetTimer(TimeLimitTimer, this, &AMFGameMode::CheckTimeLimit, 1.f, true);
+	// the map is set up for this game type (actors gone by GameInfo.IsRelevant): the baked
+	// navmesh stays as it is
+	GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		if (UMFNavigationSystem* Nav = FNavigationSystem::GetCurrent<UMFNavigationSystem>(GetWorld()))
+		{
+			Nav->ForgetStartupChanges();
+		}
+	}));
 }
 
 void AMFGameMode::CheckTimeLimit()
@@ -331,6 +341,18 @@ UClass* AMFGameMode::GetVehicleClassFor(UClass* StockClass) const
 		if (UClass* Replacement = LoadClass<AActor>(nullptr, Path))
 		{
 			return Replacement;
+		}
+	}
+	// this map's swaps (UMFGameSettings::VehicleSwaps)
+	const FString MapName = UWorld::RemovePIEPrefix(GetWorld()->GetMapName());
+	for (const FMFVehicleSwap& Swap : UMFGameSettings::Get().VehicleSwaps)
+	{
+		if (StockClass && MapName.Equals(Swap.Map, ESearchCase::IgnoreCase) && AMFVehicleGenerator::ClassForMF(Swap.From) == StockClass)
+		{
+			if (UClass* To = AMFVehicleGenerator::ClassForMF(Swap.To))
+			{
+				return To;
+			}
 		}
 	}
 	if ((bJeeps || bHelis) && StockClass && StockClass->GetName() == TEXT("MFVehicle_Truck"))

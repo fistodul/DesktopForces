@@ -50,6 +50,8 @@ public:
 	virtual void Destroyed() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void PawnClientRestart() override;
+	/** The current weapon put away (driving): bring it up again. */
+	void ResumeWeapon();
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual bool CanJumpInternal_Implementation() const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

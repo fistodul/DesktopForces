@@ -42,19 +42,19 @@ def convert(cfg: Config) -> Path:
             cls = pkg.class_of(exp)
             if cls == 'DeviceMesh':
                 mesh = devmesh.read(pkg, exp.name)
-                tris = [(_qualify(pkg_name, sec.material, tex_info) if sec.material else None, [mesh.vertices[i] for i in idx])
+                tris = [(_qualify(pkg_name, sec.material, tex_info) if sec.material else None, [mesh.vertices[i] for i in idx], 0)
                         for sec, idx in mesh.triangles()] if mesh else None
             elif cls in ('LodMesh', 'Mesh'):   # Mesh: plain vertex mesh (#exec MESH IMPORT in mods)
                 mesh = lodmesh.read(pkg, exp.name)
                 tris = []
-                for tex_index, _flags, corners in (mesh.triangles if mesh else []):
+                for tex_index, face_flags, corners in (mesh.triangles if mesh else []):
                     ref = mesh.textures[tex_index] if 0 <= tex_index < len(mesh.textures) else None
                     # no normals in a LodMesh: flat ones from the face (UE recomputes smooth ones)
                     p = [c[0] for c in corners]
                     nrm = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
                     ln = math.sqrt(_dot(nrm, nrm)) or 1.0
                     nrm = tuple(c / ln for c in nrm)
-                    tris.append((_qualify(pkg_name, ref, tex_info) if ref else None, [(c[0], nrm, c[1]) for c in corners]))
+                    tris.append((_qualify(pkg_name, ref, tex_info) if ref else None, [(c[0], nrm, c[1]) for c in corners], face_flags))
             else:
                 continue
             if not tris:
@@ -63,10 +63,13 @@ def convert(cfg: Config) -> Path:
             mb = MeshBuilder(exp.name)
             mb.collision = 'complex' if cls == 'DeviceMesh' else 'none'
             area = 0.0
-            for tex, vs in tris:
+            for tex, vs, face_flags in tris:
                 tex = tex or 'Engine.DefaultTexture'
                 info = tex_info.get(tex.lower(), {})
-                flags = PF_MASKED if info.get('masked') else 0
+                # UE1 alpha-tests a mesh face only when its own flags (LodMesh Materials) or the
+                # texture's PolyFlags say PF_Masked; bMasked alone just means the palette has a
+                # see-through index 0 (tyres, car frags: MF drew them solid, their S3TC copy too)
+                flags = face_flags & (PF_MASKED | PF_TRANSLUCENT)
                 if exp.name.lower().startswith('heliglass'):
                     flags |= PF_TRANSLUCENT   # heliGlass Style=STY_Translucent
                 key = material_key(tex, flags | info.get('polyflags', 0))

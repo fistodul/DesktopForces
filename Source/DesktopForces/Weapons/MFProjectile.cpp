@@ -240,8 +240,8 @@ AMFProjectile_ImpactGrenade::AMFProjectile_ImpactGrenade()
 
 AMFProjectile_Knife::AMFProjectile_Knife()
 {
-	Movement->InitialSpeed = 1350.f;          // MF Knife_Thrown.speed 600
-	Movement->MaxSpeed = 2250.f;
+	Movement->InitialSpeed = 3375.f;          // RageKnife.ThrowKnife: ProjectileSpeed 10 * 150 uu/s
+	Movement->MaxSpeed = 0.f;                 // (Knife_Thrown.MaxSpeed 1000 never applied: PHYS_Falling)
 	Movement->ProjectileGravityScale = 1.f;   // PHYS_Falling
 	Movement->bShouldBounce = true;           // bBounce
 	Movement->Bounciness = 0.4f;              // Bounce: Velocity = 0.4 * reflected
@@ -276,7 +276,7 @@ void AMFProjectile_Knife::HitVictim(AActor* Other, const FHitResult& Hit)
 	}
 	const AMFCharacter* Victim = Cast<AMFCharacter>(Other);
 	const bool bHead = Victim && Victim->IsHeadshot(GetActorLocation());
-	const float D = bHead ? 250.f : Damage;
+	const float D = bHead ? HeadDamage : Damage;
 	TSubclassOf<UDamageType> T = bHead ? TSubclassOf<UDamageType>(UMFDamage_Headshot::StaticClass()) : TSubclassOf<UDamageType>(DamageType);
 	FHitResult H = Hit;
 	if (!H.bBlockingHit)
@@ -318,7 +318,9 @@ void AMFProjectile_Knife::OnKnifeBounce(const FHitResult& Hit, const FVector& Im
 	}
 	if (Cast<APawn>(Hit.GetActor()))
 	{
-		HitVictim(Hit.GetActor(), Hit);   // vehicles: a clang and a push
+		// Dangerous.ProcessTouch: hurt them (vehicles: a clang and a push), stop dead, drop
+		HitVictim(Hit.GetActor(), Hit);
+		BecomeSafe(nullptr);
 		return;
 	}
 	bCanHitOwner = true;
@@ -326,8 +328,9 @@ void AMFProjectile_Knife::OnKnifeBounce(const FHitResult& Hit, const FVector& Im
 	{
 		Collision->IgnoreActorWhenMoving(Inst, false);
 	}
-	// HitWall: sticks in walls (and anything steep); off the floor it bounces (Landed -> Bounce)
-	if (FMath::Abs(Hit.ImpactNormal.Z) < 0.7f)
+	// HitWall: sticks in anything that isn't a floor (walls, slopes, ceilings); only a floor
+	// (UE1 Landed: a walkable surface) makes it bounce, damped, until it lies still
+	if (Hit.ImpactNormal.Z < 0.7f)
 	{
 		if (USoundBase* S = MF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
 		{

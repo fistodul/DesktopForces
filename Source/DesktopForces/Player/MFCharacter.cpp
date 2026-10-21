@@ -115,6 +115,7 @@ void AMFCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 	SetActorTickEnabled(IsLocallyControlled());
+	ResumeWeapon();
 }
 
 void AMFCharacter::PawnClientRestart()
@@ -122,6 +123,16 @@ void AMFCharacter::PawnClientRestart()
 	Super::PawnClientRestart();
 	SetActorTickEnabled(IsLocallyControlled());   // owning client: camera FOV + recoil
 	ApplyUserSettings();
+	ResumeWeapon();
+}
+
+void AMFCharacter::ResumeWeapon()
+{
+	// back from a vehicle's driving seat (AMFVehicle::TryEnter put the weapon away): bring it up
+	if (CurrentWeapon && IsAlive() && CurrentWeapon->GetState() == EMFWeaponState::Inactive && !PendingWeapon)
+	{
+		CurrentWeapon->OnEquip();
+	}
 }
 
 void AMFCharacter::ApplyUserSettings()
@@ -812,16 +823,31 @@ void AMFCharacter::OnRep_Inventory()
 
 void AMFCharacter::SelectInventoryGroup(int32 Group)
 {
+	// UE1 Weapon.WeaponChange: an empty weapon is skipped ("<item> has no ammo." when that's all
+	// there is). Rage weapons kept their own ammo, so MF let you pick them and then switched away.
 	TArray<AMFWeapon*> InGroup;
+	const AMFWeapon* Empty = nullptr;
 	for (AMFWeapon* W : Inventory)
 	{
 		if (W && W->bSelectable && W->GetSlotKey() == Group)
 		{
+			if (W->IsOutOfAmmo())
+			{
+				Empty = W;
+				continue;
+			}
 			InGroup.Add(W);
 		}
 	}
 	if (InGroup.Num() == 0)
 	{
+		if (Empty && IsLocallyControlled())
+		{
+			if (APlayerController* PC = Cast<APlayerController>(GetController()))
+			{
+				PC->ClientMessage(FString::Printf(TEXT("%s has no ammo."), *Empty->DisplayName.ToString()));
+			}
+		}
 		return;
 	}
 	const int32 Cur = InGroup.IndexOfByKey(CurrentWeapon);
@@ -833,7 +859,7 @@ void AMFCharacter::CycleWeapon(int32 Direction)
 	TArray<AMFWeapon*> Usable;
 	for (AMFWeapon* W : Inventory)
 	{
-		if (W && W->bSelectable)
+		if (W && W->bSelectable && (!W->IsOutOfAmmo() || W == CurrentWeapon))
 		{
 			Usable.Add(W);
 		}

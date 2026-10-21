@@ -146,6 +146,8 @@ public:
 
 	TWeakObjectPtr<class AMFWeapon_Knife> OwnerKnife;
 	float ReturnTime = 6.f;
+	/** Above 80% of a soldier's height: "decapitated" (Knife_Thrown 250). */
+	float HeadDamage = 250.f;
 
 protected:
 	virtual void BeginPlay() override;

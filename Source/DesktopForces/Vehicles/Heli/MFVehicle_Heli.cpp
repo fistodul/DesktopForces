@@ -72,12 +72,13 @@ AMFVehicle_Heli::AMFVehicle_Heli()
 void AMFVehicle_Heli::BeginPlay()
 {
 	Super::BeginPlay();
-	Body->SetAngularDamping(2.f);   // the Rage physics' own spin damping
-	MF::ApplyPropMesh(MainRotor, TEXT("heli/heliMainRotorTemp"));
-	MF::ApplyPropMesh(TailRotor, TEXT("heli/heliTailRotorTemp"));
+	Body->SetAngularDamping(1.f);   // the Rage physics' own spin damping (2 turned too slowly)
+	// ApplyPropMesh places the mesh: keep the parts where the constructor put them
+	MF::ApplyPropMesh(MainRotor, TEXT("heli/heliMainRotorTemp"), 1.f, MainRotor->GetRelativeLocation());
+	MF::ApplyPropMesh(TailRotor, TEXT("heli/heliTailRotorTemp"), 1.f, TailRotor->GetRelativeLocation());
 	for (int32 I = 0; I < Glass.Num(); ++I)
 	{
-		MF::ApplyPropMesh(Glass[I], GlassMeshes[I]);
+		MF::ApplyPropMesh(Glass[I], GlassMeshes[I], 1.f, Glass[I]->GetRelativeLocation());
 	}
 	GlassHealth.Init(300, Glass.Num());
 	GlassTimers.SetNum(Glass.Num());
