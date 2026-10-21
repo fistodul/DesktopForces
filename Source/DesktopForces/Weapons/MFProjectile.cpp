@@ -170,7 +170,7 @@ void AMFProjectile::Explode(const FVector& Location, const FVector& Normal)
 		UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, Location + Normal * 36.f, 0.f, DamageRadius, 1.f,
 			DamageType, Ignore, this, InstigatorController, ECC_Visibility);
 	}
-	MulticastExplosionFX(Location);
+	MulticastExplosionFX(Location + Normal * 36.f);   // Rocket: AddExplosion(Location + HitNormal * 16)
 	SetLifeSpan(0.2f);  // let the multicast go out
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
@@ -182,6 +182,10 @@ void AMFProjectile::MulticastExplosionFX_Implementation(FVector_NetQuantize Loca
 	if (GetNetMode() != NM_DedicatedServer && ExplosionSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, Location);
+	}
+	if (ExplosionEffectScale > 0.f)
+	{
+		MF::SpawnEffect(this, TEXT("Explosion"), Location, ExplosionEffectScale);
 	}
 	SetActorHiddenInGame(true);
 }
@@ -198,6 +202,7 @@ AMFProjectile_Rocket::AMFProjectile_Rocket()
 	Momentum = 225000.f;                      // MF MomentumTransfer 100000
 	InitialLifeSpan = 10.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	ExplosionEffectScale = 1.2f;              // AddExplosion Size 3
 	MFAmbientSound = TEXT("WeaponSFX_RocketLauncher.RocketFly");
 	PropMesh = TEXT("RageWeapons/RocketMesh");
 }
@@ -220,6 +225,7 @@ AMFProjectile_Grenade::AMFProjectile_Grenade()
 	DamageRadius = 900.f;                     // MF HurtRadius 400
 	Momentum = 112500.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	ExplosionEffectScale = 0.4f;              // AddExplosion Size 1
 	PropMesh = TEXT("RageWeapons/GrenadesPickupCarryMesh");
 }
 

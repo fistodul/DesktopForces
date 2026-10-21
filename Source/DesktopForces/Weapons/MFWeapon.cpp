@@ -534,7 +534,7 @@ void AMFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, b
 	if (Cast<AMFCharacter>(Other) ? !bFleshSoundSent : (!Cast<APawn>(Other) && !bImpactSoundSent))
 	{
 		(Cast<AMFCharacter>(Other) ? bFleshSoundSent : bImpactSoundSent) = true;
-		MulticastImpactSound(Hit.ImpactPoint, Cast<AMFCharacter>(Other) != nullptr);
+		MulticastImpactFX(Hit.ImpactPoint, Hit.ImpactNormal, Cast<AMFCharacter>(Other) != nullptr);
 	}
 
 	if (UPrimitiveComponent* Comp = Hit.GetComponent(); Comp && Comp->IsSimulatingPhysics())
@@ -753,14 +753,17 @@ void AMFWeapon::ForceInactive()
 	SetActorHiddenInGame(true);
 }
 
-void AMFWeapon::MulticastImpactSound_Implementation(FVector_NetQuantize At, bool bFlesh)
+void AMFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector_NetQuantizeNormal Normal, bool bFlesh)
 {
 	if (bFlesh)
 	{
-		// PlaySound(Sound'MiscSFX.RageChunkHit',, 4.0,,100): only right next to it
+		// PlaySound(Sound'MiscSFX.RageChunkHit',, 4.0,,100): only right next to it; RageEffect.AddBlood
 		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/RageChunkHit")), At, 1.f, 100.f);
+		MF::SpawnEffect(this, TEXT("Blood"), At);
 		return;
 	}
+	// RageEffect.AddWallHit: windy smoke and specks off the wall (+X of the effect: the normal)
+	MF::SpawnEffect(this, TEXT("WallHit"), At, 1.f, FVector(Normal).Rotation());
 	// RageEffect.AddWallHit: a ricochet, one of two impacts, or nothing (a quarter each)
 	const float R = FMath::FRand();
 	if (R < 0.25f)

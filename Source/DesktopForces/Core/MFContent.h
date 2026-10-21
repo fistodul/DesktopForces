@@ -32,4 +32,15 @@ namespace MF
 	 */
 	DESKTOPFORCES_API class USoundAttenuation* GetAttenuation(float RadiusUU);
 	DESKTOPFORCES_API void PlaySoundRadius(const UObject* WorldContext, class USoundBase* Sound, const FVector& Location, float Volume = 1.f, float RadiusUU = 1600.f, float Pitch = 1.f);
+
+	/**
+	 * MF sprite effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, SmokePuffVeh,
+	 * WallHit, Blood: Effects/P_<Name>, made by the importer from mflib/effects.py) at Location,
+	 * Scale = the MF actor's DrawScale (RageEffect.AddExplosion: Size x 0.4). Like the sounds,
+	 * only where it is seen: null on a dedicated server or without the classic content.
+	 */
+	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffect(const UObject* WorldContext, const TCHAR* Name, const FVector& Location,
+		float Scale = 1.f, const FRotator& Rotation = FRotator::ZeroRotator);
+	/** The same, following a component (ExplosionFire on burning debris: SetLocation(Owner.Location)). */
+	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffectAttached(const TCHAR* Name, class USceneComponent* AttachTo, float Scale = 1.f);
 }

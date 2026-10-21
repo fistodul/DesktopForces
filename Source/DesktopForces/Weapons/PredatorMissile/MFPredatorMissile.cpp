@@ -1,4 +1,5 @@
 #include "Weapons/PredatorMissile/MFPredatorMissile.h"
+#include "World/MFEffectActor.h"
 #include "Core/MFContent.h"
 #include "DesktopForces.h"
 #include "Core/MFProps.h"
@@ -187,10 +188,9 @@ void AMFPredatorMissile::Explode(const FVector& At)
 	TArray<AActor*> Ignore;
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, BlastRadius, 1.f, UMFDamage_Explosion::StaticClass(),
 		Ignore, this, GetInstigatorController(), ECC_Visibility);
-	if (USoundBase* Boom = MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")))
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, Boom, At, 2.f);
-	}
+	// AddExplosionServer(Size 6) + AddVehicleExplosionServer(Size 5)
+	AMFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 2.4f, false, TEXT("Sounds/MiscSFX/Explode"), 8000.f, 1.f);
+	AMFEffectActor::Spawn(GetWorld(), NAME_None, At, 2.f, true, TEXT("Sounds/MiscSFX/Explode"), 2000.f, 1.f);
 	if (AMFWeapon_PredatorMissile* W = Controller.Get())
 	{
 		W->MissileDone();

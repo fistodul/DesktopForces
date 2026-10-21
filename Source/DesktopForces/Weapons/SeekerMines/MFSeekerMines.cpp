@@ -1,4 +1,5 @@
 #include "Weapons/SeekerMines/MFSeekerMines.h"
+#include "World/MFEffectActor.h"
 #include "Core/MFGameSettings.h"
 #include "Player/MFCharacter.h"
 #include "AIController.h"
@@ -26,7 +27,6 @@ namespace MFSeekerLocal
 		return LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	}
 	const TCHAR* ActivatingSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/Activating.Activating");
-	const TCHAR* ExplodeSound = TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode");
 }
 
 UMFDamage_SeekerMine::UMFDamage_SeekerMine()
@@ -227,7 +227,7 @@ void AMFSeekerMine::BlowUp()
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, DamageRadius, 1.f,
 		UMFDamage_SeekerMine::StaticClass(), Ignore, this, Credit, ECC_Visibility);
-	UGameplayStatics::PlaySoundAtLocation(this, MFSeekerLocal::Sound(MFSeekerLocal::ExplodeSound), At);
+	AMFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.4f);   // AddExplosionServer(Size 3.5)
 	Destroy();
 }
 

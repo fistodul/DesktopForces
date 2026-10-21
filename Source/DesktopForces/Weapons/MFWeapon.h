@@ -341,7 +341,7 @@ protected:
 
 	/** RageEffect.AddWallHit (ricochet / impact) and RageChunkHit on a soldier, for everyone. */
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastImpactSound(FVector_NetQuantize At, bool bFlesh);
+	void MulticastImpactFX(FVector_NetQuantize At, FVector_NetQuantizeNormal Normal, bool bFlesh);
 	bool bImpactSoundSent = false;
 	bool bFleshSoundSent = false;
 

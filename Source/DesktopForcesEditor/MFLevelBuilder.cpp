@@ -15,6 +15,12 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Dom/JsonObject.h"
+#include "Particles/Emitter.h"
+#include "Particles/ParticleSystem.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonWriter.h"
+#include "Serialization/JsonSerializer.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/Engine.h"
 #include "Engine/PointLight.h"
@@ -158,11 +164,31 @@ namespace
 
 	/** Records a built map can take in place, without a rebuild or a new bake (`--steps patch`):
 	 *  actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box), the road graph
-	 *  (road_network), teleporters, periodic sounds, pickups, movers, blockers, placed bots. nullptr for any other record. */
+	 *  (road_network), teleporters, periodic sounds, pickups, movers, blockers, placed bots,
+	 *  particle effects. nullptr for any other record. */
+	const FName ParticleEffectTag(TEXT("MFParticleEffect"));
+
 	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP, TFunctionRef<USoundWave*(const FString&)> FindSound,
-		TFunctionRef<UStaticMesh*(const FString&)> LoadMesh)
+		TFunctionRef<UStaticMesh*(const FString&)> LoadMesh, TFunctionRef<UParticleSystem*(const TArray<TSharedPtr<FJsonValue>>&)> MapEffect)
 	{
 		const FString Type = R->GetStringField(TEXT("type"));
+		if (Type == TEXT("particle_effect"))
+		{
+			// RageEffects.ParticleEffect / FireyExample: an engine emitter; unturned, MF's
+			// velocities are world space
+			UParticleSystem* PS = MapEffect(R->GetArrayField(TEXT("emitters")));
+			if (!PS)
+			{
+				return nullptr;
+			}
+			AEmitter* E = World->SpawnActor<AEmitter>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			E->SetTemplate(PS);
+			E->Tags.Add(ParticleEffectTag);
+			UParticleSystemComponent* C = E->GetParticleSystemComponent();
+			C->LDMaxDrawDistance = 12000.f;   // 120 m: rain and sparks far off aren't simulated
+			C->SetCanEverAffectNavigation(false);
+			return E;
+		}
 		if (Type == TEXT("bot_spot"))
 		{
 			AMFBotSpot* B = World->SpawnActor<AMFBotSpot>(Vec(R, TEXT("location")), Rot(R), SP);
@@ -525,7 +551,8 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			}
 		}
 		else if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); },
-			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); }))
+			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); },
+			[this, &MapName](const TArray<TSharedPtr<FJsonValue>>& E) { return GetMapEffect(MapName, E); }))
 		{
 			Actor = Data;
 		}
@@ -695,7 +722,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>()
-			|| It->IsA<AMFTeleporter>() || It->IsA<AMFPeriodicSound>() || It->IsA<AMFPickupSpot>() || It->IsA<AMFMover>() || It->IsA<AMFBlocker>() || It->IsA<AMFBotSpot>())
+			|| It->IsA<AMFTeleporter>() || It->IsA<AMFPeriodicSound>() || It->IsA<AMFPickupSpot>() || It->IsA<AMFMover>() || It->IsA<AMFBlocker>() || It->IsA<AMFBotSpot>()
+			|| It->ActorHasTag(ParticleEffectTag))
 		{
 			World->EditorDestroyActor(*It, true);
 			++Removed;
@@ -707,7 +735,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
 		if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); },
-			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); }))
+			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); },
+			[this, &MapName](const TArray<TSharedPtr<FJsonValue>>& E) { return GetMapEffect(MapName, E); }))
 		{
 			Data->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;
@@ -727,6 +756,23 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	World->DestroyWorld(false);
 	World->RemoveFromRoot();
 	return bSaved;
+}
+
+UParticleSystem* FMFImporter::GetMapEffect(const FString& MapName, const TArray<TSharedPtr<FJsonValue>>& Emitters)
+{
+	// one system per distinct emitter set (BraveDwarfes: 377 rain emitters, 28 kinds)
+	FString Text;
+	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> W = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Text);
+	FJsonSerializer::Serialize(Emitters, W);
+	const FString Name = FString::Printf(TEXT("P_%08X"), FCrc::StrCrc32(*Text));
+	const FString Key = MapName + TEXT("/") + Name;
+	if (UParticleSystem** Found = MapEffectCache.Find(Key))
+	{
+		return *Found;
+	}
+	UParticleSystem* PS = BuildParticleSystem(Packs.MapDataRoot(MapName) / TEXT("Effects"), Name, Emitters, true);
+	MapEffectCache.Add(Key, PS);
+	return PS;
 }
 
 bool FMFImporter::BuildTestMap()

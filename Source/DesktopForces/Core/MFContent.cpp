@@ -3,6 +3,8 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Particles/ParticleSystem.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 
@@ -46,4 +48,39 @@ void MF::PlaySoundRadius(const UObject* WorldContext, USoundBase* Sound, const F
 		return;
 	}
 	UGameplayStatics::PlaySoundAtLocation(WorldContext, Sound, Location, FRotator::ZeroRotator, Volume, Pitch, 0.f, GetAttenuation(RadiusUU));
+}
+
+namespace
+{
+	UParticleSystem* LoadEffect(const UObject* WorldContext, const TCHAR* Name)
+	{
+		const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+		if (!World || World->GetNetMode() == NM_DedicatedServer)
+		{
+			return nullptr;
+		}
+		return MF::LoadClassic<UParticleSystem>(FString(TEXT("Effects/P_")) + Name);
+	}
+}
+
+UParticleSystemComponent* MF::SpawnEffect(const UObject* WorldContext, const TCHAR* Name, const FVector& Location, float Scale, const FRotator& Rotation)
+{
+	UParticleSystem* PS = LoadEffect(WorldContext, Name);
+	return PS ? UGameplayStatics::SpawnEmitterAtLocation(WorldContext, PS, Location, Rotation, FVector(Scale), true, EPSCPoolMethod::AutoRelease) : nullptr;
+}
+
+UParticleSystemComponent* MF::SpawnEffectAttached(const TCHAR* Name, USceneComponent* AttachTo, float Scale)
+{
+	UParticleSystem* PS = AttachTo ? LoadEffect(AttachTo, Name) : nullptr;
+	UParticleSystemComponent* C = PS ? UGameplayStatics::SpawnEmitterAttached(PS, AttachTo, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, FVector(Scale),
+		EAttachLocation::KeepRelativeOffset, true, EPSCPoolMethod::AutoRelease) : nullptr;
+	if (C)
+	{
+		// MF moves the effect to its owner (SetLocation), it doesn't turn with a spinning chunk
+		C->SetUsingAbsoluteRotation(true);
+		C->SetUsingAbsoluteScale(true);
+		C->SetWorldRotation(FRotator::ZeroRotator);
+		C->SetWorldScale3D(FVector(Scale));
+	}
+	return C;
 }

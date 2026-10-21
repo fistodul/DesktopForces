@@ -327,6 +327,8 @@ protected:
 	uint8 BlownWheels = 0;
 	UFUNCTION()
 	void OnRep_BlownWheels();
+	/** The flat tyres this machine has puffed smoke for. */
+	uint8 ShownBlownWheels = 0;
 	TArray<int32> WheelDamage;
 	TArray<FTimerHandle> ReInflateTimers;
 	int32 PetrolCapHealth = 150;

@@ -2,7 +2,10 @@
 
 #include "CoreMinimal.h"
 
+class FJsonObject;
+class FJsonValue;
 class UMaterialInterface;
+class UParticleSystem;
 class UStaticMesh;
 class UTexture2D;
 class USoundWave;
@@ -83,6 +86,15 @@ public:
 	bool ImportProps();
 	void EnsureCrateMaterial();
 
+	/**
+	 * MF sprite particles (MFEffectsImport.cpp, work/out/Effects from mfport.py effects):
+	 * flipbook atlases -> <root>/Effects/Textures/..., the scripted effects (explosions,
+	 * burning wrecks, smoke puffs, blood) -> /MobileForcesClassic/Effects/P_<Name>.
+	 */
+	bool ImportEffects();
+	/** A particle system from emitter descriptions (mflib/effects.py EMITTER); bLoop: forever. */
+	UParticleSystem* BuildParticleSystem(const FString& PackagePath, const FString& Name, const TArray<TSharedPtr<FJsonValue>>& Emitters, bool bLoop);
+
 	/** Small blockout map from engine shapes only (no MF assets): /Game/MF/Maps/MF_TestRange. */
 	bool BuildTestMap();
 	/** Zone actors (water / pain / current, loadout zones, captain boxes) and the road graph
@@ -112,6 +124,16 @@ public:
 
 private:
 	UMaterialInterface* GetMasterMaterial(const FString& Mode);
+	/** M_MF_Particle_add / _sub / _alpha and their instances per flipbook. */
+	UMaterialInterface* GetParticleMaster(const FString& Draw);
+	UMaterialInterface* GetParticleMaterial(const FString& Key, const FString& Draw);
+	bool LoadEffects();
+	/** A map's ParticleEffect (level.json particle_effect): <map>_Data/Effects/P_<crc of its emitters>. */
+	UParticleSystem* GetMapEffect(const FString& MapName, const TArray<TSharedPtr<FJsonValue>>& Emitters);
+	TMap<FString, UParticleSystem*> MapEffectCache;
+	FString FlipbookAssetPath(const FString& Key) const;
+	TSharedPtr<FJsonObject> EffectsManifest;
+	TMap<FString, TSharedPtr<FJsonObject>> Flipbooks;
 	UStaticMesh* LoadOrBuildMesh(const FString& MapDir, const FString& MeshRel, const FString& MapName);
 
 	FString WorkDir;

@@ -1,4 +1,5 @@
 #include "Weapons/SentryGun/MFSentryGun.h"
+#include "World/MFEffectActor.h"
 #include "Core/MFGameSettings.h"
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
@@ -27,7 +28,6 @@ namespace MFSentryLocal
 	const TCHAR* ActivatingSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/Activating.Activating");
 	const TCHAR* FireSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_HeavyMachineGun/Fire.Fire");
 	const TCHAR* SpinDownSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_HeavyMachineGun/SpinDown.SpinDown");
-	const TCHAR* ExplodeSound = TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode");
 }
 
 UMFDamage_Sentry::UMFDamage_Sentry()
@@ -295,7 +295,7 @@ void AMFSentryTurret::BlowUp()
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 85.f, 0.f, At, 0.f, 562.5f, 1.f,
 		UMFDamage_Sentry::StaticClass(), Ignore, this, Credit(), ECC_Visibility);   // MF HurtRadius(85, 250)
-	MFSentryLocal::PlayAt(this, MFSentryLocal::ExplodeSound);
+	AMFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.f);    // AddExplosionServer(Size 2.5)
 	Destroy();
 }
 

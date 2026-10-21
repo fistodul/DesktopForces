@@ -54,6 +54,8 @@ protected:
 	/** 20 Hz: something in the beam? */
 	virtual void CheckBeam();
 	void Detonate(const FVector& At, float Damage);
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastExplodeFX(FVector_NetQuantize At);
 	void UpdateBeam();
 
 	FTimerHandle Timer;

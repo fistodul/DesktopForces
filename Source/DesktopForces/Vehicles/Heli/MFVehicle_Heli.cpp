@@ -13,17 +13,15 @@
 
 namespace
 {
-	// uu -> cm
-	constexpr float Uu = 2.25f;
-	// heli defaultproperties
-	const FVector MainRotorPos(60.f, 2.f, 130.f);
-	const FVector TailRotorPos(-325.f, -10.f, 47.f);
-	const FVector GlassPos[4] = { FVector(174.f, -20.f, 40.f), FVector(174.f, 30.f, 42.f), FVector(212.f, -23.f, -10.f), FVector(212.f, 30.f, -10.f) };
+	// heli defaultproperties (x 2.25: uu -> cm)
+	const FVector MainRotorPos(135.f, 4.5f, 292.5f);     // mainRotorPos (60, 2, 130)
+	const FVector TailRotorPos(-731.25f, -22.5f, 105.75f); // tailRotorPos (-325, -10, 47)
+	const FVector GlassPos[4] = { FVector(391.5f, -45.f, 90.f), FVector(391.5f, 67.5f, 94.5f), FVector(477.f, -51.75f, -22.5f), FVector(477.f, 67.5f, -22.5f) };
 	const TCHAR* GlassMeshes[4] = { TEXT("heli/heliGlass_topLeft"), TEXT("heli/heliGlass_topRight"), TEXT("heli/heliGlass_bottomLeft"), TEXT("heli/heliGlass_bottomRight") };
 	constexpr float IdlePitch = 58.f;               // idlePitch
 	constexpr float PitchChange = 0.15f;            // soundPitchChange, a tick
-	constexpr float HeightChange = 100.f * Uu;      // heightChangeInUnrealUnits
-	constexpr float HeightDiffDivisor = 500.f * Uu; // destCurrentHeightDiffDivisor
+	constexpr float HeightChange = 225.f;        // heightChangeInUnrealUnits 100
+	constexpr float HeightDiffDivisor = 1125.f;  // destCurrentHeightDiffDivisor 500
 }
 
 AMFVehicle_Heli::AMFVehicle_Heli()
@@ -38,19 +36,19 @@ AMFVehicle_Heli::AMFVehicle_Heli()
 	AccelTime = 6.f;
 	Armour = 0.68f;
 	NitroAccel = 0.f;                            // Crouch lowers it instead
-	PetrolCapPosition = FVector(-27.f, -47.f, 13.f) * Uu;   // PetrolCapPos
-	PetrolCapRadius = 4.f * Uu;
-	CameraDistance = 650.f * Uu;                  // NearCamera 650
+	PetrolCapPosition = FVector(-60.75f, -105.75f, 29.25f);   // PetrolCapPos
+	PetrolCapRadius = 9.f;
+	CameraDistance = 1462.5f;                  // NearCamera 650 uu
 	EngineLoopSound = TEXT("Sounds/heli/heliEngineLoop");
 	// aSeatsPos (DriverSeat 1 first), aDoorsPos
-	SeatPositions = { FVector(160.f, -21.f, 40.f) * Uu, FVector(160.f, 33.f, 40.f) * Uu, FVector(75.f, 55.f, 25.f) * Uu, FVector(75.f, -40.f, 25.f) * Uu };
-	DoorPositions = { FVector(185.f, -70.f, 0.f) * Uu, FVector(185.f, 90.f, 0.f) * Uu, FVector(90.f, -80.f, 0.f) * Uu, FVector(90.f, 90.f, 0.f) * Uu };
+	SeatPositions = { FVector(360.f, -47.25f, 90.f), FVector(360.f, 74.25f, 90.f), FVector(168.75f, 123.75f, 56.25f), FVector(168.75f, -90.f, 56.25f) };
+	DoorPositions = { FVector(416.25f, -157.5f, 0.f), FVector(416.25f, 202.5f, 0.f), FVector(202.5f, -180.f, 0.f), FVector(202.5f, 202.5f, 0.f) };
 
-	auto Part = [this](const TCHAR* Name, const FVector& PosUu)
+	auto Part = [this](const TCHAR* Name, const FVector& Pos)
 	{
 		UStaticMeshComponent* C = CreateDefaultSubobject<UStaticMeshComponent>(Name);
 		C->SetupAttachment(Body);
-		C->SetRelativeLocation(PosUu * Uu - BoxCenter);
+		C->SetRelativeLocation(Pos - BoxCenter);
 		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->SetCanEverAffectNavigation(false);
 		C->SetCastShadow(false);
@@ -83,7 +81,7 @@ void AMFVehicle_Heli::BeginPlay()
 	}
 	GlassHealth.Init(300, Glass.Num());
 	GlassTimers.SetNum(Glass.Num());
-	HoverHeight = GetActorLocation().Z + 50.f * Uu;
+	HoverHeight = GetActorLocation().Z + 112.5f;
 }
 
 void AMFVehicle_Heli::Tick(float DeltaSeconds)
@@ -111,7 +109,7 @@ void AMFVehicle_Heli::SimulateDrive(float Dt)
 		// no pilot / still spinning up: no lift; once it rests, it will lift 50 uu off where it is
 		if (FMath::Abs(Body->GetPhysicsLinearVelocity().Z) < 20.f)
 		{
-			HoverHeight = Z + 50.f * Uu;
+			HoverHeight = Z + 112.5f;
 		}
 		return;
 	}
@@ -268,14 +266,14 @@ AMFVehicle_HeliHmg::AMFVehicle_HeliHmg()
 	DisplayName = LOCTEXT("HeliHmg", "Heli (door guns)");
 	BodyMeshName = TEXT("heli/heliMeshHmg");
 	// hmgSeat 2 / 3: aSeatsPos (Z=60) standing at the guns
-	SeatPositions[2] = FVector(75.5f, 57.f, 60.f) * Uu;
-	SeatPositions[3] = FVector(75.5f, -42.f, 60.f) * Uu;
-	auto Gun = [this](const TCHAR* Name, int32 Seat, const FVector& PosUu, float Yaw)
+	SeatPositions[2] = FVector(169.875f, 128.25f, 135.f);
+	SeatPositions[3] = FVector(169.875f, -94.5f, 135.f);
+	auto Gun = [this](const TCHAR* Name, int32 Seat, const FVector& Pos, float Yaw)
 	{
 		UMFVehicleTurret* G = CreateDefaultSubobject<UMFVehicleTurret>(Name);
 		// the jeep's vehWeap (MachineGun, 3000 a belt)
 		G->GunnerSeat = Seat;
-		G->TurretPivot = PosUu * Uu;
+		G->TurretPivot = Pos;
 		G->GunOffset = FVector::ZeroVector;
 		G->MuzzleOffset = FVector(107.f, 0.f, 0.f);
 		G->BaseYaw = Yaw;                    // vehicleWeapRot
@@ -294,8 +292,8 @@ AMFVehicle_HeliHmg::AMFVehicle_HeliHmg()
 		G->MFReloadSound = TEXT("jeep.hmgReload");
 		return G;
 	};
-	RightGun = Gun(TEXT("RightGun"), 2, FVector(75.5f, 57.f, 45.f), 90.f);
-	LeftGun = Gun(TEXT("LeftGun"), 3, FVector(75.5f, -42.f, 45.f), -90.f);
+	RightGun = Gun(TEXT("RightGun"), 2, FVector(169.875f, 128.25f, 101.25f), 90.f);    // (75.5, 57, 45) uu
+	LeftGun = Gun(TEXT("LeftGun"), 3, FVector(169.875f, -94.5f, 101.25f), -90.f);     // (75.5, -42, 45) uu
 }
 
 #undef LOCTEXT_NAMESPACE

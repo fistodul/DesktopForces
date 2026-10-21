@@ -13,6 +13,7 @@ All Mobile Forces knowledge about actors lives here; the C++ builder
   {"type": "pickup", "weapon": class path, "respawn_time", "max_clip_ammo", "max_clips"}
   {"type": "blocker", "team" ('255' = everyone), "radius", "height", "vehicles"}
   {"type": "bot_spot", "health", "stationary", "loadout": [class paths], "team"}
+  {"type": "particle_effect", "emitters": [mflib/effects.py EMITTER descriptions, UE1 units]}
   {"type": "legacy", "mf_class", "mf_name", "team", "props"}   (kept for future game modes)
 
 T3D only lists properties that differ from the class defaults, so the defaults the
@@ -23,7 +24,7 @@ from __future__ import annotations
 
 import math
 
-from . import t3d
+from . import effects, t3d
 from .config import UU_TO_CM
 
 # MF items placed in maps -> the game's weapon classes
@@ -238,6 +239,13 @@ class ActorMapper:
                                           pitch=_int(props, 'SoundPitch', {'SoundPitch': 64}) / 64.0,
                                           period=t3d.parse_float(props.get('Period')), interval=t3d.parse_float(props.get('Interval')),
                                           phase=t3d.parse_float(props.get('PhaseShift')))]
+
+        if cls in effects.PARTICLE_EFFECT_CLASSES:
+            # RageEffects.ParticleEffect / FireyExample: fire, smoke, sparks, rain (mflib/effects.py)
+            emitters = effects.particle_emitters(cls, props)
+            if not emitters:
+                return [self._legacy(a)]
+            return [self._legacy(a), dict(base, type='particle_effect', emitters=emitters)]
 
         if cls in PICKUP_CLASSES:
             # an item lying in the map: RageDeathMatch.ShouldRespawn brings it back after its

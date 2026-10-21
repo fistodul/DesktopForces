@@ -8,6 +8,7 @@
 #include "World/MFMapActors.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "World/MFEffectActor.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
@@ -177,7 +178,8 @@ void AMFGameMode_Trailer::Detonate()
 		TArray<AActor*> Ignore;
 		UGameplayStatics::ApplyRadialDamageWithFalloff(this, 600.f, 0.f, TrailerVehicle->GetActorLocation(), 0.f, 1200.f * Uu, 1.f,
 			UMFDamage_Explosion::StaticClass(), Ignore, TrailerVehicle, By, ECC_Visibility);
-		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode"), nullptr, LOAD_NoWarn | LOAD_Quiet), TrailerVehicle->GetActorLocation());
+		// Vehicle.BlowUp's EffectsFix.VehExplosion, seen and heard by everyone
+		AMFEffectActor::Spawn(GetWorld(), NAME_None, TrailerVehicle->GetActorLocation(), 1.f, true, TEXT("Sounds/MiscSFX/Explode"), 2000.f);
 	}
 	// TrailerGame.ScoreDelivery: team point, +7 for the driver (-7 if they had switched sides)
 	AMFGameState* GS = GetGameState<AMFGameState>();

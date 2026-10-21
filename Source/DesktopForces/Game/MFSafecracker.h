@@ -66,6 +66,9 @@ protected:
 	void OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bSweep, const FHitResult& Hit);
 	UFUNCTION()
 	void OnRep_Open();
+	/** Cracked: RageEffect.AddVehicleExplosionServer(Size 2). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastCrackFX();
 	void UpdateLook();
 	FTimerHandle CloseTimer;
 };

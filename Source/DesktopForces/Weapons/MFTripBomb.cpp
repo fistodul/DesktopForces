@@ -1,5 +1,6 @@
 #include "Weapons/MFTripBomb.h"
 #include "Player/MFCharacter.h"
+#include "Core/MFContent.h"
 #include "Core/MFGameSettings.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -9,6 +10,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -133,7 +135,21 @@ void AMFTripBomb::Detonate(const FVector& At, float Damage)
 	TArray<AActor*> Ignore;
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, 900.f, 1.f,
 		UMFDamage_Explosion::StaticClass(), Ignore, this, GetInstigatorController(), ECC_Visibility);
-	Destroy();
+	MulticastExplodeFX(GetActorLocation());
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetLifeSpan(0.2f);   // let the multicast go out
+}
+
+void AMFTripBomb::MulticastExplodeFX_Implementation(FVector_NetQuantize At)
+{
+	// TripBomb.Explode: EffectsFix.TripBombVehProx -> a RageEffects.Explosion (DrawScale 0.4), its bang
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), At);
+		MF::SpawnEffect(this, TEXT("Explosion"), At, 0.4f);
+	}
+	SetActorHiddenInGame(true);
 }
 
 // --- thrown proximity mine -------------------------------------------------------------
@@ -154,6 +170,7 @@ AMFProjectile_TripMine::AMFProjectile_TripMine()
 	DamageRadius = 450.f;
 	Momentum = 112500.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	ExplosionEffectScale = 0.8f;              // TripBombOnGround: AddExplosion Size 2
 	PropMesh = TEXT("RageWeapons/TripBombsThrowMesh");
 }
 

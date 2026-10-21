@@ -25,12 +25,13 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | `mfport.py map mf-warehouse` | BSP world geometry → chunked `.mfmesh`; static meshes → `.mfmesh`; actors → `level.json` |
 | `mfport.py props` | gameplay meshes from Rage.u / RageGame.u / RageWeapons.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers; `LodMesh`: weapon models, rockets, det key) → `.mfmesh` |
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
+| `mfport.py effects` | MF sprite particles (`mflib/effects.py`): the effect textures' AnimNext chains → flipbook atlases, plus emitter descriptions for the scripted effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, EffectsFix smoke puffs, wall hits, blood) and every map's ParticleEffect / FireyExample → `Effects/effects.json`. Run after `map` |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
-| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,sounds,music,maps`; maps also get their navmesh baked). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers and blockers (invisible walls, spawn room doors) of already built maps in place (no rebuild, the bake stays) |
+| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,effects,sounds,music,maps`; maps also get their navmesh baked; `effects`: flipbooks, particle materials, `/MobileForcesClassic/Effects/P_<Name>` systems). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers, blockers (invisible walls, spawn room doors) and particle effects of already built maps in place (no rebuild, the bake stays) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 
@@ -115,6 +116,16 @@ normal; the UE importer reverses it (UE's convention). Simple enough for other t
   game modes: flags, trailer parks, vehicle generators …).
   **All MF→UE actor knowledge lives in `mflib/actors.py`.**
 - `actors`: raw converted actor list (debugging), `texture_usage`, `lightmass`.
+
+### `Effects/effects.json` (`mflib/effects.py`)
+`flipbooks`: texture key → atlas PNG, frame count, columns × rows, the first frame's size.
+`systems`: name → emitter list. An emitter is RageSprite.AddOne's data in UE1 units: texture,
+draw type (`add`, `sub`, `alpha`), alpha, size (× the texture's width), life, a burst / a rate
+(on `period` s, off `interval` s, `phase`) / rate keys, location + random offset, velocity +
+random + radial, flags (anim once, fade, gravity, collide, stretch, rotate). Maps' emitters are
+the same records (`particle_effect` in `spawns`). The importer makes Cascade particle systems
+from them: plain data, no editor needed, CPU sprites that stop simulating off screen
+(`SecondsBeforeInactive`); subtractive smoke is drawn as the scene times 1 − texture.
 
 Material keys are `package.group.texture|mode` (mode: `opaque`, `masked`, `additive`,
 `modulated`, `sky`, + `_unlit`, `_2s`).

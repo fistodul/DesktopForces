@@ -10,7 +10,6 @@
 
 namespace
 {
-	constexpr float Uu = 2.25f;
 	// piper defaultproperties (m/s, per 60 Hz tick)
 	constexpr float HorizontalSpeedMax = 30.f;
 	constexpr float PitchRotVel = 0.01f, RollRotVel = 0.01f, RollNoYaw = 3.f, YawRotVel = 0.01f;
@@ -35,9 +34,9 @@ AMFVehicle_Piper::AMFVehicle_Piper()
 	Armour = 0.68f;
 	NitroAccel = 0.f;                            // Crouch pitches it down
 	BuoyancyPercent = 65.f;                      // Buoyancy 65
-	PetrolCapPosition = FVector(-95.f, -55.f, 35.5f) * Uu;   // PetrolCapPos
-	PetrolCapRadius = 7.f * Uu;
-	CameraDistance = 550.f * Uu;                 // NearCamera 550
+	PetrolCapPosition = FVector(-213.75f, -123.75f, 79.875f);   // PetrolCapPos
+	PetrolCapRadius = 15.75f;
+	CameraDistance = 1237.5f;                 // NearCamera 550 uu
 	EngineStartSound = TEXT("Sounds/HumveeSFX/EngineStart");
 	EngineLoopSound = TEXT("Sounds/HumveeSFX/Engine1");
 	EngineStopSound = TEXT("Sounds/HumveeSFX/EngineStop");
@@ -55,11 +54,11 @@ AMFVehicle_Piper::AMFVehicle_Piper()
 	};
 	Wheels = { Wheel(FVector(305.f, 2.7f, -71.8f), true), Wheel(FVector(305.f, 1.7f, -71.8f), true),
 		Wheel(FVector(58.3f, 208.6f, -71.8f), false), Wheel(FVector(58.3f, -214.5f, -71.8f), false) };
-	SeatPositions = { FVector(60.4f, 0.f, 50.6f) * Uu };                                   // aSeatsPos(0)
-	DoorPositions = { FVector(10.f, -66.f, 25.5f) * Uu, FVector(10.f, 66.f, 25.5f) * Uu };   // aDoorsPos
+	SeatPositions = { FVector(135.9f, 0.f, 113.85f) };                                   // aSeatsPos(0)
+	DoorPositions = { FVector(22.5f, -148.5f, 57.375f), FVector(22.5f, 148.5f, 57.375f) };   // aDoorsPos
 	Propeller = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Propeller"));
 	Propeller->SetupAttachment(Body);
-	Propeller->SetRelativeLocation(FVector(120.f, -1.f, 40.f) * Uu - BoxCenter);   // propellerPos
+	Propeller->SetRelativeLocation(FVector(270.f, -2.25f, 90.f) - BoxCenter);   // propellerPos
 	Propeller->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Propeller->SetCanEverAffectNavigation(false);
 	Propeller->SetCastShadow(false);
@@ -71,8 +70,8 @@ AMFVehicle_PiperTs::AMFVehicle_PiperTs()
 	BodyMeshName = TEXT("piper/piperA4TsMesh");
 	Liveries = { TEXT("piper/piperA4TsMesh"), TEXT("piper/piperA1TsMesh"), TEXT("piper/piperA3TsMesh") };
 	// aSeatsPos: DriverSeat 1 at the front, the passenger behind facing back; aDoorsPos
-	SeatPositions = { FVector(60.f, 0.f, 60.f) * Uu, FVector(10.f, 0.f, 60.f) * Uu };
-	DoorPositions = { FVector(15.f, -60.f, 45.f) * Uu, FVector(-90.f, -60.f, 45.f) * Uu, FVector(15.f, 60.f, 45.f) * Uu, FVector(-90.f, 60.f, 45.f) * Uu };
+	SeatPositions = { FVector(135.f, 0.f, 135.f), FVector(22.5f, 0.f, 135.f) };
+	DoorPositions = { FVector(33.75f, -135.f, 101.25f), FVector(-202.5f, -135.f, 101.25f), FVector(33.75f, 135.f, 101.25f), FVector(-202.5f, 135.f, 101.25f) };
 }
 
 void AMFVehicle_Piper::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

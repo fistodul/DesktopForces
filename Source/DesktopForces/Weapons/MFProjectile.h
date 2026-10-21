@@ -59,6 +59,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FString MFExplosionSound;
 
+	/** Fire and smoke (Effects/P_Explosion) at RageEffect.AddExplosion's Size x 0.4; 0: none. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	float ExplosionEffectScale = 0.f;
+
 	/** Looping sound on the way ("Package.Name", MF AmbientSound: the rocket's RocketFly). */
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FString MFAmbientSound;

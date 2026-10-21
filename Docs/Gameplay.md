@@ -263,8 +263,11 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too.
 - Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
   there and the vehicle blows up. A small target: aim at the tank.
-- Blowing up throws 16 chunks (RageEffects.VehicleFrag carfrag01-09) that spin, bounce with
-  half their speed and clank (FragHit1-3), then lie there 10-17 s. Tyres landing hard thump
+- Blowing up (EffectsFix.VehExplosion -> RageEffects.VehicleExplosion): a fireball of smoke and
+  flames, 2-4 fires on the ground around it, and 16 chunks (RageEffects.VehicleFrag carfrag01-09)
+  that spin, bounce with half their speed and clank (FragHit1-3), then lie there 10-17 s; up to
+  4 of them burn (ExplosionFire: flames and smoke for 4.5 s, VehicleBurnLoop). A blown tyre puffs
+  smoke (SmokePuffVeh). Tyres landing hard thump
   (Wheel.HitWall, HitWheel); bumping into things clunks (Bump1-4).
 - Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical); MF ignores bullets,
   pellets and knives, but the community servers ran mutPack's **changeDamage**, the default

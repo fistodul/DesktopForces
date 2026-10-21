@@ -7,13 +7,14 @@ Steps (run alone or chained with `all`):
   textures             export + convert every texture the converted maps use
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
+  effects              sprite particle effects: flipbook textures + emitter data (built-in + maps')
   vmf <name...>        convert a Source (Hammer) map listed in vmf_maps.toml, aligned to its MF map
   merge <preset...>    merge two aligned maps area by area (merge/<preset>.toml)
   packs                which pack each converted map is in (core / classic), and what core maps
                        still need from the original game (packs.toml)
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
-  all <map...>         map + textures + sounds + import + light
+  all <map...>         map + textures + effects + sounds + import + light
 
 Examples:
   python3 Tools/mfport/mfport.py all mf-warehouse
@@ -111,9 +112,9 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
-    ap.add_argument('--steps', default='art,textures,props,sounds,music,maps', help='importer steps for `import`')
+    ap.add_argument('--steps', default='art,textures,props,effects,sounds,music,maps', help='importer steps for `import`')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -131,6 +132,9 @@ def main():
         print(f'  -> {props.convert(cfg)}')
     if a.step in ('textures', 'all'):
         cmd_textures(cfg)
+    if a.step in ('effects', 'all'):
+        from mflib import effects
+        print(f'  -> {effects.convert(cfg)}')
     if a.step == 'sounds':
         cmd_sounds(cfg, a.names)
     if a.step == 'music':

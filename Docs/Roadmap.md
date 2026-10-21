@@ -49,7 +49,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `MFNavTest` / `MFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
 - 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret, wheel blow-outs, petrol caps, bots driving (MF road graph) / riding; ⬜ bots in boats, MoBall bot drivers
 - ✅ Ladders: grab when close / falling in, climb down from the top, floor walks again; ✅ swimming / drowning, water / pain zones
-- ✅ Map actors: teleporters, placed items (respawning), periodic sounds, movers (scenery, spinners, bump doors), invisible walls, spawn room doors; ⬜ trigger / special event chains (Treasure_Finders lighthouse, bells), coop maps' placed RageBots, particle effects / FireyExample, LaserBeam, mineGenerator
+- ✅ Map actors: teleporters, placed items (respawning), periodic sounds, movers (scenery, spinners, bump doors), invisible walls, spawn room doors, coop maps' placed RageBots, particle effects (ParticleEffect / FireyExample: fires, smoke, sparks, rain); ⬜ trigger / special event chains (Treasure_Finders lighthouse, bells), LaserBeam, mineGenerator
 - ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, MoBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
 - ✅ More MF-mods: heli + heliHmg, piper / piperTs (plane), vote, mutPack replaceVehicles / addVehicles; jeep gun model (UE1 vertex Mesh reader)
@@ -63,7 +63,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Generated art of our own (`Tools/artgen`): loadout crates with team stencil
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px
 - 🟡 First-person weapons: MF carry models held in view (no arms / animations yet: those are SkeletalMeshes); ⬜ third-person soldiers, team skins
-- ⬜ Effects: muzzle flash, tracers, impacts, explosions, blood (cheap sprite particles)
+- 🟡 Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, wall hits, blood, map emitters; ⬜ muzzle flashes, tracers, scorch marks / bullet holes (decals), water splashes, bubbles
 - 🟡 Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ⬜ server browser (333networks master server protocol)
 - ⬜ Touch controls (mobile)
 

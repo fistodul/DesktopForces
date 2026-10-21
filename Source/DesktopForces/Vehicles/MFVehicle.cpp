@@ -939,6 +939,15 @@ void AMFVehicle::OnRep_BlownWheels()
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/HitRubber")), GetActorLocation());
 	}
+	// DestroyWheel: EffectsFix.SmokePuffVeh at the wheel that just went
+	for (int32 i = 0; i < WheelMeshes.Num(); ++i)
+	{
+		if ((BlownWheels & ~ShownBlownWheels) & (1 << i))
+		{
+			MF::SpawnEffect(this, TEXT("SmokePuffVeh"), WheelMeshes[i]->GetComponentLocation());
+		}
+	}
+	ShownBlownWheels = BlownWheels;
 }
 
 void AMFVehicle::MulticastHitFX_Implementation(FVector_NetQuantize At, bool bTyre)
@@ -994,6 +1003,7 @@ void AMFVehicle::MulticastBlowUpFX_Implementation()
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode"), nullptr, LOAD_NoWarn | LOAD_Quiet), GetActorLocation());
 		AMFVehicleFrag::Burst(GetWorld(), GetActorLocation());
+		AMFVehicleFrag::Explosion(GetWorld(), GetActorLocation());   // EffectsFix.VehExplosion
 	}
 }
 

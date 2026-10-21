@@ -1,4 +1,6 @@
 #include "Game/MFSafecracker.h"
+#include "Vehicles/MFVehicleFrag.h"
+#include "Core/MFContent.h"
 #include "Core/MFProps.h"
 #include "DesktopForces.h"
 #include "AI/MFBotController.h"
@@ -7,6 +9,7 @@
 #include "Game/MFGameState.h"
 #include "Game/MFPlayerState.h"
 #include "Player/MFCharacter.h"
+#include "Sound/SoundBase.h"
 #include "World/MFMapActors.h"
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
@@ -125,6 +128,7 @@ float AMFSafe::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AContro
 			}), float(GM->AutoCloseTime), true);
 		}
 		OpenSafe();
+		MulticastCrackFX();
 	}
 	ForceNetUpdate();
 	return Actual;
@@ -190,6 +194,16 @@ void AMFSafe::TouchedBy(AMFCharacter* C)
 	else if (bOpen && Gold->State == EMFFlagState::Home)
 	{
 		Gold->PickUp(C);
+	}
+}
+
+void AMFSafe::MulticastCrackFX_Implementation()
+{
+	// RageSafe.TakeDamage: AddVehicleExplosionServer(Size 2)
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), GetActorLocation(), 1.f, 2000.f);
+		AMFVehicleFrag::Explosion(GetWorld(), GetActorLocation(), 0.8f);
 	}
 }
 

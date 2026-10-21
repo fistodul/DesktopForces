@@ -6,6 +6,11 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/RotatingMovementComponent.h"
 #include "Engine/World.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Sound/SoundBase.h"
+#include "TimerManager.h"
 
 AMFVehicleFrag::AMFVehicleFrag()
 {
@@ -73,6 +78,7 @@ void AMFVehicleFrag::Burst(UWorld* World, const FVector& Location)
 	}
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	int32 TrailFXC = 4;   // "Max num of flamming bits"
 	for (int32 I = 0; I < 16; ++I)
 	{
 		// WheelPos = Location + (Rand(128) - 64, Rand(128) - 64, 48 + Rand(64)); Velocity = Force * 7
@@ -81,6 +87,49 @@ void AMFVehicleFrag::Burst(UWorld* World, const FVector& Location)
 		if (AMFVehicleFrag* Frag = World->SpawnActor<AMFVehicleFrag>(At, FRotator(FMath::FRand() * 360.f, FMath::FRand() * 360.f, 0.f), SP))
 		{
 			Frag->Movement->Velocity = Force * 7.f * 2.25f;
+			if (TrailFXC > 0 && FMath::FRand() < 0.4f)
+			{
+				--TrailFXC;
+				Fire(World, Frag->GetRootComponent(), At);
+			}
 		}
+	}
+}
+
+void AMFVehicleFrag::Explosion(UWorld* World, const FVector& Location, float Scale)
+{
+	if (!World || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	MF::SpawnEffect(World, TEXT("VehicleExplosion"), Location, Scale);
+	// "Create some after fires": Location + VRand() * (100, 100, 0), on whatever is 80 uu below
+	for (int32 I = 2 + FMath::RandRange(0, 2); I > 0; --I)
+	{
+		const FVector From = Location + FVector(FMath::VRand().GetSafeNormal2D() * FMath::FRand() * 225.f) * Scale;
+		FHitResult Hit;
+		if (World->LineTraceSingleByChannel(Hit, From, From - FVector(0.f, 0.f, 180.f), ECC_WorldStatic))
+		{
+			Fire(World, nullptr, Hit.ImpactPoint, 1.f - FMath::FRand() * 0.3f);
+		}
+	}
+}
+
+void AMFVehicleFrag::Fire(UWorld* World, USceneComponent* AttachTo, const FVector& At, float Scale)
+{
+	UParticleSystemComponent* PS = AttachTo ? MF::SpawnEffectAttached(TEXT("ExplosionFire"), AttachTo, Scale) : MF::SpawnEffect(World, TEXT("ExplosionFire"), At, Scale);
+	if (!PS)
+	{
+		return;
+	}
+	// AmbientSound VehicleBurnLoop at SoundVolume 64 while it burns (ScaleGlow 1 -> 0.1: 4.5 s)
+	USoundBase* Loop = MF::LoadClassic<USoundBase>(TEXT("Sounds/VehicleFragSFX/VehicleBurnLoop"));
+	UAudioComponent* Audio = !Loop ? nullptr : AttachTo
+		? UGameplayStatics::SpawnSoundAttached(Loop, AttachTo, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.25f)
+		: UGameplayStatics::SpawnSoundAtLocation(World, Loop, At, FRotator::ZeroRotator, 0.25f);
+	if (Audio)
+	{
+		FTimerHandle T;
+		World->GetTimerManager().SetTimer(T, FTimerDelegate::CreateWeakLambda(Audio, [Audio]() { Audio->FadeOut(0.5f, 0.f); }), 4.5f, false);
 	}
 }
