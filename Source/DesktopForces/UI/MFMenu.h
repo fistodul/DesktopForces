@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
+#include "UnrealClient.h"
 #include "MFMenu.generated.h"
 
 /**
@@ -51,6 +52,9 @@ public:
 	/** Developer: press Start on the play page with its current choices. */
 	UFUNCTION(Exec)
 	void MFMenuStart() { MFMenu::DebugStart(); }
+	/** Developer: screenshot with the menu on it (Saved/Screenshots/<platform>/<Name>.png). */
+	UFUNCTION(Exec)
+	void MFShot(const FString& Name) { FScreenshotRequest::RequestScreenshot(Name.IsEmpty() ? TEXT("menu_shot") : Name, true, false); }
 
 protected:
 	virtual void BeginPlay() override;

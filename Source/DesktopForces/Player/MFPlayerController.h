@@ -23,6 +23,14 @@ struct FMFCommandBind
 class AMFCharacter;
 class AMFWeapon;
 
+/** A key the player can change (Options > Controls): Action names an input action or Cmd<N>. */
+struct FMFBinding
+{
+	FName Action;
+	FText Label;
+	FKey Default;
+};
+
 /**
  * Player input + loadout screen flow.
  *
@@ -318,6 +326,18 @@ protected:
 	void OnMenuSelect();
 
 	void BuildInput();
+	/** Keys into MappingContext: MF's defaults, the player's changes (UMFUserSettings::KeyBindings). */
+	void MapKeys();
+
+public:
+	/** The keys a player may change, MF defaults (DefUser.ini / Manual.pdf) first. */
+	static TArray<FMFBinding> GetBindings();
+	/** The key an action has now (the player's or the default). */
+	static FKey GetBoundKey(const FMFBinding& B);
+	/** Re-read the player's keys (after Options > Controls). */
+	void ApplyKeyBindings();
+
+protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> MappingContext;

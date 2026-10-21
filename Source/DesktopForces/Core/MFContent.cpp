@@ -1,4 +1,6 @@
 #include "Core/MFContent.h"
+#include "Components/AudioComponent.h"
+#include "Core/MFUserSettings.h"
 #include "UObject/UObjectGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -83,4 +85,40 @@ UParticleSystemComponent* MF::SpawnEffectAttached(const TCHAR* Name, USceneCompo
 		C->SetWorldScale3D(FVector(Scale));
 	}
 	return C;
+}
+
+namespace
+{
+	/** Playing music and the volume it was asked for (before the music setting). */
+	TMap<TWeakObjectPtr<UAudioComponent>, float> GMusic;
+}
+
+UAudioComponent* MF::PlayMusic(const UObject* WorldContext, USoundBase* Music, float Volume)
+{
+	const UMFUserSettings* S = UMFUserSettings::Get();
+	UAudioComponent* C = Music ? UGameplayStatics::SpawnSound2D(WorldContext, Music, Volume * (S ? S->MusicVolume : 1.f)) : nullptr;
+	if (C)
+	{
+		for (auto It = GMusic.CreateIterator(); It; ++It)
+		{
+			if (!It->Key.IsValid())
+			{
+				It.RemoveCurrent();
+			}
+		}
+		GMusic.Add(C, Volume);
+	}
+	return C;
+}
+
+void MF::UpdateMusicVolume()
+{
+	const UMFUserSettings* S = UMFUserSettings::Get();
+	for (const auto& Pair : GMusic)
+	{
+		if (UAudioComponent* C = Pair.Key.Get())
+		{
+			C->SetVolumeMultiplier(Pair.Value * (S ? S->MusicVolume : 1.f));
+		}
+	}
 }

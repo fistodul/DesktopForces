@@ -41,13 +41,7 @@ public:
 	/** MF GrowHUD / ShrinkHUD. */
 	void ChangeHUDSize(int32 Delta);
 
-	/** MF HUDSize: 0-4 = 32, 48, 64, 96, 128 px item blocks (smaller automatically if it doesn't fit). */
-	UPROPERTY(Config)
-	int32 HUDSize = 2;
-
-	/** MF HUD.Crosshair: CrossHairA..X (0-23); MF's default is 13. */
-	UPROPERTY(Config)
-	int32 Crosshair = 13;
+	/** MF ChangeCrosshair (UMFUserSettings::Crosshair, HUDSize: Options > Game). */
 	void ChangeCrosshair(int32 Delta);
 
 protected:

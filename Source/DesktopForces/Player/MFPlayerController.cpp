@@ -69,6 +69,59 @@ void AMFPlayerController::OnPossess(APawn* InPawn)
 
 // --- input setup ---------------------------------------------------------------------
 
+#define LOCTEXT_NAMESPACE "MFControls"
+
+TArray<FMFBinding> AMFPlayerController::GetBindings()
+{
+	TArray<FMFBinding> Out = {
+		{ TEXT("MoveForward"), LOCTEXT("KMoveForward", "Move forward"), EKeys::W },
+		{ TEXT("MoveBack"), LOCTEXT("KMoveBack", "Move back"), EKeys::S },
+		{ TEXT("StrafeLeft"), LOCTEXT("KStrafeLeft", "Strafe left"), EKeys::A },
+		{ TEXT("StrafeRight"), LOCTEXT("KStrafeRight", "Strafe right"), EKeys::D },
+		{ TEXT("Fire"), LOCTEXT("KFire", "Fire"), EKeys::LeftMouseButton },
+		{ TEXT("AltFire"), LOCTEXT("KAltFire", "Alt fire"), EKeys::RightMouseButton },
+		{ TEXT("Jump"), LOCTEXT("KJump", "Jump"), EKeys::SpaceBar },
+		// MF DefUser.ini: Ctrl and C = Duck
+		{ TEXT("Crouch"), LOCTEXT("KCrouch", "Crouch"), EKeys::LeftControl },
+		{ TEXT("Walk"), LOCTEXT("KWalk", "Walk"), EKeys::LeftShift },
+		{ TEXT("Reload"), LOCTEXT("KReload", "Reload"), EKeys::R },
+		{ TEXT("Loadout"), LOCTEXT("KLoadout", "Loadout"), EKeys::Q },
+		{ TEXT("Use"), LOCTEXT("KUse", "Use / get in or out"), EKeys::E },
+		// MF DefUser.ini: MouseWheelDown / ] = NextWeapon, MouseWheelUp / [ = PrevWeapon
+		{ TEXT("NextWeapon"), LOCTEXT("KNextWeapon", "Next weapon"), EKeys::MouseScrollDown },
+		{ TEXT("PrevWeapon"), LOCTEXT("KPrevWeapon", "Previous weapon"), EKeys::MouseScrollUp },
+		{ TEXT("Throw"), LOCTEXT("KThrow", "Drop weapon"), EKeys::Semicolon },
+		{ TEXT("Scores"), LOCTEXT("KScores", "Scores"), EKeys::F1 },
+	};
+	// Number keys 1..9, 0 -> inventory groups 1..10 (knife .. adrenaline); X -> everything
+	// above (armour and mod gadgets; unbound in MF's default controls)
+	const FKey Numbers[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five,
+		EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine, EKeys::Zero, EKeys::X };
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Numbers); ++i)
+	{
+		Out.Add({ *FString::Printf(TEXT("Slot%d"), i + 1), FText::Format(LOCTEXT("KSlot", "Weapon group {0}"), i + 1), Numbers[i] });
+	}
+	// keys that run console commands (config, MF User.ini style)
+	const TArray<FMFCommandBind>& Commands = GetDefault<AMFPlayerController>()->CommandBindings;
+	for (int32 i = 0; i < Commands.Num(); ++i)
+	{
+		if (!Commands[i].Command.IsEmpty())
+		{
+			Out.Add({ *FString::Printf(TEXT("Cmd%d"), i), FText::FromString(Commands[i].Command), Commands[i].Key });
+		}
+	}
+	return Out;
+}
+
+FKey AMFPlayerController::GetBoundKey(const FMFBinding& B)
+{
+	const UMFUserSettings* S = UMFUserSettings::Get();
+	const FKey* Changed = S ? S->KeyBindings.Find(B.Action) : nullptr;
+	return Changed ? *Changed : B.Default;
+}
+
+#undef LOCTEXT_NAMESPACE
+
 void AMFPlayerController::BuildInput()
 {
 	auto Make = [this](FName Name, EInputActionValueType Type) -> UInputAction*
@@ -79,98 +132,125 @@ void AMFPlayerController::BuildInput()
 		return A;
 	};
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_MobileForces"));
-
-	UInputAction* Move = Make(TEXT("Move"), EInputActionValueType::Axis2D);
-	UInputAction* Look = Make(TEXT("Look"), EInputActionValueType::Axis2D);
-
-	// WASD -> (X = right, Y = forward)
-	auto Swizzle = [this]() { UInputModifierSwizzleAxis* S = NewObject<UInputModifierSwizzleAxis>(this); S->Order = EInputAxisSwizzle::YXZ; return S; };
-	auto Negate = [this]() { return NewObject<UInputModifierNegate>(this); };
-	MappingContext->MapKey(Move, EKeys::W).Modifiers.Add(Swizzle());
-	{
-		FEnhancedActionKeyMapping& M = MappingContext->MapKey(Move, EKeys::S);
-		M.Modifiers.Add(Swizzle());
-		M.Modifiers.Add(Negate());
-	}
-	MappingContext->MapKey(Move, EKeys::A).Modifiers.Add(Negate());
-	MappingContext->MapKey(Move, EKeys::D);
-	// MF DefUser.ini: arrows move and strafe, , and . strafe too
-	MappingContext->MapKey(Move, EKeys::Up).Modifiers.Add(Swizzle());
-	{
-		FEnhancedActionKeyMapping& M = MappingContext->MapKey(Move, EKeys::Down);
-		M.Modifiers.Add(Swizzle());
-		M.Modifiers.Add(Negate());
-	}
-	MappingContext->MapKey(Move, EKeys::Left).Modifiers.Add(Negate());
-	MappingContext->MapKey(Move, EKeys::Right);
-	MappingContext->MapKey(Move, EKeys::Comma).Modifiers.Add(Negate());
-	MappingContext->MapKey(Move, EKeys::Period);
+	Make(TEXT("Move"), EInputActionValueType::Axis2D);
+	Make(TEXT("Look"), EInputActionValueType::Axis2D);
 	// MF Delete = LookUp, PageDown = LookDown (aLookUp, held)
-	UInputAction* LookKey = Make(TEXT("LookKey"), EInputActionValueType::Axis1D);
-	MappingContext->MapKey(LookKey, EKeys::Delete);
-	MappingContext->MapKey(LookKey, EKeys::PageDown).Modifiers.Add(Negate());
-	MappingContext->MapKey(Move, EKeys::Gamepad_Left2D);
+	Make(TEXT("LookKey"), EInputActionValueType::Axis1D);
+	for (const TCHAR* Name : { TEXT("Fire"), TEXT("AltFire"), TEXT("Jump"), TEXT("Crouch"), TEXT("CrouchAlt"), TEXT("Walk"),
+		TEXT("Reload"), TEXT("Loadout"), TEXT("Use"), TEXT("NextWeapon"), TEXT("PrevWeapon"), TEXT("NextWeaponKey"),
+		TEXT("PrevWeaponKey"), TEXT("Throw"), TEXT("LoadoutAlt"), TEXT("Scores"), TEXT("MenuUp"), TEXT("MenuDown"), TEXT("MenuSelect") })
 	{
-		FEnhancedActionKeyMapping& M = MappingContext->MapKey(Look, EKeys::Mouse2D);
-		UInputModifierNegate* N = Negate();
+		Make(Name, EInputActionValueType::Boolean);
+	}
+	for (int32 i = 1; i <= 11; ++i)
+	{
+		Make(*FString::Printf(TEXT("Slot%d"), i), EInputActionValueType::Boolean);
+	}
+	for (int32 i = 0; i < CommandBindings.Num(); ++i)
+	{
+		Make(*FString::Printf(TEXT("Cmd%d"), i), EInputActionValueType::Boolean);
+	}
+	MapKeys();
+}
+
+void AMFPlayerController::MapKeys()
+{
+	MappingContext->UnmapAll();
+	auto A = [this](const TCHAR* Name) { return Actions.FindRef(Name).Get(); };
+	auto Map = [this](UInputAction* Action, const FKey& Key) -> FEnhancedActionKeyMapping*
+	{
+		return Action && Key.IsValid() ? &MappingContext->MapKey(Action, Key) : nullptr;
+	};
+	TMap<FName, FKey> Keys;
+	for (const FMFBinding& B : GetBindings())
+	{
+		Keys.Add(B.Action, GetBoundKey(B));
+	}
+	// moving: Move is (X = right, Y = forward); forward / back swizzle into Y, back / left negate
+	auto MapMove = [&](const FKey& Key, bool bForwardAxis, bool bNegative)
+	{
+		if (FEnhancedActionKeyMapping* M = Map(A(TEXT("Move")), Key))
+		{
+			if (bForwardAxis)
+			{
+				UInputModifierSwizzleAxis* S = NewObject<UInputModifierSwizzleAxis>(this);
+				S->Order = EInputAxisSwizzle::YXZ;
+				M->Modifiers.Add(S);
+			}
+			if (bNegative)
+			{
+				M->Modifiers.Add(NewObject<UInputModifierNegate>(this));
+			}
+		}
+	};
+	MapMove(Keys.FindRef(TEXT("MoveForward")), true, false);
+	MapMove(Keys.FindRef(TEXT("MoveBack")), true, true);
+	MapMove(Keys.FindRef(TEXT("StrafeLeft")), false, true);
+	MapMove(Keys.FindRef(TEXT("StrafeRight")), false, false);
+	// MF DefUser.ini: arrows move and strafe, , and . strafe too
+	MapMove(EKeys::Up, true, false);
+	MapMove(EKeys::Down, true, true);
+	MapMove(EKeys::Left, false, true);
+	MapMove(EKeys::Right, false, false);
+	MapMove(EKeys::Comma, false, true);
+	MapMove(EKeys::Period, false, false);
+	Map(A(TEXT("LookKey")), EKeys::Delete);
+	if (FEnhancedActionKeyMapping* M = Map(A(TEXT("LookKey")), EKeys::PageDown))
+	{
+		M->Modifiers.Add(NewObject<UInputModifierNegate>(this));
+	}
+	Map(A(TEXT("Move")), EKeys::Gamepad_Left2D);
+	if (FEnhancedActionKeyMapping* M = Map(A(TEXT("Look")), EKeys::Mouse2D))
+	{
+		UInputModifierNegate* N = NewObject<UInputModifierNegate>(this);
 		N->bX = false;
 		N->bY = true;
 		N->bZ = false;
-		M.Modifiers.Add(N);
+		M->Modifiers.Add(N);
 	}
-	MappingContext->MapKey(Look, EKeys::Gamepad_Right2D);
+	Map(A(TEXT("Look")), EKeys::Gamepad_Right2D);
 
-	// MF default controls (Manual.pdf, "Controls")
-	struct FBind { const TCHAR* Name; FKey Key; FKey Alt; };
-	const FBind Buttons[] = {
-		{ TEXT("Fire"), EKeys::LeftMouseButton, EKeys::Gamepad_RightTrigger },
-		{ TEXT("AltFire"), EKeys::RightMouseButton, EKeys::Gamepad_LeftTrigger },
-		{ TEXT("Jump"), EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom },
-		// MF DefUser.ini: Ctrl and C = Duck (V = ShowCommandMenu, see CommandBindings)
-		{ TEXT("Crouch"), EKeys::LeftControl, EKeys::Gamepad_FaceButton_Right },
-		{ TEXT("CrouchAlt"), EKeys::RightControl, EKeys::C },
-		{ TEXT("Walk"), EKeys::LeftShift, FKey() },
-		{ TEXT("Reload"), EKeys::R, EKeys::Gamepad_FaceButton_Left },
-		{ TEXT("Loadout"), EKeys::Q, EKeys::Gamepad_Special_Right },
-		{ TEXT("Use"), EKeys::E, EKeys::Gamepad_FaceButton_Top },
-		// MF DefUser.ini: MouseWheelDown / ] = NextWeapon, MouseWheelUp / [ = PrevWeapon
-		{ TEXT("NextWeapon"), EKeys::MouseScrollDown, EKeys::Gamepad_RightShoulder },
-		{ TEXT("PrevWeapon"), EKeys::MouseScrollUp, EKeys::Gamepad_LeftShoulder },
-		{ TEXT("NextWeaponKey"), EKeys::RightBracket, FKey() },
-		{ TEXT("PrevWeaponKey"), EKeys::LeftBracket, FKey() },
-		{ TEXT("Throw"), EKeys::Semicolon, FKey() },
-		{ TEXT("LoadoutAlt"), EKeys::BackSpace, FKey() },
-		{ TEXT("Scores"), EKeys::F1, EKeys::Gamepad_Special_Left },
-		// in loadout W/S walk the cursor too (MF MoveForward = LoadoutPrev, MoveBackward = LoadoutNext)
-		{ TEXT("MenuUp"), EKeys::Up, EKeys::W },
-		{ TEXT("MenuDown"), EKeys::Down, EKeys::S },
-		{ TEXT("MenuSelect"), EKeys::Enter, FKey() },
-	};
-	for (const FBind& B : Buttons)
+	// the player's keys (MF default controls, Manual.pdf "Controls"), then the fixed extras
+	for (const TPair<FName, FKey>& K : Keys)
 	{
-		UInputAction* A = Make(B.Name, EInputActionValueType::Boolean);
-		MappingContext->MapKey(A, B.Key);
-		if (B.Alt.IsValid())
+		if (!K.Key.ToString().StartsWith(TEXT("Move")) && !K.Key.ToString().StartsWith(TEXT("Strafe")))
 		{
-			MappingContext->MapKey(A, B.Alt);
+			Map(Actions.FindRef(K.Key), K.Value);
 		}
 	}
-	// Number keys 1..9, 0 -> inventory groups 1..10 (knife .. adrenaline); X -> everything
-	// above (armour and mod gadgets; unbound in MF's default controls)
-	const FKey Numbers[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five,
-		EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine, EKeys::Zero, EKeys::X };
-	for (int32 i = 0; i < UE_ARRAY_COUNT(Numbers); ++i)
+	struct FExtra { const TCHAR* Action; FKey Key; };
+	const FExtra Extras[] = {
+		{ TEXT("Fire"), EKeys::Gamepad_RightTrigger }, { TEXT("AltFire"), EKeys::Gamepad_LeftTrigger },
+		{ TEXT("Jump"), EKeys::Gamepad_FaceButton_Bottom }, { TEXT("Jump"), EKeys::NumPadZero },   // MF NumPad0 = Jump
+		{ TEXT("Crouch"), EKeys::Gamepad_FaceButton_Right }, { TEXT("CrouchAlt"), EKeys::RightControl }, { TEXT("CrouchAlt"), EKeys::C },
+		{ TEXT("Reload"), EKeys::Gamepad_FaceButton_Left }, { TEXT("Loadout"), EKeys::Gamepad_Special_Right },
+		{ TEXT("Use"), EKeys::Gamepad_FaceButton_Top }, { TEXT("NextWeapon"), EKeys::Gamepad_RightShoulder },
+		{ TEXT("PrevWeapon"), EKeys::Gamepad_LeftShoulder }, { TEXT("NextWeaponKey"), EKeys::RightBracket },
+		{ TEXT("PrevWeaponKey"), EKeys::LeftBracket }, { TEXT("LoadoutAlt"), EKeys::BackSpace },
+		{ TEXT("Scores"), EKeys::Gamepad_Special_Left },
+		// in loadout the move keys walk the cursor too (MF MoveForward = LoadoutPrev, MoveBackward = LoadoutNext)
+		{ TEXT("MenuUp"), EKeys::Up }, { TEXT("MenuUp"), Keys.FindRef(TEXT("MoveForward")) },
+		{ TEXT("MenuDown"), EKeys::Down }, { TEXT("MenuDown"), Keys.FindRef(TEXT("MoveBack")) },
+		{ TEXT("MenuSelect"), EKeys::Enter },
+	};
+	for (const FExtra& E : Extras)
 	{
-		UInputAction* A = Make(*FString::Printf(TEXT("Slot%d"), i + 1), EInputActionValueType::Boolean);
-		MappingContext->MapKey(A, Numbers[i]);
+		Map(A(E.Action), E.Key);
 	}
-	MappingContext->MapKey(Actions.FindRef(TEXT("Jump")), EKeys::NumPadZero);   // MF NumPad0 = Jump
-	// keys that run console commands (config, MF User.ini style)
-	for (int32 i = 0; i < CommandBindings.Num(); ++i)
+}
+
+void AMFPlayerController::ApplyKeyBindings()
+{
+	if (!MappingContext)
 	{
-		if (CommandBindings[i].Key.IsValid() && !CommandBindings[i].Command.IsEmpty())
+		return;
+	}
+	MapKeys();
+	if (ULocalPlayer* LP = GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Sub = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
-			MappingContext->MapKey(Make(*FString::Printf(TEXT("Cmd%d"), i), EInputActionValueType::Boolean), CommandBindings[i].Key);
+			Sub->RequestRebuildControlMappings();
 		}
 	}
 }
@@ -1503,6 +1583,7 @@ void AMFPlayerController::MFApplyUserSettings()
 	{
 		C->ApplyUserSettings();
 	}
+	ApplyKeyBindings();
 }
 
 void AMFPlayerController::ShrinkHUD()

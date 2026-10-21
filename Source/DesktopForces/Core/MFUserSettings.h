@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameUserSettings.h"
+#include "InputCoreTypes.h"
 #include "MFUserSettings.generated.h"
 
 /**
@@ -47,6 +48,27 @@ public:
 	 *  projected decals). World/MFDecals.h */
 	UPROPERTY(Config)
 	int32 DecalQuality = 2;
+
+	/** Everything you hear, 0 - 1 (the audio device's primary volume). */
+	UPROPERTY(Config)
+	float MasterVolume = 1.f;
+
+	/** Map songs and the menu theme on top of that (MF MusicVolume), 0 - 1. */
+	UPROPERTY(Config)
+	float MusicVolume = 1.f;
+
+	/** MF HUD.Crosshair: CrossHairA..X (0-23); MF's default 13. */
+	UPROPERTY(Config)
+	int32 Crosshair = 13;
+
+	/** MF HUDSize: 0-4 = 32, 48, 64, 96, 128 px item blocks. */
+	UPROPERTY(Config)
+	int32 HUDSize = 2;
+
+	/** Keys changed in Options > Controls: action -> key (AMFPlayerController::GetBindings;
+	 *  the rest keep MF's defaults). NAME_None key: unbound. */
+	UPROPERTY(Config)
+	TMap<FName, FKey> KeyBindings;
 
 	virtual void ApplyNonResolutionSettings() override;
 	virtual void SetToDefaults() override;

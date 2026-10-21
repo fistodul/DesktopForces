@@ -1,4 +1,5 @@
 #include "UI/MFHUD.h"
+#include "Core/MFUserSettings.h"
 #include "World/MFMapActors.h"
 #include "Game/CTF/MFFlag.h"
 #include "Game/Safecracker/MFSafecracker.h"
@@ -174,7 +175,8 @@ void AMFHUD::DrawHUD()
 	AMFCharacter* C = PC ? PC->GetMFCharacter() : nullptr;
 
 	// MF block size from HUDSize, smaller while it doesn't fit (RageHUD.SetHUDSize / SetLoadoutSize)
-	int32 Size = FMath::Clamp(HUDSize, 0, 4);
+	const UMFUserSettings* Settings = UMFUserSettings::Get();
+	int32 Size = FMath::Clamp(Settings ? Settings->HUDSize : 2, 0, 4);
 	while (Size > 0 && (Canvas->ClipX < BlockSizes[Size] * 11.f || Canvas->ClipY < BlockSizes[Size] * 13.f))
 	{
 		--Size;
@@ -277,7 +279,8 @@ void AMFHUD::DrawCrosshair(AMFCharacter* C)
 		Box(CX - 0.5f, CY - R, 1.f, 2 * R, FLinearColor::Black);
 		return;
 	}
-	if (UTexture2D* X = TexCrosshair[FMath::Clamp(Crosshair, 0, 23)])
+	const UMFUserSettings* Settings = UMFUserSettings::Get();
+	if (UTexture2D* X = TexCrosshair[FMath::Clamp(Settings ? Settings->Crosshair : 13, 0, 23)])
 	{
 		// RageHUD.DrawCrossHair: 32 px at 640 wide; STY_Subtractive GreyColor (only the shape:
 		// the texture alpha is its brightness), then the team colour added twice
@@ -1001,14 +1004,20 @@ void AMFHUD::DrawPainMF()
 
 void AMFHUD::ChangeCrosshair(int32 Delta)
 {
-	Crosshair = (Crosshair + Delta + 24) % 24;
-	SaveConfig();
+	if (UMFUserSettings* S = UMFUserSettings::Get())
+	{
+		S->Crosshair = (S->Crosshair + Delta + 24) % 24;
+		S->SaveSettings();
+	}
 }
 
 void AMFHUD::ChangeHUDSize(int32 Delta)
 {
-	HUDSize = FMath::Clamp(HUDSize + Delta, 0, 4);
-	SaveConfig();
+	if (UMFUserSettings* S = UMFUserSettings::Get())
+	{
+		S->HUDSize = FMath::Clamp(S->HUDSize + Delta, 0, 4);
+		S->SaveSettings();
+	}
 }
 
 void AMFHUD::DrawTexRect(UTexture2D* Tex, float X, float Y, float W, float H, float U, float V, float UL, float VL,

@@ -1,4 +1,5 @@
 #include "World/MFMapActors.h"
+#include "Core/MFContent.h"
 #include "Components/BoxComponent.h"
 #include "DesktopForces.h"
 #include "TimerManager.h"
@@ -26,7 +27,7 @@ void AMFMapInfo::BeginPlay()
 	ApplyAmbient(GetWorld());
 	if (Music && GetNetMode() != NM_DedicatedServer)
 	{
-		MusicComponent = UGameplayStatics::SpawnSound2D(this, Music, 0.6f);
+		MusicComponent = MF::PlayMusic(this, Music, 0.6f);
 	}
 }
 

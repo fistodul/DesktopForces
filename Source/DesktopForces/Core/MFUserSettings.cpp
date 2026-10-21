@@ -1,4 +1,6 @@
 #include "Core/MFUserSettings.h"
+#include "Core/MFContent.h"
+#include "AudioDevice.h"
 #include "World/MFMapActors.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -22,8 +24,15 @@ void UMFUserSettings::ApplyNonResolutionSettings()
 		// the window may only get its new size a frame later (or never: borderless stays desktop size)
 		ResizedHandle = FViewport::ViewportResizedEvent.AddWeakLambda(this, [this](FViewport*, uint32) { UpdateScreenPercentage(); });
 	}
+	MasterVolume = FMath::Clamp(MasterVolume, 0.f, 1.f);
+	MusicVolume = FMath::Clamp(MusicVolume, 0.f, 1.f);
 	if (GEngine)
 	{
+		if (FAudioDeviceHandle Audio = GEngine->GetMainAudioDevice())
+		{
+			Audio->SetTransientPrimaryVolume(MasterVolume);
+		}
+		MF::UpdateMusicVolume();
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
 			if (Context.World() && Context.World()->IsGameWorld())
@@ -61,4 +70,9 @@ void UMFUserSettings::SetToDefaults()
 	FieldOfView = 100.f;
 	RenderScale = 1.f;
 	DecalQuality = 2;
+	MasterVolume = 1.f;
+	MusicVolume = 1.f;
+	Crosshair = 13;
+	HUDSize = 2;
+	KeyBindings.Reset();
 }

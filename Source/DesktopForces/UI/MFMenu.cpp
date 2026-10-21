@@ -1,6 +1,9 @@
 #include "UI/MFMenu.h"
 #include "DesktopForces.h"
 #include "Core/MFUserSettings.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Algo/IndexOf.h"
+#include "Player/MFPlayerController.h"
 #include "Game/MFGameMode.h"
 #include "Game/MFPlayerStart.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -136,7 +139,7 @@ public:
 						+ SWidgetSwitcher::Slot()[MakeMain()]
 						+ SWidgetSwitcher::Slot()[MakePlay()]
 						+ SWidgetSwitcher::Slot()[MakeJoin()]
-						+ SWidgetSwitcher::Slot()[MakeOptions()]
+						+ SWidgetSwitcher::Slot()[SAssignNew(OptionsHost, SBox)[MakeOptions()]]
 						+ SWidgetSwitcher::Slot()[MakeCredits()]
 					]
 				]
@@ -144,7 +147,7 @@ public:
 			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(24.f, 16.f)
 			[
 				SNew(STextBlock).Font(Font(10)).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f)).ShadowOffset(FVector2D(1.f, 1.f))
-				.Text(FText::Format(LOCTEXT("Footer", "v{0}  -  fan-made, not affiliated with the makers of Mobile Forces"), FText::FromString(ProjectVersion())))
+				.Text(LOCTEXT("Footer", "by fistodul, for the world's gamers  -  fan-made, not affiliated with the makers of Mobile Forces"))
 			]
 		];
 	}
@@ -173,11 +176,28 @@ public:
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	void ShowPage(int32 Page) { Switcher->SetActiveWidgetIndex(FMath::Clamp(Page, 0, 4)); }
+	/** 0-4 pages; 10-13: the Options tabs. */
+	void ShowPage(int32 Page)
+	{
+		Switcher->SetActiveWidgetIndex(Page >= 10 ? 3 : FMath::Clamp(Page, 0, 4));
+		if (Page >= 10 && OptionTabs.IsValid())
+		{
+			OptionTabs->SetActiveWidgetIndex(FMath::Clamp(Page - 10, 0, 3));
+		}
+	}
 	void PressStart() { StartGame(); }
 
 	virtual FReply OnKeyDown(const FGeometry& Geometry, const FKeyEvent& Key) override
 	{
+		if (!Capturing.IsNone())
+		{
+			if (Key.GetKey() != EKeys::Escape)
+			{
+				SetKey(Capturing, Key.GetKey());
+			}
+			Capturing = NAME_None;
+			return FReply::Handled();
+		}
 		if (Key.GetKey() == EKeys::Escape)
 		{
 			if (Switcher->GetActiveWidgetIndex() != 0)
@@ -188,6 +208,28 @@ public:
 			{
 				MFMenu::Close(Owner.Get());
 			}
+			return FReply::Handled();
+		}
+		return FReply::Unhandled();
+	}
+
+	virtual FReply OnMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& Mouse) override
+	{
+		if (!Capturing.IsNone())
+		{
+			SetKey(Capturing, Mouse.GetEffectingButton());
+			Capturing = NAME_None;
+			return FReply::Handled();
+		}
+		return FReply::Unhandled();
+	}
+
+	virtual FReply OnMouseWheel(const FGeometry& Geometry, const FPointerEvent& Mouse) override
+	{
+		if (!Capturing.IsNone() && Mouse.GetWheelDelta() != 0.f)
+		{
+			SetKey(Capturing, Mouse.GetWheelDelta() > 0.f ? EKeys::MouseScrollUp : EKeys::MouseScrollDown);
+			Capturing = NAME_None;
 			return FReply::Handled();
 		}
 		return FReply::Unhandled();
@@ -228,6 +270,19 @@ private:
 	float FOV = 100.f;
 	float RenderScale = 1.f;
 	bool bInvert = false;
+	TArray<TSharedPtr<FString>> DecalModes;
+	TSharedPtr<FString> SelectedDecals;
+	float MasterVolume = 1.f;
+	float MusicVolume = 1.f;
+	int32 Crosshair = 13;
+	float HUDSize = 2.f;
+	/** Options > Controls: the keys as they'll be saved (action -> key), the one waiting for a press. */
+	TMap<FName, FKey> PendingKeys;
+	FName Capturing;
+	TSharedPtr<SBox> OptionsHost;
+	TSharedPtr<SWidgetSwitcher> OptionTabs;
+	TArray<TStrongObjectPtr<UTexture2D>> CrosshairTextures;
+	FSlateBrush CrosshairBrush;
 
 	// --- helpers ----------------------------------------------------------------------
 	static TSharedRef<SWidget> Heading(const FText& Text)
@@ -390,46 +445,206 @@ private:
 			];
 	}
 
+	static TSharedRef<SGridPanel> Grid() { return SNew(SGridPanel).FillColumn(1, 1.f); }
+
+	TSharedRef<SWidget> Check(bool& Value)
+	{
+		bool* V = &Value;
+		return SNew(SCheckBox).IsChecked(Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+			.OnCheckStateChanged_Lambda([V](ECheckBoxState S) { *V = S == ECheckBoxState::Checked; });
+	}
+
 	TSharedRef<SWidget> MakeOptions()
 	{
+		// Video / Audio / Controls / Game, like MF's Options window tabs
+		TSharedRef<SGridPanel> Video = Grid();
+		Video->AddSlot(0, 0)[Label(LOCTEXT("Res", "Resolution"))];
+		Video->AddSlot(1, 0).Padding(2.f)[Combo(Resolutions, SelectedResolution)];
+		Video->AddSlot(0, 1)[Label(LOCTEXT("Window", "Display"))];
+		Video->AddSlot(1, 1).Padding(2.f)[Combo(WindowModes, SelectedWindowMode)];
+		Video->AddSlot(0, 2)[Label(LOCTEXT("Quality", "Graphics"))];
+		Video->AddSlot(1, 2).Padding(2.f)[Combo(Qualities, SelectedQuality)];
+		Video->AddSlot(0, 3)[Label(LOCTEXT("RenderScale", "Render scale"))];
+		Video->AddSlot(1, 3).Padding(2.f)[Slider(RenderScale, 0.25f, 2.f, TEXT("percent"), 0.25f)];
+		Video->AddSlot(0, 4)[Label(LOCTEXT("Bright", "Brightness"))];
+		Video->AddSlot(1, 4).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))];
+		Video->AddSlot(0, 5)[Label(LOCTEXT("FOV", "Field of view"))];
+		Video->AddSlot(1, 5).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))];
+		Video->AddSlot(0, 6)[Label(LOCTEXT("Decals", "Bullet holes, scorch marks"))];
+		Video->AddSlot(1, 6).Padding(2.f)[Combo(DecalModes, SelectedDecals)];
+
+		TSharedRef<SGridPanel> Audio = Grid();
+		Audio->AddSlot(0, 0)[Label(LOCTEXT("Master", "Volume"))];
+		Audio->AddSlot(1, 0).Padding(2.f)[Slider(MasterVolume, 0.f, 1.f, TEXT("percent"))];
+		Audio->AddSlot(0, 1)[Label(LOCTEXT("Music", "Music"))];
+		Audio->AddSlot(1, 1).Padding(2.f)[Slider(MusicVolume, 0.f, 1.f, TEXT("percent"))];
+
+		TSharedRef<SGridPanel> Mouse = Grid();
+		Mouse->AddSlot(0, 0)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))];
+		Mouse->AddSlot(1, 0).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
+		Mouse->AddSlot(0, 1)[Label(LOCTEXT("Invert", "Invert mouse"))];
+		Mouse->AddSlot(1, 1).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
+		TSharedRef<SGridPanel> Keys = Grid();
+		int32 Row = 0;
+		for (const FMFBinding& B : AMFPlayerController::GetBindings())
+		{
+			const FName Action = B.Action;
+			Keys->AddSlot(0, Row)[Label(B.Label)];
+			Keys->AddSlot(1, Row).Padding(2.f, 1.f)
+			[
+				SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(8.f, 3.f))
+				.OnClicked_Lambda([this, Action]() { Capturing = Action; FSlateApplication::Get().SetKeyboardFocus(SharedThis(this)); return FReply::Handled(); })
+				[
+					SNew(STextBlock).Font(Font(12)).Text_Lambda([this, B]()
+					{
+						if (Capturing == B.Action)
+						{
+							return LOCTEXT("PressKey", "press a key (Esc: keep)");
+						}
+						const FKey* K = PendingKeys.Find(B.Action);
+						const FKey Key = K ? *K : B.Default;
+						return Key.IsValid() ? Key.GetDisplayName() : LOCTEXT("Unbound", "-");
+					})
+				]
+			];
+			++Row;
+		}
+		TSharedRef<SVerticalBox> Controls = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()[Mouse]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 2.f)
+			[
+				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
+				.Text(LOCTEXT("KeysHint", "Click a key, then press the new one (a key in use swaps with it)."))
+			]
+			+ SVerticalBox::Slot().MaxHeight(300.f)[SNew(SScrollBox) + SScrollBox::Slot()[Keys]];
+
+		TSharedRef<SGridPanel> Game = Grid();
+		Game->AddSlot(0, 0)[Label(LOCTEXT("Name", "Name"))];
+		Game->AddSlot(1, 0).Padding(2.f)
+		[
+			SNew(SEditableTextBox).Text(FText::FromString(PlayerName)).Font(Font(13))
+			.OnTextChanged_Lambda([this](const FText& T) { PlayerName = T.ToString().Left(20); })
+		];
+		Game->AddSlot(0, 1)[Label(LOCTEXT("Crosshair", "Crosshair"))];
+		Game->AddSlot(1, 1).Padding(2.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(LOCTEXT("Prev", "<"), [this]() { StepCrosshair(-1); })]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(10.f, 0.f).VAlign(VAlign_Center)
+			[
+				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.3f, 0.35f, 0.4f)).Padding(4.f)
+				[
+					SNew(SBox).WidthOverride(48.f).HeightOverride(48.f)[SNew(SImage).Image(&CrosshairBrush)]
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(LOCTEXT("Next", ">"), [this]() { StepCrosshair(1); })]
+		];
+		Game->AddSlot(0, 2)[Label(LOCTEXT("HUDSize", "HUD size"))];
+		Game->AddSlot(1, 2).Padding(2.f)[Slider(HUDSize, 0.f, 4.f, TEXT("int"), 1.f)];
+
+		auto Tab = [this](const FText& Text, int32 Index)
+		{
+			return SNew(SBox).Padding(2.f, 0.f)
+			[
+				SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(10.f, 4.f))
+				.OnClicked_Lambda([this, Index]() { OptionTabs->SetActiveWidgetIndex(Index); return FReply::Handled(); })
+				[
+					SNew(STextBlock).Text(Text).Font(Font(13, TEXT("Bold")))
+					.ColorAndOpacity_Lambda([this, Index]() { return OptionTabs.IsValid() && OptionTabs->GetActiveWidgetIndex() == Index ? FSlateColor(FLinearColor::White) : FSlateColor(TitleColor); })
+				]
+			];
+		};
 		return SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 12.f)[Heading(LOCTEXT("OptHead", "Options"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Heading(LOCTEXT("OptHead", "Options"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 10.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Tab(LOCTEXT("TabVideo", "Video"), 0)]
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Tab(LOCTEXT("TabAudio", "Audio"), 1)]
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Tab(LOCTEXT("TabControls", "Controls"), 2)]
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Tab(LOCTEXT("TabGame", "Game"), 3)]
+			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				SNew(SGridPanel).FillColumn(1, 1.f)
-				+ SGridPanel::Slot(0, 0)[Label(LOCTEXT("Name", "Name"))]
-				+ SGridPanel::Slot(1, 0).Padding(2.f)
-				[
-					SNew(SEditableTextBox).Text(FText::FromString(PlayerName)).Font(Font(13))
-					.OnTextChanged_Lambda([this](const FText& T) { PlayerName = T.ToString().Left(20); })
-				]
-				+ SGridPanel::Slot(0, 1)[Label(LOCTEXT("Res", "Resolution"))]
-				+ SGridPanel::Slot(1, 1).Padding(2.f)[Combo(Resolutions, SelectedResolution)]
-				+ SGridPanel::Slot(0, 2)[Label(LOCTEXT("Window", "Display"))]
-				+ SGridPanel::Slot(1, 2).Padding(2.f)[Combo(WindowModes, SelectedWindowMode)]
-				+ SGridPanel::Slot(0, 3)[Label(LOCTEXT("Quality", "Graphics"))]
-				+ SGridPanel::Slot(1, 3).Padding(2.f)[Combo(Qualities, SelectedQuality)]
-				+ SGridPanel::Slot(0, 4)[Label(LOCTEXT("RenderScale", "Render scale"))]
-				+ SGridPanel::Slot(1, 4).Padding(2.f)[Slider(RenderScale, 0.25f, 2.f, TEXT("percent"), 0.25f)]
-				+ SGridPanel::Slot(0, 5)[Label(LOCTEXT("Bright", "Brightness"))]
-				+ SGridPanel::Slot(1, 5).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))]
-				+ SGridPanel::Slot(0, 6)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))]
-				+ SGridPanel::Slot(1, 6).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))]
-				+ SGridPanel::Slot(0, 7)[Label(LOCTEXT("Invert", "Invert mouse"))]
-				+ SGridPanel::Slot(1, 7).Padding(2.f).HAlign(HAlign_Left)
-				[
-					SNew(SCheckBox).IsChecked(bInvert ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-					.OnCheckStateChanged_Lambda([this](ECheckBoxState S) { bInvert = S == ECheckBoxState::Checked; })
-				]
-				+ SGridPanel::Slot(0, 8)[Label(LOCTEXT("FOV", "Field of view"))]
-				+ SGridPanel::Slot(1, 8).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))]
+				SAssignNew(OptionTabs, SWidgetSwitcher)
+				+ SWidgetSwitcher::Slot()[Video]
+				+ SWidgetSwitcher::Slot()[Audio]
+				+ SWidgetSwitcher::Slot()[Controls]
+				+ SWidgetSwitcher::Slot()[Game]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("Back3", "Back"), [this]() { Switcher->SetActiveWidgetIndex(0); })]
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("Back3", "Back"), [this]() { Capturing = NAME_None; Switcher->SetActiveWidgetIndex(0); })]
+				+ SHorizontalBox::Slot().FillWidth(1.2f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Defaults", "Defaults"), [this]() { ResetOptions(); })]
 				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Apply", "Apply"), [this]() { ApplyOptions(); })]
 			];
+	}
+
+	void StepCrosshair(int32 Delta)
+	{
+		Crosshair = (Crosshair + Delta + 24) % 24;
+		UpdateCrosshairBrush();
+	}
+
+	void UpdateCrosshairBrush()
+	{
+		if (CrosshairTextures.Num() == 0)
+		{
+			// MF CrossHairA..X (the classic pack; nothing shows without it)
+			for (int32 i = 0; i < 24; ++i)
+			{
+				const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));
+				CrosshairTextures.Emplace(MF::LoadClassic<UTexture2D>(TEXT("Textures/Rage/") + Name));
+			}
+		}
+		UTexture2D* T = CrosshairTextures.IsValidIndex(Crosshair) ? CrosshairTextures[Crosshair].Get() : nullptr;
+		CrosshairBrush.SetResourceObject(T);
+		CrosshairBrush.ImageSize = FVector2D(48.f);
+		CrosshairBrush.TintColor = FSlateColor(FLinearColor::White);
+	}
+
+	/** Defaults: MF's options back as they ship (the window, resolution and graphics stay); Apply keeps them. */
+	void ResetOptions()
+	{
+		const UMFUserSettings* D = GetDefault<UMFUserSettings>();
+		Brightness = D->Brightness;
+		Sensitivity = D->MouseSensitivity;
+		bInvert = D->bInvertMouse;
+		FOV = D->FieldOfView;
+		RenderScale = D->RenderScale;
+		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
+		MasterVolume = D->MasterVolume;
+		MusicVolume = D->MusicVolume;
+		Crosshair = D->Crosshair;
+		HUDSize = D->HUDSize;
+		PendingKeys.Reset();
+		Capturing = NAME_None;
+		const int32 Tab = OptionTabs.IsValid() ? OptionTabs->GetActiveWidgetIndex() : 0;
+		UpdateCrosshairBrush();
+		OptionsHost->SetContent(MakeOptions());   // the widgets show the values they were made with
+		OptionTabs->SetActiveWidgetIndex(Tab);
+	}
+
+	/** Give Action this key; whoever had it gets Action's old key (no key does two things). */
+	void SetKey(FName Action, const FKey& Key)
+	{
+		const TArray<FMFBinding> Bindings = AMFPlayerController::GetBindings();
+		auto Current = [this](const FMFBinding& B) { const FKey* K = PendingKeys.Find(B.Action); return K ? *K : B.Default; };
+		const FMFBinding* Mine = Bindings.FindByPredicate([Action](const FMFBinding& B) { return B.Action == Action; });
+		if (!Mine)
+		{
+			return;
+		}
+		const FKey Old = Current(*Mine);
+		for (const FMFBinding& B : Bindings)
+		{
+			if (B.Action != Action && Current(B) == Key)
+			{
+				PendingKeys.Add(B.Action, Old);
+			}
+		}
+		PendingKeys.Add(Action, Key);
 	}
 
 	TSharedRef<SWidget> MakeCredits()
@@ -446,7 +661,7 @@ private:
 			{ LOCTEXT("CrModsMB", "MoBall, Turbo cars, mutPack"), LOCTEXT("CrModsMBB", "the MF community (mutPack: Gregaras)") },
 			{ LOCTEXT("CrBg", "Menu pictures"), LOCTEXT("CrBgB", "Edgaras \"Gregaras\" Ziaugra (Mobile Forces Source)") },
 			{ LOCTEXT("CrMusic", "Start-up theme"), LOCTEXT("CrMusicB", "Dawid Edward Kmita (Mobile Forces Source)") },
-			{ LOCTEXT("CrMFS", "Mobile Forces Source team (World Gamers)"), LOCTEXT("CrMFSB", "Filip Stojanovic, Junaid Malik, Edgaras Ziaugra, Ahmed Isaac Alizai, Augustinas Jatutas, Dawid Edward Kmita") },
+			{ LOCTEXT("CrMFS", "fistodul (formerly World Gamers, the Mobile Forces Source team)"), LOCTEXT("CrMFSB", "Filip Stojanovic, Junaid Malik, Edgaras Ziaugra, Ahmed Isaac Alizai, Augustinas Jatutas, Dawid Edward Kmita") },
 			{ LOCTEXT("CrMaps", "Maps"), LOCTEXT("CrMapsB", "By their authors, named in each map. Classic maps and art come from your own copy of Mobile Forces and are not part of this game.") },
 			{ LOCTEXT("CrThanks", "Thanks"), LOCTEXT("CrThanksB", "Everyone keeping Mobile Forces alive, and Rage Games for the original.") },
 			{ LOCTEXT("CrUE", "Unreal Engine"), LOCTEXT("CrUEB", "Desktop Forces uses the Unreal(R) Engine. Unreal(R) is a trademark or registered trademark of Epic Games, Inc. in the United States of America and elsewhere. Unreal(R) Engine, Copyright 1998 - 2026, Epic Games, Inc. All rights reserved.") },
@@ -464,7 +679,7 @@ private:
 			];
 		}
 		return SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Heading(LOCTEXT("CreditsHead", "Credits"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Heading(FText::Format(LOCTEXT("CreditsHead", "Credits  (version {0})"), FText::FromString(ProjectVersion())))]
 			+ SVerticalBox::Slot().MaxHeight(420.f)[Scroll]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[
@@ -511,11 +726,18 @@ private:
 				Modes.Add({ It->GetDefaultObject<AMFGameMode>()->GameName, It->GetPathName() });
 			}
 		}
-		// MF order: deathmatch first, then the team modes alphabetically
-		Modes.Sort([](const FMode& A, const FMode& B)
+		// MF's own game types in its order, then the community's (MF-mods) alphabetically
+		static const TCHAR* MFOrder[] = { TEXT("DeathMatch"), TEXT("Team DM"), TEXT("Holdout"), TEXT("CTF"), TEXT("SafeCracker"),
+			TEXT("Detonation"), TEXT("Trailer"), TEXT("Captains") };
+		auto Rank = [](const FMode& M)
 		{
-			const bool ADM = A.Name == TEXT("DeathMatch"), BDM = B.Name == TEXT("DeathMatch");
-			return ADM != BDM ? ADM : A.Name < B.Name;
+			const int32 I = Algo::IndexOfByPredicate(MFOrder, [&M](const TCHAR* N) { return M.Name == N; });
+			return I == INDEX_NONE ? int32(UE_ARRAY_COUNT(MFOrder)) : I;
+		};
+		Modes.Sort([&Rank](const FMode& A, const FMode& B)
+		{
+			const int32 RA = Rank(A), RB = Rank(B);
+			return RA != RB ? RA < RB : A.Name < B.Name;
 		});
 		for (const FMode& M : Modes)
 		{
@@ -534,6 +756,14 @@ private:
 		bInvert = S ? S->bInvertMouse : false;
 		FOV = S ? S->FieldOfView : 100.f;
 		RenderScale = S ? S->RenderScale : 1.f;
+		DecalModes = { MakeShared<FString>(TEXT("Off")), MakeShared<FString>(TEXT("Simple")), MakeShared<FString>(TEXT("Full")) };
+		SelectedDecals = DecalModes[FMath::Clamp(S ? S->DecalQuality : 2, 0, 2)];
+		MasterVolume = S ? S->MasterVolume : 1.f;
+		MusicVolume = S ? S->MusicVolume : 1.f;
+		Crosshair = S ? S->Crosshair : 13;
+		HUDSize = S ? S->HUDSize : 2;
+		PendingKeys = S ? S->KeyBindings : TMap<FName, FKey>();
+		UpdateCrosshairBrush();
 
 		TArray<FIntPoint> Supported;
 		UKismetSystemLibrary::GetSupportedFullscreenResolutions(Supported);
@@ -588,6 +818,21 @@ private:
 		S->bInvertMouse = bInvert;
 		S->FieldOfView = FOV;
 		S->RenderScale = RenderScale;
+		S->DecalQuality = FMath::Max(0, IndexOf(DecalModes, SelectedDecals));
+		S->MasterVolume = MasterVolume;
+		S->MusicVolume = MusicVolume;
+		S->Crosshair = Crosshair;
+		S->HUDSize = FMath::RoundToInt(HUDSize);
+		// only what differs from MF's defaults is kept
+		S->KeyBindings.Reset();
+		for (const FMFBinding& B : AMFPlayerController::GetBindings())
+		{
+			if (const FKey* K = PendingKeys.Find(B.Action); K && *K != B.Default)
+			{
+				S->KeyBindings.Add(B.Action, *K);
+			}
+		}
+		Capturing = NAME_None;
 		FString W, H;
 		if (SelectedResolution.IsValid() && SelectedResolution->Split(TEXT(" x "), &W, &H))
 		{
@@ -596,6 +841,7 @@ private:
 		S->SetFullscreenMode(EWindowMode::ConvertIntToWindowMode(FMath::Max(0, IndexOf(WindowModes, SelectedWindowMode))));
 		S->SetOverallScalabilityLevel(FMath::Max(0, IndexOf(Qualities, SelectedQuality)));
 		S->ApplySettings(false);
+		S->SaveSettings();
 		if (APlayerController* PC = Owner.Get())
 		{
 			PC->ConsoleCommand(TEXT("MFApplyUserSettings"));
@@ -724,7 +970,7 @@ void AMFMenuPlayerController::BeginPlay()
 		if (USoundBase* Music = UMFGameSettings::Get().MenuMusic.LoadSynchronous())
 		{
 			bPlayedMusic = true;
-			UGameplayStatics::SpawnSound2D(this, Music, 0.8f);
+			MF::PlayMusic(this, Music, 0.8f);
 		}
 	}
 }

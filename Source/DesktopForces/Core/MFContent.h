@@ -39,6 +39,11 @@ namespace MF
 	 * Scale = the MF actor's DrawScale (RageEffect.AddExplosion: Size x 0.4). Like the sounds,
 	 * only where it is seen: null on a dedicated server or without the classic content.
 	 */
+	/** Music (map songs, the menu theme): Volume x UMFUserSettings::MusicVolume, kept in step
+	 *  when the setting changes (UpdateMusicVolume). */
+	DESKTOPFORCES_API class UAudioComponent* PlayMusic(const UObject* WorldContext, class USoundBase* Music, float Volume);
+	DESKTOPFORCES_API void UpdateMusicVolume();
+
 	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffect(const UObject* WorldContext, const TCHAR* Name, const FVector& Location,
 		float Scale = 1.f, const FRotator& Rotation = FRotator::ZeroRotator);
 	/** The same, following a component (ExplosionFire on burning debris: SetLocation(Owner.Location)). */

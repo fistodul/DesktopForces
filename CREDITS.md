@@ -26,7 +26,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | `SourceArt/Mods/Icons/*.bmp` | fistodul | MF-mods HUD icons |
 | `Tools/artgen` output (crate) | generated | procedural, made for this project |
 
-## Mobile Forces Source team (World Gamers)
+## fistodul (formerly World Gamers, the Mobile Forces Source team)
 
 Filip Stojanovic, Junaid Malik (code); Filip Stojanovic, Edgaras Ziaugra, Ahmed Isaac Alizai
 (maps); Edgaras Ziaugra, Augustinas Jatutas (materials); Edgaras Ziaugra (models); Dawid Edward
