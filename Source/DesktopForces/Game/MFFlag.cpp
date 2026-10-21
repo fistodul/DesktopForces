@@ -295,7 +295,9 @@ void AMFGameMode_Flags::Killed(AController* Killer, AController* Victim, AMFChar
 
 void AMFGameMode_Flags::FlagPickedUp(AMFFlag* Flag, AMFCharacter* By)
 {
-	Event(FString::Printf(TEXT("%s: I have the %s %s! %s"), *NameOf(By), TeamName(Flag->Team), *ObjectName, *CarryLine), Flag->Team);
+	// RageCTFMessage / RageSCMessage 6 (pickup): TakenSound
+	Event(FString::Printf(TEXT("%s: I have the %s %s! %s"), *NameOf(By), TeamName(Flag->Team), *ObjectName, *CarryLine), Flag->Team,
+		ObjectName == TEXT("gold") ? TEXT("Gold_captured") : TEXT("Flag_captured"));
 	if (Flag->HomeBase)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/CTFSFX/flagtaken.flagtaken"),
@@ -310,7 +312,8 @@ void AMFGameMode_Flags::FlagDropped(AMFFlag* Flag, AMFCharacter* Was)
 
 void AMFGameMode_Flags::FlagReturned(AMFFlag* Flag, AMFCharacter* By)
 {
-	Event(FString::Printf(TEXT("%s: %s %s has been returned to %s base!"), *NameOf(By), TeamName(Flag->Team), *ObjectName, TeamName(Flag->Team)), Flag->Team);
+	Event(FString::Printf(TEXT("%s: %s %s has been returned to %s base!"), *NameOf(By), TeamName(Flag->Team), *ObjectName, TeamName(Flag->Team)), Flag->Team,
+		ObjectName == TEXT("gold") ? TEXT("Gold_returned") : TEXT("Flag_returned"));
 }
 
 void AMFGameMode_Flags::FlagWentHome(AMFFlag* Flag)
@@ -319,7 +322,8 @@ void AMFGameMode_Flags::FlagWentHome(AMFFlag* Flag)
 
 void AMFGameMode_Flags::FlagTimedOut(AMFFlag* Flag)
 {
-	Event(FString::Printf(TEXT("The %s %s was returned!"), TeamName(Flag->Team), *ObjectName), Flag->Team);
+	Event(FString::Printf(TEXT("The %s %s was returned!"), TeamName(Flag->Team), *ObjectName), Flag->Team,
+		ObjectName == TEXT("gold") ? TEXT("Gold_returned") : TEXT("Flag_returned"));
 	Flag->SendHome();
 }
 
@@ -339,7 +343,8 @@ void AMFGameMode_Flags::FlagCaptured(AMFFlag* Flag, AMFCharacter* By)
 		GS->TeamScores[By->GetTeam()] += 1;
 	}
 	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s %s %s!!!"), *NameOf(By), By->GetTeam() == 0 ? TEXT("BLUE") : TEXT("RED"),
-		Flag->Team == 0 ? TEXT("BLUE") : TEXT("RED"), *ObjectName.ToUpper(), ObjectName == TEXT("gold") ? TEXT("STOLEN") : TEXT("CAPTURED")), By->GetTeam());
+		Flag->Team == 0 ? TEXT("BLUE") : TEXT("RED"), *ObjectName.ToUpper(), ObjectName == TEXT("gold") ? TEXT("STOLEN") : TEXT("CAPTURED")), By->GetTeam(),
+		ObjectName == TEXT("gold") ? NAME_None : FName(By->GetTeam() == 0 ? TEXT("Blue_score") : TEXT("Red_score")));   // RageCTFMessage CapturedSound
 	Flag->SendHome();
 }
 
@@ -392,6 +397,7 @@ void AMFFlagBase::BeginPlay()
 AMFGameMode_CTF::AMFGameMode_CTF()
 {
 	GameName = TEXT("CTF");
+	InstructionSound = TEXT("Get_the_flag");
 	GoalTeamScore = 4;      // RageCTF.GoalTeamScore
 	TimeLimit = 20;
 	ObjectName = TEXT("flag");

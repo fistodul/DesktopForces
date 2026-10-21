@@ -96,7 +96,7 @@ void AMFDetonationLock::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPri
 	GM->KeyInserted(this, C);
 	CountDown = 5;
 	bKilling = false;
-	GM->Event(FString::Printf(TEXT("Detonation in %d sec"), CountDown), ScorerTeam);
+	GM->Event(FString::Printf(TEXT("Detonation in %d sec"), CountDown), ScorerTeam, TEXT("Detonation_imminent"));   // RageDetMessage 6
 	GetWorldTimerManager().SetTimer(Timer, this, &AMFDetonationLock::Tick1, 1.f, false);
 	ForceNetUpdate();
 }
@@ -112,7 +112,7 @@ void AMFDetonationLock::Tick1()
 	{
 		if (--CountDown > 0)
 		{
-			GM->Event(FString::Printf(TEXT("Detonation in %d sec"), CountDown), ScorerTeam);
+			GM->Event(FString::Printf(TEXT("Detonation in %d sec"), CountDown), ScorerTeam, FName(*FString::FromInt(CountDown)));   // 5: the seconds
 			GetWorldTimerManager().SetTimer(Timer, this, &AMFDetonationLock::Tick1, 1.f, false);
 			return;
 		}
@@ -144,6 +144,7 @@ void AMFDetonationLock::Tick1()
 AMFGameMode_Detonation::AMFGameMode_Detonation()
 {
 	GameName = TEXT("Detonation");
+	InstructionSound = TEXT("Get_the_key");
 	GoalTeamScore = 4;      // RageDetonation.GoalTeamScore
 	TimeLimit = 10;
 	RespawnWait = 5;        // the community servers' MobileForces.ini
@@ -201,7 +202,7 @@ void AMFGameMode_Detonation::FlagTimedOut(AMFFlag* Flag)
 
 void AMFGameMode_Detonation::FlagPickedUp(AMFFlag* Flag, AMFCharacter* By)
 {
-	Event(FString::Printf(TEXT("%s: key secured! Proceeding to detonation point!"), *NameOf(By)), By->GetTeam());
+	Event(FString::Printf(TEXT("%s: key secured! Proceeding to detonation point!"), *NameOf(By)), By->GetTeam(), TEXT("key_captured"));   // RageDetMessage 4
 }
 
 void AMFGameMode_Detonation::FlagDropped(AMFFlag* Flag, AMFCharacter* Was)

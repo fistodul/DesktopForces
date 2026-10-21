@@ -242,6 +242,12 @@ void AMFGameMode_Safecracker::InitGame(const FString& MapName, const FString& Op
 	}
 }
 
+FName AMFGameMode_Safecracker::GetInstructionSound(const AController* C) const
+{
+	const AMFPlayerState* PS = C ? C->GetPlayerState<AMFPlayerState>() : nullptr;
+	return PS && PS->GetTeam() == AttackerTeam() ? TEXT("Crack_their_Safe") : TEXT("Defend_your_Safe");
+}
+
 void AMFGameMode_Safecracker::HandleMatchHasStarted()
 {
 	Super::HandleMatchHasStarted();

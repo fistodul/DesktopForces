@@ -29,10 +29,12 @@ public:
 	enum : int32
 	{
 		FirstBlood = 0,
-		Spree = 1,       // + spree level 0..5 (MF RPlayer.spreenote)
+		Spree = 1,          // + spree level 0..4: 5, 10, 15, 20, 25 kills (RageMessageKillingSpree)
+		SpreeEnded = 6,     // PS1 = the killer (null: suicide), PS2 = who was on the spree
+		Headshot = 7,       // to the killer only (RageMessageDecapitation)
 		PointCaptured = 10, // OptionalObject = AMFHoldoutPoint
-		MatchEnd = 20,   // text comes from AMFGameState::WinnerText
+		MatchEnd = 20,      // text comes from AMFGameState::WinnerText
 	};
 	virtual void ClientReceive(const FClientReceiveData& ClientData) const override;
-	static FText GetText(int32 Switch, const class APlayerState* Subject, const class AMFGameState* GS);
+	static FText GetText(int32 Switch, const class APlayerState* Subject, const class AMFGameState* GS, const class APlayerState* Other = nullptr);
 };

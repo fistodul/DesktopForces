@@ -3,6 +3,7 @@
 #include "Core/MFTypes.h"
 #include "Core/MFGameSettings.h"
 #include "Game/MFGameState.h"
+#include "Core/MFContent.h"
 #include "Game/MFPlayerState.h"
 #include "Engine/Console.h"
 #include "Engine/GameViewportClient.h"
@@ -17,6 +18,7 @@
 #include "Game/MFGameMode.h"
 #include "AI/MFBotController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/AudioComponent.h"
 #include "Player/MFCheatManager.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFCharacterMovement.h"
@@ -792,9 +794,83 @@ void AMFPlayerController::LoadoutSelect()
 	}
 }
 
+void AMFPlayerController::ClientAnnouncer_Implementation(FName Line)
+{
+	PlayAnnouncer(Line);
+}
+
+void AMFPlayerController::PlayAnnouncer(FName Line)
+{
+	USoundBase* Sound = Line.IsNone() ? nullptr : MF::LoadClassic<USoundBase>(TEXT("Sounds/Announcer/") + Line.ToString());
+	UE_LOG(LogMF, Verbose, TEXT("Announcer: %s%s"), *Line.ToString(), Sound ? TEXT("") : TEXT(" (no sound)"));
+	if (!Sound || !IsLocalController())
+	{
+		return;
+	}
+	if (UAudioComponent* Old = AnnouncerAudio.Get())
+	{
+		Old->Stop();
+	}
+	AnnouncerAudio = UGameplayStatics::SpawnSound2D(this, Sound);
+}
+
+FName AMFPlayerController::TimeRemainingLine(int32 Seconds)
+{
+	// TimeLimitSound[]: one .. ten minutes, then "less than" 15 / 20 / 25 / 30 / 45 / 60
+	static const TCHAR* Minutes[] = { TEXT("You_ve_got_one_minute"), TEXT("You_ve_got_two_minutes"), TEXT("You_ve_got_three_minutes"),
+		TEXT("You_ve_got_four_minutes"), TEXT("You_ve_got_five_minutes"), TEXT("You_ve_got_six_minutes"), TEXT("You_ve_got_seven_minutes"),
+		TEXT("You_ve_got_eight_minutes"), TEXT("You_ve_got_nine_minutes"), TEXT("You_ve_got_ten_minutes") };
+	static const TPair<int32, const TCHAR*> LessThan[] = { { 15, TEXT("You_ve_got_less_than_fifteen_minutes") },
+		{ 20, TEXT("You_ve_got_less_than_twenty_minutes") }, { 25, TEXT("You_ve_got_less_than_twenty_five_minutes") },
+		{ 30, TEXT("You_ve_got_less_than_thirty_minutes") }, { 45, TEXT("You_ve_got_less_than_forty_five_minutes") },
+		{ 60, TEXT("You_ve_got_less_than_sixty_minutes") } };
+	const int32 M = (Seconds + 15) / 60;
+	if (M < 11)
+	{
+		return Minutes[FMath::Max(M, 1) - 1];
+	}
+	for (const auto& L : LessThan)
+	{
+		if (M <= L.Key)
+		{
+			return L.Value;
+		}
+	}
+	return NAME_None;
+}
+
+void AMFPlayerController::TellTime()
+{
+	// RageHUD: in the last five minutes "Battle ends in 5 / 3 minutes" on the minute, then
+	// "30 seconds left" and the last ten seconds counted down (RageMessageTime.TimeSound)
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	const int32 T = GS && GS->IsMatchInProgress() ? GS->GetRemainingTime() : -1;
+	if (T <= 0 || T > 300 || T == LastReportedTime)
+	{
+		return;
+	}
+	LastReportedTime = T;
+	if (T == 300 || T == 180)
+	{
+		PlayAnnouncer(T == 300 ? TEXT("Battle_ends_in_5_minutes") : TEXT("Battle_ends_in_3_minutes"));
+	}
+	else if (T == 30 || T == 10)
+	{
+		PlayAnnouncer(T == 30 ? TEXT("30_seconds_left") : TEXT("10_seconds_left"));
+	}
+	else if (T < 10)
+	{
+		PlayAnnouncer(FName(*FString::FromInt(T)));
+	}
+}
+
 void AMFPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	if (IsLocalController())
+	{
+		TellTime();
+	}
 	// RagePlayer Loadout.PlayerTick -> CheckLoadoutState: keep the cursor on something usable
 	const bool bOpen = IsLoadoutOpen();
 	if (bOpen && (!bLoadoutWasOpen || !IsLoadoutEntryValid(LoadoutCursor)))

@@ -81,6 +81,28 @@ void AMFGameMode::PostLogin(APlayerController* NewPlayer)
 		PS->SetTeam(IsTeamGame() ? ChooseTeam(NewPlayer, MF::NoTeam) : MF::NoTeam);
 	}
 	Super::PostLogin(NewPlayer);
+	// RageDeathMatch.Timer: a second in, the order (PlayStartUpMessage); a moment later the
+	// time left (InstructionSoundTime 1.5 + 0.75)
+	if (AMFPlayerController* MPC = Cast<AMFPlayerController>(NewPlayer))
+	{
+		TWeakObjectPtr<AMFPlayerController> Weak(MPC);
+		FTimerHandle Order, Time;
+		GetWorldTimerManager().SetTimer(Order, FTimerDelegate::CreateWeakLambda(this, [this, Weak]()
+		{
+			if (Weak.IsValid())
+			{
+				Weak->ClientAnnouncer(GetInstructionSound(Weak.Get()));
+			}
+		}), 1.f, false);
+		GetWorldTimerManager().SetTimer(Time, FTimerDelegate::CreateWeakLambda(this, [this, Weak]()
+		{
+			const AMFGameState* GS = GetGameState<AMFGameState>();
+			if (Weak.IsValid() && GS && GS->GetRemainingTime() > 0)
+			{
+				Weak->ClientAnnouncer(AMFPlayerController::TimeRemainingLine(GS->GetRemainingTime()));
+			}
+		}), 2.5f, false);
+	}
 }
 
 void AMFGameMode::HandleMatchHasStarted()
@@ -397,9 +419,14 @@ void AMFGameMode::Killed(AController* Killer, AController* Victim, AMFCharacter*
 	{
 		VictimPS->DeathTime = GetGameState<AMFGameState>()->GetServerWorldTimeSeconds();
 	}
+	const bool bEndsSpree = VictimPS && VictimPS->Spree > 4;   // RageDeathMatch.ScoreKill: Other.Spree > 4 -> EndSpree
 	ScoreKill(KillerPS, VictimPS);
 
 	BroadcastLocalized(this, UMFDeathMessage::StaticClass(), 0, KillerPS, VictimPS, DamageType.Get());
+	if (bEndsSpree)
+	{
+		BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::SpreeEnded, KillerPS != VictimPS ? KillerPS : nullptr, VictimPS);
+	}
 	if (KillerPS && KillerPS != VictimPS)
 	{
 		if (!bFirstBlood)
@@ -407,9 +434,15 @@ void AMFGameMode::Killed(AController* Killer, AController* Victim, AMFCharacter*
 			bFirstBlood = true;
 			BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::FirstBlood, KillerPS);
 		}
-		if (KillerPS->Spree >= 5 && KillerPS->Spree % 5 == 0)
+		// NotifySpree: at 5, 10, 15, 20 and 25 kills in a row
+		if (KillerPS->Spree % 5 == 0 && KillerPS->Spree >= 5 && KillerPS->Spree <= 25)
 		{
-			BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::Spree + FMath::Min(KillerPS->Spree / 5 - 1, 5), KillerPS);
+			BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::Spree + KillerPS->Spree / 5 - 1, KillerPS);
+		}
+		// RageDeathMatch.Killed: 'Decapitated' -> RageMessageDecapitation to the killer
+		if (APlayerController* KPC = Cast<APlayerController>(Killer); KPC && DamageType && DamageType->IsChildOf(UMFDamage_Headshot::StaticClass()))
+		{
+			KPC->ClientReceiveLocalizedMessage(UMFAnnouncement::StaticClass(), UMFAnnouncement::Headshot, KillerPS);
 		}
 	}
 
@@ -625,6 +658,37 @@ void AMFGameMode::HandleMatchHasEnded()
 		It->GetCharacterMovement()->DisableMovement();
 	}
 	BroadcastLocalized(this, UMFAnnouncement::StaticClass(), UMFAnnouncement::MatchEnd);
+	// RPlayer.PlayWinMessage: "Winner" for the best team / player, "You lose" for the rest
+	const AMFGameState* GS = GetGameState<AMFGameState>();
+	int32 BestTeam = INDEX_NONE;
+	bool bTie = false;
+	for (int32 T = 0; GS && T < GS->TeamScores.Num(); ++T)
+	{
+		if (BestTeam == INDEX_NONE || GS->TeamScores[T] > GS->TeamScores[BestTeam])
+		{
+			BestTeam = T;
+			bTie = false;
+		}
+		else if (GS->TeamScores[T] == GS->TeamScores[BestTeam])
+		{
+			bTie = true;
+		}
+	}
+	const APlayerState* Top = nullptr;
+	for (const APlayerState* PS : GS ? GS->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+	{
+		Top = !Top || PS->GetScore() > Top->GetScore() ? PS : Top;
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		AMFPlayerController* MPC = Cast<AMFPlayerController>(It->Get());
+		const AMFPlayerState* PS = MPC ? MPC->GetPlayerState<AMFPlayerState>() : nullptr;
+		if (PS)
+		{
+			const bool bWon = IsTeamGame() ? (!bTie && PS->GetTeam() == BestTeam) : PS == Top;
+			MPC->ClientAnnouncer(IsTeamGame() && bTie ? TEXT("Draw") : (bWon ? TEXT("Winner") : TEXT("You_lose")));
+		}
+	}
 	FTimerHandle H;
 	GetWorldTimerManager().SetTimer(H, this, &AMFGameMode::RestartGame, float(RestartWait), false);
 }
@@ -671,7 +735,7 @@ void AMFGameMode::RestartRound()
 	}
 }
 
-void AMFGameMode::Event(const FString& Text, uint8 ColourTeam)
+void AMFGameMode::Event(const FString& Text, uint8 ColourTeam, FName Voice)
 {
 	UE_LOG(LogMF, Display, TEXT("%s: %s"), *GameName, *Text);
 	const FName Type(*FString::Printf(TEXT("Event%d"), ColourTeam));
@@ -680,6 +744,10 @@ void AMFGameMode::Event(const FString& Text, uint8 ColourTeam)
 		if (APlayerController* PC = It->Get())
 		{
 			PC->ClientTeamMessage(nullptr, Text, Type);
+			if (AMFPlayerController* MPC = Cast<AMFPlayerController>(PC); MPC && !Voice.IsNone())
+			{
+				MPC->ClientAnnouncer(Voice);
+			}
 		}
 	}
 }

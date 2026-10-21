@@ -88,8 +88,18 @@ public:
 	void FinishMatch(const FString& Winner);
 
 	// --- chat and team orders (MF Say / TeamSay, RageVoicePack orders) -----------------------
-	/** Game event line for everyone (MF EventN messages), in ColourTeam's colour (255 = white). */
-	void Event(const FString& Text, uint8 ColourTeam);
+	/** Game event line for everyone (MF EventN messages), in ColourTeam's colour (255 = white),
+	 *  with the announcer saying Voice (Sounds/Announcer/<Voice>) if set. */
+	void Event(const FString& Text, uint8 ColourTeam, FName Voice = NAME_None);
+	/** The announcer's order to a player who just joined (InstructionSound): "Kill_them_all",
+	 *  "Destroy_the_enemy", "Get_the_flag" ... */
+	virtual FName GetInstructionSound(const AController* C) const
+	{
+		return !InstructionSound.IsNone() ? InstructionSound : FName(IsTeamGame() ? TEXT("Destroy_the_enemy") : TEXT("Kill_them_all"));
+	}
+	/** This mode's order (none: the deathmatch / team deathmatch one). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	FName InstructionSound;
 	/** A chat line to everyone, or to the sender's team (team games). */
 	void BroadcastChat(AController* Sender, const FString& Msg, bool bTeam);
 	/** AGameMode's own "Say" exec runs first on a host: send it as the local player's chat. */

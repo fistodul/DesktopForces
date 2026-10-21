@@ -20,6 +20,7 @@ namespace
 AMFGameMode_Captains::AMFGameMode_Captains()
 {
 	GameName = TEXT("Captains");
+	InstructionSound = TEXT("Get_their_Captain");
 	NumTeams = 2;
 	GoalTeamScore = 5;      // RageCaptains.GoalTeamScore
 	TimeLimit = 12;

@@ -4,6 +4,8 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "UI/MFHUD.h"
+#include "Game/MFPlayerState.h"
+#include "Player/MFPlayerController.h"
 
 #define LOCTEXT_NAMESPACE "MFMessages"
 
@@ -22,21 +24,31 @@ void UMFDeathMessage::ClientReceive(const FClientReceiveData& ClientData) const
 	HUD->AddKillMessage(bSuicide ? FString() : Killer, Victim, bSuicide ? TEXT("died") : (Type ? Type->DeathVerb.ToString() : TEXT("killed")));
 }
 
-FText UMFAnnouncement::GetText(int32 Switch, const APlayerState* Subject, const AMFGameState* GS)
+FText UMFAnnouncement::GetText(int32 Switch, const APlayerState* Subject, const AMFGameState* GS, const APlayerState* Other)
 {
 	const FText Name = FText::FromString(Subject ? Subject->GetPlayerName() : FString());
 	if (Switch == FirstBlood)
 	{
 		return FText::Format(LOCTEXT("FirstBlood", "{0} drew first blood!"), Name);
 	}
-	if (Switch >= Spree && Switch < Spree + 6)
+	if (Switch >= Spree && Switch < Spree + 5)
 	{
-		// RPlayer.spreenote
+		// RageMessageKillingSpree.SpreeNote
 		static const FText Notes[] = {
-			LOCTEXT("Spree0", "is on a killing spree!"), LOCTEXT("Spree1", "is on a rampage!"),
-			LOCTEXT("Spree2", "is dominating!"), LOCTEXT("Spree3", "is brutalizing the competition!"),
-			LOCTEXT("Spree4", "is unstoppable!"), LOCTEXT("Spree5", "owns you!") };
+			LOCTEXT("Spree0", "is a one man killing machine!"), LOCTEXT("Spree1", "is seriously deranged!"),
+			LOCTEXT("Spree2", "has gone ballistic!"), LOCTEXT("Spree3", "is gunning for blood!"),
+			LOCTEXT("Spree4", "is a MOBILE WAR HERO!!!") };
 		return FText::Format(LOCTEXT("SpreeFmt", "{0} {1}"), Name, Notes[Switch - Spree]);
+	}
+	if (Switch == SpreeEnded)
+	{
+		const FText Victim = FText::FromString(Other ? Other->GetPlayerName() : FString());
+		return Subject ? FText::Format(LOCTEXT("SpreeEnded", "{0}'s killing spree was ended by {1}."), Victim, Name)
+			: FText::Format(LOCTEXT("SpreeSelf", "{0} was looking good till they killed themselves!"), Victim);
+	}
+	if (Switch == Headshot)
+	{
+		return LOCTEXT("Headshot", "Decapitation!");
 	}
 	if (Switch == PointCaptured)
 	{
@@ -51,10 +63,40 @@ FText UMFAnnouncement::GetText(int32 Switch, const APlayerState* Subject, const 
 
 void UMFAnnouncement::ClientReceive(const FClientReceiveData& ClientData) const
 {
-	if (AMFHUD* HUD = ClientData.LocalPC ? ClientData.LocalPC->GetHUD<AMFHUD>() : nullptr)
+	APlayerController* PC = ClientData.LocalPC;
+	AMFHUD* HUD = PC ? PC->GetHUD<AMFHUD>() : nullptr;
+	if (!HUD)
 	{
-		const AMFGameState* GS = ClientData.LocalPC->GetWorld()->GetGameState<AMFGameState>();
-		HUD->Announce(GetText(ClientData.MessageIndex, ClientData.RelatedPlayerState_1, GS).ToString());
+		return;
+	}
+	const int32 Switch = ClientData.MessageIndex;
+	const AMFGameState* GS = PC->GetWorld()->GetGameState<AMFGameState>();
+	HUD->Announce(GetText(Switch, ClientData.RelatedPlayerState_1, GS, ClientData.RelatedPlayerState_2).ToString());
+	// the announcer: first kill and sprees only to whoever made them (RageMessageFirstBlood,
+	// RageMessageKillingSpree), "Blue / Red switches" to everyone (RageDomMessage)
+	AMFPlayerController* MPC = Cast<AMFPlayerController>(PC);
+	const bool bMine = ClientData.RelatedPlayerState_1 && ClientData.RelatedPlayerState_1 == PC->PlayerState;
+	static const TCHAR* SpreeLines[] = { TEXT("killing_machine"), TEXT("seriously_deranged"), TEXT("ballistic"), TEXT("gunning_for_blood"), TEXT("MOBILE_WAR_HERO") };
+	if (!MPC)
+	{
+		return;
+	}
+	if (Switch == FirstBlood && bMine)
+	{
+		MPC->PlayAnnouncer(TEXT("first_kill"));
+	}
+	else if (Switch >= Spree && Switch < Spree + 5 && bMine)
+	{
+		MPC->PlayAnnouncer(SpreeLines[Switch - Spree]);
+	}
+	else if (Switch == Headshot)
+	{
+		MPC->PlayAnnouncer(TEXT("Decapitation"));
+	}
+	else if (Switch == PointCaptured)
+	{
+		const AMFPlayerState* PS = Cast<AMFPlayerState>(ClientData.RelatedPlayerState_1);
+		MPC->PlayAnnouncer(PS && PS->GetTeam() == 1 ? TEXT("Red_switches") : TEXT("Blue_switches"));
 	}
 }
 

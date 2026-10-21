@@ -209,9 +209,21 @@ public:
 	UFUNCTION(Exec)
 	void MFScores();
 
+	/** The announcer says Line (Sounds/Announcer/<Line>), cutting off what he was saying
+	 *  (RPlayer.ClientPlaySound with bInterrupt). */
+	UFUNCTION(Client, Reliable)
+	void ClientAnnouncer(FName Line);
+	void PlayAnnouncer(FName Line);
+	/** RageDeathMatch.GetTimeRemainingSound: "You've got N minutes" for the time left. */
+	static FName TimeRemainingLine(int32 Seconds);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PlayerTick(float DeltaTime) override;
+	TWeakObjectPtr<class UAudioComponent> AnnouncerAudio;
+	/** RageHUD spoken countdown: last remaining second told. */
+	int32 LastReportedTime = -1;
+	void TellTime();
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
 

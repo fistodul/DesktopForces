@@ -93,6 +93,8 @@ public:
 	virtual void FlagCaptured(AMFFlag* Flag, AMFCharacter* By) override;
 
 	uint8 AttackerTeam() const { return Part == 2 ? 1 - FirstAttackerIndex : FirstAttackerIndex; }
+	/** RageSafeCrackerRepInfo: attackers "Crack their safe", defenders "Defend your safe". */
+	virtual FName GetInstructionSound(const AController* C) const override;
 	uint8 DefenderTeam() const { return 1 - AttackerTeam(); }
 	int32 GetPart() const { return Part; }
 

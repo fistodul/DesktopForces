@@ -20,6 +20,7 @@ namespace
 AMFGameMode_Trailer::AMFGameMode_Trailer()
 {
 	GameName = TEXT("Trailer");
+	InstructionSound = TEXT("Get_the_trailer");
 	NumTeams = 2;
 	GoalTeamScore = 4;      // TrailerGame.GoalTeamScore
 	TimeLimit = 10;
@@ -97,7 +98,7 @@ void AMFGameMode_Trailer::VehicleEntered(AMFVehicle* Vehicle, AMFCharacter* Driv
 	if (Vehicle == Cab && Driver)
 	{
 		Event(FString::Printf(TEXT("%s: trailer has been captured! Driving to enemy base!"),
-			Driver->GetPlayerState() ? *Driver->GetPlayerState()->GetPlayerName() : TEXT("Someone")), Driver->GetTeam());
+			Driver->GetPlayerState() ? *Driver->GetPlayerState()->GetPlayerName() : TEXT("Someone")), Driver->GetTeam(), TEXT("Trailer_capture"));   // RageTrailerMessage 4
 	}
 }
 
@@ -141,7 +142,7 @@ void AMFGameMode_Trailer::CheckDelivery()
 				// the driver's controller sits on the cab while they drive
 				Scorer = Cab->GetDriver() ? Cab->GetController() : By->GetController();
 				Cab->LockDown();
-				Event(FString::Printf(TEXT("Trailer delivered to %s"), TrailerSquad(Bay.Team)), 1 - Bay.Team);
+				Event(FString::Printf(TEXT("Trailer delivered to %s"), TrailerSquad(Bay.Team)), 1 - Bay.Team, TEXT("trailer_delivered_explosion_imminent"));
 				UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/TrailerSFX/LockDown.LockDown"), nullptr, LOAD_NoWarn | LOAD_Quiet), Cab->GetActorLocation());
 				Count = 5;
 				CountDown();
@@ -158,7 +159,8 @@ void AMFGameMode_Trailer::CountDown()
 		Detonate();
 		return;
 	}
-	Event(FString::Printf(TEXT("Trailer detonation in %d sec"), Count), 1 - DeliveredTo);
+	// the seconds after the first (that one is "trailer delivered, explosion imminent")
+	Event(FString::Printf(TEXT("Trailer detonation in %d sec"), Count), 1 - DeliveredTo, Count < 5 ? FName(*FString::FromInt(Count)) : NAME_None);
 	--Count;
 	GetWorldTimerManager().SetTimer(CountTimer, this, &AMFGameMode_Trailer::CountDown, 1.f, false);
 }
