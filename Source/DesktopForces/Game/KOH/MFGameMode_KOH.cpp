@@ -10,6 +10,7 @@
 AMFGameMode_KOH::AMFGameMode_KOH()
 {
 	GameName = TEXT("King of the Hill");
+	MFGameClass = TEXT("KOHGame");
 	InstructionSound = TEXT("Hold_the_Point");
 	GoalTeamScore = 700;   // points, not minutes as in Holdout
 	FragLimit = 0;

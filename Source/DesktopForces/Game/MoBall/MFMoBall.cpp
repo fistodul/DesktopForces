@@ -116,6 +116,7 @@ void AMFMoBallBall::Destroyed()
 AMFGameMode_MoBall::AMFGameMode_MoBall()
 {
 	GameName = TEXT("MoBall");
+	MFGameClass = TEXT("MoBallGame");
 	NumTeams = 2;
 	GoalTeamScore = 4;          // MoBallGame.GoalTeamScore 4
 	TimeLimit = 15;

@@ -13,6 +13,7 @@
 #include "Game/MFPlayerState.h"
 #include "Game/MFPlayerStart.h"
 #include "AI/MFBotController.h"
+#include "World/MFBotSpot.h"
 #include "Core/MFGameSettings.h"
 #include "Loadout/MFLoadout.h"
 #include "Player/MFCharacter.h"
@@ -109,6 +110,7 @@ void AMFGameMode::HandleMatchHasStarted()
 {
 	Super::HandleMatchHasStarted();
 	AddBots(BotCount);
+	SpawnPlacedBots();
 	if (bVehicles)
 	{
 		TArray<FVector> Exclude;
@@ -379,6 +381,42 @@ void AMFGameMode::AddBots(int32 Count, float Skill)
 	}
 }
 
+void AMFGameMode::SpawnPlacedBots()
+{
+	int32 N = 0;
+	for (TActorIterator<AMFBotSpot> It(GetWorld()); It; ++It)
+	{
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AMFBotController* Bot = GetWorld()->SpawnActor<AMFBotController>(SP);
+		if (!Bot)
+		{
+			continue;
+		}
+		Bot->Profile.Name = FString::Printf(TEXT("Defender%d"), ++N);
+		Bot->Profile.Loadout.Reset();
+		for (const TSubclassOf<AMFWeapon>& W : It->Loadout)
+		{
+			Bot->Profile.Loadout.Add(W.Get());
+		}
+		Bot->Skill = BotSkill;
+		Bot->bPlaced = true;
+		Bot->bStationary = It->bStationary;
+		if (AMFPlayerState* PS = Bot->GetPlayerState<AMFPlayerState>())
+		{
+			PS->SetPlayerName(Bot->Profile.Name);
+			PS->SetIsABot(true);
+			PS->SetTeam(IsTeamGame() ? It->Team : MF::NoTeam);
+		}
+		RestartPlayerAtTransform(Bot, It->GetActorTransform());
+		if (AMFCharacter* C = Cast<AMFCharacter>(Bot->GetPawn()))
+		{
+			C->SetHealthAndMax(It->Health);
+		}
+	}
+	UE_CLOG(N > 0, LogMF, Log, TEXT("%d placed bots"), N);
+}
+
 // --- damage & kills ----------------------------------------------------------------
 
 float AMFGameMode::ModifyDamage(float Damage, AMFCharacter* Victim, AController* Instigator, AActor* DamageCauser) const
@@ -447,7 +485,8 @@ void AMFGameMode::Killed(AController* Killer, AController* Victim, AMFCharacter*
 	}
 
 	CheckEndConditions(KillerPS);
-	if (Victim)
+	const AMFBotController* Placed = Cast<AMFBotController>(Victim);
+	if (Victim && !(Placed && Placed->bPlaced))   // placed pawns stay dead
 	{
 		ScheduleRespawn(Victim);
 	}
@@ -717,6 +756,7 @@ void AMFGameMode::HandleMatchHasEnded()
 AMFGameMode_TDM::AMFGameMode_TDM()
 {
 	GameName = TEXT("Team DM");
+	MFGameClass = TEXT("RageTeamGame");
 	NumTeams = 2;
 	FragLimit = 0;
 	TimeLimit = 12;

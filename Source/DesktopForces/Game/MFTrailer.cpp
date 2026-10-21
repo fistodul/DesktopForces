@@ -20,6 +20,7 @@ namespace
 AMFGameMode_Trailer::AMFGameMode_Trailer()
 {
 	GameName = TEXT("Trailer");
+	MFGameClass = TEXT("TrailerGame");
 	InstructionSound = TEXT("Get_the_trailer");
 	NumTeams = 2;
 	GoalTeamScore = 4;      // TrailerGame.GoalTeamScore

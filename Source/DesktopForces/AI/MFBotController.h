@@ -43,6 +43,11 @@ public:
 	/** Name, loadout, preferred team (from UMFGameSettings::Bots). */
 	FMFBotDef Profile;
 
+	/** Placed by the mapper (AMFBotSpot): no respawn once killed. */
+	bool bPlaced = false;
+	/** GroundSpeed 0: holds its spot, only turns and shoots. */
+	bool bStationary = false;
+
 	// IGenericTeamAgentInterface: the team lives on the player state
 	virtual FGenericTeamId GetGenericTeamId() const override;
 

@@ -113,6 +113,7 @@ void AMFHoldoutPoint::UpdateLook()
 AMFGameMode_Holdout::AMFGameMode_Holdout()
 {
 	GameName = TEXT("Holdout");
+	MFGameClass = TEXT("RageDomination");
 	InstructionSound = TEXT("Hold_the_Point");
 	NumTeams = 2;
 	GoalTeamScore = 6;     // minutes of hold time (RageDomination.GoalTeamScore)

@@ -8,6 +8,7 @@
 AMFGameMode_Coop::AMFGameMode_Coop()
 {
 	GameName = TEXT("Coop mode");
+	MFGameClass = TEXT("CoopMode");
 	GoalTeamScore = 3;      // CoopMode.FragLimit 3 (captures)
 	TimeLimit = 0;          // CoopMode.TimeLimit 0
 	BotCount = 12;          // MF MinPlayers 100 filled every start; 12 keeps low-end PCs happy (?Bots=N)

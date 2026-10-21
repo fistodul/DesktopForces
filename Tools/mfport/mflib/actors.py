@@ -11,6 +11,8 @@ All Mobile Forces knowledge about actors lives here; the C++ builder
   {"type": "periodic_sound", "sound", "radius", "volume", "pitch", "period", "interval", "phase"}
   {"type": "teleporter", "url", "tag", "event", "enabled", "changes_yaw", "changes_velocity", ...}
   {"type": "pickup", "weapon": class path, "respawn_time", "max_clip_ammo", "max_clips"}
+  {"type": "blocker", "team" ('255' = everyone), "radius", "height", "vehicles"}
+  {"type": "bot_spot", "health", "stationary", "loadout": [class paths], "team"}
   {"type": "legacy", "mf_class", "mf_name", "team", "props"}   (kept for future game modes)
 
 T3D only lists properties that differ from the class defaults, so the defaults the
@@ -245,6 +247,36 @@ class ActorMapper:
                                          max_clip_ammo=_int(props, 'MaxClipAmmo', {'MaxClipAmmo': 0}),
                                          max_clips=_int(props, 'MaxClips', {'MaxClips': 0}))]
             return out
+
+        if cls == 'Trigger' and (t3d.parse_bool(props.get('bBlockPlayers')) or t3d.parse_bool(props.get('bBlockActors'))) \
+                and t3d.parse_bool(props.get('bCollideActors'), True):
+            # mappers' invisible walls: a Trigger cylinder that blocks (Triggers default 40 x 40 uu)
+            return [self._legacy(a), dict(base, type='blocker', team='255',
+                                          radius=t3d.parse_float(props.get('CollisionRadius'), 40.0) * UU_TO_CM,
+                                          height=t3d.parse_float(props.get('CollisionHeight'), 40.0) * UU_TO_CM,
+                                          vehicles=t3d.parse_bool(props.get('bBlockActors')))]
+
+        if cls == 'LoadoutBlocker':
+            # a team's spawn room door (RageGame.LoadoutBlocker, team games only)
+            team = props.get('Team')
+            return [self._legacy(a), dict(base, type='blocker', team=_team(team) if team is not None else '0',
+                                          radius=t3d.parse_float(props.get('CollisionRadius'), 22.0) * UU_TO_CM,
+                                          height=t3d.parse_float(props.get('CollisionHeight'), 22.0) * UU_TO_CM,
+                                          vehicles=False)]
+
+        if cls == 'RageBot':
+            # a bot the mapper placed (coop defenders): its Health, favourite loadout, and a
+            # GroundSpeed of 0 for sentries
+            loadout = []
+            for k in range(12):
+                ref = t3d.parse_object_ref(props.get(f'aFavouriteLoadout({k})'))
+                item = PICKUP_CLASSES.get((ref or '').split('.')[-1])
+                if item and item not in loadout:
+                    loadout.append(item)
+            team = props.get('Team')
+            return [self._legacy(a), dict(base, type='bot_spot', health=_int(props, 'Health', {'Health': 100}),
+                                          stationary=t3d.parse_float(props.get('GroundSpeed'), 400.0) <= 0.0,
+                                          loadout=loadout, team=_team(team) if team is not None else '0')]
 
         if cls == 'Teleporter':
             # Engine.Teleporter: touching one with a URL moves you to (a random) one Tagged URL

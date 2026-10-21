@@ -343,6 +343,83 @@ class LevelConverter:
         print(f'  static meshes: {len(meshes)}')
         return meshes
 
+    # --- movers -------------------------------------------------------------
+    def convert_movers(self, pkg: Package, level: t3d.Block) -> list[dict]:
+        """Mover brushes -> a mesh each (its own space, around the pivot) + a 'mover' record.
+
+        MF maps use movers mostly as solid scenery outside the BSP (no key frames), a few spin
+        (PHYS_Rotating: windmills, fans) and a few open when bumped. GameInfo.IsRelevant drops
+        them per game type (bTeamPlay, bNonTeamPlay, CondGameType). Brush space -> world:
+        Location + Rotation * (vertex - PrePivot)."""
+        textures = {}
+        for i, imp in enumerate(pkg.imports):
+            if imp.class_name == 'Texture':
+                textures.setdefault(imp.name.lower(), pkg.full_path(-(i + 1)))
+        for e in pkg.exports:
+            if pkg.class_of(e) == 'Texture':
+                textures.setdefault(e.name.lower(), pkg.full_path(e.index))
+        out_dir = self.out / 'movers'
+        records = []
+        for a in level.children:
+            if a.kind != 'Actor' or a.cls != 'Mover':
+                continue
+            brushes = a.find('Brush')
+            polys = t3d.brush_polygons(brushes[0]) if brushes else []
+            if not polys:
+                continue
+            props = a.props
+            pivot = t3d.parse_vector(props.get('PrePivot'))
+            collide = t3d.parse_bool(props.get('bCollideActors'), True) and t3d.parse_bool(props.get('bBlockPlayers'), True)
+            mb = MeshBuilder(a.name)
+            mb.collision = 'complex' if collide else 'none'
+            for poly in polys:
+                tex = textures.get(poly.texture.lower(), poly.texture)
+                if poly.flags & PF_INVISIBLE:
+                    continue
+                key = material_key(tex, poly.flags | self.texture_flags(tex))
+                self._use(key)
+                usize, vsize = self.texture_size(tex)
+                verts = [_sub(v, pivot) for v in poly.vertices]
+                base = _sub(poly.origin, pivot)
+                if _dot(newell_normal(verts), poly.normal) < 0:
+                    verts = list(reversed(verts))
+
+                def vtx(p, poly=poly, base=base):
+                    d = _sub(p, base)
+                    return (_scale(p), poly.normal, ((_dot(d, poly.texture_u) + poly.pan_u) / usize, (_dot(d, poly.texture_v) + poly.pan_v) / vsize))
+
+                pts, tris = triangulate(verts)
+                vs = [vtx(p) for p in pts]
+                for i0, i1, i2 in tris:
+                    mb.add_triangle(key, vs[i0], vs[i1], vs[i2])
+            if not mb.triangle_count:
+                continue
+            mb.write(out_dir)
+            pitch, yaw, roll = t3d.parse_rotator(props.get('Rotation'))
+            rr = t3d.parse_rotator(props.get('RotationRate'))
+            keys = []
+            for k in range(8):
+                kp, kr = props.get(f'KeyPos({k})'), props.get(f'KeyRot({k})')
+                if kp or kr or k == 0:
+                    pr = t3d.parse_rotator(kr)
+                    keys.append({'pos': _scale(t3d.parse_vector(kp)), 'rot': [pr[0] * ROT_TO_DEG, pr[1] * ROT_TO_DEG, pr[2] * ROT_TO_DEG]})
+            cond = t3d.parse_object_ref(props.get('CondGameType')) or ''
+            records.append({
+                'type': 'mover', 'name': a.name, 'mesh': f'movers/{a.name}',
+                'location': _scale(t3d.parse_vector(props.get('Location'))),
+                'rotation': {'pitch': pitch * ROT_TO_DEG, 'yaw': yaw * ROT_TO_DEG, 'roll': roll * ROT_TO_DEG},
+                'spin': [rr[0] * ROT_TO_DEG, rr[1] * ROT_TO_DEG, rr[2] * ROT_TO_DEG] if props.get('Physics') == 'PHYS_Rotating' else [0.0, 0.0, 0.0],
+                'keys': keys, 'move_time': t3d.parse_float(props.get('MoveTime'), 1.0),
+                'stay_open_time': t3d.parse_float(props.get('StayOpenTime'), 4.0),
+                'initial_state': props.get('InitialState', 'BumpOpenTimed'),
+                'collide': collide, 'tag': props.get('Tag', 'Mover').strip('"'),
+                'cond_game_type': cond.split('.')[-1] if cond else '',
+                'team_play': t3d.parse_bool(props.get('bTeamPlay'), True),
+                'non_team_play': t3d.parse_bool(props.get('bNonTeamPlay'), True),
+            })
+        print(f'  movers: {len(records)}')
+        return records
+
     # --- actors -------------------------------------------------------------
     def convert_actors(self, level: t3d.Block) -> list[dict]:
         actors = []
@@ -384,6 +461,7 @@ class LevelConverter:
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
+        spawns += self.convert_movers(pkg, level)
         roads = road_network(pkg, actors)
         if roads:
             spawns.append(dict(type='road_network', name='RoadNetwork', location=[0.0, 0.0, 0.0], **roads))

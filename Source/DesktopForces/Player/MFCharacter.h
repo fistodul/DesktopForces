@@ -66,6 +66,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "MF")
 	int32 GetHealth() const { return Health; }
+	/** Server: health and its cap (a mapper's placed bot with Health 300 ...). */
+	void SetHealthAndMax(int32 NewHealth) { MaxHealth = FMath::Max(1, NewHealth); Health = MaxHealth; }
 
 	UFUNCTION(BlueprintPure, Category = "MF")
 	bool IsAlive() const { return Health > 0 && !bDying; }

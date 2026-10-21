@@ -10,6 +10,7 @@
 AMFGameMode_Tug::AMFGameMode_Tug()
 {
 	GameName = TEXT("Tug of War");
+	MFGameClass = TEXT("TugGame");
 	NumTeams = 2;
 	GoalTeamScore = 3;      // TugGame FragLimit 3 (rounds)
 	TimeLimit = 8;          // per round

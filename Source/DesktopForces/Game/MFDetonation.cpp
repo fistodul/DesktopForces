@@ -144,6 +144,7 @@ void AMFDetonationLock::Tick1()
 AMFGameMode_Detonation::AMFGameMode_Detonation()
 {
 	GameName = TEXT("Detonation");
+	MFGameClass = TEXT("RageDetonation");
 	InstructionSound = TEXT("Get_the_key");
 	GoalTeamScore = 4;      // RageDetonation.GoalTeamScore
 	TimeLimit = 10;

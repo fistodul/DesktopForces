@@ -211,7 +211,7 @@ void AMFBotController::Fight(AMFCharacter* C, AMFCharacter* Target)
 		C->StopFire(true);
 		return;
 	}
-	if (W->IsMeleeWeapon())
+	if (W->IsMeleeWeapon() && !bStationary)
 	{
 		// knives (zombies): run at them, slash when in reach
 		MoveToActor(Target, 60.f, true, true, false);
@@ -248,7 +248,7 @@ void AMFBotController::Fight(AMFCharacter* C, AMFCharacter* Target)
 		}
 	}
 	// Strafe around (MF SetupStrafingAbility)
-	if (Now >= NextStrafe && !W->IsZoomed())
+	if (Now >= NextStrafe && !W->IsZoomed() && !bStationary)
 	{
 		NextStrafe = Now + FMath::FRandRange(0.8f, 2.f);
 		const FVector Side = FVector::CrossProduct((Target->GetActorLocation() - C->GetActorLocation()).GetSafeNormal(), FVector::UpVector);
@@ -382,7 +382,7 @@ bool AMFBotController::FollowOrder(AMFCharacter* C)
 
 void AMFBotController::Roam(AMFCharacter* C)
 {
-	if (FollowOrder(C))
+	if (bStationary || FollowOrder(C))
 	{
 		return;
 	}

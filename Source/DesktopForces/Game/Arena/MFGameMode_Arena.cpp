@@ -9,6 +9,7 @@
 AMFGameMode_Arena::AMFGameMode_Arena()
 {
 	GameName = TEXT("Arena");
+	MFGameClass = TEXT("arenaMode");
 	NumTeams = 2;
 	GoalTeamScore = 5;          // FragLimit 5 (rounds)
 	TimeLimit = 10;

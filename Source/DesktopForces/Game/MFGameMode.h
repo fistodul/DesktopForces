@@ -43,6 +43,8 @@ public:
 	virtual void SetPlayerDefaults(APawn* PlayerPawn) override;
 	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
 	virtual void HandleMatchHasStarted() override;
+	/** The mapper's placed RageBots (AMFBotSpot) come alive. */
+	void SpawnPlacedBots();
 	virtual void HandleMatchHasEnded() override;
 
 	/** Damage modifiers (hardcore x1.5, friendly fire). */
@@ -100,6 +102,10 @@ public:
 	{
 		return !InstructionSound.IsNone() ? InstructionSound : FName(IsTeamGame() ? TEXT("Destroy_the_enemy") : TEXT("Kill_them_all"));
 	}
+	/** The MF game class this mode stands for ("RageDeathMatch", "RageCTF", a mod's own ...):
+	 *  map actors with a CondGameType exist only in that one (GameInfo.IsRelevant). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	FName MFGameClass = TEXT("RageDeathMatch");
 	/** This mode's order (none: the deathmatch / team deathmatch one). */
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	FName InstructionSound;

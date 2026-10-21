@@ -81,6 +81,16 @@ heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigislan
   MaxClipAmmo / MaxClips kept: Space_station's armour respawns at once). Modes that limit the
   items leave them out; Coop's "weapons on the ground" setting uses them.
 - PeriodicSound: ambient loops that play Period s and pause Interval s (birds, wolves, wind).
+- Movers (brushes outside the BSP): mostly solid scenery; PHYS_Rotating ones spin at their
+  RotationRate (Prehistoric's circling pterodactyls, Treasure_Finders' windmills); doors with key
+  frames open when bumped (BumpOpenTimed / StandOpenTimed, MoveTime, StayOpenTime). Like every
+  UE1 actor they exist only in the game types GameInfo.IsRelevant allows (bTeamPlay,
+  bNonTeamPlay, CondGameType: City_Rush has a blocker per mode).
+- Invisible walls: Triggers the mappers made blocking (bBlockPlayers / bBlockActors) stop
+  soldiers (and vehicles with bBlockActors) - map edges and roofs on Toreford, Sardine_City,
+  Pobojowisko, City_Rush ...
+- Spawn room doors (RageGame.LoadoutBlocker, team games): the room's team walks through;
+  enemies, captains and flag / key carriers can't, and no projectile or shot gets through.
 
 ## Loadout
 - Crate trigger radius 129, height 26. DM crates only exist in non-team games, team crates

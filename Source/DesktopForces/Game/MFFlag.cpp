@@ -397,6 +397,7 @@ void AMFFlagBase::BeginPlay()
 AMFGameMode_CTF::AMFGameMode_CTF()
 {
 	GameName = TEXT("CTF");
+	MFGameClass = TEXT("RageCTF");
 	InstructionSound = TEXT("Get_the_flag");
 	GoalTeamScore = 4;      // RageCTF.GoalTeamScore
 	TimeLimit = 20;

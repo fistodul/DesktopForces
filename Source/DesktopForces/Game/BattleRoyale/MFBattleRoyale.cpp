@@ -19,6 +19,7 @@
 AMFGameMode_BattleRoyale::AMFGameMode_BattleRoyale()
 {
 	GameName = TEXT("Battle Royale");
+	MFGameClass = TEXT("battleRoyale");
 	NumTeams = 0;
 	FragLimit = 12;   // the community servers' MobileForces.ini (battleRoyale: 30)
 	TimeLimit = 12;

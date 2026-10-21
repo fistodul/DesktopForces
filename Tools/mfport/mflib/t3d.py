@@ -177,3 +177,45 @@ def static_mesh_triangles(block: Block) -> list[SMTriangle]:
         if len(verts) == 3:
             tris.append(SMTriangle(tex, flags, smooth, verts))
     return tris
+
+
+@dataclass
+class BrushPoly:
+    texture: str
+    flags: int
+    origin: tuple[float, float, float]
+    normal: tuple[float, float, float]
+    texture_u: tuple[float, float, float]
+    texture_v: tuple[float, float, float]
+    pan_u: int
+    pan_v: int
+    vertices: list[tuple[float, float, float]]
+
+
+def brush_polygons(brush: Block) -> list[BrushPoly]:
+    """Polygons of a 'Begin Brush' block (Begin PolyList / Begin Polygon Texture= Flags= with
+    Origin, Normal, Pan U= V=, TextureU, TextureV, Vertex lines), in the brush's own space."""
+    out = []
+    for plist in brush.find('PolyList'):
+        for poly in plist.find('Polygon'):
+            vec = {}
+            pan_u = pan_v = 0
+            verts = []
+            for line in poly.lines:
+                parts = line.split(None, 1)
+                if len(parts) < 2:
+                    continue
+                key, rest = parts
+                if key == 'Pan':
+                    kv = dict(_KV.findall(rest))
+                    pan_u, pan_v = int(kv.get('U', 0)), int(kv.get('V', 0))
+                elif key == 'Vertex':
+                    verts.append(tuple(_float(c) for c in rest.split(',')))
+                else:
+                    vec[key] = tuple(_float(c) for c in rest.split(','))
+            if len(verts) >= 3:
+                out.append(BrushPoly(poly.header.get('Texture', ''), int(poly.header.get('Flags', 0)),
+                                     vec.get('Origin', (0.0, 0.0, 0.0)), vec.get('Normal', (0.0, 0.0, 1.0)),
+                                     vec.get('TextureU', (1.0, 0.0, 0.0)), vec.get('TextureV', (0.0, 1.0, 0.0)),
+                                     pan_u, pan_v, verts))
+    return out

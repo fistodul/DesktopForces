@@ -29,6 +29,10 @@
 #include "World/MFRoadNetwork.h"
 #include "World/MFTeleporter.h"
 #include "World/MFPickupSpot.h"
+#include "World/MFMover.h"
+#include "World/MFBlocker.h"
+#include "World/MFBotSpot.h"
+#include "GameFramework/RotatingMovementComponent.h"
 #include "Weapons/MFWeapon.h"
 #include "Components/CapsuleComponent.h"
 #include "Lightmass/PrecomputedVisibilityVolume.h"
@@ -154,10 +158,65 @@ namespace
 
 	/** Records a built map can take in place, without a rebuild or a new bake (`--steps patch`):
 	 *  actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box), the road graph
-	 *  (road_network), teleporters, periodic sounds, pickups. nullptr for any other record. */
-	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP, TFunctionRef<USoundWave*(const FString&)> FindSound)
+	 *  (road_network), teleporters, periodic sounds, pickups, movers, blockers, placed bots. nullptr for any other record. */
+	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP, TFunctionRef<USoundWave*(const FString&)> FindSound,
+		TFunctionRef<UStaticMesh*(const FString&)> LoadMesh)
 	{
 		const FString Type = R->GetStringField(TEXT("type"));
+		if (Type == TEXT("bot_spot"))
+		{
+			AMFBotSpot* B = World->SpawnActor<AMFBotSpot>(Vec(R, TEXT("location")), Rot(R), SP);
+			B->Health = int32(R->GetNumberField(TEXT("health")));
+			B->bStationary = R->GetBoolField(TEXT("stationary"));
+			B->Team = Team(R->GetStringField(TEXT("team")));
+			for (const TSharedPtr<FJsonValue>& W : R->GetArrayField(TEXT("loadout")))
+			{
+				if (UClass* C = LoadClass<AMFWeapon>(nullptr, *W->AsString()))
+				{
+					B->Loadout.Add(C);
+				}
+			}
+			return B;
+		}
+		if (Type == TEXT("blocker"))
+		{
+			AMFBlocker* B = World->SpawnActor<AMFBlocker>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			B->Team = Team(R->GetStringField(TEXT("team")));
+			B->bBlockVehicles = R->GetBoolField(TEXT("vehicles"));
+			B->SetCylinder(R->GetNumberField(TEXT("radius")), R->GetNumberField(TEXT("height")));
+			return B;
+		}
+		if (Type == TEXT("mover"))
+		{
+			UStaticMesh* MoverMesh = LoadMesh(R->GetStringField(TEXT("mesh")));
+			if (!MoverMesh)
+			{
+				return nullptr;
+			}
+			AMFMover* M = World->SpawnActor<AMFMover>(Vec(R, TEXT("location")), Rot(R), SP);
+			M->Mesh->SetStaticMesh(MoverMesh);
+			if (!R->GetBoolField(TEXT("collide")))
+			{
+				M->Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			}
+			const TArray<TSharedPtr<FJsonValue>>& S = R->GetArrayField(TEXT("spin"));
+			M->Spin->RotationRate = FRotator(S[0]->AsNumber(), S[1]->AsNumber(), S[2]->AsNumber());
+			for (const TSharedPtr<FJsonValue>& K : R->GetArrayField(TEXT("keys")))
+			{
+				const TSharedPtr<FJsonObject> KO = K->AsObject();
+				const TArray<TSharedPtr<FJsonValue>>& KR = KO->GetArrayField(TEXT("rot"));
+				M->KeyPos.Add(Vec(KO, TEXT("pos")));
+				M->KeyRot.Add(FRotator(KR[0]->AsNumber(), KR[1]->AsNumber(), KR[2]->AsNumber()));
+			}
+			M->MoveTime = R->GetNumberField(TEXT("move_time"));
+			M->StayOpenTime = R->GetNumberField(TEXT("stay_open_time"));
+			M->InitialState = FName(*R->GetStringField(TEXT("initial_state")));
+			const FString Cond = R->GetStringField(TEXT("cond_game_type"));
+			M->CondGameType = Cond.IsEmpty() ? NAME_None : FName(*Cond);
+			M->bTeamPlay = R->GetBoolField(TEXT("team_play"));
+			M->bNonTeamPlay = R->GetBoolField(TEXT("non_team_play"));
+			return M;
+		}
 		if (Type == TEXT("teleporter"))
 		{
 			AMFTeleporter* T = World->SpawnActor<AMFTeleporter>(Vec(R, TEXT("location")), Rot(R), SP);
@@ -436,7 +495,8 @@ bool FMFImporter::BuildMap(const FString& MapName)
 				Actor->RerunConstructionScripts();
 			}
 		}
-		else if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); }))
+		else if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); },
+			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); }))
 		{
 			Actor = Data;
 		}
@@ -575,7 +635,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	// graph into an already built (and baked) map: they don't touch the lighting, so no rebuild
 	FString Text;
 	TSharedPtr<FJsonObject> Level;
-	if (!FFileHelper::LoadFileToString(Text, *(WorkDir / TEXT("Maps") / MapName / TEXT("level.json"))) ||
+	const FString MapDir = WorkDir / TEXT("Maps") / MapName;
+	if (!FFileHelper::LoadFileToString(Text, *(MapDir / TEXT("level.json"))) ||
 		!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Level) || !Level)
 	{
 		return false;
@@ -603,7 +664,7 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>()
-			|| It->IsA<AMFTeleporter>() || It->IsA<AMFPeriodicSound>() || It->IsA<AMFPickupSpot>())
+			|| It->IsA<AMFTeleporter>() || It->IsA<AMFPeriodicSound>() || It->IsA<AMFPickupSpot>() || It->IsA<AMFMover>() || It->IsA<AMFBlocker>() || It->IsA<AMFBotSpot>())
 		{
 			World->EditorDestroyActor(*It, true);
 			++Removed;
@@ -614,7 +675,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
-		if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); }))
+		if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); },
+			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); }))
 		{
 			Data->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;

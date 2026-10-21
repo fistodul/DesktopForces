@@ -220,6 +220,7 @@ void AMFSafe::UpdateLook()
 AMFGameMode_Safecracker::AMFGameMode_Safecracker()
 {
 	GameName = TEXT("SafeCracker");
+	MFGameClass = TEXT("RageSafeCracker");
 	TimeLimit = 9;          // RageSafeCracker.TimeLimit
 	GoalTeamScore = 1;
 	RespawnWait = 5;        // RespawnWait / MissionRespawnWait

@@ -29,6 +29,7 @@ int32 UMFZombieHide::FilterDamage(int32 Damage, const UMFDamageType* Type)
 AMFGameMode_Zombie::AMFGameMode_Zombie()
 {
 	GameName = TEXT("Zombie Mode");
+	MFGameClass = TEXT("ZombieGame");
 	NumTeams = 2;
 	GoalTeamScore = 3;          // FragLimit 3 (rounds)
 	TimeLimit = 8;              // per round
