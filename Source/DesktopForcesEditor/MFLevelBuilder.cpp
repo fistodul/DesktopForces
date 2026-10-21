@@ -25,6 +25,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
+#include "World/MFZoneVolume.h"
 #include "Lightmass/PrecomputedVisibilityVolume.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
@@ -335,6 +336,19 @@ bool FMFImporter::BuildMap(const FString& MapName)
 			Z->Team = Team(R->GetStringField(TEXT("team")));
 			Actor = Z;
 		}
+		else if (Type == TEXT("zone_volume"))
+		{
+			// UE1 zone with gameplay (water, pain, current) -> a physics volume over its bounds
+			const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
+			AMFZoneVolume* Z = World->SpawnActor<AMFZoneVolume>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
+			MakeBoxBrush(World, Z, (Max - Min) * 0.5f);
+			Z->bWaterVolume = R->GetBoolField(TEXT("water"));
+			Z->DamagePerSec = R->GetNumberField(TEXT("damage_per_sec"));
+			Z->ZoneVelocity = Vec(R, TEXT("velocity"));
+			Z->ZoneName = R->GetStringField(TEXT("zone_name"));
+			Z->Priority = Z->bWaterVolume ? 1 : 2;
+			Actor = Z;
+		}
 		else if (Type == TEXT("zone_box"))
 		{
 			const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
@@ -466,6 +480,69 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Map %s: %d actors -> %s (%s)"), *MapName, Spawned, *PackageName, bSaved ? TEXT("saved") : TEXT("SAVE FAILED"));
 
+	GEngine->DestroyWorldContext(World);
+	World->DestroyWorld(false);
+	World->RemoveFromRoot();
+	return bSaved;
+}
+
+bool FMFImporter::PatchZones(const FString& MapName)
+{
+	// water / pain / current volumes into an already built (and baked) map: they don't touch
+	// the lighting, so no rebuild
+	FString Text;
+	TSharedPtr<FJsonObject> Level;
+	if (!FFileHelper::LoadFileToString(Text, *(WorkDir / TEXT("Maps") / MapName / TEXT("level.json"))) ||
+		!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Level) || !Level)
+	{
+		return false;
+	}
+	const FString PackageName = Packs.MapPackage(MapName);
+	UPackage* Pkg = LoadPackage(nullptr, *PackageName, LOAD_None);
+	UWorld* World = Pkg ? UWorld::FindWorldInPackage(Pkg) : nullptr;
+	if (!World)
+	{
+		UE_LOG(LogMFEditor, Warning, TEXT("Zones %s: map %s not built"), *MapName, *PackageName);
+		return false;
+	}
+	World->AddToRoot();
+	if (!World->bIsWorldInitialized)
+	{
+		UWorld::InitializationValues IVS;
+		IVS.RequiresHitProxies(false).ShouldSimulatePhysics(false).EnableTraceCollision(false).CreateNavigation(false)
+			.CreateAISystem(false).AllowAudioPlayback(false).CreatePhysicsScene(true);
+		World->InitWorld(IVS);
+		World->UpdateWorldComponents(true, false);
+	}
+	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Editor);
+	Context.SetCurrentWorld(World);
+	int32 Removed = 0, Added = 0;
+	for (TActorIterator<AMFZoneVolume> It(World); It; ++It)
+	{
+		World->EditorDestroyActor(*It, true);
+		++Removed;
+	}
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
+	{
+		const TSharedPtr<FJsonObject> R = V->AsObject();
+		if (R->GetStringField(TEXT("type")) != TEXT("zone_volume"))
+		{
+			continue;
+		}
+		const FVector Min = Vec(R, TEXT("box_min")), Max = Vec(R, TEXT("box_max"));
+		AMFZoneVolume* Z = World->SpawnActor<AMFZoneVolume>((Min + Max) * 0.5f, FRotator::ZeroRotator, SP);
+		MakeBoxBrush(World, Z, (Max - Min) * 0.5f);
+		Z->bWaterVolume = R->GetBoolField(TEXT("water"));
+		Z->DamagePerSec = R->GetNumberField(TEXT("damage_per_sec"));
+		Z->ZoneVelocity = Vec(R, TEXT("velocity"));
+		Z->ZoneName = R->GetStringField(TEXT("zone_name"));
+		Z->Priority = Z->bWaterVolume ? 1 : 2;
+		++Added;
+	}
+	const bool bSaved = (Removed || Added) ? SaveAsset(World) : true;
+	UE_LOG(LogMFEditor, Display, TEXT("Zones %s: %d volumes (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
 	World->RemoveFromRoot();

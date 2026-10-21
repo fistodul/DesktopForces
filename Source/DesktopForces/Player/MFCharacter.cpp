@@ -1,6 +1,7 @@
 #include "Player/MFCharacter.h"
 #include "Sound/SoundBase.h"
 #include "Core/MFContent.h"
+#include "World/MFZoneVolume.h"
 #include "Vehicles/MFVehicle.h"
 #include "Core/MFUserSettings.h"
 #include "Player/MFCharacterMovement.h"
@@ -92,6 +93,10 @@ void AMFCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	Health = MaxHealth;
+	if (HasAuthority())
+	{
+		GetWorldTimerManager().SetTimer(BreathTimer, this, &AMFCharacter::BreathTick, 1.f, true);
+	}
 	FirstPersonCamera->SetFieldOfView(DefaultFOV);
 	if (IsLocallyControlled() && Scalability::GetQualityLevels().PostProcessQuality >= 3)
 	{
@@ -398,9 +403,42 @@ void AMFCharacter::UpdateFootsteps(float DeltaSeconds)
 	if (FMath::FloorToInt(0.5f * PI + 9.f * StepBobTime / PI) != Before)
 	{
 		static const TCHAR* Steps[] = { TEXT("Sounds/RagePlayerSounds/stone01"), TEXT("Sounds/RagePlayerSounds/stone02"), TEXT("Sounds/RagePlayerSounds/stone03") };
-		MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(Steps[FMath::RandRange(0, 2)]),
-			GetActorLocation() - FVector(0.f, 0.f, GetSimpleCollisionHalfHeight()), 0.6f, 1000.f);   // volume 2.2, radius 1000
+		const FVector Foot = GetActorLocation() - FVector(0.f, 0.f, GetSimpleCollisionHalfHeight() * 0.9f);
+		if (AMFZoneVolume::FindWater(GetWorld(), Foot))
+		{
+			MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/LSplash")), Foot, 0.3f, 1000.f);   // WaterStep
+		}
+		else
+		{
+			MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(Steps[FMath::RandRange(0, 2)]), Foot, 0.6f, 1000.f);   // volume 2.2, radius 1000
+		}
 	}
+}
+
+void AMFCharacter::BreathTick()
+{
+	// HeadRegion.Zone.bWaterZone: UnderWaterTime of air, then PainTimer: 5 'Drowned' every 2 s;
+	// coming up after a while: a gasp (GaspSound once it hurt, else BreathAgain)
+	if (!IsAlive())
+	{
+		return;
+	}
+	const bool bUnder = AMFZoneVolume::FindWater(GetWorld(), FirstPersonCamera->GetComponentLocation()) != nullptr;
+	if (bUnder)
+	{
+		HeadUnderFor += 1.f;
+		if (HeadUnderFor > UnderWaterTime && FMath::Fmod(HeadUnderFor - UnderWaterTime, 2.f) < 1.f)
+		{
+			FDamageEvent Ev(UMFDamage_Drowned::StaticClass());
+			TakeDamage(5.f, Ev, nullptr, nullptr);
+		}
+		return;
+	}
+	if (HeadUnderFor >= 5.f)
+	{
+		MulticastBodySound(uint8(EBodySound::Gasp), 0.5f, HeadUnderFor > UnderWaterTime ? 0 : 1);
+	}
+	HeadUnderFor = 0.f;
 }
 
 void AMFCharacter::OnJumped_Implementation()
@@ -426,6 +464,7 @@ void AMFCharacter::MulticastBodySound_Implementation(uint8 Kind, float Volume, u
 	case EBodySound::Jump: Rel = TEXT("Sounds/RagePlayerSounds/jump1"); Radius = 1200.f; break;
 	case EBodySound::LandGrunt: Rel = TEXT("Sounds/RagePlayerSounds/land10"); Radius = 1200.f; Pitch = FMath::FRandRange(0.8f, 1.2f); break;
 	case EBodySound::Land: Rel = TEXT("Sounds/MiscSFX/Land1"); Radius = 1000.f; break;
+	case EBodySound::Gasp: Rel = Variant == 0 ? TEXT("Sounds/RagePlayerSounds/hgasp1") : TEXT("Sounds/RagePlayerSounds/gasp02"); break;
 	}
 	MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(Rel), GetActorLocation(), Volume, Radius, Pitch);
 }

@@ -9,6 +9,7 @@ UMFCharacterMovement::UMFCharacterMovement()
 	MaxWalkSpeed = 900.f;                      // MF Pawn.BaseGroundSpeed 400 uu/s
 	MaxWalkSpeedCrouched = 270.f;              // UE1 crouch: 0.3 x ground speed
 	MaxSwimSpeed = 450.f;                      // MF Pawn.WaterSpeed 200
+	Buoyancy = 0.99f;                          // RPlayer.Buoyancy 99 / Mass 100: sinks very slowly
 	MaxFlySpeed = 900.f;                       // MF RPlayer.AirSpeed 400
 	MaxAcceleration = 4608.f;                  // MF RPlayer.AccelRate 2048
 	JumpZVelocity = 731.25f;                   // MF Pawn.JumpZ 325

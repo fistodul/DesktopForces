@@ -1,5 +1,8 @@
 #include "Vehicles/MFVehicle.h"
 #include "Vehicles/MFVehicles.h"
+#include "Vehicles/Boat/MFVehicle_Boat.h"
+#include "Vehicles/Jeep/MFVehicle_Jeep.h"
+#include "Vehicles/MFVehicleTurret.h"
 #include "DesktopForces.h"
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
@@ -137,6 +140,20 @@ void AMFVehicle::BeginPlay()
 	LastCompression.Init(0.f, Wheels.Num());
 	WheelSpin.Init(0.f, Wheels.Num());
 	Body->OnComponentHit.AddDynamic(this, &AMFVehicle::OnBodyHit);
+	if (!EngineSounds.IsEmpty())
+	{
+		auto Default = [this](FString& Path, const TCHAR* Name) { if (Path.IsEmpty()) { Path = FString::Printf(TEXT("Sounds/%s/%s"), *EngineSounds, Name); } };
+		Default(EngineStartSound, TEXT("EngineStart"));
+		Default(EngineLoopSound, TEXT("Engine1"));
+		Default(EngineStopSound, TEXT("EngineStop"));
+	}
+	for (const AMFLegacyActor* W : AMFLegacyActor::FindAll(GetWorld(), TEXT("PhysicalWaterInfo")))
+	{
+		if (const FString* H = W->Properties.Find(TEXT("WaterHeight")))
+		{
+			WaterPlaneZ = FCString::Atof(**H) * 2.25f;   // uu -> cm
+		}
+	}
 	if (HasAuthority())
 	{
 		const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
@@ -221,8 +238,41 @@ void AMFVehicle::Tick(float DeltaSeconds)
 	}
 }
 
+void AMFVehicle::ApplyWater(float Dt)
+{
+	// Bill's physics water plane (PhysicalWaterInfo.SetWaterHeight): buoyancy at the box's bottom
+	// corners and centre, equal to the weight with Buoyancy % of the body under; water drag
+	Submerged = 0.f;
+	if (WaterPlaneZ < -1e8f)
+	{
+		return;
+	}
+	const FTransform T = Body->GetComponentTransform();
+	const FVector E = BoxExtent;
+	const FVector Points[] = { FVector(E.X, E.Y, -E.Z), FVector(E.X, -E.Y, -E.Z), FVector(-E.X, E.Y, -E.Z), FVector(-E.X, -E.Y, -E.Z), FVector(0.f, 0.f, -E.Z) };
+	const float Height = 2.f * E.Z;
+	const float Weight = MassKg * -GetWorld()->GetGravityZ();
+	const float Float = FMath::Max(BuoyancyPercent, 5.f) / 100.f;
+	for (const FVector& Local : Points)
+	{
+		const FVector P = T.TransformPosition(Local);
+		const float Depth = FMath::Clamp(WaterPlaneZ - P.Z, 0.f, Height);
+		if (Depth > 0.f)
+		{
+			Body->AddForceAtLocation(FVector(0.f, 0.f, Weight / 5.f * Depth / (Float * Height)), P);
+			Submerged += Depth / Height / 5.f;
+		}
+	}
+	if (Submerged > 0.f)
+	{
+		Body->AddForce(-Body->GetPhysicsLinearVelocity() * MassKg * 1.5f * Submerged);
+		Body->AddTorqueInRadians(-Body->GetPhysicsAngularVelocityInRadians() * MassKg * 20000.f * Submerged);
+	}
+}
+
 void AMFVehicle::SimulateWheels(float Dt)
 {
+	ApplyWater(Dt);
 	if (!Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle))
 	{
 		return;   // parked and settled: no traces, no forces
@@ -296,6 +346,7 @@ void AMFVehicle::SimulateWheels(float Dt)
 		Body->AddForceAtLocation(Up * Fz + WRight * FLat + WFwd * FLong, Contact);
 		WheelSpin[i] += VLong / FMath::Max(W.Radius, 1.f) * Dt;
 	}
+	SimulateDrive(Dt);
 	// TurboCars: crouch held in the driver's seat, on the ground, below the nitro top speed
 	if (bTurbo && bNitro && Driver && Grounded > 0 && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed)
 	{
@@ -880,13 +931,13 @@ void AMFVehicle::UpdateEngineSound()
 {
 	// Car state Driving: EngineStartSound, 0.5 s later the engine loop at SoundPitch 64 + 2 x
 	// speed / 60 (uu/s; 64 = normal pitch), EndState: EngineStopSound
-	const bool bWant = bDriveable && Driver && !bBlownUp && !EngineSounds.IsEmpty();
+	const bool bWant = bDriveable && Driver && !bBlownUp && !EngineLoopSound.IsEmpty();
 	if (bWant != bEngineOn)
 	{
 		bEngineOn = bWant;
 		if (bWant)
 		{
-			UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/EngineStart"), *EngineSounds)), Body,
+			UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(EngineStartSound), Body,
 				NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.8f, 1.f, 0.f, MF::GetAttenuation(1600.f));
 			GetWorldTimerManager().SetTimer(EngineStartTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 			{
@@ -896,7 +947,7 @@ void AMFVehicle::UpdateEngineSound()
 				}
 				if (!EngineAudio)
 				{
-					EngineAudio = UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/Engine1"), *EngineSounds)), Body,
+					EngineAudio = UGameplayStatics::SpawnSoundAttached(MF::LoadClassic<USoundBase>(EngineLoopSound), Body,
 						NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.5f, 1.f, 0.f, MF::GetAttenuation(2500.f), nullptr, false);
 				}
 				else
@@ -912,9 +963,9 @@ void AMFVehicle::UpdateEngineSound()
 			{
 				EngineAudio->Stop();
 			}
-			if (!bBlownUp && !EngineSounds.IsEmpty())
+			if (!bBlownUp)
 			{
-				MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/EngineStop"), *EngineSounds)), GetActorLocation(), 0.8f);
+				MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(EngineStopSound), GetActorLocation(), 0.8f);
 			}
 		}
 	}
@@ -934,6 +985,24 @@ void AMFVehicle::UpdateEngineSound()
 	else if (SkidAudio && bSkid != SkidAudio->IsPlaying())
 	{
 		bSkid ? SkidAudio->Play() : SkidAudio->Stop();
+	}
+}
+
+void AMFVehicle::PassengerEntered(AMFCharacter* C, int32 Seat)
+{
+	TInlineComponentArray<UMFVehicleTurret*> Turrets(this);
+	for (UMFVehicleTurret* T : Turrets)
+	{
+		T->SeatEntered(C, Seat);
+	}
+}
+
+void AMFVehicle::PassengerLeft(AMFCharacter* C, int32 Seat)
+{
+	TInlineComponentArray<UMFVehicleTurret*> Turrets(this);
+	for (UMFVehicleTurret* T : Turrets)
+	{
+		T->SeatLeft(C, Seat);
 	}
 }
 
@@ -1023,10 +1092,39 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 		{ TEXT("TruckGenerator"), AMFVehicle_Truck::StaticClass() },
 		{ TEXT("ArmadilloGenerator"), AMFVehicle_Armadillo::StaticClass() },
 	};
-	int32 N = 0;
+	// MF VehicleGenerator with VehicleClass=Class'boat.boat' (MF-mods vehicles on community maps)
+	static const TPair<const TCHAR*, UClass*> ByClass[] = {
+		{ TEXT("boat.boat"), AMFVehicle_Boat::StaticClass() },
+		{ TEXT("jeep.jeep"), AMFVehicle_Jeep::StaticClass() },
+		{ TEXT("Rage.Buggy"), AMFVehicle_Buggy::StaticClass() },
+		{ TEXT("Rage.Humvee"), AMFVehicle_Humvee::StaticClass() },
+		{ TEXT("Rage.Truck"), AMFVehicle_Truck::StaticClass() },
+		{ TEXT("Rage.Armadillo"), AMFVehicle_Armadillo::StaticClass() },
+	};
+	TArray<TPair<AMFLegacyActor*, UClass*>> Spots;
 	for (const auto& Entry : Map)
 	{
 		for (AMFLegacyActor* L : AMFLegacyActor::FindAll(World, Entry.Key))
+		{
+			Spots.Add({ L, Entry.Value });
+		}
+	}
+	for (AMFLegacyActor* L : AMFLegacyActor::FindAll(World, TEXT("VehicleGenerator")))
+	{
+		const FString* Class = L->Properties.Find(TEXT("VehicleClass"));
+		for (const auto& Entry : ByClass)
+		{
+			if (Class && Class->Contains(FString(Entry.Key) + TEXT("'"), ESearchCase::IgnoreCase))
+			{
+				Spots.Add({ L, Entry.Value });
+			}
+		}
+	}
+	int32 N = 0;
+	for (const auto& Spot : Spots)
+	{
+		const TPair<const TCHAR*, UClass*> Entry(nullptr, Spot.Value);
+		for (AMFLegacyActor* L : { Spot.Key })
 		{
 			const FString* Auto = L->Properties.Find(TEXT("bAutoGenerate"));
 			if (Auto && Auto->Equals(TEXT("False"), ESearchCase::IgnoreCase))

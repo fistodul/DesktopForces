@@ -466,8 +466,8 @@ bool FMFImporter::ImportSounds(const FString& SubDir, bool bLooping)
 				{
 					// sounds MF plays as an actor's AmbientSound loop: vehicle engines, skids, fires
 					const FString Name = Wave->GetName();
-					const bool bLoop = Name.Equals(TEXT("Engine1"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("skid"), ESearchCase::IgnoreCase)
-						|| Name.EndsWith(TEXT("Loop"), ESearchCase::IgnoreCase);
+					const bool bLoop = Name.Equals(TEXT("Engine1"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("Engine"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("skid"), ESearchCase::IgnoreCase)
+						|| Name.EndsWith(TEXT("Loop"), ESearchCase::IgnoreCase) || Name.EndsWith(TEXT("EngineRunning"), ESearchCase::IgnoreCase);
 					if (Wave->AttenuationSettings != Attenuation || Wave->bLooping != bLoop)
 					{
 						Wave->AttenuationSettings = Attenuation;

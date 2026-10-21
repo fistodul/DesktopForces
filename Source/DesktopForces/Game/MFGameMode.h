@@ -162,6 +162,10 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	bool bTurboCars = true;
 
+	/** MF-mods jeeps (gunner seat) from the truck generators instead of trucks (?Jeeps=1). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
+	bool bJeeps = false;
+
 	/** MF-mods Armed APC at the Armadillo generators: 0 off, 1 machine gun, 2 rockets (?ArmedAPC=N). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	int32 ArmedAPC = 0;

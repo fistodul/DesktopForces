@@ -187,7 +187,21 @@ class ActorMapper:
 
         if cls in ('ZoneInfo', 'RageZoneInfo', 'RageWaterZone'):
             self._note_ambient(props)
-            return [self._legacy(a)]
+            out = [self._legacy(a)]
+            # water / pain / current: a volume over the zone's bounds (RageWaterZone: water)
+            water = t3d.parse_bool(props.get('bWaterZone'), cls == 'RageWaterZone')
+            pain = t3d.parse_bool(props.get('bPainZone')) and t3d.parse_float(props.get('DamagePerSec')) != 0
+            vel = t3d.parse_vector(props.get('ZoneVelocity'))
+            box = self.zone_bounds.get(a['zone'])
+            if box and min(hi - lo for lo, hi in zip(box[0], box[1])) < 10.0:
+                box = None   # flat zone bounds (a sheet): nothing to stand in
+            if box and (water or pain or any(vel)):
+                out.append(dict(base, type='zone_volume', box_min=box[0], box_max=box[1], water=water,
+                                damage_per_sec=t3d.parse_float(props.get('DamagePerSec')) if pain else 0.0,
+                                damage_type=(t3d.parse_object_ref(props.get('DamageType')) or props.get('DamageType', '') or '').strip("'\""),
+                                velocity=[c * UU_TO_CM for c in vel],
+                                zone_name=props.get('ZoneName', '').strip('"')))
+            return out
 
         if cls == 'LevelInfo':
             self._note_ambient(props)

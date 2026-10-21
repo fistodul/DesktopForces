@@ -22,6 +22,9 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScaleBox.h"
+#if WITH_EDITOR
+#include "TextureCompiler.h"
+#endif
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
@@ -82,6 +85,10 @@ public:
 		}
 		if (Background.IsValid())
 		{
+#if WITH_EDITOR
+			// editor builds compile textures in the background: until then the size is a placeholder's
+			FTextureCompilingManager::Get().FinishCompilation({ Background.Get() });
+#endif
 			BackgroundBrush.SetResourceObject(Background.Get());
 			BackgroundBrush.ImageSize = FVector2D(Background->GetSizeX(), Background->GetSizeY());
 		}

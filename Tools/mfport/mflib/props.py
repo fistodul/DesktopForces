@@ -21,7 +21,7 @@ from .textures import _package_path, texture_index
 from .upkg import Package
 
 # + MF-mods packages with weapon models (missing ones are skipped)
-PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'deagle', 'grenLaunch', 'battleRoyale')
+PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'deagle', 'grenLaunch', 'battleRoyale', 'boat', 'jeep')
 # packages whose StaticMeshes are props too (exported as T3D by UCC: Gregaras' CC0 Battle Royale models)
 STATIC_MESH_PACKAGES = ('battleRoyale',)
 
@@ -42,7 +42,7 @@ def convert(cfg: Config) -> Path:
             cls = pkg.class_of(exp)
             if cls == 'DeviceMesh':
                 mesh = devmesh.read(pkg, exp.name)
-                tris = [(f'{pkg_name}.{sec.material}' if sec.material else None, [mesh.vertices[i] for i in idx])
+                tris = [(_qualify(pkg_name, sec.material, tex_info) if sec.material else None, [mesh.vertices[i] for i in idx])
                         for sec, idx in mesh.triangles()] if mesh else None
             elif cls == 'LodMesh':
                 mesh = lodmesh.read(pkg, exp.name)
@@ -54,7 +54,7 @@ def convert(cfg: Config) -> Path:
                     nrm = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
                     ln = math.sqrt(_dot(nrm, nrm)) or 1.0
                     nrm = tuple(c / ln for c in nrm)
-                    tris.append((f'{pkg_name}.{ref}' if ref else None, [(c[0], nrm, c[1]) for c in corners]))
+                    tris.append((_qualify(pkg_name, ref, tex_info) if ref else None, [(c[0], nrm, c[1]) for c in corners]))
             else:
                 continue
             if not tris:
@@ -87,6 +87,15 @@ def convert(cfg: Config) -> Path:
     path = out_root / 'props.json'
     path.write_text(json.dumps({'meshes': meshes, 'texture_usage': {k: sorted(v) for k, v in sorted(usage.items())}}, indent=1))
     return path
+
+
+def _qualify(pkg_name: str, ref: str, tex_info: dict) -> str:
+    """A mesh's texture reference: "Skins.WheelLTex" (this package) or "Rage.Jhumvee3" (a texture
+    a mod reuses from another package)."""
+    own = f'{pkg_name}.{ref}'
+    if own.lower() in tex_info or '.' not in ref:
+        return own
+    return ref
 
 
 def _static_meshes(cfg: Config, pkg_name: str, tex_info: dict, out_root: Path,

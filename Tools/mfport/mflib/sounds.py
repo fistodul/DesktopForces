@@ -62,4 +62,5 @@ GAMEPLAY_PACKAGES = [
     'deagleSFX', 'gren',   # MF-mods weapons
     'WallHitSFX', 'GibsSFX',   # bullet impacts (RageEffect.AddWallHit), gibs
     'BuggySFX', 'HumveeSFX', 'TruckSFX', 'ArmadilloSFX', 'TrailerSFX', 'WheelSFX', 'VehicleFragSFX',   # vehicles
+    'boat', 'jeep',   # MF-mods boat (Gregaras), jeep (Marcin, Gregaras): engines, the jeep's gun
 ]

@@ -121,6 +121,10 @@ public:
 	/** HUD readout. */
 	float GetSpeedKmh() const;
 
+	/** The physics box (root) and its centre in MF body space: what parts are placed against. */
+	UBoxComponent* GetBody() const { return Body; }
+	const FVector& GetBoxCenter() const { return BoxCenter; }
+
 	/** Log position, physics state and wheel contacts (MFVehicles cheat). */
 	void DebugDump() const;
 
@@ -220,9 +224,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float ReInflatePause = 30.f;
 
-	/** Engine sounds: <package>.EngineStart / Engine1 (loop, pitch with speed) / EngineStop. */
+	/** handling.hnd2 Buoyancy: per cent of the body under water when it floats (cars 65, boat 50)
+	 *  on the map's PhysicalWaterInfo plane (MF vehicles only feel that plane, not water zones). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float BuoyancyPercent = 65.f;
+
+	/** Engine sounds: <package>.EngineStart / Engine1 (loop, pitch with speed) / EngineStop,
+	 *  or each one set ("Sounds/boat/boatEngineRunning"). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	FString EngineSounds;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	FString EngineStartSound;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	FString EngineLoopSound;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	FString EngineStopSound;
+
+	/** Per frame on the server after the wheels (boats: propeller thrust and rudder). */
+	virtual void SimulateDrive(float Dt) {}
+	bool IsFloating() const { return Submerged > 0.f; }
+	float GetWaterPlaneZ() const { return WaterPlaneZ; }
 
 	/** MF Armour: explosive damage taken x (1 - Armour). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
@@ -249,9 +270,9 @@ protected:
 	UPROPERTY(Replicated)
 	TArray<TObjectPtr<AMFCharacter>> Passengers;
 
-	/** Passenger seat taken / given up (ArmedAPC: the gunner seat). */
-	virtual void PassengerEntered(AMFCharacter* C, int32 Seat) {}
-	virtual void PassengerLeft(AMFCharacter* C, int32 Seat) {}
+	/** Passenger seat taken / given up (hands it to the vehicle's UMFVehicleTurrets). */
+	virtual void PassengerEntered(AMFCharacter* C, int32 Seat);
+	virtual void PassengerLeft(AMFCharacter* C, int32 Seat);
 	void SeatPassenger(AMFCharacter* C, int32 Seat);
 	void UnseatPassenger(AMFCharacter* C);
 	bool FindExitSpot(const AMFCharacter* C, FVector& OutSpot) const;
@@ -273,6 +294,10 @@ protected:
 	TArray<float> WheelSpin;
 	float UpsideDownTime = 0.f;
 	bool bBlownUp = false;
+	/** PhysicalWaterInfo.WaterHeight (cm); none: -inf. Submerged share of the body (0..1). */
+	float WaterPlaneZ = -1e9f;
+	float Submerged = 0.f;
+	void ApplyWater(float Dt);
 
 	/** Flat tyres, one bit per wheel (replicated: the flat mesh, the car pulls). */
 	UPROPERTY(ReplicatedUsing = OnRep_BlownWheels)

@@ -183,7 +183,7 @@ public:
 	virtual void OnJumped_Implementation() override;
 
 	/** RPlayer sounds (RagePlayerSounds, MiscSFX), heard by everyone around. */
-	enum class EBodySound : uint8 { Pain, Death, Jump, Land, LandGrunt };
+	enum class EBodySound : uint8 { Pain, Death, Jump, Land, LandGrunt, Gasp };
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastBodySound(uint8 Kind, float Volume, uint8 Variant);
 
@@ -205,6 +205,13 @@ protected:
 	float StepBobTime = 0.f;
 	float LastPainSound = -10.f;
 	void UpdateFootsteps(float DeltaSeconds);
+
+	/** Seconds the head may stay under water (RPlayer.UnderWaterTime 20), then 5 a 2 s (PainTimer). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF")
+	float UnderWaterTime = 20.f;
+	float HeadUnderFor = 0.f;
+	FTimerHandle BreathTimer;
+	void BreathTick();
 
 	/** Simple body shown to other players until the MF soldier meshes are converted. */
 	UPROPERTY(VisibleAnywhere, Category = "MF")
