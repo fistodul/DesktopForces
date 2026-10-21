@@ -11,7 +11,7 @@
 #include "UI/MFHUD.h"
 #include "UI/MFMenu.h"
 #include "Vehicles/MFVehicle.h"
-#include "Game/MFFlag.h"
+#include "Game/CTF/MFFlag.h"
 #include "Core/MFUserSettings.h"
 #include "World/MFMapActors.h"
 #include "Camera/CameraComponent.h"
@@ -933,6 +933,10 @@ void AMFPlayerController::PlayerTick(float DeltaTime)
 			const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
 			P->AddMovementInput(Yaw.Vector(), ForcedMove.X);
 			P->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), ForcedMove.Y);
+			if (ACharacter* Ch = Cast<ACharacter>(P); Ch && ForcedUp > 0.f)
+			{
+				Ch->Jump();   // held: jumps again on landing
+			}
 		}
 		if (P && Now >= ForcedMoveNextLog)
 		{
@@ -987,7 +991,9 @@ void AMFPlayerController::Suicide()
 
 void AMFPlayerController::ServerSuicide_Implementation()
 {
-	if (AMFCharacter* C = GetMFCharacter(); C && C->IsAlive())
+	// driving: the controller is on the vehicle, the soldier is its driver
+	AMFVehicle* V = Cast<AMFVehicle>(GetPawn());
+	if (AMFCharacter* C = V ? V->GetDriver() : GetMFCharacter(); C && C->IsAlive())
 	{
 		C->Die(this, UMFDamage_Suicide::StaticClass(), nullptr);   // PlayerPawn.Suicide: KilledBy(None)
 	}

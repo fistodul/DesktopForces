@@ -18,6 +18,7 @@ import math
 from pathlib import Path
 
 from . import t3d, ucc
+from . import mapedits
 from .actors import ActorMapper, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
@@ -454,6 +455,7 @@ class LevelConverter:
         model = LevelModel(pkg)
         level = t3d.parse(t3d.read_text(self.export_t3d())).children[0]
         actors = self.convert_actors(level)
+        mapedits.apply(self.map, actors)   # map_edits.toml
         ambients = self.zone_ambients(model, actors)
         world = self.convert_world(model, ambients)
         meshes = self.convert_static_meshes(level)

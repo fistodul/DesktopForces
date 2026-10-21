@@ -34,6 +34,42 @@ protected:
 };
 
 /**
+ * A MoBall goal (MoBallGoal): MF drew a faint translucent ring at each trailer park; this one
+ * shows the real scoring cylinder, an additive net in the team's colour (SM_MF_Ring,
+ * M_MF_GoalField; Tools/artgen goalfield).
+ */
+UCLASS(NotPlaceable)
+class DESKTOPFORCES_API AMFMoBallGoal : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AMFMoBallGoal();
+	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/** Whose goal: the other team scores here. */
+	UPROPERTY(ReplicatedUsing = OnRep_Team)
+	uint8 Team = 0;
+	/** The scoring cylinder around the actor: radius, half height (cm). */
+	float Radius = 720.f;
+	float HalfHeight = 244.f;
+
+	bool Contains(const FVector& P) const;
+	/** Server: set up after spawning (sizes the ring, from the ground up). */
+	void Init(uint8 InTeam);
+
+protected:
+	UFUNCTION()
+	void OnRep_Team();
+
+	UPROPERTY(VisibleAnywhere, Category = "MoBall")
+	TObjectPtr<UStaticMeshComponent> Ring;
+	/** The trailer park: the middle of the scoring cylinder (server). */
+	FVector Centre = FVector::ZeroVector;
+};
+
+/**
  * MoBall (MF-mods MoBall): football with vehicles. The ball appears at the map's trailer
  * generator; pushing it into the other team's goal (a trailer park) scores. Loadouts only hand
  * out knives, pistols and gadgets (groups 1, 2, 9, 10, 11). First to 4 goals; a draw at the end
@@ -67,8 +103,8 @@ protected:
 	void SpawnBall();
 	void CheckGoals();
 
-	struct FGoal { FVector Location; uint8 Team; };
-	TArray<FGoal> Goals;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AMFMoBallGoal>> Goals;
 	FTransform BallStart;
 	UPROPERTY(Transient)
 	TObjectPtr<AMFMoBallBall> Ball;

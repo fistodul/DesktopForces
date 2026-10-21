@@ -208,11 +208,18 @@ class ActorMapper:
             water = t3d.parse_bool(props.get('bWaterZone'), cls == 'RageWaterZone')
             pain = t3d.parse_bool(props.get('bPainZone')) and t3d.parse_float(props.get('DamagePerSec')) != 0
             vel = t3d.parse_vector(props.get('ZoneVelocity'))
+            # bGravityZone: its own gravity (mf-warehouse's roof vents: Z=-100 against the usual
+            # -950 uu/s2, an updraft that floats soldiers up; mf-Prehistoric: sideways, no Z).
+            # T3D leaves out what equals the class default (0, 0, -950) and zero struct members
+            gravity = None
+            if t3d.parse_bool(props.get('bGravityZone')) and props.get('ZoneGravity'):
+                gravity = [c * UU_TO_CM for c in t3d.parse_vector(props.get('ZoneGravity'))]
             box = self.zone_bounds.get(a['zone'])
             if box and min(hi - lo for lo, hi in zip(box[0], box[1])) < 10.0:
                 box = None   # flat zone bounds (a sheet): nothing to stand in
-            if box and (water or pain or any(vel)):
+            if box and (water or pain or any(vel) or gravity):
                 out.append(dict(base, type='zone_volume', box_min=box[0], box_max=box[1], water=water,
+                                **({'gravity': gravity} if gravity else {}),
                                 damage_per_sec=t3d.parse_float(props.get('DamagePerSec')) if pain else 0.0,
                                 damage_type=(t3d.parse_object_ref(props.get('DamageType')) or props.get('DamageType', '') or '').strip("'\""),
                                 velocity=[c * UU_TO_CM for c in vel],

@@ -29,17 +29,19 @@ The project was called `MobileForces` until 2026-10-20; `[CoreRedirects]` in
 | `Player/` | `AMFPlayerController` | `RagePlayer` input + loadout states | Enhanced Input built in code (original key map), loadout menu flow, weapon cycling, scoreboard; console commands `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot name` |
 | `Player/` | `UMFCheatManager` | — | debug commands: `MFNavTest` (path report), `MFTopView X Y Width` (ortho camera) |
 | `Weapons/` | `AMFWeapon` | `Weapon` > `RageWeapon` | ammo (clip + spare clips), state machine (equip/idle/fire/reload/zoom/put down), MF `Finish()` logic, hitscan `TraceFire`, projectiles, replication |
-| `Weapons/` | `AMFWeapon_<Name>` (`MFWeapon_<Name>.h/.cpp`, all via `MFWeapons.h`) | `RageKnife`, `Pistol`, `MachineGun`, `shotgun`, `RageRifle`, `RocketLauncher`, `Grenades`, `AdrenalineShot`, `RageArmour` | per-weapon numbers and special behaviour (twin barrels, charge shots, throw power, injecting, armour absorption) |
+| `Weapons/<Name>/` | `AMFWeapon_<Name>` (`MFWeapon_<Name>.h/.cpp`, stock ones via `MFWeapons.h`) | `RageKnife`, `Pistol`, `MachineGun`, `shotgun`, `RageRifle`, `RocketLauncher`, `Grenades`, `AdrenalineShot`, `RageArmour` | per-weapon numbers and special behaviour (twin barrels, charge shots, throw power, injecting, armour absorption) |
 | `Weapons/` | `AMFProjectile_*` | `Rocket`, `Grenade1`, `Grenade2`, `Knife_Thrown` | `UProjectileMovementComponent`, MF HurtRadius (linear falloff) |
 | `Loadout/` | `AMFLoadoutSource`, `AMFLoadoutCrate`, `AMFLoadoutZone` | `LoadoutCrate*`, `LoadoutZone` | where players may open loadout; item list; team / game-type relevance |
 | `Game/` | `AMFGameMode` (+`_DM`, `_TDM`) | `RageGameInfo` > `RageDeathMatch` > `RageTeamGame` | on `AGameMode` (UE match states): N teams (`?Teams=`), spawning (`FindPlayerStart`), bots (`?Bots=`), damage modifiers, scoring, match end, respawn, `GetBotGoals` |
-| `Game/` | `AMFGameMode_Holdout`, `AMFHoldoutPoint` | `RageDomination`, `RageDominationTimer` | capture points; hold time per team; one point per map by default, subclasses spawn more (KOH plugin) |
+| `Game/KOH/`, `Game/Holdout/` | `AMFGameMode_KOH`, `AMFHoldoutPoint`, `AMFGameMode_Holdout` | `RageDomination`, `RageDominationTimer`, MF-mods KOH | capture points: KOH is the base (several points, per-second scoring), Holdout one central point, Arena on top of Holdout |
+| `Game/<Mode>/` | `AMFGameMode_CTF`, `_Captains`, `_Detonation`, `_Safecracker`, `_Trailer`, ... | the Rage game types and MF-mods ones | one folder per game mode, MF's own and the mods' alike |
+| `Vehicles/<Name>/` | `AMFVehicle_<Name>` (stock ones via `MFVehicles.h`) | `Buggy`, `Humvee`, `Truck`, `Armadillo`, `TrailerCab` / `TrailerX`, MF-mods jeep, boat, heli, piper | one folder per vehicle; the base `AMFVehicle` (raycast wheels, seats, damage) in `Vehicles/` |
 | `Game/` | `AMFGameState`, `AMFPlayerState`, `AMFPlayerStart` | `RageGameRepInfo`, `PlayerReplicationInfo`, `PlayerStart` | on `AGameState` (`ElapsedTime`); team scores array; team/frags/deaths; team spawn points |
 | `Game/` | `UMFDeathMessage`, `UMFAnnouncement` | `RageDeathMessage`, `RPlayer.spreenote` | `ULocalMessage`s: kill feed, first blood, sprees, captures, match end |
 | `UI/` | `AMFHUD` | `RageHUD` | Canvas HUD: crosshair/scope, health/armour/ammo, weapon strip, clock, kill feed, loadout menu, scoreboard |
 | `World/` | `AMFMapInfo`, `AMFLegacyActor` | `LevelInfo`, everything not ported yet | map title/music; preserved original actors (class, team, raw properties) for future game modes |
 | `World/` | `AMFLadderVolume` | `LadderClimber` | ladder movement trigger + two-way nav link (ends placed by the level builder) |
-| `World/` | `AMFZoneVolume` | `ZoneInfo` water / pain / `ZoneVelocity` | physics volume over a UE1 zone's bounds: swimming, drowning, pain / healing, currents |
+| `World/` | `AMFZoneVolume` | `ZoneInfo` water / pain / `ZoneVelocity` / `ZoneGravity` | physics volume over a UE1 zone's bounds: swimming, drowning, pain / healing, currents, its own gravity (`GetGravityZ`) |
 | `World/` | `AMFTeleporter`, `AMFPeriodicSound`, `AMFPickupSpot` | `Teleporter`, `PeriodicSound`, `Inventory` placed in maps | teleporters (URL -> Tag), ambient loops on a period, items lying around that respawn after their RespawnTime |
 | `World/` | `AMFMover`, `AMFBlocker` | `Mover`, blocking `Trigger`s, `LoadoutBlocker` | brushes outside the BSP (scenery, spinners, bump doors; GameInfo.IsRelevant per mode), invisible walls, team spawn-room doors |
 | `World/` | `AMFRoadNetwork` | `RoadPoint`, `ReachSpec` with `R_ROAD` | the map's road graph (MF's reach specs, read from the `.umf`), A* routes for driving bots, `RoadPoint.MaxSpeed` per node |
@@ -58,9 +60,10 @@ Server-authoritative, UE replication from day one (listen and dedicated servers)
 - Loadout: client only *displays* the menu (`AMFHUD`), picks go through `ServerLoadoutPick`.
 
 ### Adding a weapon
-1. Subclass `AMFWeapon` (or an existing weapon) in a new `Weapons/MFWeapon_<Name>.h/.cpp`
-   (add it to `MFWeapons.h`); set the MF numbers in the constructor with a comment naming the
-   original value. Set `HUDIcon`/`HUDIconRect`.
+1. Subclass `AMFWeapon` (or an existing weapon) in a new folder, `Weapons/<Name>/MFWeapon_<Name>.h/.cpp`
+   (every weapon has its own folder, MF's and the mods' alike; stock ones are listed in
+   `MFWeapons.h`); set the MF numbers in the constructor with a comment naming the original
+   value. Set `HUDIcon`/`HUDIconRect`.
 2. Override `FireShot`/`TryFire`/`StartFire` only for behaviour that differs.
 3. Stock weapons: add to `LoadoutItems` in `Config/DefaultGame.ini`. Mod weapons: set
    `bAddToLoadout = true` (see [Modding.md](Modding.md)).

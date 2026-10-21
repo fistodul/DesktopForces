@@ -19,7 +19,7 @@ AMFZoneVolume::AMFZoneVolume()
 void AMFZoneVolume::BeginPlay()
 {
 	Super::BeginPlay();
-	SetActorTickEnabled(!ZoneVelocity.IsNearlyZero());
+	SetActorTickEnabled(!ZoneVelocity.IsNearlyZero() || (bGravityZone && !FVector2D(ZoneGravity).IsNearlyZero()));
 	if (HasAuthority() && !FMath::IsNearlyZero(DamagePerSec))
 	{
 		GetWorldTimerManager().SetTimer(PainHandle, this, &AMFZoneVolume::PainTimer, 1.f, true);
@@ -53,15 +53,22 @@ void AMFZoneVolume::ActorEnteredVolume(AActor* Other)
 	}
 }
 
+float AMFZoneVolume::GetGravityZ() const
+{
+	return bGravityZone ? ZoneGravity.Z : Super::GetGravityZ();
+}
+
 void AMFZoneVolume::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	// ZoneVelocity: drift with the current (UE1 adds it to the pawn's movement)
+	// ZoneVelocity: drift with the current (UE1 adds it to the pawn's movement); sideways
+	// gravity: UE's character movement only falls along Z, the rest is pushed here
+	const FVector Push = ZoneVelocity * 2.f + (bGravityZone ? FVector(ZoneGravity.X, ZoneGravity.Y, 0.f) : FVector::ZeroVector);
 	for (TActorIterator<AMFCharacter> It(GetWorld()); It; ++It)
 	{
 		if (It->IsAlive() && It->GetCharacterMovement()->GetPhysicsVolume() == this)
 		{
-			It->GetCharacterMovement()->AddImpulse(ZoneVelocity * DeltaSeconds * 2.f, true);
+			It->GetCharacterMovement()->AddImpulse(Push * DeltaSeconds, true);
 		}
 	}
 }

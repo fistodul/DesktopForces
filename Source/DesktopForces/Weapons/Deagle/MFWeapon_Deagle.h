@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Weapons/MFWeapon_Pistol.h"
+#include "Weapons/Pistol/MFWeapon_Pistol.h"
 #include "MFWeapon_Deagle.generated.h"
 
 /**

@@ -1,5 +1,5 @@
 #include "World/MFBlocker.h"
-#include "Game/MFFlag.h"
+#include "Game/CTF/MFFlag.h"
 #include "Game/MFGameMode.h"
 #include "Game/MFPlayerState.h"
 #include "Player/MFCharacter.h"

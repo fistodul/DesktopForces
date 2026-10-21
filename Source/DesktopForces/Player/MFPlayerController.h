@@ -314,7 +314,7 @@ protected:
 
 	// MFWalk: scripted movement input
 	FVector2D ForcedMove = FVector2D::ZeroVector;
-	/** Up > 0: Jump held (handbrake / climb), < 0: Crouch held (nitro / descend). */
+	/** Up > 0: Jump held (soldiers jump; handbrake / climb), < 0: Crouch held (nitro / descend). */
 	float ForcedUp = 0.f;
 	float ForcedMoveUntil = 0.f;
 	float ForcedMoveNextLog = 0.f;

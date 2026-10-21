@@ -48,6 +48,15 @@ struct FMFWheelSetup
 	FString BlownMesh;
 };
 
+namespace MF
+{
+	/** A wheel of MF's own cars (RageGame): Physics/<Vehicle>.COL sphere, cm; the flat tyre
+	 *  mesh follows MF's naming (WheelBlownMesh). */
+	DESKTOPFORCES_API FMFWheelSetup RageWheel(const FVector& Pos, float Radius, bool bSteer, bool bDrive, const TCHAR* Mesh);
+	/** handling.hnd2 MaxSpeed is in mph. */
+	constexpr float Mph = 1.609344f;
+}
+
 /**
  * Mobile Forces vehicle (MF Vehicle / Car): a physics box with raycast wheels - suspension
  * springs, engine force on the driven wheels, brakes, sideways grip - tuned from MF's own
@@ -90,14 +99,18 @@ public:
 	// --- seats -------------------------------------------------------------------------------
 	/** Server: put a soldier in (driver if the driver seat is free). False if full / too far. */
 	bool TryEnter(AMFCharacter* C);
-	/** Server: let the driver out at the nearest free door. */
+	/** Server: let the driver out at the first free door (else on the roof; forced: even if
+	 *  boxed in). */
 	void Exit(bool bForce = false);
+	/** Server: everyone out, boxed in or not (blown up, locked, gone). */
+	void ExitAll();
 	/** Server: take a particular passenger seat (1..) if it's free and in reach. */
 	bool EnterSeat(AMFCharacter* C, int32 Seat);
 	/** Server: let a passenger out (MF passengers sit or stand at aSeatsPos and keep their
 	 *  weapons; only the driver can't shoot). False if boxed in and not forced. */
 	bool ExitPassenger(AMFCharacter* C, bool bForce = false);
-	/** Server: a passenger died in their seat (they slide off it where they are). */
+	/** Server: someone died inside: a passenger slides off their seat where they are, the
+	 *  driver is put out first (their controller is on the vehicle and goes back to them). */
 	void PassengerDied(AMFCharacter* C);
 	/** Seat of this soldier: 0 driver, 1.. passengers, INDEX_NONE not inside. */
 	int32 GetSeatOf(const AMFCharacter* C) const;

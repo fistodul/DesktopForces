@@ -1,11 +1,11 @@
 #include "UI/MFHUD.h"
 #include "World/MFMapActors.h"
-#include "Game/MFFlag.h"
-#include "Game/MFSafecracker.h"
+#include "Game/CTF/MFFlag.h"
+#include "Game/Safecracker/MFSafecracker.h"
 #include "Loadout/MFLoadout.h"
 #include "Core/MFGameSettings.h"
 #include "Game/MFGameState.h"
-#include "Game/MFHoldout.h"
+#include "Game/Holdout/MFHoldout.h"
 #include "Game/MFPlayerState.h"
 #include "Player/MFCharacter.h"
 #include "Player/MFPlayerController.h"
@@ -627,7 +627,10 @@ void AMFHUD::DrawMiniMapMF(AMFCharacter* C)
 		}
 	}
 	// us: PlayerIcon_Team (Y=0), turned with the view (MF draws a 3D arrow here)
-	DrawIcon(P, TeamU, 0.f, C->GetControlRotation().Yaw - 90.f, true);   // the icon points down the map (+Y) unturned
+	// the icon is drawn pointing down the map (+Y) unturned (checked: facing +X it points the
+	// way walking forward moves the dot); the view is the player controller's (in a vehicle
+	// the soldier has no controller of their own)
+	DrawIcon(P, TeamU, 0.f, (PlayerOwner ? PlayerOwner->GetControlRotation().Yaw : C->GetActorRotation().Yaw) - 90.f, true);
 
 	// border: 16 px pieces around MiniMapSize + 4, team rects in MinimapNewIcons
 	const float BX = 6.f * RS, Edge = 16.f * RS, BS = (192.f + 4.f) * RS;

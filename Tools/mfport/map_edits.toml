@@ -1,0 +1,105 @@
+# Changes made to Mobile Forces maps when converting them (`mfport.py map`, mflib/mapedits.py).
+#
+# MF servers changed some maps at run time with mods; here the maps carry those changes
+# themselves (the converted map has the vehicle generators, like any it was made with):
+#   add_vehicles   extra vehicle generators (Gregaras' mutPack addVehicles default spots;
+#                  "...Unboxed" map versions were merged into the regular maps)
+#   generators     change a map's generators: { class = "<MF generator class>",
+#                  vehicle = "<MF vehicle class>" } turns every one of that class into a
+#                  VehicleGenerator of that vehicle
+# Vehicle classes as MF names them: Rage.Buggy / Humvee / Truck / Armadillo, heli.heli,
+# heli.heliHmg, jeep.jeep, boat.boat, piper.piper, piper.piperTs. Locations in cm, yaw in
+# degrees (mutPack genLoc x 2.25, genRot / 65536 x 360).
+#
+# Server admins can still add or swap vehicles without converting maps again:
+# UMFGameSettings AddedVehicles / VehicleSwaps (Game.ini).
+
+["BR-thebigisland"]
+# its truck was placed for the servers' replaceVehicles to make a heli
+generators = [{ class = "TruckGenerator", vehicle = "heli.heli" }]
+
+["mf-Polar"]
+add_vehicles = [
+  { vehicle = "heli.heli", location = [30296.2, -12906.0, -26136.0], yaw = -135.88 },
+  { vehicle = "heli.heli", location = [-12728.2, 19296.0, -25805.2], yaw = 90.73 },
+  { vehicle = "piper.piperTs", location = [28001.2, -14481.0, -28548.0], yaw = 134.93 },
+  { vehicle = "piper.piperTs", location = [-12231.0, 22234.5, -28287.0], yaw = 0.0 },
+]
+
+["mf-sawmill"]
+add_vehicles = [
+  { vehicle = "boat.boat", location = [15473.2, 8469.0, 3881.2], yaw = 147.06 },
+  { vehicle = "boat.boat", location = [14949.0, 8095.5, 3881.2], yaw = 111.64 },
+  { vehicle = "boat.boat", location = [5661.0, 20225.2, 3816.0], yaw = -56.65 },
+  { vehicle = "boat.boat", location = [5379.8, 19914.8, 3816.0], yaw = -43.86 },
+  { vehicle = "heli.heli", location = [2621.2, 24050.2, 4621.5], yaw = -118.02 },
+  { vehicle = "heli.heli", location = [17430.8, 3669.8, 4360.5], yaw = 24.15 },
+  { vehicle = "jeep.jeep", location = [16449.8, -7834.5, 4437.0], yaw = 26.98 },
+  { vehicle = "jeep.jeep", location = [-8606.2, 20450.2, 4158.0], yaw = 71.85 },
+]
+
+["mf-Treasure_Finders"]
+add_vehicles = [
+  { vehicle = "boat.boat", location = [24817.5, -28264.5, -2016.0], yaw = 100.9 },
+  { vehicle = "boat.boat", location = [28278.0, -28341.0, -2016.0], yaw = 82.79 },
+  { vehicle = "boat.boat", location = [30177.0, 17925.8, -2016.0], yaw = 0.92 },
+  { vehicle = "boat.boat", location = [30804.8, 20529.0, -2016.0], yaw = -90.18 },
+  { vehicle = "piper.piperTs", location = [27445.5, -31158.0, -1329.8], yaw = -89.41 },
+  { vehicle = "piper.piperTs", location = [27643.5, 19251.0, -1494.0], yaw = 137.81 },
+  { vehicle = "heli.heli", location = [25265.2, 19590.8, -1431.0], yaw = -8.61 },
+  { vehicle = "heli.heli", location = [25555.5, -29400.8, -1287.0], yaw = 0.0 },
+]
+
+["mf-Rail_Quarry"]
+add_vehicles = [
+  { vehicle = "heli.heli", location = [-15606.0, -16362.0, -9288.0], yaw = 0.0 },
+  { vehicle = "heli.heli", location = [11664.0, 15516.0, -9252.0], yaw = 180.0 },
+  { vehicle = "jeep.jeep", location = [-16605.0, -18396.0, -9540.0], yaw = 0.0 },
+  { vehicle = "jeep.jeep", location = [9252.0, 15219.0, -9090.0], yaw = 120.28 },
+  { vehicle = "piper.piperTs", location = [-8667.0, -17748.0, -9603.0], yaw = 180.0 },
+  { vehicle = "piper.piperTs", location = [4581.0, 18540.0, -9297.0], yaw = 180.0 },
+]
+
+["mf-western"]
+add_vehicles = [
+  { vehicle = "jeep.jeep", location = [15228.0, 5931.0, 2187.0], yaw = -102.92 },
+  { vehicle = "jeep.jeep", location = [15158.2, 2324.2, 2160.0], yaw = 106.7 },
+  { vehicle = "jeep.jeep", location = [15009.8, 34607.2, 2180.2], yaw = -99.67 },
+  { vehicle = "jeep.jeep", location = [15113.2, 30575.2, 2180.2], yaw = 104.63 },
+  { vehicle = "heli.heli", location = [18648.0, 4077.0, 3168.0], yaw = -90.0 },
+  { vehicle = "heli.heli", location = [18486.0, 32940.0, 3528.0], yaw = -90.0 },
+]
+
+["mf-dockyard"]
+add_vehicles = [
+  { vehicle = "heli.heli", location = [803.2, -22007.2, -432.0], yaw = 180.0 },
+  { vehicle = "heli.heli", location = [7053.8, 27535.5, 996.8], yaw = 180.0 },
+  { vehicle = "jeep.jeep", location = [-3867.8, 24025.5, -567.0], yaw = 0.0 },
+  { vehicle = "jeep.jeep", location = [-1381.5, -23841.0, -549.0], yaw = 90.0 },
+  { vehicle = "piper.piperTs", location = [8694.0, -11844.0, -501.8], yaw = 180.0 },
+  { vehicle = "piper.piperTs", location = [7170.8, 24752.2, -522.0], yaw = -90.0 },
+]
+
+["mf-airport"]
+add_vehicles = [
+  { vehicle = "heli.heli", location = [-16947.0, 5274.0, 369.0], yaw = 90.0 },
+  { vehicle = "heli.heli", location = [24889.5, 4965.8, 360.0], yaw = 119.0 },
+  { vehicle = "jeep.jeep", location = [-15750.0, 7715.2, 292.5], yaw = -90.0 },
+  { vehicle = "jeep.jeep", location = [22866.8, 8370.0, 292.5], yaw = 90.0 },
+  { vehicle = "piper.piperTs", location = [-17190.0, 10710.0, 369.0], yaw = -56.29 },
+  { vehicle = "piper.piperTs", location = [23127.8, 4956.8, 333.0], yaw = 90.0 },
+]
+
+["mf-waterfront"]
+add_vehicles = [
+  { vehicle = "heli.heli", location = [14724.0, -17174.2, -459.0], yaw = -130.17 },
+  { vehicle = "heli.heli", location = [14688.0, 23391.0, -486.0], yaw = 130.74 },
+  { vehicle = "jeep.jeep", location = [13995.0, -3989.2, -567.0], yaw = 180.0 },
+  { vehicle = "jeep.jeep", location = [13979.2, 10190.2, -432.0], yaw = 180.0 },
+]
+
+["mf-Carpark"]
+add_vehicles = [
+  { vehicle = "jeep.jeep", location = [8815.5, 2583.0, 9.0], yaw = 180.0 },
+  { vehicle = "jeep.jeep", location = [-7490.2, 76.5, -1467.0], yaw = 90.0 },
+]

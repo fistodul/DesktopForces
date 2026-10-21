@@ -329,8 +329,10 @@ void AMFVehicle::SimulateWheels(float Dt)
 		const FMFWheelSetup& W = Wheels[i];
 		// a flat tyre (MF BlowOutWheel) runs on the rim: lower, little grip, little drive
 		const bool bFlat = IsWheelBlown(i);
-		const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f));
-		const float RayLen = SuspensionTravel + W.Radius * (bFlat ? 0.75f : 1.f);
+		// from a wheel radius above the travel's top: inside the body, so a car that bottomed
+		// out (box on the ground, wheel tops below it) still finds the ground and lifts again
+		const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f + W.Radius));
+		const float RayLen = SuspensionTravel + W.Radius * (bFlat ? 1.75f : 2.f);
 		FHitResult Hit;
 		if (!GetWorld()->LineTraceSingleByChannel(Hit, Top, Top - Up * RayLen, ECC_Visibility, Params))
 		{
@@ -533,14 +535,16 @@ void AMFVehicle::UnseatPassenger(AMFCharacter* C)
 
 bool AMFVehicle::FindExitSpot(const AMFCharacter* C, FVector& OutSpot) const
 {
-	// first door with room for a soldier
-	OutSpot = GetActorLocation() + FVector(0.f, 0.f, BoxExtent.Z + 120.f);
+	// first door with room for a soldier, then the roof (a car on its side, doors against
+	// walls: getting out over the top beats being stuck inside)
+	const FVector Roof = GetActorLocation() + FVector(0.f, 0.f, BoxExtent.Z + C->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 20.f);
+	OutSpot = Roof;
 	const FCollisionShape Shape = FCollisionShape::MakeCapsule(C->GetCapsuleComponent()->GetScaledCapsuleRadius(), C->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFVehicleExit), false, this);
 	Params.AddIgnoredActor(C);
-	for (int32 D = 0; D < FMath::Max(1, DoorPositions.Num()); ++D)
+	for (int32 D = 0; D <= FMath::Max(1, DoorPositions.Num()); ++D)
 	{
-		const FVector Try = DoorExit(D);
+		const FVector Try = D < FMath::Max(1, DoorPositions.Num()) ? DoorExit(D) : Roof;
 		if (!GetWorld()->OverlapAnyTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params))
 		{
 			OutSpot = Try;
@@ -570,7 +574,15 @@ bool AMFVehicle::ExitPassenger(AMFCharacter* C, bool bForce)
 
 void AMFVehicle::PassengerDied(AMFCharacter* C)
 {
-	if (HasAuthority() && Passengers.Contains(C))
+	if (!HasAuthority() || !C)
+	{
+		return;
+	}
+	if (C == Driver)
+	{
+		Exit(true);
+	}
+	else if (Passengers.Contains(C))
 	{
 		UnseatPassenger(C);
 	}
@@ -642,56 +654,37 @@ bool AMFVehicle::TryEnter(AMFCharacter* C)
 	return true;
 }
 
+void AMFVehicle::ExitAll()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	Exit(true);
+	for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
+	{
+		if (P)
+		{
+			ExitPassenger(P, true);
+		}
+	}
+}
+
 void AMFVehicle::Exit(bool bForce)
 {
 	AMFCharacter* C = Driver;
-	if (HasAuthority() && !C && bForce)
-	{
-		for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
-		{
-			if (P)
-			{
-				ExitPassenger(P, true);
-			}
-		}
-	}
 	if (!HasAuthority() || !C)
 	{
 		return;
 	}
-	// first door with room for a soldier
-	FVector Spot = GetActorLocation() + FVector(0.f, 0.f, BoxExtent.Z + 120.f);
-	const FCollisionShape Shape = FCollisionShape::MakeCapsule(C->GetCapsuleComponent()->GetScaledCapsuleRadius(), C->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFVehicleExit), false, this);
-	Params.AddIgnoredActor(C);
-	bool bFound = false;
-	for (int32 D = 0; D < FMath::Max(1, DoorPositions.Num()) && !bFound; ++D)
-	{
-		const FVector Try = DoorExit(D);
-		if (!GetWorld()->OverlapAnyTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params))
-		{
-			Spot = Try;
-			bFound = true;
-		}
-	}
-	if (!bFound && !bForce)
+	FVector Spot;
+	if (!FindExitSpot(C, Spot) && !bForce)
 	{
 		return;   // boxed in: stay inside
 	}
 	AController* PC = GetController();
 	Driver = nullptr;
 	bDriverFire = bDriverAltFire = bNitro = false;
-	if (bForce)
-	{
-		// blown up / gone: passengers out too
-		for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
-		{
-			if (P)
-			{
-				ExitPassenger(P, true);
-			}
-		}
-	}
 	C->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	C->SetActorHiddenInGame(false);
 	C->SetActorEnableCollision(true);
@@ -711,7 +704,7 @@ void AMFVehicle::Destroyed()
 	UE_LOG(LogMF, Verbose, TEXT("Vehicle %s gone at %s"), *GetName(), *GetActorLocation().ToCompactString());
 	if (HasAuthority())
 	{
-		Exit(true);
+		ExitAll();
 		if (Trailer)
 		{
 			Trailer->Destroy();   // MF Vehicle.SilentDestroy: the trailer goes with the cab
@@ -749,7 +742,7 @@ void AMFVehicle::HitchTrailer(AMFVehicle* Other, const FVector& HitchPoint)
 void AMFVehicle::LockDown()
 {
 	bLocked = true;
-	Exit(true);
+	ExitAll();
 	if (Trailer)
 	{
 		Trailer->LockDown();
@@ -971,14 +964,7 @@ void AMFVehicle::BlowUp(AController* By)
 			Inside.Add(P);
 		}
 	}
-	Exit(true);
-	for (AMFCharacter* P : TArray<TObjectPtr<AMFCharacter>>(Passengers))
-	{
-		if (P)
-		{
-			ExitPassenger(P, true);
-		}
-	}
+	ExitAll();
 	for (AMFCharacter* C : Inside)
 	{
 		FDamageEvent Ev(UMFDamage_Explosion::StaticClass());
@@ -1256,6 +1242,32 @@ void AMFVehicleGenerator::SpawnAll(UWorld* World, const TArray<FVector>& Exclude
 		}
 	}
 	UE_LOG(LogMF, Log, TEXT("Vehicles: %d generators"), N);
+}
+
+FMFWheelSetup MF::RageWheel(const FVector& Pos, float Radius, bool bSteer, bool bDrive, const TCHAR* Mesh)
+{
+	FMFWheelSetup W;
+	W.Position = Pos;
+	W.Radius = Radius;
+	W.bSteer = bSteer;
+	W.bDrive = bDrive;
+	W.Mesh = Mesh;
+	// MF WheelBlownMesh: BuggyWheelFR -> BuggyWheelFRD, humwheelL -> HumveeWheelDL,
+	// TruckWheelL -> TruckWheelDL (Armadillo, Trailer the same)
+	const FString M(Mesh);
+	if (M.Contains(TEXT("Buggy")))
+	{
+		W.BlownMesh = M + TEXT("D");
+	}
+	else if (M.Contains(TEXT("humwheel")))
+	{
+		W.BlownMesh = TEXT("Rage/HumveeWheelD") + M.Right(1);
+	}
+	else
+	{
+		W.BlownMesh = M.LeftChop(1) + TEXT("D") + M.Right(1);
+	}
+	return W;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -20,6 +20,7 @@ Textures:
           team colour.
   bullethole0-3  Decals/T_MF_BulletHole* (128): a pit, crushed ring, flecks (RGBA)
   scorch0-1      Decals/T_MF_Scorch* (256): a blast mark with a ragged sooty edge (RGBA)
+  goalfield      T_MF_GoalField (256): MoBall goal wall, grey net fading upwards
 """
 from __future__ import annotations
 
@@ -158,7 +159,26 @@ def scorch(variant: int, size: int = 256) -> Image.Image:
     return Image.fromarray(img.clip(0, 255).astype(np.uint8), 'RGBA')
 
 
+def goal_field(size: int = 256) -> Image.Image:
+    """MoBall goal wall (MF: a translucent ring of CollisionGoalTex, black brackets on dark red):
+    grey for an additive material that tints it by team; a net of thin lines at 0/60/120
+    degrees, brightest at the bottom (v = 1), fading out at the top. Tiles."""
+    y, x = np.mgrid[0:size, 0:size].astype(np.float32) / size
+    net = np.zeros_like(x)
+    for deg, cells in ((0, 4), (60, 4), (120, 4)):
+        a = np.radians(deg)
+        # whole cells along the texture's edges, so it tiles: periods 1/cells across both axes
+        t = (np.round(np.cos(a) * cells) * x + np.round(np.sin(a) * cells * 1.0) * y) if deg else cells * y
+        f = np.abs(t - np.round(t))
+        net = np.maximum(net, np.clip(1 - f / 0.035, 0, 1))
+    fade = y ** 1.6
+    glow = net * (0.25 + 0.75 * fade) + 0.35 * fade ** 2
+    v = np.clip(glow, 0, 1) * 255
+    return Image.fromarray(np.stack([v, v, v], -1).astype(np.uint8), 'RGB')
+
+
 GENERATORS = {
+    'goalfield': ('Art/T_MF_GoalField.png', goal_field),
     'crate': ('Art/T_MF_Crate.png', crate),
     # decals: bullet holes and scorch marks (MF's own RagePock / Scorch art stays in the classic pack)
     **{f'bullethole{i}': (f'Art/Decals/T_MF_BulletHole{i}.png', (lambda i=i: bullet_hole(i))) for i in range(4)},

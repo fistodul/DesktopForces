@@ -10,8 +10,8 @@ class the game uses.
 The community's MF-mods were ported once as plugins; they are now ordinary code (2026-10-20:
 they always ship, so separate modules only added build steps), filed by kind next to the stock
 classes: game modes in `Source/DesktopForces/Game/<Mode>/`, weapons and items in
-`Weapons/<Name>/`, vehicles in `Vehicles/<Name>/` (2026-10-21; one folder per mod, so where a
-class came from stays obvious - the table below lists them). They are still the best examples
+`Weapons/<Name>/`, vehicles in `Vehicles/<Name>/` - one folder each, MF's own and the mods'
+alike (base classes at the top of each folder); the table below lists which came from MF-mods. They are still the best examples
 of how to extend the game:
 
 | Folder | Original (MF-mods; fistodul unless noted) | Shows |

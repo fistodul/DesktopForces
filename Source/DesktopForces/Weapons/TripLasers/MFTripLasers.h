@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Core/MFTypes.h"
-#include "Weapons/MFTripBomb.h"
+#include "Weapons/TripBombs/MFTripBomb.h"
 #include "Weapons/MFWeapons.h"
 #include "MFTripLasers.generated.h"
 

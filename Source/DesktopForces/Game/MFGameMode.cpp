@@ -1,7 +1,7 @@
 #include "Game/MFGameMode.h"
 #include "AI/MFNavigationSystem.h"
 #include "Vehicles/MFVehicle.h"
-#include "Weapons/MFTripBomb.h"
+#include "Weapons/TripBombs/MFTripBomb.h"
 #include "Weapons/MFProjectile.h"
 #include "Weapons/MFWeapon.h"
 #include "Player/MFCharacter.h"

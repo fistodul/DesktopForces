@@ -516,6 +516,7 @@ bool FMFImporter::ImportArt()
 	}
 	EnsureCrateMaterial();
 	EnsureDecalMaterials();
+	EnsureGoalAssets();
 	return true;
 }
 
@@ -602,6 +603,97 @@ void FMFImporter::EnsureDecalMaterials()
 			SaveAsset(MI);
 		}
 	}
+}
+
+void FMFImporter::EnsureGoalAssets()
+{
+	// MoBall goals (AMFMoBallGoal): an open ring, 1 m round and 1 m tall from its base (the
+	// actor scales it), with an additive team-tinted net (Tools/artgen goalfield) both sides
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_GoalField"), bCreated);
+	if (bCreated)
+	{
+		UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+		UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+		T->ParameterName = TEXT("Texture");
+		T->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Game/MF/Art/T_MF_GoalField.T_MF_GoalField"));
+		M->GetExpressionCollection().AddExpression(T);
+		UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(M);
+		Color->ParameterName = TEXT("Color");
+		Color->DefaultValue = FLinearColor(1.f, 0.2f, 0.1f);
+		Color->bUseCustomPrimitiveData = true;
+		Color->PrimitiveDataIndex = 0;
+		M->GetExpressionCollection().AddExpression(Color);
+		UMaterialExpressionMultiply* Tint = NewObject<UMaterialExpressionMultiply>(M);
+		Tint->A.Connect(0, T);
+		Tint->B.Connect(0, Color);
+		M->GetExpressionCollection().AddExpression(Tint);
+		UMaterialExpressionMultiply* Bright = NewObject<UMaterialExpressionMultiply>(M);
+		Bright->A.Connect(0, Tint);
+		Bright->ConstB = 3.f;   // reads in daylight too
+		M->GetExpressionCollection().AddExpression(Bright);
+		E->EmissiveColor.Connect(0, Bright);
+		M->SetShadingModel(MSM_Unlit);
+		M->BlendMode = BLEND_Additive;
+		M->TwoSided = true;
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+		UE_LOG(LogMFEditor, Display, TEXT("Created M_MF_GoalField"));
+	}
+
+	UStaticMesh* SM = FindOrCreateAsset<UStaticMesh>(TEXT("/Game/MF/Meshes"), TEXT("SM_MF_Ring"), bCreated);
+	if (!bCreated)
+	{
+		return;
+	}
+	FMeshDescription MD;
+	FStaticMeshAttributes Attr(MD);
+	Attr.Register();
+	TVertexAttributesRef<FVector3f> Positions = Attr.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> Normals = Attr.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector2f> UVs = Attr.GetVertexInstanceUVs();
+	UVs.SetNumChannels(1);
+	const FPolygonGroupID PG = MD.CreatePolygonGroup();
+	Attr.GetPolygonGroupMaterialSlotNames()[PG] = TEXT("Field");
+	constexpr int32 Segments = 48;
+	constexpr float Tiles = 12.f;   // net cells around
+	TArray<FVertexInstanceID> Bottom, Top;
+	for (int32 i = 0; i <= Segments; ++i)
+	{
+		const float A = UE_TWO_PI * i / Segments;
+		const FVector3f N(FMath::Cos(A), FMath::Sin(A), 0.f);
+		for (int32 Row = 0; Row < 2; ++Row)
+		{
+			const FVertexID V = MD.CreateVertex();
+			Positions[V] = N * 50.f + FVector3f(0.f, 0.f, Row * 100.f);
+			const FVertexInstanceID VI = MD.CreateVertexInstance(V);
+			Normals[VI] = N;
+			UVs.Set(VI, 0, FVector2f(Tiles * i / Segments, 1.f - Row));   // bright row of the texture at the bottom
+			(Row ? Top : Bottom).Add(VI);
+		}
+	}
+	for (int32 i = 0; i < Segments; ++i)
+	{
+		// outward-facing (UE: clockwise seen from the front)
+		MD.CreateTriangle(PG, { Bottom[i], Top[i], Bottom[i + 1] });
+		MD.CreateTriangle(PG, { Top[i], Top[i + 1], Bottom[i + 1] });
+	}
+	SM->PreEditChange(nullptr);
+	SM->GetStaticMaterials() = { FStaticMaterial(M, TEXT("Field"), TEXT("Field")) };
+	SM->SetNumSourceModels(1);
+	FStaticMeshSourceModel& Src = SM->GetSourceModel(0);
+	Src.BuildSettings.bRecomputeNormals = false;
+	Src.BuildSettings.bRecomputeTangents = true;
+	Src.BuildSettings.bGenerateLightmapUVs = false;
+	SM->CreateMeshDescription(0, MoveTemp(MD));
+	SM->CommitMeshDescription(0);
+	SM->CreateBodySetup();
+	SM->GetBodySetup()->bNeverNeedsCookedCollisionData = true;
+	SM->Build(true);
+	SM->PostEditChange();
+	SaveAsset(SM);
+	UE_LOG(LogMFEditor, Display, TEXT("Created SM_MF_Ring"));
 }
 
 void FMFImporter::EnsureCrateMaterial()

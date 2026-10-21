@@ -48,6 +48,8 @@ WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for Under
 20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
 hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
 heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigisland's current).
+Gravity zones (bGravityZone, ZoneGravity) pull soldiers their own way: mf-warehouse's roof vents
+are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's push sideways.
 
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.
@@ -149,6 +151,8 @@ heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigislan
   (MF `ball.COL`: 1 m radius) appears at the trailer generator; vehicles, soldiers and shots push
   it (by the square root of the damage, shotgun pellets 40 % of the time); into the other team's
   trailer park (192 + 128 uu, 64 up or down) scores, the ball goes 5 s later and a new one comes.
+  The goals show as rings of glowing net in the team colour over that whole scoring area (MF
+  drew a smaller faint ring, MoBallGoal).
   Loadouts only hand out groups 1, 2, 9, 10, 11 (knife, pistol, gadgets; `bRestrictWeapons`).
   First to 4; a draw after 15 min goes to sudden death. Works on any map with a trailer generator.
 - **Battle Royale** (`br`, MF-mods battleRoyale by Gregaras, `Game/BattleRoyale`): free for all,
@@ -302,9 +306,13 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   stalling below 15 m/s flat / 10 m/s climbing), Jump / Crouch pitch, steering rolls and
   yaws, Fire / AltFire roll alone. Touching down on three wheels lands it, anything else
   crashes. No bots fly it.
-- **Added vehicles** (mutPack addVehicles): per-map extra vehicles at the servers' spots
-  (`+AddedVehicles=` in `Config/DefaultGame.ini`: pipers, helis, boats, jeeps); `?AddVehicles=0`
-  turns them off.
+- **Added vehicles** (mutPack addVehicles): the servers' extra vehicles (pipers, helis, boats,
+  jeeps) are part of the maps: `Tools/mfport/map_edits.toml` places their generators when a map
+  is converted, and swaps a map's own (BR-thebigisland's truck is a heli, as the servers' heli
+  mod made it). Server admins can still add or swap vehicles per map without converting again:
+  `+AddedVehicles=(Map=...,VehicleClass=...,Location=(...),Yaw=...)` and
+  `+VehicleSwaps=(Map=...,From=...,To=...)` under `[/Script/DesktopForces.MFGameSettings]`
+  (`?AddVehicles=0` turns the added ones off).
 - **Trailer** (`trailer`, TrailerGame): a neutral cab (Humvee) towing a bomb trailer (ball-joint
   hitch) starts at the TrailerGenerator. Drive it into the enemy's delivery bay (TrailerDelivery,
   128 + 128 uu): it locks, "Trailer detonation in 5 sec", blows up (600, 1200 uu), team point and

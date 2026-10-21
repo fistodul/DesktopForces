@@ -87,6 +87,8 @@ public:
 	void EnsureCrateMaterial();
 	/** M_MF_Decal / M_MF_DecalQuad and their instances for Tools/artgen's bullet holes and scorch marks. */
 	void EnsureDecalMaterials();
+	/** SM_MF_Ring + M_MF_GoalField: MoBall's goal rings. */
+	void EnsureGoalAssets();
 
 	/**
 	 * MF sprite particles (MFEffectsImport.cpp, work/out/Effects from mfport.py effects):

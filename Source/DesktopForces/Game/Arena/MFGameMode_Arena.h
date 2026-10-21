@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/MFHoldout.h"
+#include "Game/Holdout/MFHoldout.h"
 #include "MFGameMode_Arena.generated.h"
 
 /**

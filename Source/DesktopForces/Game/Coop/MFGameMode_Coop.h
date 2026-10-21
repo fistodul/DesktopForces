@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/MFFlag.h"
+#include "Game/CTF/MFFlag.h"
 #include "MFGameMode_Coop.generated.h"
 
 /**

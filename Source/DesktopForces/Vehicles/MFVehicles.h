@@ -1,61 +1,15 @@
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Vehicles/MFVehicle.h"
-#include "MFVehicles.generated.h"
+// One folder per vehicle (Vehicles/<Name>/MFVehicle_<Name>.h/.cpp, MF's own cars and the
+// MF-mods ones alike); this header pulls in the whole garage. The base class: MFVehicle.h.
 
-/**
- * The MF vehicles. Numbers come from the game's own data: Physics/handling.hnd2 (mass, top
- * speed in mph, steering lock), Physics/<Vehicle>.COL (wheel spheres, metres: x right, y up,
- * z forward) and the Rage classes (seats, doors, camera distance, armour; uu x 2.25 = cm).
- */
-UCLASS()
-class DESKTOPFORCES_API AMFVehicle_Buggy : public AMFVehicle
-{
-	GENERATED_BODY()
-public:
-	AMFVehicle_Buggy();
-};
-
-UCLASS()
-class DESKTOPFORCES_API AMFVehicle_Humvee : public AMFVehicle
-{
-	GENERATED_BODY()
-public:
-	AMFVehicle_Humvee();
-};
-
-UCLASS()
-class DESKTOPFORCES_API AMFVehicle_Truck : public AMFVehicle
-{
-	GENERATED_BODY()
-public:
-	AMFVehicle_Truck();
-};
-
-/** The APC. */
-UCLASS()
-class DESKTOPFORCES_API AMFVehicle_Armadillo : public AMFVehicle
-{
-	GENERATED_BODY()
-public:
-	AMFVehicle_Armadillo();
-};
-
-/** Trailer mode's cab (MF TrailerCab extends Humvee): tows the bomb trailer. */
-UCLASS()
-class DESKTOPFORCES_API AMFVehicle_TrailerCab : public AMFVehicle_Humvee
-{
-	GENERATED_BODY()
-public:
-	AMFVehicle_TrailerCab();
-};
-
-/** MF TrailerX / BombTrailer: no engine, no seats, towed by a cab. */
-UCLASS()
-class DESKTOPFORCES_API AMFVehicle_Trailer : public AMFVehicle
-{
-	GENERATED_BODY()
-public:
-	AMFVehicle_Trailer();
-};
+#include "Vehicles/Buggy/MFVehicle_Buggy.h"
+#include "Vehicles/Humvee/MFVehicle_Humvee.h"
+#include "Vehicles/Truck/MFVehicle_Truck.h"
+#include "Vehicles/Armadillo/MFVehicle_Armadillo.h"
+#include "Vehicles/Trailer/MFVehicle_Trailer.h"
+#include "Vehicles/Jeep/MFVehicle_Jeep.h"
+#include "Vehicles/Boat/MFVehicle_Boat.h"
+#include "Vehicles/Heli/MFVehicle_Heli.h"
+#include "Vehicles/Piper/MFVehicle_Piper.h"
+#include "Vehicles/ArmedAPC/MFArmedAPC.h"

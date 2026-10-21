@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Core/MFTypes.h"
-#include "Weapons/MFWeapon_AdrenalineShot.h"
+#include "Weapons/AdrenalineShot/MFWeapon_AdrenalineShot.h"
 #include "MFBattleRoyaleActors.generated.h"
 
 class UBoxComponent;

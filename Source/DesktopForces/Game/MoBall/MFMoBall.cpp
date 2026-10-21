@@ -2,6 +2,8 @@
 #include "DesktopForces.h"
 #include "Core/MFContent.h"
 #include "Core/MFProps.h"
+#include "Core/MFGameSettings.h"
+#include "Net/UnrealNetwork.h"
 #include "Game/MFGameState.h"
 #include "World/MFMapActors.h"
 #include "Components/SphereComponent.h"
@@ -111,6 +113,64 @@ void AMFMoBallBall::Destroyed()
 	Super::Destroyed();
 }
 
+// --- goal ------------------------------------------------------------------------------------
+
+AMFMoBallGoal::AMFMoBallGoal()
+{
+	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	bAlwaysRelevant = true;
+	Ring = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Ring"));
+	Ring->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Ring->SetCastShadow(false);
+	Ring->SetCanEverAffectNavigation(false);
+	RootComponent = Ring;
+}
+
+void AMFMoBallGoal::BeginPlay()
+{
+	Super::BeginPlay();
+	Ring->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/MF/Meshes/SM_MF_Ring.SM_MF_Ring"), nullptr, LOAD_NoWarn | LOAD_Quiet));
+	OnRep_Team();
+}
+
+void AMFMoBallGoal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMFMoBallGoal, Team);
+}
+
+bool AMFMoBallGoal::Contains(const FVector& P) const
+{
+	// MoBallGoal.TestOverlap: within CollisionRadius 192 + 128 uu, CollisionHeight up or down
+	// (+ the ball's size); measured from the trailer park, not the ring's base
+	const FVector D = P - Centre;
+	return FMath::Abs(D.Z) < HalfHeight && FVector2D(D).Size() < Radius;
+}
+
+void AMFMoBallGoal::Init(uint8 InTeam)
+{
+	Team = InTeam;
+	Centre = GetActorLocation();
+	// the ring stands on the ground under the trailer park, as tall as the scoring cylinder
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFGoal), false, this);
+	float Base = Centre.Z - HalfHeight;
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Centre, Centre - FVector(0.f, 0.f, HalfHeight), ECC_WorldStatic, Params))
+	{
+		Base = Hit.ImpactPoint.Z;
+	}
+	SetActorLocation(FVector(Centre.X, Centre.Y, Base));
+	SetActorScale3D(FVector(Radius / 50.f, Radius / 50.f, (Centre.Z + HalfHeight - Base) / 100.f));
+	OnRep_Team();
+}
+
+void AMFMoBallGoal::OnRep_Team()
+{
+	const FLinearColor C = GetDefault<UMFGameSettings>()->GetTeamColor(Team);
+	Ring->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+}
+
 // --- mode ------------------------------------------------------------------------------------
 
 AMFGameMode_MoBall::AMFGameMode_MoBall()
@@ -139,12 +199,19 @@ void AMFGameMode_MoBall::HandleMatchHasStarted()
 	// PostBeginPlay: goals at the trailer parks, the ball at the trailer generator
 	for (AMFLegacyActor* L : AMFLegacyActor::FindAll(GetWorld(), TEXT("TrailerPark")))
 	{
-		Goals.Add({ L->GetActorLocation(), L->Team == 1 ? uint8(1) : uint8(0) });
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		if (AMFMoBallGoal* G = GetWorld()->SpawnActor<AMFMoBallGoal>(L->GetActorLocation(), FRotator::ZeroRotator, SP))
+		{
+			G->Init(L->Team == 1 ? uint8(1) : uint8(0));
+			Goals.Add(G);
+		}
 	}
 	const TArray<AMFLegacyActor*> Gen = AMFLegacyActor::FindAll(GetWorld(), TEXT("TrailerGenerator"));
 	BallStart = Gen.Num() ? Gen[0]->GetActorTransform() : FTransform::Identity;
 	BallStart.AddToTranslation(FVector(0.f, 0.f, 225.f));   // Location + (0, 0, 100 uu)
-	UE_LOG(LogMF, Log, TEXT("MoBall: %d goals, ball at %s"), Goals.Num(), *BallStart.GetLocation().ToCompactString());
+	UE_LOG(LogMF, Log, TEXT("MoBall: %d goals (%s), ball at %s"), Goals.Num(),
+		*FString::JoinBy(Goals, TEXT(", "), [](const AMFMoBallGoal* G) { return G->GetActorLocation().ToCompactString(); }), *BallStart.GetLocation().ToCompactString());
 	SpawnBall();
 	GetWorldTimerManager().SetTimer(GoalTimer, this, &AMFGameMode_MoBall::CheckGoals, 0.1f, true);
 }
@@ -173,14 +240,12 @@ void AMFGameMode_MoBall::CheckGoals()
 	{
 		return;
 	}
-	// MoBallGoal.TestOverlap: within CollisionRadius 192 + 128 uu of the goal, 64 uu up or down
 	const FVector B = Ball->GetActorLocation();
-	for (const FGoal& G : Goals)
+	for (const AMFMoBallGoal* G : Goals)
 	{
-		const FVector D = B - G.Location;
-		if (FMath::Abs(D.Z) < 144.f + 100.f && FVector2D(D).Size() < 720.f)
+		if (G && G->Contains(B))
 		{
-			const uint8 Scorer = 1 - G.Team;                 // into your own goal: the others score
+			const uint8 Scorer = 1 - G->Team;                // into your own goal: the others score
 			GS->TeamScores[Scorer] += 1;
 			Event(FString::Printf(TEXT("%s Team Score!"), *GS->GetTeamName(Scorer).ToString()), Scorer);
 			Ball->Expire(5.f);                                  // LifeSpan = 5

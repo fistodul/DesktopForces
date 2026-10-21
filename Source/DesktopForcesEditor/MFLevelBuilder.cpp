@@ -94,6 +94,31 @@ namespace
 		return S.IsNumeric() ? uint8(FMath::Clamp(FCString::Atoi(*S), 0, 255)) : MF::NoTeam;
 	}
 
+	/** An MF actor the game reads by class name and properties (AMFLegacyActor). */
+	AMFLegacyActor* SpawnLegacy(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP)
+	{
+		AMFLegacyActor* L = World->SpawnActor<AMFLegacyActor>(Vec(R, TEXT("location")), Rot(R), SP);
+		L->MFClass = FName(*R->GetStringField(TEXT("mf_class")));
+		L->MFName = FName(*R->GetStringField(TEXT("mf_name")));
+		L->Team = Team(R->GetStringField(TEXT("team")));
+		const TSharedPtr<FJsonObject>* Props = nullptr;
+		if (R->TryGetObjectField(TEXT("props"), Props))
+		{
+			for (const auto& P : (*Props)->Values)
+			{
+				L->Properties.Add(FString(P.Key), P.Value->AsString());
+			}
+		}
+		return L;
+	}
+
+	/** MF vehicle generators: what Tools/mfport/map_edits.toml changes, re-placed by a patch. */
+	bool IsVehicleGenerator(const FString& MFClass)
+	{
+		return MFClass == TEXT("VehicleGenerator") || MFClass == TEXT("BuggyGenerator") || MFClass == TEXT("HumveeGenerator")
+			|| MFClass == TEXT("TruckGenerator") || MFClass == TEXT("ArmadilloGenerator");
+	}
+
 	/** Set UPROPERTYs from text (same syntax as copy/paste in the editor). */
 	void ApplyProperties(UObject* Obj, const TSharedPtr<FJsonObject>& Props)
 	{
@@ -363,13 +388,15 @@ namespace
 		}
 		if (Type == TEXT("zone_volume"))
 		{
-			// UE1 zone with gameplay (water, pain, current) -> a physics volume over its bounds
+			// UE1 zone with gameplay (water, pain, current, gravity) -> a physics volume over its bounds
 			AMFZoneVolume* Z = World->SpawnActor<AMFZoneVolume>(Center, FRotator::ZeroRotator, SP);
 			MakeBoxBrush(World, Z, Extent);
 			Z->bWaterVolume = R->GetBoolField(TEXT("water"));
 			Z->DamagePerSec = R->GetNumberField(TEXT("damage_per_sec"));
 			Z->ZoneVelocity = Vec(R, TEXT("velocity"));
 			Z->ZoneName = R->GetStringField(TEXT("zone_name"));
+			Z->bGravityZone = R->HasField(TEXT("gravity"));
+			Z->ZoneGravity = Z->bGravityZone ? Vec(R, TEXT("gravity")) : FVector::ZeroVector;
 			Z->Priority = Z->bWaterVolume ? 1 : 2;
 			return Z;
 		}
@@ -639,19 +666,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 		}
 		else if (Type == TEXT("legacy"))
 		{
-			AMFLegacyActor* L = World->SpawnActor<AMFLegacyActor>(Loc, Rotation, SP);
-			L->MFClass = FName(*R->GetStringField(TEXT("mf_class")));
-			L->MFName = FName(*R->GetStringField(TEXT("mf_name")));
-			L->Team = Team(R->GetStringField(TEXT("team")));
-			const TSharedPtr<FJsonObject>* Props = nullptr;
-			if (R->TryGetObjectField(TEXT("props"), Props))
-			{
-				for (const auto& P : (*Props)->Values)
-				{
-					L->Properties.Add(FString(P.Key), P.Value->AsString());
-				}
-			}
-			Actor = L;
+			Actor = SpawnLegacy(World, R, SP);
 		}
 
 		if (Actor)
@@ -723,8 +738,9 @@ bool FMFImporter::BuildMap(const FString& MapName)
 
 bool FMFImporter::PatchMapData(const FString& MapName)
 {
-	// zone actors (water / pain / current volumes, loadout zones, captain boxes) and the road
-	// graph into an already built (and baked) map: they don't touch the lighting, so no rebuild
+	// zone actors (water / pain / current volumes, loadout zones, captain boxes), the road
+	// graph and the vehicle generators into an already built (and baked) map: they don't touch
+	// the lighting, so no rebuild
 	FString Text;
 	TSharedPtr<FJsonObject> Level;
 	const FString MapDir = WorkDir / TEXT("Maps") / MapName;
@@ -763,7 +779,8 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	{
 		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>()
 			|| It->IsA<AMFTeleporter>() || It->IsA<AMFPeriodicSound>() || It->IsA<AMFPickupSpot>() || It->IsA<AMFMover>() || It->IsA<AMFBlocker>() || It->IsA<AMFBotSpot>()
-			|| It->ActorHasTag(ParticleEffectTag))
+			|| It->ActorHasTag(ParticleEffectTag)
+			|| (It->IsA<AMFLegacyActor>() && IsVehicleGenerator(Cast<AMFLegacyActor>(*It)->MFClass.ToString())))
 		{
 			World->EditorDestroyActor(*It, true);
 			++Removed;
@@ -774,6 +791,12 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
+		if (R->GetStringField(TEXT("type")) == TEXT("legacy") && IsVehicleGenerator(R->GetStringField(TEXT("mf_class"))))
+		{
+			SpawnLegacy(World, R, SP)->SetActorLabel(R->GetStringField(TEXT("name")));
+			++Added;
+			continue;
+		}
 		if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); },
 			[this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); },
 			[this, &MapName](const TArray<TSharedPtr<FJsonValue>>& E) { return GetMapEffect(MapName, E); }))

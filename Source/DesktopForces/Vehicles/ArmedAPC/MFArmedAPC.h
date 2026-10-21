@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Vehicles/MFVehicles.h"
+#include "Vehicles/Armadillo/MFVehicle_Armadillo.h"
 #include "MFArmedAPC.generated.h"
 
 class UMFVehicleTurret;

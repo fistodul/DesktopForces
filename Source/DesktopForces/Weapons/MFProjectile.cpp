@@ -4,7 +4,7 @@
 #include "TimerManager.h"
 #include "Core/MFContent.h"
 #include "World/MFDecals.h"
-#include "Weapons/MFWeapon_Knife.h"
+#include "Weapons/Knife/MFWeapon_Knife.h"
 #include "Core/MFProps.h"
 #include "Player/MFCharacter.h"
 #include "Components/SphereComponent.h"
