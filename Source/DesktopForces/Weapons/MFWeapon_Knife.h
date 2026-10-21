@@ -16,6 +16,7 @@ public:
 	virtual bool IsMeleeWeapon() const override { return HasAmmoInClip(); }   // thrown away: not any more
 protected:
 	virtual void FireShot(bool bAlt) override;
+	virtual void PlayFireEffects(bool bAlt) override;
 	virtual void Finish() override;
 	UPROPERTY(EditDefaultsOnly, Category = "MF")
 	float MeleeRange = 202.5f;            // MF Range 90

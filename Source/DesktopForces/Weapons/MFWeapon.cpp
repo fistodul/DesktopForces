@@ -1,4 +1,6 @@
 #include "Weapons/MFWeapon.h"
+#include "Sound/SoundWave.h"
+#include "Components/AudioComponent.h"
 #include "Game/MFGameMode.h"
 #include "Core/MFProps.h"
 #include "Core/MFContent.h"
@@ -90,6 +92,7 @@ void AMFWeapon::PostInitializeComponents()
 void AMFWeapon::Destroyed()
 {
 	ClearStateTimer();
+	SetAmbientMFSound(nullptr);
 	Super::Destroyed();
 }
 
@@ -179,6 +182,40 @@ float AMFWeapon::GetMoveSpeedScale() const
 FString AMFWeapon::GetHUDStatus() const
 {
 	return FString();
+}
+
+void AMFWeapon::PlayMFSound(const TCHAR* MFName) const
+{
+	FString Package, Name;
+	if (GetNetMode() != NM_DedicatedServer && FString(MFName).Split(TEXT("."), &Package, &Name))
+	{
+		PlaySoundLocal(MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name)));
+	}
+}
+
+void AMFWeapon::SetAmbientMFSound(const TCHAR* MFName)
+{
+	if (AmbientAudio)
+	{
+		AmbientAudio->Stop();
+		AmbientAudio = nullptr;
+	}
+	FString Package, Name;
+	if (!MFName || GetNetMode() == NM_DedicatedServer || !FString(MFName).Split(TEXT("."), &Package, &Name))
+	{
+		return;
+	}
+	USoundBase* Sound = MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name));
+	if (USoundWave* Wave = Cast<USoundWave>(Sound))
+	{
+		Wave->bLooping = true;   // UE1 AmbientSound loops while it's set
+	}
+	const AMFCharacter* C = GetOwnerCharacter();
+	if (Sound && C)
+	{
+		AmbientAudio = UGameplayStatics::SpawnSoundAttached(Sound, C->GetRootComponent(), NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
+			true, 1.f, 1.f, 0.f, MF::GetAttenuation(1600.f));
+	}
 }
 
 void AMFWeapon::PlaySoundLocal(USoundBase* Sound) const
@@ -576,6 +613,7 @@ void AMFWeapon::OnEquip()
 void AMFWeapon::OnPutDown()
 {
 	bFireHeld = bAltFireHeld = false;
+	SetAmbientMFSound(nullptr);
 	if (ZoomLevel > 0)
 	{
 		ZoomLevel = 0;

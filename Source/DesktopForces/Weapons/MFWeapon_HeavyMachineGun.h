@@ -24,6 +24,7 @@ protected:
 	virtual void ToggleZoom() override;
 	void SpinTick();
 	FTimerHandle SpinTimer;
+	FTimerHandle DeploySoundTimer;
 	float SpinRate = 0.f;       // MF FireAnimRate
 	float ShotAccumulator = 0.f;
 	UPROPERTY(EditDefaultsOnly, Category = "MF")

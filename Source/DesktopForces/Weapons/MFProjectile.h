@@ -59,6 +59,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FString MFExplosionSound;
 
+	/** Looping sound on the way ("Package.Name", MF AmbientSound: the rocket's RocketFly). */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	FString MFAmbientSound;
+
+	/** Grenade1.Tick: "Ticking" every second for the first 3 s. */
+	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
+	bool bTicking = false;
+
 	/** Converted MF model ("RageWeapons/RocketMesh", mfport props); a small sphere without it. */
 	UPROPERTY(EditDefaultsOnly, Category = "MF|FX")
 	FString PropMesh;

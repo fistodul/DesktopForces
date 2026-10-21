@@ -23,7 +23,7 @@ AMFWeapon_HeavyMachineGun::AMFWeapon_HeavyMachineGun()
 	MaxClips = 1;
 	EquipTime = 0.667f;         // SelectUp 21 @30
 	PutDownTime = 0.667f;
-	ZoomTime = 1.026f;          // deploy: ActivateGun01 41 frames @30 x1.3
+	ZoomTime = 2.526f;          // deploy: ActivateGun01 41 frames @30 x1.3, 02 31 @30, 03 31 @30 x2
 	HitDamage = 45.f;
 	Accuracy = 0.6f;            // spread at standstill ...
 	AltAccuracy = 1.2f;         // ... and at full spin
@@ -44,12 +44,32 @@ void AMFWeapon_HeavyMachineGun::ToggleZoom()
 	{
 		return;
 	}
+	const bool bDeploying = ZoomLevel == 0;
 	if (ZoomLevel > 0)
 	{
 		GetWorldTimerManager().ClearTimer(SpinTimer);
 		SpinRate = 0.f;
 	}
+	GetWorldTimerManager().ClearTimer(DeploySoundTimer);
 	Super::ToggleZoom();
+	if (bDeploying && State == EMFWeaponState::Zooming)
+	{
+		// PlayAimUpAnim / PlayReloadingAnim / PlayPullbackAnim: tripod, magazine, step back
+		PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.SetupTripod"));
+		GetWorldTimerManager().SetTimer(DeploySoundTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.SetupMagazine"));
+			GetWorldTimerManager().SetTimer(DeploySoundTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.SetupStepBack"));
+			}), 1.f, false);
+		}), 1.026f, false);
+	}
+	else if (!bDeploying)
+	{
+		SetState(EMFWeaponState::Zooming, 1.f);   // PlayAimDownAnim: PickUpGun 31 frames @30
+		PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.Pickup"));
+	}
 }
 
 void AMFWeapon_HeavyMachineGun::StartFire(bool bAlt)

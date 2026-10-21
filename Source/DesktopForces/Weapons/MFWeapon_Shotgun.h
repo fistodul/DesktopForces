@@ -18,6 +18,7 @@ public:
 protected:
 	virtual bool TryFire(bool bAlt) override;
 	virtual void FireShot(bool bAlt) override;
+	virtual void PlayFireEffects(bool bAlt) override;
 	void FireAfterWindow();
 	FTimerHandle WindowTimer;
 	bool bWindowAlt = false;

@@ -63,6 +63,13 @@ void AMFWeapon_Rifle::StartFire(bool bAlt)
 		bCharging = true;
 		ChargeStart = GetWorld()->GetTimeSeconds();
 		bFireHeld = true;
+		// RageRifle.ClientFire: AmbientSound Powering until ShotPower hits 10 (4.5 s), then PoweredUp
+		SetAmbientMFSound(TEXT("WeaponSFX_SniperRifle.Powering"));
+		GetWorldTimerManager().SetTimer(PoweredUpTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			SetAmbientMFSound(nullptr);
+			PlayMFSound(TEXT("WeaponSFX_SniperRifle.PoweredUp"));
+		}), 4.5f, false);
 		return;   // fires on release
 	}
 	Super::StartFire(bAlt);
@@ -75,6 +82,8 @@ void AMFWeapon_Rifle::StopFire(bool bAlt)
 		ReleasedPower = GetShotPower();
 		bCharging = false;
 		bFireHeld = false;
+		GetWorldTimerManager().ClearTimer(PoweredUpTimer);
+		SetAmbientMFSound(nullptr);
 		if (IsLocallyControlled() && GetLocalRole() < ROLE_Authority)
 		{
 			ServerReleaseFire(ReleasedPower);

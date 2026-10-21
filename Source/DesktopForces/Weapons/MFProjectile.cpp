@@ -1,4 +1,5 @@
 #include "Weapons/MFProjectile.h"
+#include "Sound/SoundWave.h"
 #include "DesktopForces.h"
 #include "TimerManager.h"
 #include "Core/MFContent.h"
@@ -70,6 +71,34 @@ void AMFProjectile::BeginPlay()
 	if (HasAuthority() && FuseTime > 0.f)
 	{
 		SetLifeSpan(FuseTime);
+	}
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		FString Package, Name;
+		if (MFAmbientSound.Split(TEXT("."), &Package, &Name))
+		{
+			USoundBase* Loop = MF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name));
+			if (USoundWave* Wave = Cast<USoundWave>(Loop))
+			{
+				Wave->bLooping = true;
+			}
+			if (Loop)
+			{
+				UGameplayStatics::SpawnSoundAttached(Loop, RootComponent, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
+					true, 1.f, 1.f, 0.f, MF::GetAttenuation(1600.f));
+			}
+		}
+		if (bTicking)
+		{
+			FTimerHandle Tick;
+			GetWorldTimerManager().SetTimer(Tick, FTimerDelegate::CreateWeakLambda(this, [this]()
+			{
+				if (GetGameTimeSinceCreation() < 3.5f)
+				{
+					MF::PlaySoundRadius(this, MF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Grenades/Ticking")), GetActorLocation(), 1.f);
+				}
+			}), 1.f, true);
+		}
 	}
 	if (!ExplosionSound && !MFExplosionSound.IsEmpty() && GetNetMode() != NM_DedicatedServer)
 	{
@@ -169,6 +198,7 @@ AMFProjectile_Rocket::AMFProjectile_Rocket()
 	Momentum = 225000.f;                      // MF MomentumTransfer 100000
 	InitialLifeSpan = 10.f;
 	MFExplosionSound = TEXT("MiscSFX.Explode");
+	MFAmbientSound = TEXT("WeaponSFX_RocketLauncher.RocketFly");
 	PropMesh = TEXT("RageWeapons/RocketMesh");
 }
 
@@ -183,6 +213,7 @@ AMFProjectile_Grenade::AMFProjectile_Grenade()
 	Movement->BounceVelocityStopSimulatingThreshold = 45.f; // MF: speed < 20 uu -> stop
 	Movement->bRotationFollowsVelocity = false;
 	FuseTime = 3.f;                           // MF Grenade1.FuseTime
+	bTicking = true;
 	bExplodeOnImpact = false;
 	LaunchUpVelocity = 472.5f;                // MF Velocity.z += 210
 	Damage = 160.f;
@@ -195,6 +226,7 @@ AMFProjectile_Grenade::AMFProjectile_Grenade()
 AMFProjectile_ImpactGrenade::AMFProjectile_ImpactGrenade()
 {
 	FuseTime = 8.f;                           // MF Grenade2.FuseTime
+	bTicking = false;                         // only Grenade1 ticks
 	bExplodeOnImpact = true;
 	Damage = 120.f;
 	Momentum = 90000.f;

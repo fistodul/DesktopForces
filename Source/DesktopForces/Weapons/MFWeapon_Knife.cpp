@@ -80,6 +80,23 @@ void AMFWeapon_Knife::FireShot(bool bAlt)
 	}
 }
 
+void AMFWeapon_Knife::PlayFireEffects(bool bAlt)
+{
+	// PlayFiringAnim: one of five slash / stab sounds (FireSounds[Rand(5)])
+	static const TCHAR* Slashes[] = { TEXT("WeaponSFX_Knife.Fire"), TEXT("WeaponSFX_Knife.Fire01"), TEXT("WeaponSFX_Knife.Fire02"),
+		TEXT("WeaponSFX_Knife.Fire03"), TEXT("WeaponSFX_Knife.Fire04") };
+	if (bAlt)
+	{
+		Super::PlayFireEffects(bAlt);
+		return;
+	}
+	const TObjectPtr<USoundBase> Single = FireSound;
+	FireSound = nullptr;
+	Super::PlayFireEffects(bAlt);
+	FireSound = Single;
+	PlayMFSound(Slashes[FMath::RandRange(0, 4)]);
+}
+
 void AMFWeapon_Knife::Finish()
 {
 	// No reloading: an empty knife just idles until it comes back

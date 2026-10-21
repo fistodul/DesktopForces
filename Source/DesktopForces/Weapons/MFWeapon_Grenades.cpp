@@ -53,6 +53,9 @@ void AMFWeapon_Grenades::StartFire(bool bAlt)
 	bWinding = true;
 	bWindingAlt = bAlt;
 	WindUpStart = GetWorld()->GetTimeSeconds();
+	// PlayFiringAnim: the pin comes out with the teeth or by hand, then Powering while winding up
+	PlayMFSound(FMath::RandBool() ? TEXT("WeaponSFX_Grenades.PullPinTeeth") : TEXT("WeaponSFX_Grenades.PullPinHand"));
+	SetAmbientMFSound(TEXT("WeaponSFX_Grenades.Powering"));
 }
 
 void AMFWeapon_Grenades::StopFire(bool bAlt)
@@ -63,6 +66,7 @@ void AMFWeapon_Grenades::StopFire(bool bAlt)
 	}
 	const float Power = GetThrowPower();
 	bWinding = false;
+	SetAmbientMFSound(nullptr);
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		ServerThrow(bAlt, Power);

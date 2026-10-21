@@ -28,6 +28,8 @@ protected:
 	void ServerReleaseFire(float Power);
 	double ChargeStart = 0.0;
 	bool bCharging = false;
+	/** Full power reached: the Powering loop stops, PoweredUp plays. */
+	FTimerHandle PoweredUpTimer;
 	float ReleasedPower = 1.f;
 	UPROPERTY(Replicated)
 	float ZoomScaleAlpha = 0.f;

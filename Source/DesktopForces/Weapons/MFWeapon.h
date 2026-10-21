@@ -392,4 +392,10 @@ protected:
 
 	void PlaySoundLocal(USoundBase* Sound) const;
 	void ResolveSounds();
+	/** One of MF's sounds ("Package.Name"), played like PlaySoundLocal. */
+	void PlayMFSound(const TCHAR* MFName) const;
+	/** The weapon's looping AmbientSound ("Package.Name"; nullptr stops it): charging up. */
+	void SetAmbientMFSound(const TCHAR* MFName);
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> AmbientAudio;
 };

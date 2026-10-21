@@ -93,4 +93,19 @@ void AMFWeapon_Shotgun::FireShot(bool bAlt)
 	bTwin = false;
 }
 
+void AMFWeapon_Shotgun::PlayFireEffects(bool bAlt)
+{
+	if (!bTwin)
+	{
+		Super::PlayFireEffects(bAlt);
+		return;
+	}
+	// both barrels: TwinFireSound
+	const TObjectPtr<USoundBase> Single = FireSound;
+	FireSound = nullptr;
+	Super::PlayFireEffects(bAlt);
+	FireSound = Single;
+	PlayMFSound(TEXT("WeaponSFX_Shotgun.FireBoth"));
+}
+
 #undef LOCTEXT_NAMESPACE
