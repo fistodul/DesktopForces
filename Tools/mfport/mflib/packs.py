@@ -1,4 +1,5 @@
-"""Content packs: core (part of Desktop Forces) or classic (Mobile Forces Classic plugin).
+"""Content packs: core (part of Desktop Forces), classic (Mobile Forces Classic plugin) or
+unverified (Mobile Forces Unverified plugin: community content not vouched for yet).
 
 Decisions live in Tools/mfport/packs.toml (see the rules there). This module applies them and
 writes work/out/packs.json, which the UE importer reads to put every asset under the right
@@ -8,6 +9,7 @@ root:
            /MobileForcesClassic/Maps/<map> (+ <map>_Data)
   core     /Game/MF/Community/Textures|Materials|Sounds|Music/..., /Game/Maps/<map> (+ <map>_Data)
   replaced /Game/MF/Replacements/Textures|Materials/... (own art from overrides/textures)
+  unverified /MobileForcesUnverified/Textures|Sounds|Props/... ([unverified] packages)
 """
 from __future__ import annotations
 
@@ -49,7 +51,10 @@ def load() -> dict:
     core = data.get('core', {})
     maps = {m.lower(): m for m in core.get('maps', {}) if m.lower() not in RETAIL_PACKAGES}
     packages = {p.lower() for p in core.get('packages', {}) if p.lower() not in RETAIL_PACKAGES}
+    unverified = data.get('unverified', {})
     return {
+        'unverified_root': unverified.get('root', '/MobileForcesUnverified'),
+        'unverified_packages': {p.lower() for p in unverified.get('packages', []) if p.lower() not in RETAIL_PACKAGES},
         'classic_root': data.get('classic_root', '/MobileForcesClassic'),
         'core_root': data.get('core_root', '/Game/MF/Community'),
         'core_maps_root': data.get('core_maps_root', '/Game/Maps'),
@@ -64,7 +69,9 @@ def map_pack(packs: dict, name: str) -> str:
 
 
 def package_pack(packs: dict, package: str) -> str:
-    return 'core' if package.lower() in packs['core_packages'] else 'classic'
+    if package.lower() in packs['core_packages']:
+        return 'core'
+    return 'unverified' if package.lower() in packs['unverified_packages'] else 'classic'
 
 
 def write_manifest(cfg: Config) -> Path:
@@ -82,6 +89,8 @@ def write_manifest(cfg: Config) -> Path:
         'remaster_classic': packs['remaster_classic'],
         'maps': {m: map_pack(packs, m) for m in maps},
         'core_packages': sorted(packs['core_packages']),
+        'unverified_root': packs['unverified_root'],
+        'unverified_packages': sorted(packs['unverified_packages']),
         'replaced': replaced,
     }
     path = cfg.out_dir / 'packs.json'

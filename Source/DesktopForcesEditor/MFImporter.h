@@ -35,8 +35,10 @@ struct FMFPacks
 	FString CoreRoot = TEXT("/Game/MF/Community");
 	FString CoreMapsRoot = TEXT("/Game/Maps");
 	FString ReplacedRoot = TEXT("/Game/MF/Replacements");
+	FString UnverifiedRoot = TEXT("/MobileForcesUnverified");
 	TSet<FString> CoreMaps;        // lower case
 	TSet<FString> CorePackages;    // lower case
+	TSet<FString> UnverifiedPackages;   // lower case: community mods not vouched for yet
 	TSet<FString> Replaced;        // lower case texture keys with replacement art
 	bool bRemasterClassic = false; // classic maps use replacement art too
 

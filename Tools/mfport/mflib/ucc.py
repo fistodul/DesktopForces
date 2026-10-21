@@ -54,7 +54,8 @@ def run(cfg: Config, *args: str, log=None) -> str:
     cmd = ([str(system / 'UCC.exe')] if os.name == 'nt' else [cfg.wine, './UCC.exe']) + list(args)
     # Wine takes the working directory from $PWD; keep it the spaceless symlink path
     env = dict(os.environ, WINEDEBUG='-all', PWD=str(system))
-    proc = subprocess.run(cmd, cwd=system, env=env, capture_output=True, text=True, errors='replace')
+    # a wedged Wine (UCC.exe left defunct) never returns: give up after 10 minutes
+    proc = subprocess.run(cmd, cwd=system, env=env, capture_output=True, text=True, errors='replace', timeout=600)
     out = proc.stdout
     if log:
         log.write(out)

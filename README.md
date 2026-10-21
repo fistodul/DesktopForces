@@ -70,7 +70,9 @@ number the item in it. Map URL options: `?game=/Script/DesktopForces.MFGameMode_
 - [Gameplay reference](Docs/Gameplay.md) - every number taken from the original game
 - [Performance rules](Docs/Performance.md) - low-end rendering and code rules
 - [Modding](Docs/Modding.md) - adding weapons, modes and maps; content after release
-- [Console commands](Docs/Commands.md) - MF commands, cheats, test helpers
+- [Console commands](Docs/Commands.md) - MF commands, admin, cheats, test helpers
+- [Building and packaging](Docs/Building.md) - from source, builds that start at the main menu
+- [Hosting a server](Docs/Hosting.md) - listen / dedicated servers, match options, admin
 - [Roadmap](Docs/Roadmap.md) - what's done and what's next
 
 ## Licence

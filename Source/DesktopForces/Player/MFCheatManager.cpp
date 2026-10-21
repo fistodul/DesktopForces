@@ -216,6 +216,7 @@ void UMFCheatManager::MFTraceMat()
 	// visible meshes whose bounds hold the hit point, with their materials
 	auto LogErrors = [this](const UMaterialInterface* M)
 	{
+#if WITH_EDITOR   // compile errors are kept in editor builds only
 		const UMaterial* Base = M ? M->GetMaterial() : nullptr;
 		const FMaterialResource* Res = Base && GetWorld()->Scene ? Base->GetMaterialResource(GetWorld()->Scene->GetShaderPlatform()) : nullptr;
 		if (Res)
@@ -225,6 +226,7 @@ void UMFCheatManager::MFTraceMat()
 				UE_LOG(LogMF, Display, TEXT("MFTraceMat:     compile error: %s"), *E);
 			}
 		}
+#endif
 	};
 	LogErrors(Mat);
 	for (TObjectIterator<UStaticMeshComponent> It; It; ++It)

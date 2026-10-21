@@ -200,12 +200,23 @@ for the importer):
 | classic | `/MobileForcesClassic` (plugin) | everything from the retail game; community maps and packages not cleared yet |
 | core | `/Game/Maps/<map>`, `/Game/MF/Community` | community maps whose authors agreed, their own texture packages |
 | replaced | `/Game/MF/Replacements` | textures with replacement art in `overrides/` |
+| unverified | `/MobileForcesUnverified` (plugin) | community mod packages whose authors / asset sources aren't confirmed yet (`[unverified]`: the servers' weapon mods ...); local only like classic, left out of `Tools/package.sh --public`; moved to `[core.packages]` once cleared |
+| ours | `/Game/MF` | generated art (`Tools/artgen`: crate, decals, MoBall goal net), materials, meshes made by the importer (`SM_MF_Ring`) |
 
 Core maps get their own material instances in `/Game/MF/Community/Materials`: they point at
 the original texture until replacement art exists, so adding an override later only re-points
 materials (re-run `import --steps textures` for the map's textures) - no map rebuild, no
 re-bake. `mfport.py packs` shows what each core map still borrows (e.g. mf-Toreford: one
 `car_park` texture; MF-Filip: 43 from six retail packages).
+
+## Map edits (`Tools/mfport/map_edits.toml`)
+
+Changes a map carries from conversion on, where MF servers changed maps at run time with mods:
+vehicle generators the servers added (mutPack addVehicles' spots: helis, pipers, boats, jeeps)
+and swapped (BR-thebigisland's truck is a heli). `mflib/mapedits.py` applies them to the
+actor list before anything is built; `import <maps> --steps patch` re-places a built map's
+vehicle generators without re-baking. Server admins can still add / swap vehicles at run time
+(`AddedVehicles` / `VehicleSwaps`, [Hosting.md](Hosting.md)).
 
 ## Overrides
 

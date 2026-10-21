@@ -17,8 +17,9 @@ where the original had the command; case doesn't matter.
 | `ShowScores` | toggle the scoreboard (F1 hold) |
 | `Type` | the one-line console (Tab) |
 | `SShot` | screenshot (`Saved/Screenshots/...`) |
-| `GrowHUD` / `ShrinkHUD` | HUD size 0-4 (32 … 128 px item boxes), saved |
-| `ChangeCrosshair` | next of the 24 MF crosshairs, saved |
+| `GrowHUD` / `ShrinkHUD` | HUD size 0-4 (32 … 128 px item boxes), saved (also Options > Game) |
+| `ChangeCrosshair` | next of the 24 MF crosshairs, saved (also Options > Game, with a preview) |
+| `BehindView [0\|1]` | third-person camera (UE1's: 150 uu behind your view, pulled in at walls) / back in your eyes; no number: the other one |
 | `FOV N` | field of view (UE) |
 | `RestartLevel` | restart the map (single player / host) |
 | `AddBots N`, `GoodBot N`, `BadBot N` | add bots of normal / better / worse skill (single player / host) |
@@ -46,14 +47,37 @@ UE's development-build debug keys (F1 wireframe, F2-F5 view modes, PageUp/PageDo
 camera) are switched off in `Config/DefaultInput.ini`; only Ctrl+Shift+`.` (recompile shaders)
 and Ctrl+Shift+`,` (GPU profile) stay.
 
-Without a map on the command line the game starts at the **main menu** (play: map, game type,
-bots, skill, time limit, LAN host; join an address; options: name, resolution, display mode,
-graphics level, brightness, mouse, field of view). Options live in
+Without a map on the command line the game starts at the **main menu** (play: map, game type -
+MF's own first, then the community's - bots, skill, time limit, LAN host; join an address;
+options in tabs: **Video** resolution, display mode, graphics level, render scale, brightness,
+field of view, bullet holes / scorch marks; **Audio** volume, music; **Controls** mouse, every
+key (click it, press the new one; a key already in use swaps); **Game** name, crosshair, HUD
+size; **Defaults** puts MF's options back, Apply keeps them). Options live in
 `Saved/Config/<platform>/GameUserSettings.ini` (`UMFUserSettings`).
+
+## Admin
+
+Like MF's `bAdmin`: the listen server's host and single player are admins; others log in with
+the server's password (`[/Script/DesktopForces.MFGameMode] AdminPassword=...` in the server's
+Game.ini, or `-ini:Game:[/Script/DesktopForces.MFGameMode]:AdminPassword=...` on its command line).
+
+| Command | Does |
+|---|---|
+| `AdminLogin Password` / `AdminLogout` | become / stop being admin |
+| `Admin Command` | run a command on the server: any cheat, and for admins any console command (`Admin servertravel mf-warehouse?game=ctf`) |
+| `Kick Name` | throw a player out (admins) |
+| `SwitchMap URL` | change map, e.g. `SwitchMap mf-warehouse?game=/Script/DesktopForces.MFGameMode_CTF` (admins) |
+| `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame) |
+| `SetTo Name Property Value` / `GetTo Name Property` | set / read a property of a player's soldier (then player state, controller), e.g. `SetTo Bob MaxHealth 300` |
+| `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
+| `TeleportTo Name` | next to a player (ZombieGame's `Teleport`; UE's `Teleport` goes where you aim) |
+| `BecomeHuman` / `BecomeSurvivor` / `BecomeZombie` / `BecomeNemesis` | Zombie mode: that side's stats on you (not a team change) |
 
 ## Cheats
 
-Single player only, like Mobile Forces (or after `EnableCheats` on a listen server).
+For admins, everyone on a server started with `?Cheats=1` (`bAllowCheats`), and single player.
+Typed on a client they run on the server, which checks you may (views like `MFCam` stay on
+your machine and need cheats on too). The admin commands above work the same way.
 
 | Command | Does |
 |---|---|
@@ -90,15 +114,17 @@ Single player only, like Mobile Forces (or after `EnableCheats` on a listen serv
 | `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
 | `MFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
-| `MFMenuPage N`, `MFMenuStart` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits) / press Start |
+| `MFMenuPage N`, `MFMenuStart`, `MFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits; 10-13 the options tabs) / press Start / screenshot with the menu |
 | `MFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
 | `MFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |
 | `MFVehicles` | log every vehicle: position, mass, gravity, physics awake, height above ground, wheel compression |
-| `MFApplyUserSettings` | re-read the player's options (field of view) |
+| `MFDecal 0\|1 [Size]` | a bullet hole / scorch mark where you look |
+| `MFNavRelevant` | log moving things that can dirty the navmesh ("NAVMESH NEEDS TO BE REBUILT" hunts) |
+| `MFApplyUserSettings` | re-read the player's options (field of view, keys) |
 
 Command line for automated runs: `-MFExec="…"` (commands, `@seconds:` delays), `-MFQuitAfter=N`,
 `-MFAutoShot=N -MFShotName=x [-MFShotUI]` (`-MFShotUI` includes Slate menus), `-abslog=<file>`
 to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/DesktopForces.log`).
 
 Not ported (no equivalent yet): `KillCars`, `ExpireCars`,
-`FeignDeath`, `Taunt`, `Speech`, `BehindView` (third person comes with soldier models).
+`FeignDeath`, `Taunt`, `Speech`.

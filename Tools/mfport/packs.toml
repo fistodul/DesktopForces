@@ -1,6 +1,9 @@
-# Content packs: which converted content belongs to Desktop Forces itself ("core") and which
-# stays in the Mobile Forces Classic plugin ("classic", /MobileForcesClassic/...: needs the
-# player's own copy of the original game, never distributed with Desktop Forces).
+# Content packs: which converted content belongs to Desktop Forces itself ("core"), which stays
+# in the Mobile Forces Classic plugin ("classic", /MobileForcesClassic/...: needs the player's
+# own copy of the original game, never distributed with Desktop Forces) and which is community
+# content nobody has vouched for yet ("unverified", the Mobile Forces Unverified plugin,
+# /MobileForcesUnverified/...: generated locally like classic, never committed or shipped
+# until its authors and its assets' sources are known; then it moves to [core.packages]).
 #
 # Rules (mflib/packs.py):
 #   - everything from the retail game is classic, whatever this file says
@@ -71,3 +74,15 @@ remaster_classic = false              # true: classic maps use replacement art t
 "CoopOne" = "AKVARI (COOP-CoopOneUpdate)"
 # MF-mods code packages with their own art
 "battleRoyale" = "Gregaras (Battle Royale: crate, tower, platform, safe zone models and metal textures CC0; ammoBox CC0 pxhere.com/en/photo/673938)"
+
+[unverified]
+# Mod packages the community servers run whose authors / asset sources are still being
+# checked (2026-10-21: the team is looking them up; models often come from free Sketchfab
+# assets, which need their CC licence and author credited). Their code may be ported into the
+# game; their models, textures and sounds land here.
+root = "/MobileForcesUnverified"
+packages = [
+  "ak74", "m4a1", "SC20K", "mac10", "m24", "m18", "m87", "desert", "famas", "g36", "glock",
+  "ultimax", "wa2000", "improvedRL", "parachute", "OPWeapons", "mineGenerator", "BoxPhysics",
+  "Serious",
+]

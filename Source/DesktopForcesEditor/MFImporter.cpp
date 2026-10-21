@@ -54,8 +54,17 @@ void FMFPacks::Load(const FString& File)
 	J->TryGetStringField(TEXT("core_maps_root"), CoreMapsRoot);
 	J->TryGetStringField(TEXT("replaced_root"), ReplacedRoot);
 	J->TryGetBoolField(TEXT("remaster_classic"), bRemasterClassic);
+	J->TryGetStringField(TEXT("unverified_root"), UnverifiedRoot);
 	CoreMaps.Reset();
 	CorePackages.Reset();
+	UnverifiedPackages.Reset();
+	if (const TArray<TSharedPtr<FJsonValue>>* Unverified; J->TryGetArrayField(TEXT("unverified_packages"), Unverified))
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Unverified)
+		{
+			UnverifiedPackages.Add(V->AsString().ToLower());
+		}
+	}
 	Replaced.Reset();
 	if (const TSharedPtr<FJsonObject>* Maps; J->TryGetObjectField(TEXT("maps"), Maps))
 	{
@@ -80,7 +89,8 @@ void FMFPacks::Load(const FString& File)
 
 FString FMFPacks::PackageRoot(const FString& Package) const
 {
-	return CorePackages.Contains(Package.ToLower()) ? CoreRoot : ClassicRoot;
+	const FString P = Package.ToLower();
+	return CorePackages.Contains(P) ? CoreRoot : UnverifiedPackages.Contains(P) ? UnverifiedRoot : ClassicRoot;
 }
 
 FString FMFPacks::TextureRoot(const FString& Key) const

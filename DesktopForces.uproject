@@ -26,10 +26,6 @@
 	],
 	"Plugins": [
 		{
-			"Name": "MobileForcesClassic",
-			"Enabled": true
-		},
-		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

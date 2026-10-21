@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Mobile Forces Unverified",
+	"Description": "Community content (mod weapons, skins ...) converted by Tools/mfport whose authors or asset sources are not confirmed yet ([unverified] in Tools/mfport/packs.toml). Generated locally, never committed or shipped: Tools/package.sh --public leaves it out.",
+	"Category": "Desktop Forces content",
+	"CreatedBy": "Generated locally by Tools/mfport",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"EnabledByDefault": true
+}
