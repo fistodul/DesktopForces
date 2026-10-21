@@ -6,6 +6,10 @@
 #include "DesktopForces.h"
 #include "Core/MFTypes.h"
 #include "Game/MFGameMode.h"
+#include "Algo/AnyOf.h"
+#include "Misc/StringOutputDevice.h"
+#include "GameFramework/GameSession.h"
+#include "Game/Zombie/MFGameMode_Zombie.h"
 #include "Game/MFGameState.h"
 #include "Game/MFPlayerState.h"
 #include "Player/MFCharacter.h"
@@ -595,4 +599,289 @@ void UMFCheatManager::MFDecal(int32 Kind, float Size)
 		MF::SpawnDecal(PC, K, Hit.ImpactPoint, Hit.ImpactNormal, Size > 0.f ? Size : (Kind == 0 ? 12.f : 300.f));
 		UE_LOG(LogMF, Display, TEXT("MFDecal %d at %s normal %s on %s"), Kind, *Hit.ImpactPoint.ToCompactString(), *Hit.ImpactNormal.ToCompactString(), *GetNameSafe(Hit.GetActor()));
 	}
+}
+
+// --- running cheats on the server ------------------------------------------------------------
+
+bool UMFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor)
+{
+	AMFPlayerController* PC = Cast<AMFPlayerController>(GetOuterAPlayerController());
+	if (PC && !PC->HasAuthority())
+	{
+		// views and test helpers stay on this machine (and only where cheats are on: a free
+		// camera sees through walls); everything else changes the game, so the server runs it
+		static const TCHAR* Local[] = { TEXT("MFCam"), TEXT("MFTopView"), TEXT("MFNavTest"), TEXT("MFNavPath"), TEXT("MFNavRelevant"),
+			TEXT("MFTraceMat"), TEXT("MFDecal"), TEXT("MFWalk"), TEXT("MFAimAt"), TEXT("MFFire"), TEXT("MFVehicles"), TEXT("ViewMe"),
+			TEXT("ViewSelf"), TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
+		const TCHAR* Str = Cmd;
+		FString Name;
+		if (FParse::Token(Str, Name, true))
+		{
+			const UFunction* F = FindFunction(FName(*Name));
+			if (F && F->HasAnyFunctionFlags(FUNC_Exec))
+			{
+				if (!PC->CanCheat())
+				{
+					Ar.Log(TEXT("Cheats are off here: AdminLogin <password> first."));
+					return true;
+				}
+				const bool bLocal = Algo::AnyOf(Local, [&Name](const TCHAR* L) { return Name.Equals(L, ESearchCase::IgnoreCase); });
+				if (!bLocal)
+				{
+					PC->ServerAdmin(Cmd);
+					return true;
+				}
+			}
+		}
+	}
+	return Super::ProcessConsoleExec(Cmd, Ar, Executor);
+}
+
+// --- admin -----------------------------------------------------------------------------------
+
+namespace
+{
+	/** "word rest of it" -> word, rest. */
+	FString SplitFirst(const FString& In, FString& Rest)
+	{
+		FString First;
+		if (!In.TrimStart().Split(TEXT(" "), &First, &Rest))
+		{
+			First = In.TrimStartAndEnd();
+			Rest.Reset();
+		}
+		Rest.TrimStartAndEndInline();
+		return First;
+	}
+
+	/** UE1 SetPropertyText / GetPropertyText through reflection. */
+	bool SetPropertyText(UObject* Obj, const FString& Name, const FString& Value)
+	{
+		FProperty* P = Obj ? FindFProperty<FProperty>(Obj->GetClass(), FName(*Name)) : nullptr;
+		return P && P->ImportText_InContainer(*Value, Obj, Obj, PPF_None) != nullptr;
+	}
+
+	bool GetPropertyText(UObject* Obj, const FString& Name, FString& Out)
+	{
+		FProperty* P = Obj ? FindFProperty<FProperty>(Obj->GetClass(), FName(*Name)) : nullptr;
+		if (!P)
+		{
+			return false;
+		}
+		P->ExportText_InContainer(0, Out, Obj, Obj, Obj, PPF_None);
+		return true;
+	}
+
+	/** A player's soldier, then their player state, then controller: the first that has it. */
+	TArray<UObject*> PropertyTargets(AActor* A)
+	{
+		TArray<UObject*> Out{ A };
+		if (const APawn* P = Cast<APawn>(A))
+		{
+			Out.Add(P->GetPlayerState());
+			Out.Add(P->GetController());
+		}
+		return Out;
+	}
+}
+
+AActor* UMFCheatManager::FindPlayer(const FString& Name, AController** OutController) const
+{
+	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+	{
+		AController* C = It->Get();
+		if (C && C->PlayerState && C->PlayerState->GetPlayerName().Equals(Name, ESearchCase::IgnoreCase))
+		{
+			if (OutController)
+			{
+				*OutController = C;
+			}
+			// driving: the soldier, not the car
+			const AMFVehicle* V = Cast<AMFVehicle>(C->GetPawn());
+			return V && V->GetDriver() ? static_cast<AActor*>(V->GetDriver()) : (C->GetPawn() ? static_cast<AActor*>(C->GetPawn()) : C);
+		}
+	}
+	return nullptr;
+}
+
+AActor* UMFCheatManager::LookedAt() const
+{
+	APlayerController* PC = GetPlayerController();
+	FVector Eye;
+	FRotator View;
+	PC->GetPlayerViewPoint(Eye, View);
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MFLookedAt), false, PC->GetPawn());
+	GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + View.Vector() * 22500.f, ECC_GameTraceChannel2, Params);
+	return Hit.GetActor();
+}
+
+void UMFCheatManager::Say(const FString& Line) const
+{
+	UE_LOG(LogMF, Display, TEXT("%s"), *Line);
+	GetPlayerController()->ClientMessage(Line);
+}
+
+bool UMFCheatManager::IsAdmin() const
+{
+	const AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	return GetWorld()->GetNetMode() == NM_Standalone || (GM && GM->IsAdmin(GetPlayerController()));
+}
+
+void UMFCheatManager::RunAs(const FString& PlayerAndCommand)
+{
+	FString Command;
+	const FString Name = SplitFirst(PlayerAndCommand, Command);
+	AController* C = nullptr;
+	AActor* A = FindPlayer(Name, &C);
+	if (!A || Command.IsEmpty())
+	{
+		Say(FString::Printf(TEXT("RunAs: no player %s"), *Name));
+		return;
+	}
+	// MF: P.ConsoleCommand on their pawn (exec functions of the pawn, then the controller)
+	FStringOutputDevice Out;
+	APawn* P = Cast<APawn>(A);
+	const bool bDone = (P && P->ProcessConsoleExec(*Command, Out, P)) || (C && C->ProcessConsoleExec(*Command, Out, P))
+		|| (Cast<APlayerController>(C) && Cast<APlayerController>(C)->CheatManager && Cast<APlayerController>(C)->CheatManager->ProcessConsoleExec(*Command, Out, P));
+	Say(bDone ? FString::Printf(TEXT("%s: %s"), *Name, *Command) : FString::Printf(TEXT("RunAs: %s can't %s"), *Name, *Command));
+}
+
+void UMFCheatManager::RunAsLooking(const FString& Command)
+{
+	if (const APawn* P = Cast<APawn>(LookedAt()); P && P->GetPlayerState())
+	{
+		RunAs(P->GetPlayerState()->GetPlayerName() + TEXT(" ") + Command);
+	}
+}
+
+void UMFCheatManager::SetTo(const FString& PlayerPropertyValue)
+{
+	FString Rest, Value;
+	const FString Name = SplitFirst(PlayerPropertyValue, Rest);
+	const FString Prop = SplitFirst(Rest, Value);
+	AActor* A = FindPlayer(Name);
+	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return SetPropertyText(O, Prop, Value); });
+	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *Name, *Prop, *Value) : FString::Printf(TEXT("SetTo: no %s on %s"), *Prop, *Name));
+}
+
+void UMFCheatManager::GetTo(const FString& PlayerAndProperty)
+{
+	FString Prop, Value;
+	const FString Name = SplitFirst(PlayerAndProperty, Prop);
+	AActor* A = FindPlayer(Name);
+	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return GetPropertyText(O, Prop, Value); });
+	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *Name, *Prop, *Value) : FString::Printf(TEXT("GetTo: no %s on %s"), *Prop, *Name));
+}
+
+void UMFCheatManager::SetToSelf(const FString& PropertyAndValue)
+{
+	if (const APlayerState* PS = GetPlayerController()->PlayerState)
+	{
+		SetTo(PS->GetPlayerName() + TEXT(" ") + PropertyAndValue);
+	}
+}
+
+void UMFCheatManager::GetToSelf(const FString& Property)
+{
+	if (const APlayerState* PS = GetPlayerController()->PlayerState)
+	{
+		GetTo(PS->GetPlayerName() + TEXT(" ") + Property);
+	}
+}
+
+void UMFCheatManager::SetToLooking(const FString& PropertyAndValue)
+{
+	FString Value;
+	const FString Prop = SplitFirst(PropertyAndValue, Value);
+	AActor* A = LookedAt();
+	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return SetPropertyText(O, Prop, Value); });
+	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *GetNameSafe(A), *Prop, *Value) : FString::Printf(TEXT("SetToLooking: no %s on %s"), *Prop, *GetNameSafe(A)));
+}
+
+void UMFCheatManager::GetToLooking(const FString& Property)
+{
+	FString Value;
+	AActor* A = LookedAt();
+	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return GetPropertyText(O, Property, Value); });
+	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *GetNameSafe(A), *Property, *Value) : FString::Printf(TEXT("GetToLooking: no %s on %s"), *Property, *GetNameSafe(A)));
+}
+
+void UMFCheatManager::TeleportTo(const FString& PlayerName)
+{
+	APawn* Me = GetPlayerController()->GetPawn();
+	const AActor* Them = FindPlayer(PlayerName);
+	if (!Me || !Them)
+	{
+		return;
+	}
+	// ZombiePlayer.Teleport: a few random spots around them (VRand x (100, 100, 10) uu)
+	for (int32 Try = 0; Try < 9; ++Try)
+	{
+		const FVector At = Them->GetActorLocation() + FMath::VRand() * FVector(225.f, 225.f, 22.5f);
+		if (Me->TeleportTo(At, Me->GetActorRotation()))
+		{
+			return;
+		}
+	}
+}
+
+void UMFCheatManager::BecomeHuman()
+{
+	AMFGameMode_Zombie* GM = GetWorld()->GetAuthGameMode<AMFGameMode_Zombie>();
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()); GM && C)
+	{
+		GM->BecomeHuman(C, false);
+	}
+}
+
+void UMFCheatManager::BecomeSurvivor()
+{
+	AMFGameMode_Zombie* GM = GetWorld()->GetAuthGameMode<AMFGameMode_Zombie>();
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()); GM && C)
+	{
+		GM->BecomeHuman(C, true);
+	}
+}
+
+void UMFCheatManager::BecomeZombie()
+{
+	AMFGameMode_Zombie* GM = GetWorld()->GetAuthGameMode<AMFGameMode_Zombie>();
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()); GM && C)
+	{
+		GM->BecomeZombie(C, false);
+	}
+}
+
+void UMFCheatManager::BecomeNemesis()
+{
+	AMFGameMode_Zombie* GM = GetWorld()->GetAuthGameMode<AMFGameMode_Zombie>();
+	if (AMFCharacter* C = Cast<AMFCharacter>(GetPlayerController()->GetPawn()); GM && C)
+	{
+		GM->BecomeZombie(C, true);
+	}
+}
+
+void UMFCheatManager::Kick(const FString& PlayerName)
+{
+	AController* C = nullptr;
+	FindPlayer(PlayerName, &C);
+	APlayerController* Target = Cast<APlayerController>(C);
+	AGameModeBase* GM = GetWorld()->GetAuthGameMode();
+	if (!IsAdmin() || !Target || Target->IsLocalController() || !GM || !GM->GameSession)
+	{
+		Say(FString::Printf(TEXT("Kick: can't kick %s"), *PlayerName));
+		return;
+	}
+	GM->GameSession->KickPlayer(Target, FText::FromString(TEXT("Kicked by an admin")));
+}
+
+void UMFCheatManager::SwitchMap(const FString& URL)
+{
+	if (!IsAdmin() || URL.IsEmpty())
+	{
+		return;
+	}
+	Say(FString::Printf(TEXT("Switching to %s"), *URL));
+	GetWorld()->ServerTravel(URL);
 }

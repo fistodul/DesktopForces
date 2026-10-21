@@ -38,6 +38,12 @@ public:
 	/** Kills since last death (announcements every 5). */
 	int32 Spree = 0;
 
+	/** Logged in as admin (AdminLogin; the listen server's host and single player are). */
+	UPROPERTY(ReplicatedUsing = OnRep_Admin, BlueprintReadOnly, Category = "MF")
+	bool bAdmin = false;
+	UFUNCTION()
+	void OnRep_Admin();
+
 	/** Team captain (MF Pawn.bCaptain, Captains mode). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	bool bCaptain = false;

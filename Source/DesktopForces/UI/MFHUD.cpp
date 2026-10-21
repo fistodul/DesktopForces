@@ -1165,8 +1165,9 @@ void AMFHUD::DrawHealthMF(AMFCharacter* C)
 	const FLinearColor Fill = SetColour(T);
 	// Health: soldier silhouette filled from the bottom (RageHUD.DrawHealth)
 	const float HX = 0.f, HY = Canvas->ClipY - 128.f * RS;
-	const int32 Health = FMath::Clamp(C->GetHealth(), 0, 100);
-	const float Lvl = 128.f * Health / 100.f;
+	// filled up to MaxHealth (ZombieHUD.DrawHealth: zombies' 333 is a full soldier, not 3 of them)
+	const int32 Health = FMath::Max(C->GetHealth(), 0);
+	const float Lvl = 128.f * FMath::Min(Health, C->MaxHealth) / FMath::Max(C->MaxHealth, 1);
 	DrawTexRect(TexBacks, HX, HY + (128.f - Lvl) * RS, 64.f * RS, Lvl * RS, 0.f, 64.f + 128.f - Lvl, 64.f, Lvl, Fill, SE_BLEND_Additive);
 	DrawTexRect(TexIcons, HX, HY, 64.f * RS, 128.f * RS, T == 1 ? 128.f : 192.f, 0.f, 64.f, 128.f, FLinearColor::White, SE_BLEND_Translucent);
 	// RageHUD.DrawHealth: GetHUDMedFont, at ((64 + 8) * RS / 2 - W * 0.75, 48 * RS - H / 2)

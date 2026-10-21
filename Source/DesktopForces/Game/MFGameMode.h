@@ -179,6 +179,23 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Damage")
 	float BotOccupantDamageScale = 0.2f;
 
+	/**
+	 * Admins (MF bAdmin): `AdminLogin <password>` with this password (empty: nobody logs in
+	 * remotely; the listen server's host and single player are admins anyway). Admins may use
+	 * cheats and `Admin <command>` (any console command on the server: Kick, SwitchMap,
+	 * servertravel ...). Game.ini [/Script/DesktopForces.MFGameMode] AdminPassword=...
+	 */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Admin")
+	FString AdminPassword;
+	/** Cheats (God, SetTeam, GiveWeapon ...) for every player, not only admins (?Cheats=1). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MF|Admin")
+	bool bAllowCheats = false;
+
+	virtual bool AllowCheats(APlayerController* P) override;
+	bool IsAdmin(const AController* C) const;
+	/** Server: log in (true) or say why not. */
+	bool AdminLogin(APlayerController* PC, const FString& Password);
+
 	/** Most weapons lying around at once; the oldest disappears beyond it. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "MF")
 	int32 MaxDroppedWeapons = 32;

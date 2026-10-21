@@ -11,6 +11,9 @@
 #include "UI/MFHUD.h"
 #include "UI/MFMenu.h"
 #include "Vehicles/MFVehicle.h"
+#include "Engine/Engine.h"
+#include "GameFramework/CheatManager.h"
+#include "Misc/StringOutputDevice.h"
 #include "Game/CTF/MFFlag.h"
 #include "Core/MFUserSettings.h"
 #include "World/MFMapActors.h"
@@ -50,6 +53,9 @@ void AMFPlayerController::BeginPlay()
 	Super::BeginPlay();
 	if (IsLocalController())
 	{
+		// cheat commands always parse here: the server ones go to the server, which says
+		// whether this player may (UMFCheatManager::ProcessConsoleExec)
+		AddCheats(true);
 		SetInputMode(FInputModeGameOnly());
 		bShowMouseCursor = false;
 	}
@@ -1066,6 +1072,81 @@ void AMFPlayerController::ServerAddBots_Implementation(int32 N, float SkillOffse
 		return;
 	}
 	GM->AddBots(FMath::Clamp(N, 1, 64), FMath::Clamp(GM->BotSkill + SkillOffset, 0.f, 1.f));
+}
+
+void AMFPlayerController::BehindView(int32 On)
+{
+	bBehindView = On < 0 ? !bBehindView : On != 0;
+}
+
+void AMFPlayerController::AdminLogin(const FString& Password)
+{
+	ServerAdminLogin(Password.Left(128));
+}
+
+void AMFPlayerController::ServerAdminLogin_Implementation(const FString& Password)
+{
+	AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	if (!GM || !GM->AdminLogin(this, Password))
+	{
+		ClientMessage(TEXT("Admin login failed."));
+	}
+}
+
+void AMFPlayerController::AdminLogout()
+{
+	ServerAdminLogout();
+}
+
+void AMFPlayerController::ServerAdminLogout_Implementation()
+{
+	if (AMFPlayerState* PS = GetPlayerState<AMFPlayerState>(); PS && PS->bAdmin && !IsLocalController())
+	{
+		PS->bAdmin = false;
+		ClientMessage(TEXT("Logged out."));
+	}
+}
+
+bool AMFPlayerController::CanCheat() const
+{
+	const AMFPlayerState* PS = GetPlayerState<AMFPlayerState>();
+	const AMFGameState* GS = GetWorld()->GetGameState<AMFGameState>();
+	return GetNetMode() == NM_Standalone || (PS && PS->bAdmin) || (GS && GS->bCheatsAllowed);
+}
+
+void AMFPlayerController::Admin(const FString& Command)
+{
+	ServerAdmin(Command.Left(512));
+}
+
+void AMFPlayerController::ServerAdmin_Implementation(const FString& Command)
+{
+	AMFGameMode* GM = GetWorld()->GetAuthGameMode<AMFGameMode>();
+	if (!GM || Command.IsEmpty())
+	{
+		return;
+	}
+	if (!GM->AllowCheats(this))
+	{
+		ClientMessage(TEXT("Cheats are off here: AdminLogin <password> first."));
+		return;
+	}
+	AddCheats(true);
+	UE_LOG(LogMF, Log, TEXT("%s %s: %s"), GM->IsAdmin(this) ? TEXT("Admin") : TEXT("Cheat"), PlayerState ? *PlayerState->GetPlayerName() : TEXT("?"), *Command);
+	// cheats for anyone allowed; the rest (this controller's and the pawn's commands, the
+	// game mode's, the engine's: servertravel, kick ...) for admins only
+	FStringOutputDevice Out;
+	APawn* P = GetPawn();
+	bool bDone = CheatManager && CheatManager->ProcessConsoleExec(*Command, Out, P);
+	if (!bDone && GM->IsAdmin(this))
+	{
+		bDone = ProcessConsoleExec(*Command, Out, P) || (P && P->ProcessConsoleExec(*Command, Out, P))
+			|| GM->ProcessConsoleExec(*Command, Out, P) || GEngine->Exec(GetWorld(), *Command, Out);
+	}
+	if (!bDone || !Out.IsEmpty())
+	{
+		ClientMessage(bDone ? FString(Out).TrimEnd() : FString::Printf(TEXT("Unknown command: %s"), *Command));
+	}
 }
 
 void AMFPlayerController::CallVote(const FString& Args)

@@ -92,6 +92,24 @@ public:
 	UFUNCTION(Exec)
 	void Type();
 
+	/** UE1 PlayerPawn.BehindView: the camera behind you (1), in your eyes (0), or the other one. */
+	UFUNCTION(Exec)
+	void BehindView(int32 On = -1);
+	bool IsBehindView() const { return bBehindView; }
+
+	/** Admin (MF AdminLogin / AdminLogout / Admin): AMFGameMode::AdminPassword. */
+	UFUNCTION(Exec)
+	void AdminLogin(const FString& Password);
+	UFUNCTION(Exec)
+	void AdminLogout();
+	/** Run a console command on the server: cheats if allowed; admins: any command. */
+	UFUNCTION(Exec)
+	void Admin(const FString& Command);
+	UFUNCTION(Server, Reliable)
+	void ServerAdmin(const FString& Command);
+	/** Cheats may run here (single player, admin, a ?Cheats=1 server); client side, for show. */
+	bool CanCheat() const;
+
 	/** Votes (Gregaras' vote mutator): "CallVote travel mf-warehouse ctf", "Vote yes" / "Vote no". */
 	UFUNCTION(Exec)
 	void CallVote(const FString& Args);
@@ -258,6 +276,10 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerCallVote(const FString& Args);
 	UFUNCTION(Server, Reliable)
+	void ServerAdminLogin(const FString& Password);
+	UFUNCTION(Server, Reliable)
+	void ServerAdminLogout();
+	UFUNCTION(Server, Reliable)
 	void ServerVote(bool bYes);
 
 	virtual void ClientMessage_Implementation(const FString& S, FName Type, float MsgLifeTime) override;
@@ -315,6 +337,8 @@ protected:
 	// MFWalk: scripted movement input
 	FVector2D ForcedMove = FVector2D::ZeroVector;
 	/** Up > 0: Jump held (soldiers jump; handbrake / climb), < 0: Crouch held (nitro / descend). */
+	/** BehindView: this machine's choice, kept across respawns. */
+	bool bBehindView = false;
 	float ForcedUp = 0.f;
 	float ForcedMoveUntil = 0.f;
 	float ForcedMoveNextLog = 0.f;

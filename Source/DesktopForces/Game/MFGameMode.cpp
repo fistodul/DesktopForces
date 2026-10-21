@@ -51,6 +51,7 @@ void AMFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	bVehicles = UGameplayStatics::GetIntOption(Options, TEXT("Vehicles"), bVehicles ? 1 : 0) != 0;
 	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
 	bChangeDamage = UGameplayStatics::GetIntOption(Options, TEXT("ChangeDamage"), bChangeDamage ? 1 : 0) != 0;
+	bAllowCheats = UGameplayStatics::GetIntOption(Options, TEXT("Cheats"), bAllowCheats ? 1 : 0) != 0;
 	bJeeps = UGameplayStatics::GetIntOption(Options, TEXT("Jeeps"), bJeeps ? 1 : 0) != 0;
 	bHelis = UGameplayStatics::GetIntOption(Options, TEXT("Helis"), bHelis ? 1 : 0) != 0;
 	bAddVehicles = UGameplayStatics::GetIntOption(Options, TEXT("AddVehicles"), bAddVehicles ? 1 : 0) != 0;
@@ -69,6 +70,7 @@ void AMFGameMode::InitGameState()
 	{
 		GS->NumTeams = NumTeams;
 		GS->TeamScores.Init(0, NumTeams);
+		GS->bCheatsAllowed = bAllowCheats;
 		GS->FragLimit = FragLimit;
 		GS->TimeLimit = TimeLimit;
 		GS->TimeLimitSeconds = TimeLimitSeconds;
@@ -83,6 +85,8 @@ void AMFGameMode::PostLogin(APlayerController* NewPlayer)
 	if (AMFPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<AMFPlayerState>() : nullptr)
 	{
 		PS->SetTeam(IsTeamGame() ? ChooseTeam(NewPlayer, MF::NoTeam) : MF::NoTeam);
+		// the one playing on this machine runs the game: single player, a listen server's host
+		PS->bAdmin = NewPlayer->IsLocalController();
 	}
 	Super::PostLogin(NewPlayer);
 	// RageDeathMatch.Timer: a second in, the order (PlayStartUpMessage); a moment later the
@@ -326,6 +330,32 @@ void AMFGameMode::EnsureKillZ()
 		WS->bEnableWorldBoundsChecks = true;
 		WS->KillZ = MinZ - 2000.f;
 	}
+}
+
+bool AMFGameMode::AllowCheats(APlayerController* P)
+{
+	return Super::AllowCheats(P) || bAllowCheats || IsAdmin(P);
+}
+
+bool AMFGameMode::IsAdmin(const AController* C) const
+{
+	const AMFPlayerState* PS = C ? C->GetPlayerState<AMFPlayerState>() : nullptr;
+	return PS && PS->bAdmin;
+}
+
+bool AMFGameMode::AdminLogin(APlayerController* PC, const FString& Password)
+{
+	AMFPlayerState* PS = PC ? PC->GetPlayerState<AMFPlayerState>() : nullptr;
+	if (!PS || AdminPassword.IsEmpty() || Password != AdminPassword)
+	{
+		UE_LOG(LogMF, Warning, TEXT("Admin login refused: %s"), PS ? *PS->GetPlayerName() : TEXT("?"));
+		return false;
+	}
+	PS->bAdmin = true;
+	PC->AddCheats(true);
+	UE_LOG(LogMF, Log, TEXT("Admin login: %s"), *PS->GetPlayerName());
+	Broadcast(this, FString::Printf(TEXT("%s logged in as admin"), *PS->GetPlayerName()), NAME_None);
+	return true;
 }
 
 bool AMFGameMode::CanUseLoadout(AMFCharacter* Character) const

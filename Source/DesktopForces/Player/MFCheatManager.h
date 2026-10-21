@@ -14,6 +14,50 @@ class DESKTOPFORCES_API UMFCheatManager : public UCheatManager
 	GENERATED_BODY()
 
 public:
+	/** On a client: server cheats go to the server (AMFPlayerController::ServerAdmin, which
+	 *  checks the player may cheat); views and test helpers run here. */
+	virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
+
+	// --- admin (ZombiePlayer's, for every mode; admins, or anyone with cheats on) ------------
+	/** Run a console command as another player: RunAs <player> <command>. */
+	UFUNCTION(Exec)
+	void RunAs(const FString& PlayerAndCommand);
+	/** ... as the player you look at. */
+	UFUNCTION(Exec)
+	void RunAsLooking(const FString& Command);
+	/** Set / read a property of a player's soldier (then their player state, controller):
+	 *  SetTo <player> <property> <value>, GetTo <player> <property>. */
+	UFUNCTION(Exec)
+	void SetTo(const FString& PlayerPropertyValue);
+	UFUNCTION(Exec)
+	void GetTo(const FString& PlayerAndProperty);
+	UFUNCTION(Exec)
+	void SetToSelf(const FString& PropertyAndValue);
+	UFUNCTION(Exec)
+	void GetToSelf(const FString& Property);
+	/** ... of whatever you look at. */
+	UFUNCTION(Exec)
+	void SetToLooking(const FString& PropertyAndValue);
+	UFUNCTION(Exec)
+	void GetToLooking(const FString& Property);
+	/** Go next to a player (ZombiePlayer.Teleport; UE's Teleport goes where you look). */
+	UFUNCTION(Exec)
+	void TeleportTo(const FString& PlayerName);
+	/** Zombie mode: a human's / survivor's / zombie's / nemesis' stats (not a team change). */
+	UFUNCTION(Exec)
+	void BecomeHuman();
+	UFUNCTION(Exec)
+	void BecomeSurvivor();
+	UFUNCTION(Exec)
+	void BecomeZombie();
+	UFUNCTION(Exec)
+	void BecomeNemesis();
+	/** Admins: throw a player out; change the map (SwitchMap mf-warehouse?game=ctf). */
+	UFUNCTION(Exec)
+	void Kick(const FString& PlayerName);
+	UFUNCTION(Exec)
+	void SwitchMap(const FString& URL);
+
 	// --- Mobile Forces cheats (same names as the original; UE adds God, Ghost, Fly, Walk,
 	//     Slomo, Summon, Teleport, PlayersOnly, ViewSelf, DestroyAll ...) ---------------
 	/** Join team N and respawn there. */
@@ -120,4 +164,12 @@ public:
 	/** Perspective camera at X,Y,Z looking towards yaw/pitch (degrees); for scripted shots. */
 	UFUNCTION(Exec)
 	void MFCam(float X, float Y, float Z, float Yaw, float Pitch);
+
+private:
+	/** The player (pawn, else controller) named so, any case. */
+	AActor* FindPlayer(const FString& Name, AController** OutController = nullptr) const;
+	/** What you look at (10000 uu like MF). */
+	AActor* LookedAt() const;
+	void Say(const FString& Line) const;
+	bool IsAdmin() const;
 };

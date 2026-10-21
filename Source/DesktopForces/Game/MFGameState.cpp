@@ -1,4 +1,6 @@
 #include "Game/MFGameState.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "Weapons/MFWeapon.h"
 #include "Core/MFGameSettings.h"
 #include "Game/MFPlayerState.h"
@@ -15,6 +17,7 @@ void AMFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(AMFGameState, LoadoutAccess);
 	DOREPLIFETIME(AMFGameState, TeamLoadoutAccess);
 	DOREPLIFETIME(AMFGameState, TeamNameOverrides);
+	DOREPLIFETIME(AMFGameState, bCheatsAllowed);
 	DOREPLIFETIME(AMFGameState, AllowedItemGroups);
 	DOREPLIFETIME(AMFGameState, FragLimit);
 	DOREPLIFETIME(AMFGameState, TimeLimit);
@@ -56,4 +59,19 @@ FText AMFGameState::GetTeamName(uint8 Team) const
 bool AMFGameState::IsItemAllowed(TSubclassOf<AMFWeapon> Item) const
 {
 	return AllowedItemGroups.Num() == 0 || (Item && AllowedItemGroups.Contains(Item->GetDefaultObject<AMFWeapon>()->InventoryGroup));
+}
+
+void AMFGameState::OnRep_CheatsAllowed()
+{
+	if (!bCheatsAllowed)
+	{
+		return;
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APlayerController* PC = It->Get(); PC && PC->IsLocalController())
+		{
+			PC->AddCheats(true);
+		}
+	}
 }

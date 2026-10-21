@@ -48,6 +48,11 @@ public:
 	virtual void LoadoutDenied(APlayerController* PC) const override;
 
 	bool IsNemesis(const AMFCharacter* C) const { return C && Nemeses.Contains(C); }
+	/** A zombie's / human's stats on this soldier (bSpecial: a nemesis / survivor whatever the
+	 *  team sizes; ZombiePlayer.BecomeZombie ... admin commands). Not a team change. */
+	void BecomeZombie(AMFCharacter* C, bool bSpecial = false);
+	void BecomeHuman(AMFCharacter* C, bool bSpecial = false);
+
 	/** ZombieShot alt fire on an enemy: they join the injector's team (+2). False if it can't. */
 	bool Inject(AMFCharacter* By, AMFCharacter* Victim);
 
@@ -79,8 +84,6 @@ protected:
 	virtual void CheckEndConditions(AMFPlayerState* LastKiller) override;
 	virtual void NextRound() override;
 
-	void BecomeZombie(AMFCharacter* C);
-	void BecomeHuman(AMFCharacter* C);
 	/** Swap each carried item for this team's variant; zombies keep only melee items below ZombieWeapons 2. */
 	void TransformItems(AMFCharacter* C);
 	/** MovedTeam: Victim joins By's team; their old team empty -> By +2, round over. */

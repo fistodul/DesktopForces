@@ -8,6 +8,7 @@ void AMFPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMFPlayerState, Kills);
 	DOREPLIFETIME(AMFPlayerState, Deaths);
 	DOREPLIFETIME(AMFPlayerState, bCaptain);
+	DOREPLIFETIME(AMFPlayerState, bAdmin);
 	DOREPLIFETIME(AMFPlayerState, DeathTime);
 }
 
@@ -19,5 +20,14 @@ void AMFPlayerState::CopyProperties(APlayerState* PlayerState)
 		PS->Team = Team;
 		PS->Kills = Kills;
 		PS->Deaths = Deaths;
+	}
+}
+
+void AMFPlayerState::OnRep_Admin()
+{
+	// the owner's cheat manager: its server commands go to the server, which checks again
+	if (APlayerController* PC = GetPlayerController(); PC && PC->IsLocalController() && bAdmin)
+	{
+		PC->AddCheats(true);
 	}
 }

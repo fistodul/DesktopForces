@@ -208,10 +208,10 @@ void AMFGameMode_Zombie::TransformItems(AMFCharacter* C)
 	}
 }
 
-void AMFGameMode_Zombie::BecomeZombie(AMFCharacter* C)
+void AMFGameMode_Zombie::BecomeZombie(AMFCharacter* C, bool bSpecial)
 {
 	const float Ratio = float(TeamSize(MFZombieLocal::Humans)) / FMath::Max(TeamSize(MFZombieLocal::Zombies), 1);
-	const bool bNemesis = Ratio >= 5.f;
+	const bool bNemesis = bSpecial || Ratio >= 5.f;
 	float Exp = ZombieBiasExp, Cap = 1.253f;
 	if (bNemesis)
 	{
@@ -256,10 +256,10 @@ void AMFGameMode_Zombie::BecomeZombie(AMFCharacter* C)
 	}
 }
 
-void AMFGameMode_Zombie::BecomeHuman(AMFCharacter* C)
+void AMFGameMode_Zombie::BecomeHuman(AMFCharacter* C, bool bSpecial)
 {
 	const float Ratio = (TeamSize(MFZombieLocal::Zombies) + 0.5f) / FMath::Max(TeamSize(MFZombieLocal::Humans), 1);
-	const bool bSurvivor = Ratio >= 5.f;
+	const bool bSurvivor = bSpecial || Ratio >= 5.f;
 	const AMFCharacter* Def = GetDefault<AMFCharacter>(C->GetClass());
 	C->MaxHealth = bSurvivor ? FMath::RoundToInt(Def->MaxHealth * FMath::Max(Ratio / 2.5f, 2.f)) : Def->MaxHealth;
 	C->MaxCarry = Def->MaxCarry + 1;

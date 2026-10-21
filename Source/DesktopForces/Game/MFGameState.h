@@ -82,6 +82,12 @@ public:
 
 	bool IsItemAllowed(TSubclassOf<class AMFWeapon> Item) const;
 
+	/** Cheats for everyone on this server (?Cheats=1, AMFGameMode::bAllowCheats). */
+	UPROPERTY(ReplicatedUsing = OnRep_CheatsAllowed, BlueprintReadOnly, Category = "MF")
+	bool bCheatsAllowed = false;
+	UFUNCTION()
+	void OnRep_CheatsAllowed();
+
 	/** Mode-specific team names ("Human", "Zombie"); empty = UMFGameSettings::Teams. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MF")
 	TArray<FString> TeamNameOverrides;

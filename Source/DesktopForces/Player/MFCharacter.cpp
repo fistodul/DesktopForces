@@ -1,4 +1,5 @@
 #include "Player/MFCharacter.h"
+#include "Player/MFPlayerController.h"
 #include "Sound/SoundBase.h"
 #include "Core/MFContent.h"
 #include "World/MFZoneVolume.h"
@@ -177,6 +178,17 @@ float AMFCharacter::GetDesiredFOV() const
 void AMFCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (IsLocallyControlled())
+	{
+		// behind view: our own body shows, the held model (in front of the eyes) doesn't
+		const bool bBehind = IsBehindView();
+		PlaceholderBody->SetOwnerNoSee(!bBehind);
+		GetMesh()->SetOwnerNoSee(!bBehind);
+		if (CurrentWeapon && CurrentWeapon->Mesh1P)
+		{
+			CurrentWeapon->Mesh1P->SetVisibility(!bBehind);
+		}
+	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		UpdateFootsteps(DeltaSeconds);
@@ -219,6 +231,26 @@ void AMFCharacter::Tick(float DeltaSeconds)
 void AMFCharacter::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
 {
 	FirstPersonCamera->GetCameraView(DeltaTime, OutResult);
+	if (IsBehindView())
+	{
+		// UE1 CalcBehindView(150 uu): back along the view from the eyes, short of walls
+		const FVector Eye = OutResult.Location;
+		const FVector Want = Eye - OutResult.Rotation.Vector() * 337.5f + FVector(0.f, 0.f, 30.f);
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(MFBehindView), false, this);
+		if (const AActor* Riding = GetAttachParentActor())
+		{
+			Params.AddIgnoredActor(Riding);
+		}
+		OutResult.Location = GetWorld()->SweepSingleByChannel(Hit, Eye, Want, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(12.f), Params)
+			? Hit.Location : Want;
+	}
+}
+
+bool AMFCharacter::IsBehindView() const
+{
+	const AMFPlayerController* PC = Cast<AMFPlayerController>(Controller);
+	return PC && PC->IsLocalController() && PC->IsBehindView();
 }
 
 // --- health / damage ---------------------------------------------------------------

@@ -57,6 +57,8 @@ public:
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
+	/** The local player looks from behind (AMFPlayerController::BehindView). */
+	bool IsBehindView() const;
 
 	UMFCharacterMovement* GetMFMovement() const;
 	UCameraComponent* GetFirstPersonCamera() const { return FirstPersonCamera; }
