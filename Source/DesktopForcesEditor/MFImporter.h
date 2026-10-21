@@ -85,8 +85,9 @@ public:
 
 	/** Small blockout map from engine shapes only (no MF assets): /Game/MF/Maps/MF_TestRange. */
 	bool BuildTestMap();
-	/** Water / pain / current volumes into a built map, in place (no rebuild, keeps the bake). */
-	bool PatchZones(const FString& MapName);
+	/** Zone actors (water / pain / current, loadout zones, captain boxes) and the road graph
+	 *  into a built map, in place (no rebuild, keeps the bake). */
+	bool PatchMapData(const FString& MapName);
 
 	/** Material for an mfport material key "package.group.texture|mode". Created on demand. */
 	UMaterialInterface* GetMaterial(const FString& Key);

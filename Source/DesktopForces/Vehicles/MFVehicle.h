@@ -114,6 +114,20 @@ public:
 	void BlowOutWheel(int32 Index);
 	bool IsWheelBlown(int32 Index) const { return (BlownWheels >> Index) & 1; }
 
+	/** How much a bot wants to get in (Vehicle.BotDesireability): 1.1, less per flat tyre,
+	 *  more with team mates inside, less with enemies; <= 0: not at all (full, wrecked, fast). */
+	float BotDesirability(const AMFCharacter* Bot) const;
+	/** A bot gave up driving it (Vehicle.bVehicleStuck): bots leave it alone until then. */
+	float BotStuckUntil = -100.f;
+	/** Top speed (cm/s), what RoadPoint.MaxSpeed 255 means for a driving bot. */
+	float GetTopSpeed() const { return TopSpeedKmh / 0.036f; }
+	bool IsUpsideDown() const { return GetActorUpVector().Z < 0.3f; }
+	bool IsFloating() const { return Submerged > 0.f; }
+	/** Bots drive it along the road graph (not boats: no roads on the water). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	bool bBotsDrive = true;
+	bool IsBlownUp() const { return bBlownUp; }
+
 	/** Vehicle health (MF Pawn.Health 100 by default). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle")
 	int32 Health = 100;
@@ -242,7 +256,6 @@ protected:
 
 	/** Per frame on the server after the wheels (boats: propeller thrust and rudder). */
 	virtual void SimulateDrive(float Dt) {}
-	bool IsFloating() const { return Submerged > 0.f; }
 	float GetWaterPlaneZ() const { return WaterPlaneZ; }
 
 	/** MF Armour: explosive damage taken x (1 - Armour). */

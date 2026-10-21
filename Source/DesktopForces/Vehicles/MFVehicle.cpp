@@ -401,6 +401,28 @@ void AMFVehicle::UpdateWheelVisuals(float DeltaSeconds)
 
 // --- seats ------------------------------------------------------------------------------------
 
+float AMFVehicle::BotDesirability(const AMFCharacter* Bot) const
+{
+	// Vehicle.BotDesireability
+	if (!Bot || Health <= 0 || bBlownUp || IsActorBeingDestroyed() || bLocked || !bDriveable || !bBotsDrive || IsUpsideDown()
+		|| GetWorld()->GetTimeSeconds() < BotStuckUntil || GetVelocity().Size() >= KillSpeed)
+	{
+		return -1.f;
+	}
+	float Desire = 1.1f - 0.3f * FMath::CountBits(BlownWheels);
+	int32 Taken = 0;
+	for (int32 Seat = 0; Seat < SeatPositions.Num(); ++Seat)
+	{
+		const AMFCharacter* In = Seat == 0 ? Driver.Get() : (Passengers.IsValidIndex(Seat) ? Passengers[Seat].Get() : nullptr);
+		if (In)
+		{
+			++Taken;
+			Desire += (In->GetTeam() == Bot->GetTeam() ? 1.f : -1.f) * (Seat == 0 ? 0.5f : 0.2f);
+		}
+	}
+	return Taken >= SeatPositions.Num() ? -1.f : Desire;
+}
+
 bool AMFVehicle::IsNear(const AMFCharacter* C) const
 {
 	if (!C)

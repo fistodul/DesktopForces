@@ -39,7 +39,9 @@ The project was called `MobileForces` until 2026-10-20; `[CoreRedirects]` in
 | `UI/` | `AMFHUD` | `RageHUD` | Canvas HUD: crosshair/scope, health/armour/ammo, weapon strip, clock, kill feed, loadout menu, scoreboard |
 | `World/` | `AMFMapInfo`, `AMFLegacyActor` | `LevelInfo`, everything not ported yet | map title/music; preserved original actors (class, team, raw properties) for future game modes |
 | `World/` | `AMFLadderVolume` | `LadderClimber` | ladder movement trigger + two-way nav link (ends placed by the level builder) |
-| `AI/` | `AMFBotController` | `RageBot` | 5 Hz think: loadout, fight (skill-based aim), objectives from the game mode, roam; remembers unreachable goals |
+| `World/` | `AMFZoneVolume` | `ZoneInfo` water / pain / `ZoneVelocity` | physics volume over a UE1 zone's bounds: swimming, drowning, pain / healing, currents |
+| `World/` | `AMFRoadNetwork` | `RoadPoint`, `ReachSpec` with `R_ROAD` | the map's road graph (MF's reach specs, read from the `.umf`), A* routes for driving bots, `RoadPoint.MaxSpeed` per node |
+| `AI/` | `AMFBotController` | `RageBot` | 5 Hz think: loadout, fight (skill-based aim), objectives from the game mode, roam; remembers unreachable goals; takes vehicles for long trips (`PickVehcicle` weights) and drives the road graph, rides and shoots as a passenger |
 | `Vehicles/` | `AMFVehicle` (+`_Buggy`, `_Humvee`, `_Truck`, `_Armadillo`, `_TrailerCab`, `_Trailer`), `AMFVehicleGenerator` | `RageVehicle`s, `*Generator` | physics box + raycast wheels (springs use the world's gravity: MF's is 2.2x UE's), handling from `handling.hnd2` / `.COL` |
 | `Game/` | `AMFGameMode_Safecracker`, `_CTF`, `_Detonation`, `_Captains`, `_Trailer` | the MF team modes | see [Gameplay](Gameplay.md) |
 | `UI/` | `MFMenu` (Slate), `AMFMenuGameMode` | `RageMenu` | title screen over a picture (`UMFGameSettings::MenuBackgrounds`, start-up music `MenuMusic`), play / join / options (render scale, brightness ...) / credits, Esc menu in game |

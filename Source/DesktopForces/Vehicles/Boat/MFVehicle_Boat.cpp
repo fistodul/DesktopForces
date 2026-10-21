@@ -7,6 +7,7 @@
 AMFVehicle_Boat::AMFVehicle_Boat()
 {
 	DisplayName = LOCTEXT("Boat", "Boat");
+	bBotsDrive = false;
 	BodyMeshName = TEXT("boat/boatMesh");
 	BoxCenter = FVector(0.f, 0.f, 45.f);
 	BoxExtent = FVector(245.f, 100.f, 62.f);   // boatMesh 508 x 209 cm, keel 18 cm under the origin

@@ -198,7 +198,15 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 - E (TryEnterExit) near a vehicle gets in: the driver's seat, or the first free passenger seat
   (MF aSeatsPos) when it's taken; E again out of the first free door. Drivers drive (WASD, Space
   handbrake, mouse orbits the camera) and can't shoot; passengers ride standing or sitting at
-  their seat, look around and use their own weapons (MF InCarState). Bots don't drive yet.
+  their seat, look around and use their own weapons (MF InCarState).
+- Bots (RageBot): 4 in 5 use vehicles in deathmatch, up to 3 in 4 of a team's bots in team
+  games. A trip of more than 10 road nodes (RoadPoints) sends a bot to the most wanted free
+  vehicle within 56 m (Vehicle.BotDesireability: 1.1, −0.3 a flat tyre, ±0.5 / ±0.2 for a team
+  mate / enemy at the wheel / in a seat; nearer and longer trips weigh more). It drives MF's road
+  graph at each RoadPoint's MaxSpeed, steers round parked cars, backs out when stuck (after six
+  tries the vehicle counts as stuck for 30 s) and gets out at the node nearest its goal, in water
+  or on its roof. Seated bots fight from the seat (the gunner aims the turret); they get out once
+  the driver has gone and it stopped. Bots told to follow get in with you.
 - **Armed APC** (MF-mods ArmedAPC, `?ArmedAPC=1`, rockets `=2`, at the Armadillo generators): the
   gunner seat (the hatch) runs a heavy machine gun aimed with the gunner's view (pitch −11° … 49°,
   165°/s), Fire shoots: 100 a belt, 10/s, 25 damage, 13500 cm, 4 s reload (R swaps early). The

@@ -24,7 +24,7 @@ from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODUL
 from .config import Config, UU_TO_CM
 from .mfmesh import MeshBuilder
 from .polyfix import newell_normal, triangulate, weld_tjunctions
-from .upkg import Package
+from .upkg import Package, Reader
 
 CHUNK_SIZE = 2048.0            # world geometry grid cell, in MF units (~46 m)
 LIGHTMAP_TEXEL = 16.0          # target lightmap texel size, MF units (36 cm)
@@ -384,6 +384,9 @@ class LevelConverter:
         mapper = ActorMapper(bounds, meshes)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
+        roads = road_network(pkg, actors)
+        if roads:
+            spawns.append(dict(type='road_network', name='RoadNetwork', location=[0.0, 0.0, 0.0], **roads))
         self.apply_lightmap_budget(world, meshes, spawns)
         # UE1 zone ambient (flat light everywhere in a zone) becomes mostly UE-native lighting:
         # the map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
@@ -413,6 +416,54 @@ class LevelConverter:
         kinds = Counter(r['type'] for r in spawns)
         print(f'  actors: {len(actors)} -> spawns {dict(kinds)} -> {path}')
         return path
+
+
+R_ROAD = 128   # MF reachFlags: a path vehicles can drive (RoadPoint, car parks, generators)
+
+
+def road_network(pkg: Package, actors: list[dict]) -> dict | None:
+    """MF's road graph: the level's ReachSpecs flagged R_ROAD, between the actors they join.
+
+    ULevel native data (MF, UT v69 layout): ... FURL (Protocol, Host, Map, Portal, Op[],
+    Port, Valid), Model, ReachSpecs[] {Distance, Start, End, CollisionRadius,
+    CollisionHeight, reachFlags, bPruned}. Bots drive along these (RageBot PickVehcicle /
+    GotoPlaceVehicle) and RoadPoint.MaxSpeed (0..255) caps their speed there.
+    """
+    level = pkg.exports_of('Level')[0]
+    at = pkg.data.find(b'\x07unreal\x00', level.offset, level.offset + level.size)
+    if at < 0:
+        return None
+    r = Reader(pkg.data, at)
+    for _ in range(4):
+        r.fstring()
+    for _ in range(r.index()):
+        r.fstring()
+    r.i32(), r.i32(), r.index()      # Port, Valid, Model
+    by_name = {a['name']: a for a in actors}
+    index: dict[str, int] = {}
+    nodes, edges = [], []
+
+    def node(ref: int) -> int | None:
+        name = pkg.ref_name(ref)
+        a = by_name.get(name)
+        if a is None:
+            return None
+        if name not in index:
+            index[name] = len(nodes)
+            speed = a['props'].get('MaxSpeed')
+            nodes.append({'name': name, 'location': a['location'],
+                          'max_speed': int(speed) if speed is not None else 255})
+        return index[name]
+
+    for _ in range(r.index()):
+        dist, start, end = r.i32(), r.index(), r.index()
+        r.i32(), r.i32()                 # CollisionRadius, CollisionHeight
+        flags, _pruned = r.i32(), r.u8()
+        if flags & R_ROAD:
+            a, b = node(start), node(end)
+            if a is not None and b is not None and a != b:
+                edges.append([a, b])
+    return {'nodes': nodes, 'edges': edges} if edges else None
 
 
 def _zone_number(region: str | None) -> int:

@@ -57,7 +57,7 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 	{
 		Errors += Importer.BuildTestMap() ? 0 : 1;
 	}
-	if (Steps.Contains(TEXT("zones")))
+	if (Steps.Contains(TEXT("patch")) || Steps.Contains(TEXT("zones")))   // "zones": its old name
 	{
 		TArray<FString> MapList;
 		if (Maps.IsEmpty())
@@ -70,7 +70,7 @@ int32 UMFImportCommandlet::Main(const FString& Params)
 		}
 		for (const FString& Map : MapList)
 		{
-			Importer.PatchZones(Map);
+			Importer.PatchMapData(Map);
 		}
 	}
 	if (Steps.Contains(TEXT("maps")))

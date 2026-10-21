@@ -26,6 +26,7 @@
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "World/MFZoneVolume.h"
+#include "World/MFRoadNetwork.h"
 #include "Lightmass/PrecomputedVisibilityVolume.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
@@ -147,10 +148,27 @@ namespace
 		}
 	}
 
-	/** Actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box records); nullptr for any other record. */
-	AActor* SpawnZone(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP)
+	/** Records a built map can take in place, without a rebuild or a new bake (`--steps patch`):
+	 *  actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box) and the road graph
+	 *  (road_network). nullptr for any other record. */
+	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP)
 	{
 		const FString Type = R->GetStringField(TEXT("type"));
+		if (Type == TEXT("road_network"))
+		{
+			AMFRoadNetwork* Net = World->SpawnActor<AMFRoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
+			for (const TSharedPtr<FJsonValue>& N : R->GetArrayField(TEXT("nodes")))
+			{
+				Net->Nodes.Add(Vec(N->AsObject(), TEXT("location")));
+				Net->MaxSpeed.Add(uint8(FMath::Clamp(int32(N->AsObject()->GetNumberField(TEXT("max_speed"))), 0, 255)));
+			}
+			for (const TSharedPtr<FJsonValue>& L : R->GetArrayField(TEXT("edges")))
+			{
+				const TArray<TSharedPtr<FJsonValue>>& AB = L->AsArray();
+				Net->Links.Add(FIntPoint(int32(AB[0]->AsNumber()), int32(AB[1]->AsNumber())));
+			}
+			return Net;
+		}
 		if (Type != TEXT("loadout_zone") && Type != TEXT("zone_volume") && Type != TEXT("zone_box"))
 		{
 			return nullptr;
@@ -363,9 +381,9 @@ bool FMFImporter::BuildMap(const FString& MapName)
 				Actor->RerunConstructionScripts();
 			}
 		}
-		else if (AActor* Zone = SpawnZone(World, R, SP))
+		else if (AActor* Data = SpawnMapData(World, R, SP))
 		{
-			Actor = Zone;
+			Actor = Data;
 		}
 		else if (Type == TEXT("ambient_sound"))
 		{
@@ -496,10 +514,10 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	return bSaved;
 }
 
-bool FMFImporter::PatchZones(const FString& MapName)
+bool FMFImporter::PatchMapData(const FString& MapName)
 {
-	// zone actors (water / pain / current volumes, loadout zones, captain boxes) into an already
-	// built (and baked) map: they don't touch the lighting, so no rebuild
+	// zone actors (water / pain / current volumes, loadout zones, captain boxes) and the road
+	// graph into an already built (and baked) map: they don't touch the lighting, so no rebuild
 	FString Text;
 	TSharedPtr<FJsonObject> Level;
 	if (!FFileHelper::LoadFileToString(Text, *(WorkDir / TEXT("Maps") / MapName / TEXT("level.json"))) ||
@@ -512,7 +530,7 @@ bool FMFImporter::PatchZones(const FString& MapName)
 	UWorld* World = Pkg ? UWorld::FindWorldInPackage(Pkg) : nullptr;
 	if (!World)
 	{
-		UE_LOG(LogMFEditor, Warning, TEXT("Zones %s: map %s not built"), *MapName, *PackageName);
+		UE_LOG(LogMFEditor, Warning, TEXT("Patch %s: map %s not built"), *MapName, *PackageName);
 		return false;
 	}
 	World->AddToRoot();
@@ -529,7 +547,7 @@ bool FMFImporter::PatchZones(const FString& MapName)
 	int32 Removed = 0, Added = 0;
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>())
+		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>())
 		{
 			World->EditorDestroyActor(*It, true);
 			++Removed;
@@ -540,14 +558,14 @@ bool FMFImporter::PatchZones(const FString& MapName)
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
-		if (AActor* Zone = SpawnZone(World, R, SP))
+		if (AActor* Data = SpawnMapData(World, R, SP))
 		{
-			Zone->SetActorLabel(R->GetStringField(TEXT("name")));
+			Data->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;
 		}
 	}
 	const bool bSaved = (Removed || Added) ? SaveAsset(World) : true;
-	UE_LOG(LogMFEditor, Display, TEXT("Zones %s: %d zone actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
+	UE_LOG(LogMFEditor, Display, TEXT("Patch %s: %d zone / road actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
 	World->RemoveFromRoot();
