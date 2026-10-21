@@ -35,11 +35,11 @@ Kmita (sounds, music).
 ## Licence status of ported mod code
 
 The MF-mods are re-written in C++ here, not copied, but a port written from someone's code is
-still based on it. Gregaras' files (battleRoyale, arenaMode, mutPack, and his jeep / boat /
-heli edits) ask for GPL 3 "if legally possible"; GPL code can't ship inside an Unreal Engine game
-(UE EULA, "Non-Compatible Licenses"), so `Game/BattleRoyale`, `Game/Arena` and the changeDamage
-rules in `AMFGameMode` / `AMFVehicle` wait on his agreement to MPL-2.0 (which stays usable in
-GPL projects, MPL 2.0 section 3.3). His models and textures are CC0 and fine either way.
+still based on it. Gregaras' files (battleRoyale, arenaMode, mutPack, vote, his jeep / boat /
+heli / piper edits) asked for GPL 3 "if legally possible"; GPL code can't ship inside an Unreal
+Engine game (UE EULA, "Non-Compatible Licenses"). On 21 October 2026 Gregaras agreed, on the
+Mobile Forces Discord, to his work going into Desktop Forces under MPL-2.0 (which stays usable in
+GPL projects, MPL 2.0 section 3.3). His models, textures and sounds are CC0.
 
 ## Maps
 

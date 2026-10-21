@@ -184,6 +184,7 @@ namespace
 			B->Team = Team(R->GetStringField(TEXT("team")));
 			B->bBlockVehicles = R->GetBoolField(TEXT("vehicles"));
 			B->SetCylinder(R->GetNumberField(TEXT("radius")), R->GetNumberField(TEXT("height")));
+			B->Shape->SetCanEverAffectNavigation(B->Team == MF::NoTeam);   // spawn doors: their own team walks through
 			return B;
 		}
 		if (Type == TEXT("mover"))
@@ -215,6 +216,10 @@ namespace
 			M->CondGameType = Cond.IsEmpty() ? NAME_None : FName(*Cond);
 			M->bTeamPlay = R->GetBoolField(TEXT("team_play"));
 			M->bNonTeamPlay = R->GetBoolField(TEXT("non_team_play"));
+			// still scenery is ground / walls for the navmesh; spinning and opening parts aren't,
+			// nor parts only some modes have
+			M->Mesh->SetCanEverAffectNavigation(M->Spin->RotationRate.IsZero() && M->KeyPos.Num() < 2 && M->CondGameType.IsNone()
+				&& M->bTeamPlay && M->bNonTeamPlay && R->GetBoolField(TEXT("collide")));
 			return M;
 		}
 		if (Type == TEXT("teleporter"))
@@ -312,6 +317,30 @@ namespace
 		Z->Volume->SetBoxExtent(Extent);
 		Z->Tags.Add(FName(*R->GetStringField(TEXT("tag"))));
 		return Z;
+	}
+
+	/** Teleporters' navigation links to every teleporter Tagged their URL (bots path through). */
+	bool LinkTeleporters(UWorld* World)
+	{
+		bool bAny = false;
+		for (TActorIterator<AMFTeleporter> It(World); It; ++It)
+		{
+			It->LinkTargets.Reset();
+			if (It->URL.IsEmpty())
+			{
+				continue;
+			}
+			for (TActorIterator<AMFTeleporter> Dest(World); Dest; ++Dest)
+			{
+				if (*Dest != *It && Dest->TeleporterTag.ToString().Equals(It->URL, ESearchCase::IgnoreCase))
+				{
+					const FVector Foot = Dest->GetActorLocation() - FVector(0.f, 0.f, Dest->Trigger->GetUnscaledCapsuleHalfHeight());
+					It->LinkTargets.Add(It->GetActorTransform().InverseTransformPosition(Foot));
+					bAny = true;
+				}
+			}
+		}
+		return bAny;
 	}
 
 	/** Generated maps are rebuilt from scratch: drop the old level + its built data first. */
@@ -619,6 +648,7 @@ bool FMFImporter::BuildMap(const FString& MapName)
 	{
 		It->PlaceNavLinks();
 	}
+	LinkTeleporters(World);
 	BuildNavigation(World);
 	const bool bSaved = SaveAsset(World);
 	UE_LOG(LogMFEditor, Display, TEXT("Map %s: %d actors -> %s (%s)"), *MapName, Spawned, *PackageName, bSaved ? TEXT("saved") : TEXT("SAVE FAILED"));
@@ -661,6 +691,7 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Editor);
 	Context.SetCurrentWorld(World);
 	int32 Removed = 0, Added = 0;
+	bool bNavChanged = false;
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		if (It->IsA<AMFZoneVolume>() || It->IsA<AMFLoadoutZone>() || It->IsA<AMFZoneBox>() || It->IsA<AMFRoadNetwork>()
@@ -680,7 +711,15 @@ bool FMFImporter::PatchMapData(const FString& MapName)
 		{
 			Data->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;
+			bNavChanged |= Data->IsA<AMFMover>() || Data->IsA<AMFBlocker>();
 		}
+	}
+	bNavChanged |= LinkTeleporters(World);
+	if (bNavChanged)
+	{
+		// scenery movers, invisible walls and teleporter links change where bots can walk
+		World->UpdateWorldComponents(true, false);
+		BuildNavigation(World);
 	}
 	const bool bSaved = (Removed || Added) ? SaveAsset(World) : true;
 	UE_LOG(LogMFEditor, Display, TEXT("Patch %s: %d map data actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));

@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "AI/Navigation/NavRelevantInterface.h"
+#include "NavLinkHostInterface.h"
 #include "MFTeleporter.generated.h"
 
 class UCapsuleComponent;
@@ -14,7 +16,7 @@ class UCapsuleComponent;
  * level builder (`mfport.py import --steps patch` adds them to built maps).
  */
 UCLASS()
-class DESKTOPFORCES_API AMFTeleporter : public AActor
+class DESKTOPFORCES_API AMFTeleporter : public AActor, public INavLinkHostInterface, public INavRelevantInterface
 {
 	GENERATED_BODY()
 
@@ -53,6 +55,18 @@ public:
 	/** Teleporter.Accept: Incoming arrives here from Source. */
 	bool Accept(APawn* Incoming, const AMFTeleporter* Source);
 
+	/** Where it sends you (the floor under each destination, relative to this one): one-way
+	 *  navigation links, so bots path through teleporters (UE1 SpecialHandling). Level builder. */
+	UPROPERTY(VisibleAnywhere, Category = "MF")
+	TArray<FVector> LinkTargets;
+
+	// INavRelevantInterface / INavLinkHostInterface (like ANavLinkProxy)
+	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	virtual FBox GetNavigationBounds() const override;
+	virtual bool IsNavigationRelevant() const override { return LinkTargets.Num() > 0; }
+	virtual bool GetNavigationLinksClasses(TArray<TSubclassOf<UNavLinkDefinition>>& OutClasses) const override { return false; }
+	virtual bool GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TArray<FNavigationSegmentLink>& OutSegments) const override;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -63,6 +77,7 @@ protected:
 
 	/** Just arrived here: not sent on until they step out (UE1 Accept: Disable('Touch')). */
 	TSet<TWeakObjectPtr<AActor>> Arrived;
+	TArray<FNavigationLink> MakeLinks() const;
 };
 
 /**

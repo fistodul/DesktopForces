@@ -8,6 +8,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "TimerManager.h"
+#include "NavigationSystemTypes.h"
+#include "AI/NavigationModifier.h"
+#include "NavigationOctree.h"
 
 AMFTeleporter::AMFTeleporter()
 {
@@ -104,6 +107,41 @@ bool AMFTeleporter::Accept(APawn* Incoming, const AMFTeleporter* Source)
 		Move->Velocity = V;
 	}
 	return true;
+}
+
+TArray<FNavigationLink> AMFTeleporter::MakeLinks() const
+{
+	TArray<FNavigationLink> Links;
+	const FVector Foot(0.f, 0.f, -Trigger->GetUnscaledCapsuleHalfHeight());
+	for (const FVector& T : LinkTargets)
+	{
+		FNavigationLink L(Foot, T);
+		L.Direction = ENavLinkDirection::LeftToRight;
+		L.SnapRadius = 60.f;
+		Links.Add(L);
+	}
+	return Links;
+}
+
+void AMFTeleporter::GetNavigationData(FNavigationRelevantData& Data) const
+{
+	NavigationHelper::ProcessNavLinkAndAppend(&Data.Modifiers, this, MakeLinks());
+}
+
+FBox AMFTeleporter::GetNavigationBounds() const
+{
+	FBox B(GetActorLocation() - FVector(100.f), GetActorLocation() + FVector(100.f));
+	for (const FVector& T : LinkTargets)
+	{
+		B += GetActorTransform().TransformPosition(T);
+	}
+	return B.ExpandBy(60.f);
+}
+
+bool AMFTeleporter::GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TArray<FNavigationSegmentLink>& OutSegments) const
+{
+	OutLink.Append(MakeLinks());
+	return LinkTargets.Num() > 0;
 }
 
 // --- periodic sound ------------------------------------------------------------------------
