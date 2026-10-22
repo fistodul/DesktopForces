@@ -36,7 +36,7 @@ there, Options are saved per user.
 | Where | Command | Output |
 |---|---|---|
 | Linux | `Tools/package.sh` (Shipping) / `Tools/package.sh Linux Development` (console, logs) | `Saved/Packages/Linux-<Config>/Linux/DesktopForces.sh` |
-| Windows | `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1` | as the script prints |
+| Windows | `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1` (`-Config Development`, `-Public`, `-Package:$false` compiles only, `-DryRun` prints the commands, also with `pwsh` on Linux) | `Build\Windows[-public]\Windows\DesktopForces.exe` |
 
 Both cook every map (core and, if converted, classic), everything under `/Game/MF` and
 `/MobileForcesClassic` (effects, decals, sounds and props are loaded by name at run time), and
@@ -48,6 +48,31 @@ content converted from your copy of Mobile Forces: share it only inside the team
 `Tools/package.sh --public` builds without it (the plugin is switched off for that build
 only). Core maps that still borrow classic textures then show them missing -
 `mfport.py packs` lists which ones need replacement art.
+
+### Windows from a Linux machine (dual boot)
+
+Nothing in the scripts names a user or a mount: `Tools/winpaths.py` finds the mounted Windows
+partition (the one with `Windows/System32`), the Windows user (the only one, the one named like
+you, or the last to log in) and the Windows spelling of a path; `WIN_ROOT`, `WIN_USER`,
+`WIN_DRIVE` and `WIN_PROJECT` override it.
+
+- **One copy for both** (`Tools/share_with_windows.sh`, dry run unless `--apply`; `--undo`
+  brings it back): the checkout moves to `C:\Users\<you>\DesktopForces` and a link takes its
+  place on Linux. Both systems build into their own folders (`Binaries/Linux` / `Win64`,
+  `Intermediate/Build/...`, `Saved/Config/...`), content and the derived data cache are shared.
+  Linux reads and writes NTFS natively (ntfs3); the game runs from there. Keep Windows' Fast
+  Startup off, or Linux gets the partition read-only. (The other way round - Windows using the
+  Linux disk - needs ext4 drivers or WSL's network share, which Unreal's tools handle badly.)
+- **A copy for Windows** (`Tools/sync_to_windows.sh [--dry-run] [dest]`): rsyncs the project
+  without the build output, `Saved/` and the pipeline's work folder.
+- **The engine** (`Tools/download_ue_windows.py [--dry-run]`): the project's engine version for
+  Windows straight from Epic's CDN onto the Windows drive with
+  [legendary](https://github.com/derrod/legendary) (`pipx install legendary-gl`, `legendary
+  auth`), registered in the launcher's list so `build_windows.ps1` finds it.
+
+Default place `C:\Users\<you>\DesktopForces`, not Documents: Windows builds fail on paths
+longer than 260 characters deep in `Intermediate`, and Documents carries Windows' read-only
+folder flag, which ntfs3 honours.
 
 ## Checking a build
 
