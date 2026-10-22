@@ -1,0 +1,96 @@
+name: Cross-Platform Build & Package (Windows Runner)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform(s) to build'
+        type: choice
+        options:
+          - all
+          - windows
+          - linux
+        default: all
+      configuration:
+        description: 'Build Configuration'
+        type: choice
+        options:
+          - Development
+          - Shipping
+        default: Shipping
+      package_game:
+        description: 'Cook & package full game (uncheck to only compile C++ code)'
+        type: boolean
+        default: true
+      ue_root:
+        description: 'Unreal Engine Root Path on Windows'
+        type: string
+        default: 'C:\Program Files\Epic Games\UE_5.8'
+
+env:
+  UPROJECT_NAME: 'DesktopForces.uproject'
+  BUILD_CONFIG: ${{ github.event.inputs.configuration || 'Shipping' }}
+  DO_PACKAGE: ${{ github.event.inputs.package_game != false }}
+  UE_ROOT: ${{ github.event.inputs.ue_root || 'C:\Program Files\Epic Games\UE_5.8' }}
+
+jobs:
+  build:
+    name: Build & Package (Self-Hosted Windows)
+    runs-on: [ self-hosted, windows ]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          # keep what isn't in git: the maps and sounds Tools/mfport converted on this runner
+          # (gitignored; a clean checkout has only the code and the test range)
+          clean: false
+
+      # ------------------------------------------------------------------------
+      # Windows (Win64) Build & Package
+      # ------------------------------------------------------------------------
+      # the same script as a local Windows build (Tools/build_windows.ps1): engine lookup, the map
+      # list, iostore paks
+      - name: Build C++ Modules (Win64)
+        if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE != 'true'
+        shell: powershell
+        run: .\Tools\build_windows.ps1 -Config $env:BUILD_CONFIG -Package:$false -UePath $env:UE_ROOT
+
+      - name: Cook & Package Game (Win64)
+        if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE == 'true'
+        shell: powershell
+        run: .\Tools\build_windows.ps1 -Config $env:BUILD_CONFIG -UePath $env:UE_ROOT
+
+      - name: Upload Windows Artifact
+        if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: DesktopForces-Windows-${{ env.BUILD_CONFIG }}
+          path: Build/Windows/
+
+      # ------------------------------------------------------------------------
+      # Linux Cross-Compilation from Windows (via Epic Clang toolchain)
+      # ------------------------------------------------------------------------
+      - name: Cross-Compile C++ (Linux)
+        if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux'
+        shell: cmd
+        run: |
+          echo Cross-compiling DesktopForces for Linux (%BUILD_CONFIG%)...
+          "%UE_ROOT%\Engine\Build\BatchFiles\Build.bat" DesktopForces Linux %BUILD_CONFIG% -Project="%GITHUB_WORKSPACE%\%UPROJECT_NAME%" -WaitMutex -NoUBA
+
+      - name: Cook & Package Game (Linux)
+        if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux') && env.DO_PACKAGE == 'true'
+        shell: cmd
+        run: |
+          "%UE_ROOT%\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun ^
+            -project="%GITHUB_WORKSPACE%\%UPROJECT_NAME%" ^
+            -noP4 -platform=Linux -clientconfig=%BUILD_CONFIG% ^
+            -cook -allmaps -build -stage -pak -archive ^
+            -archivedirectory="%GITHUB_WORKSPACE%\Build\Linux"
+
+      - name: Upload Linux Artifact
+        if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux') && env.DO_PACKAGE == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: DesktopForces-Linux-${{ env.BUILD_CONFIG }}
+          path: Build/Linux/
