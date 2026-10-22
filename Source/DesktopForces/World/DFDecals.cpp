@@ -36,8 +36,7 @@ namespace
 void DF::SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At, const FVector& Normal, float Size)
 {
 	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
-	const UDFUserSettings* S = UDFUserSettings::Get();
-	const int32 Quality = S ? S->DecalQuality : 2;
+	const int32 Quality = UDFUserSettings::Get().DecalQuality;
 	if (!World || World->GetNetMode() == NM_DedicatedServer || Quality <= 0 || Normal.IsNearlyZero())
 	{
 		return;

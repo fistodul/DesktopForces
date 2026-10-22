@@ -57,8 +57,6 @@ public:
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
-	/** Under a parachute (RagePlayer.bUsingParachute). */
-	bool IsParachuting() const { return bParachute; }
 	/** The local player looks from behind (ADFPlayerController::BehindView). */
 	bool IsBehindView() const;
 
@@ -101,7 +99,6 @@ public:
 	/** Server: scale this soldier's body (modes / mods: zombies, survivors); replicated so the
 	 *  owner predicts the same movement. Multiplies the class defaults, never stacks. */
 	void SetBodyScale(const FDFBodyScale& NewScale);
-	const FDFBodyScale& GetBodyScale() const { return BodyScale; }
 
 	/** Weapon given on spawn and never lost (MF: knife, InventoryGroup 1). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Inventory")

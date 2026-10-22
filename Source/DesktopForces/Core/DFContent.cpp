@@ -1,6 +1,8 @@
 #include "Core/DFContent.h"
 #include "Components/AudioComponent.h"
 #include "Core/DFUserSettings.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/PackageName.h"
 #include "Engine/Engine.h"
@@ -10,6 +12,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundWave.h"
 
 FString DF::ClassicPath(const FString& Rel)
 {
@@ -77,6 +80,56 @@ void DF::PlaySoundRadius(const UObject* WorldContext, USoundBase* Sound, const F
 	UGameplayStatics::PlaySoundAtLocation(WorldContext, Sound, Location, FRotator::ZeroRotator, Volume, Pitch, 0.f, GetAttenuation(RadiusUU));
 }
 
+TArray<FString> DF::FindMaps()
+{
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
+	TArray<FString> Roots;
+	for (const FString& Root : { FString(TEXT("/Game")), FString(TEXT("/Game/MF")), FString(ClassicRoot), FString(UnverifiedRoot) })
+	{
+		const FString Maps = Root / TEXT("Maps");
+		if (FPackageName::IsValidPath(Maps))   // a pack not installed isn't mounted
+		{
+			Roots.Add(Maps);
+			Filter.PackagePaths.Add(FName(Maps));
+		}
+	}
+	IAssetRegistry& Registry = IAssetRegistry::GetChecked();
+#if WITH_EDITOR
+	Registry.ScanPathsSynchronous(Roots, false);   // the editor scans in the background
+#endif
+	TArray<FAssetData> Assets;
+	Registry.GetAssets(Filter, Assets);
+	Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
+	TArray<FString> Out;
+	for (const FAssetData& A : Assets)
+	{
+		Out.Add(A.PackageName.ToString());
+	}
+	return Out;
+}
+
+USoundBase* DF::LoadSound(const FString& MFName)
+{
+	FString Package, Name;
+	return MFName.Split(TEXT("."), &Package, &Name) ? LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name)) : nullptr;
+}
+
+UAudioComponent* DF::PlayLoop(USceneComponent* Component, const FString& MFName, float RadiusUU)
+{
+	if (!Component || Component->GetNetMode() == NM_DedicatedServer)
+	{
+		return nullptr;
+	}
+	USoundBase* Sound = LoadSound(MFName);
+	if (USoundWave* Wave = Cast<USoundWave>(Sound))
+	{
+		Wave->bLooping = true;   // an ambient sound loops (the same wave as a one-shot is never wanted)
+	}
+	return Sound ? UGameplayStatics::SpawnSoundAttached(Sound, Component, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
+		true, 1.f, 1.f, 0.f, GetAttenuation(RadiusUU)) : nullptr;
+}
+
 namespace
 {
 	UParticleSystem* LoadEffect(const UObject* WorldContext, const TCHAR* Name)
@@ -120,8 +173,7 @@ namespace
 
 UAudioComponent* DF::PlayMusic(const UObject* WorldContext, USoundBase* Music, float Volume)
 {
-	const UDFUserSettings* S = UDFUserSettings::Get();
-	UAudioComponent* C = Music ? UGameplayStatics::SpawnSound2D(WorldContext, Music, Volume * (S ? S->MusicVolume : 1.f)) : nullptr;
+	UAudioComponent* C = Music ? UGameplayStatics::SpawnSound2D(WorldContext, Music, Volume * UDFUserSettings::Get().MusicVolume) : nullptr;
 	if (C)
 	{
 		for (auto It = GMusic.CreateIterator(); It; ++It)
@@ -138,12 +190,12 @@ UAudioComponent* DF::PlayMusic(const UObject* WorldContext, USoundBase* Music, f
 
 void DF::UpdateMusicVolume()
 {
-	const UDFUserSettings* S = UDFUserSettings::Get();
+	const float MusicVolume = UDFUserSettings::Get().MusicVolume;
 	for (const auto& Pair : GMusic)
 	{
 		if (UAudioComponent* C = Pair.Key.Get())
 		{
-			C->SetVolumeMultiplier(Pair.Value * (S ? S->MusicVolume : 1.f));
+			C->SetVolumeMultiplier(Pair.Value * MusicVolume);
 		}
 	}
 }

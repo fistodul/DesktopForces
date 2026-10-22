@@ -74,8 +74,6 @@ public:
 	/** A team took a point (called by the point). */
 	virtual void PointCaptured(AHoldoutPoint* Point, ADFCharacter* By);
 
-	const TArray<TObjectPtr<AHoldoutPoint>>& GetPoints() const { return Points; }
-
 	/** Points not held by the bot's team, nearest first (jittered so bots spread), then own ones to guard. */
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const override;
 

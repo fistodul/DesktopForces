@@ -22,6 +22,7 @@ class DESKTOPFORCES_API APredatorRocket : public AActor
 
 public:
 	APredatorRocket();
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void LifeSpanExpired() override;
 	virtual void Destroyed() override;
@@ -37,8 +38,6 @@ protected:
 	TObjectPtr<USphereComponent> Collision;
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UStaticMeshComponent> Mesh;
-	UPROPERTY(Transient)
-	TObjectPtr<UAudioComponent> FlySound;
 
 	UPROPERTY(Replicated)
 	bool bBoosting = false;
@@ -89,7 +88,6 @@ public:
 
 	/** Server: the missile is gone. */
 	void MissileDone();
-	APredatorRocket* GetMissile() const { return ActiveMissile; }
 
 protected:
 	virtual bool TryFire(bool bAlt) override;

@@ -1021,7 +1021,7 @@ void ADFVehicle::MulticastBlowUpFX_Implementation()
 {
 	if (GetNetMode() != NM_DedicatedServer)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode"), nullptr, LOAD_NoWarn | LOAD_Quiet), GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("MiscSFX.Explode")), GetActorLocation());
 		AVehicleFrag::Burst(GetWorld(), GetActorLocation());
 		AVehicleFrag::Explosion(GetWorld(), GetActorLocation());   // EffectsFix.VehExplosion
 	}
@@ -1122,7 +1122,7 @@ void ADFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 	// down (100 'RunDown'). Judged on the speed before this frame's contact: by the time the
 	// hit is reported the physics has already stopped the car against the soldier's capsule
 	ADFCharacter* C = Cast<ADFCharacter>(Other);
-	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE || C->GetMovementBase() == Body
+	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE || C->GetMovementBaseObject() == Body
 		|| FMath::Abs(Hit.ImpactNormal.Z) > 0.7f)
 	{
 		return;   // riders, and soldiers standing on it, aren't run over

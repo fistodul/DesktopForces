@@ -34,10 +34,8 @@ public:
 	virtual FString GetOrderString(int32 Order) const override;
 	virtual FName GetOrderSound(int32 Order) const override;
 
-	ADFVehicle* GetCab() const { return Cab; }
 	/** Delivery bays: centre and team (HUD minimap). */
 	struct FBay { FVector Location; uint8 Team; float Radius; float Height; };
-	const TArray<FBay>& GetBays() const { return Bays; }
 
 protected:
 	virtual void CheckEndConditions(ADFPlayerState* LastKiller) override {}

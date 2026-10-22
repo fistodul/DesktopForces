@@ -4,38 +4,17 @@
 #include "Game/DFGameState.h"
 #include "Game/DFPlayerState.h"
 #include "AI/DFBotController.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "Core/DFContent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 #include "GameMapsSettings.h"
 
-TArray<FString> ADFGameMode::VoteMapList() const
-{
-	// every built map: the game's own and the classic ones
-	TArray<FString> Out;
-	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	for (const TCHAR* Path : { TEXT("/Game/Maps"), TEXT("/MobileForcesClassic/Maps") })
-	{
-		TArray<FAssetData> Assets;
-		Registry.GetAssetsByPath(FName(Path), Assets, false);
-		for (const FAssetData& A : Assets)
-		{
-			if (A.AssetClassPath.GetAssetName() == TEXT("World"))
-			{
-				Out.Add(A.PackageName.ToString());
-			}
-		}
-	}
-	Out.Sort([](const FString& A, const FString& B) { return FPackageName::GetShortName(A) < FPackageName::GetShortName(B); });
-	return Out;
-}
-
 FString ADFGameMode::VoteMapURL(const FString& Map, const FString& Mode) const
 {
 	FString Package;
-	for (const FString& P : VoteMapList())
+	for (const FString& P : DF::FindMaps())
 	{
 		Package = FPackageName::GetShortName(P).Equals(Map, ESearchCase::IgnoreCase) ? P : Package;
 	}
@@ -200,7 +179,7 @@ void ADFGameMode::RunVote(const FString& Command)
 	}
 	else if (What == TEXT("nextmap"))
 	{
-		const TArray<FString> Maps = VoteMapList();
+		const TArray<FString> Maps = DF::FindMaps();
 		const int32 Here = Maps.IndexOfByPredicate([this](const FString& P) { return FPackageName::GetShortName(P) == UWorld::RemovePIEPrefix(GetWorld()->GetMapName()); });
 		if (Maps.Num())
 		{

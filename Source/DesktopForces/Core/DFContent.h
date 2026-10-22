@@ -22,6 +22,10 @@ namespace DF
 	/** "Sounds/MiscSFX/Explode" -> "/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode" */
 	DESKTOPFORCES_API FString ClassicPath(const FString& Rel);
 
+	/** Every playable map's package, by name: the game's own, the cleared community maps (core), the
+	 *  classic and unverified packs' when installed (the folders Tools/package.sh cooks). */
+	DESKTOPFORCES_API TArray<FString> FindMaps();
+
 	/** Rel ("Sounds/AK74/AK74Fire") from the first content root that has it. */
 	DESKTOPFORCES_API UObject* LoadClassicObject(UClass* Class, const FString& Rel);
 
@@ -31,6 +35,9 @@ namespace DF
 		return Cast<T>(LoadClassicObject(T::StaticClass(), Rel));
 	}
 
+	/** MF's Sound'Package.Name' ("MiscSFX.Explode") as converted: <content root>/Sounds/Package/Name. */
+	DESKTOPFORCES_API class USoundBase* LoadSound(const FString& MFName);
+
 	/**
 	 * MF PlaySound(Sound, Slot, Volume, , Radius): a one-shot at Location heard out to RadiusUU
 	 * (UE1 units: 1600 = the default, 100 = right next to it), on this machine only (call it
@@ -38,6 +45,10 @@ namespace DF
 	 */
 	DESKTOPFORCES_API class USoundAttenuation* GetAttenuation(float RadiusUU);
 	DESKTOPFORCES_API void PlaySoundRadius(const UObject* WorldContext, class USoundBase* Sound, const FVector& Location, float Volume = 1.f, float RadiusUU = 1600.f, float Pitch = 1.f);
+
+	/** UE1 AmbientSound: MF's "Package.Name" sound looping on Component until the component (or
+	 *  what it returns) is stopped; nothing on a dedicated server. */
+	DESKTOPFORCES_API class UAudioComponent* PlayLoop(class USceneComponent* Component, const FString& MFName, float RadiusUU = 1600.f);
 
 	/**
 	 * MF sprite effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, SmokePuffVeh,

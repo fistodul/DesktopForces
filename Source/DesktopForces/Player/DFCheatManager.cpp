@@ -915,10 +915,3 @@ void UDFCheatManager::SwitchMap(const FString& URL)
 	Say(FString::Printf(TEXT("Switching to %s"), *URL));
 	GetWorld()->ServerTravel(URL);
 }
-
-void UDFCheatManager::Summon(const FString& ClassName)
-{
-	const FString Ours = TEXT("/Script/DesktopForces.") + ClassName;
-	Super::Summon(!ClassName.Contains(TEXT(".")) && !ClassName.Contains(TEXT("/"))
-		&& FindObject<UClass>(nullptr, *Ours) ? Ours : ClassName);
-}

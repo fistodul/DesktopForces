@@ -106,7 +106,6 @@ public:
 
 	static const TCHAR* TeamName(uint8 Team);
 	static FString NameOf(const APawn* P);
-	const FString& GetObjectName() const { return ObjectName; }
 
 protected:
 	virtual void CheckEndConditions(ADFPlayerState* LastKiller) override {}

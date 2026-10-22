@@ -1,4 +1,5 @@
 #include "Game/Trailer/TrailerGame.h"
+#include "Core/DFContent.h"
 #include "World/DFRoadNetwork.h"
 #include "DesktopForces.h"
 #include "Core/DFGameSettings.h"
@@ -175,7 +176,7 @@ void ATrailerGame::CheckDelivery()
 				Scorer = Cab->GetDriver() ? Cab->GetController() : By->GetController();
 				Cab->LockDown();
 				Event(FString::Printf(TEXT("Trailer delivered to %s"), TrailerSquad(Bay.Team)), 1 - Bay.Team, TEXT("trailer_delivered_explosion_imminent"));
-				UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/TrailerSFX/LockDown.LockDown"), nullptr, LOAD_NoWarn | LOAD_Quiet), Cab->GetActorLocation());
+				UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("TrailerSFX.LockDown")), Cab->GetActorLocation());
 				Count = 5;
 				CountDown();
 				return;

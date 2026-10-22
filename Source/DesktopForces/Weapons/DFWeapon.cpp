@@ -136,10 +136,9 @@ void ADFWeapon::ResolveSounds()
 	// converted sounds: <content root>/Sounds/<Package>/<Name> (Tools/mfport; DF::ContentRoots)
 	auto Load = [](TObjectPtr<USoundBase>& Slot, const FString& ClassicName)
 	{
-		FString Package, Name;
-		if (!Slot && ClassicName.Split(TEXT("."), &Package, &Name))
+		if (!Slot)
 		{
-			Slot = DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name));
+			Slot = DF::LoadSound(ClassicName);
 		}
 	};
 	Load(FireSound, ClassicFireSound);
@@ -212,10 +211,9 @@ FString ADFWeapon::GetHUDStatus() const
 
 void ADFWeapon::PlayMFSound(const TCHAR* MFName) const
 {
-	FString Package, Name;
-	if (GetNetMode() != NM_DedicatedServer && FString(MFName).Split(TEXT("."), &Package, &Name))
+	if (GetNetMode() != NM_DedicatedServer)
 	{
-		PlaySoundLocal(DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name)));
+		PlaySoundLocal(DF::LoadSound(MFName));
 	}
 }
 
@@ -226,21 +224,10 @@ void ADFWeapon::SetAmbientMFSound(const TCHAR* MFName)
 		AmbientAudio->Stop();
 		AmbientAudio = nullptr;
 	}
-	FString Package, Name;
-	if (!MFName || GetNetMode() == NM_DedicatedServer || !FString(MFName).Split(TEXT("."), &Package, &Name))
-	{
-		return;
-	}
-	USoundBase* Sound = DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name));
-	if (USoundWave* Wave = Cast<USoundWave>(Sound))
-	{
-		Wave->bLooping = true;   // UE1 AmbientSound loops while it's set
-	}
 	const ADFCharacter* C = GetOwnerCharacter();
-	if (Sound && C)
+	if (MFName && C)
 	{
-		AmbientAudio = UGameplayStatics::SpawnSoundAttached(Sound, C->GetRootComponent(), NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
-			true, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
+		AmbientAudio = DF::PlayLoop(C->GetRootComponent(), MFName);   // UE1 AmbientSound loops while it's set
 	}
 }
 

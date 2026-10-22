@@ -18,7 +18,6 @@ public:
 	ARocketLauncher();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual FString GetHUDStatus() const override;
-	AActor* GetLockedTarget() const { return LockedTarget; }
 
 protected:
 	virtual void ToggleZoom() override;

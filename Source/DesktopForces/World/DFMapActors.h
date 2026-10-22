@@ -42,10 +42,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DF")
 	FVector4 MiniMapBounds = FVector4(0, 0, 0, 0);
 
-	/** MF "Fog end is the draw distance": cull distance for the whole map (cm, 0 = unlimited). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DF")
-	float DrawDistance = 0.f;
-
 	/**
 	 * Ambient light of the map's main zone (MF ZoneInfo ambient). Mostly baked (Lightmass sky
 	 * colour + bounces); the unshadowed floor in the lit materials is UDFGameSettings::AmbientFloor

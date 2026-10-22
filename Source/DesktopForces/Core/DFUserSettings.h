@@ -16,7 +16,8 @@ class DESKTOPFORCES_API UDFUserSettings : public UGameUserSettings
 	GENERATED_BODY()
 
 public:
-	static UDFUserSettings* Get();
+	/** The game's settings object (the engine makes it from GameUserSettingsClassName). */
+	static UDFUserSettings& Get();
 
 	/** Player name for new games / servers (empty = "Player"). */
 	UPROPERTY(Config)

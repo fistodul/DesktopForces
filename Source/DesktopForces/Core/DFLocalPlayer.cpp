@@ -3,6 +3,6 @@
 
 FString UDFLocalPlayer::GetNickname() const
 {
-	const UDFUserSettings* S = UDFUserSettings::Get();
-	return S && !S->PlayerName.IsEmpty() ? S->PlayerName.Replace(TEXT("?"), TEXT("")).Left(20) : Super::GetNickname();
+	const FString& Name = UDFUserSettings::Get().PlayerName;
+	return Name.IsEmpty() ? Super::GetNickname() : Name.Replace(TEXT("?"), TEXT("")).Left(20);
 }

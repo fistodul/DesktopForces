@@ -108,11 +108,9 @@ void ADFPlayerController::Name(const FString& NewName)
 		return;
 	}
 	SetName(Clean);   // ServerChangeName -> GameMode ChangeName (everyone is told)
-	if (UDFUserSettings* S = UDFUserSettings::Get())
-	{
-		S->PlayerName = Clean;
-		S->SaveSettings();
-	}
+	UDFUserSettings& S = UDFUserSettings::Get();
+	S.PlayerName = Clean;
+	S.SaveSettings();
 }
 
 // --- input setup ---------------------------------------------------------------------
@@ -163,8 +161,7 @@ TArray<FDFBinding> ADFPlayerController::GetBindings()
 
 FKey ADFPlayerController::GetBoundKey(const FDFBinding& B, bool bAlt)
 {
-	const UDFUserSettings* S = UDFUserSettings::Get();
-	const FKey* Changed = S ? S->KeyBindings.Find(bAlt ? AltSlot(B.Action) : B.Action) : nullptr;
+	const FKey* Changed = UDFUserSettings::Get().KeyBindings.Find(bAlt ? AltSlot(B.Action) : B.Action);
 	return Changed ? *Changed : (bAlt ? B.AltDefault : B.Default);
 }
 
@@ -421,14 +418,14 @@ void ADFPlayerController::OnLook(const FInputActionValue& Value)
 	}
 	const FVector2D V = Value.Get<FVector2D>();
 	// Slower look while zoomed, like MF (FOV-scaled mouse)
-	const UDFUserSettings* User = UDFUserSettings::Get();
-	float Scale = MouseSensitivity * (User ? User->MouseSensitivity : 1.f);
+	const UDFUserSettings& User = UDFUserSettings::Get();
+	float Scale = MouseSensitivity * User.MouseSensitivity;
 	if (const ADFCharacter* C = GetMFCharacter())
 	{
 		Scale *= C->GetDesiredFOV() / C->DefaultFOV;
 	}
 	AddYawInput(V.X * Scale);
-	AddPitchInput(V.Y * Scale * (User && User->bInvertMouse ? -1.f : 1.f));
+	AddPitchInput(V.Y * Scale * (User.bInvertMouse ? -1.f : 1.f));
 }
 
 void ADFPlayerController::OnJump()
@@ -1466,7 +1463,7 @@ TArray<APlayerState*> ADFPlayerController::GetCommandTargets() const
 void ADFPlayerController::ShowCommandMenu()
 {
 	SetCommandMenuStage(CommandMenuStage > 0 ? 0 : 1);
-	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/click.click"));
+	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/Click.Click"));
 }
 
 void ADFPlayerController::SetCommandMenuStage(int32 Stage)
@@ -1527,7 +1524,7 @@ void ADFPlayerController::CommandMenuKey(int32 Slot)
 			SetCommandMenuStage(0);
 		}
 	}
-	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/click.click"));
+	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/Click.Click"));
 }
 
 void ADFPlayerController::ServerGiveOrder_Implementation(int32 Order, APlayerState* Target)
@@ -1601,39 +1598,33 @@ void ADFPlayerController::ShowMenu()
 
 void ADFPlayerController::Brightness(float Value)
 {
-	UDFUserSettings* S = UDFUserSettings::Get();
-	if (!S)
-	{
-		return;
-	}
+	UDFUserSettings& S = UDFUserSettings::Get();
 	if (Value > 0.f)
 	{
-		S->Brightness = FMath::Clamp(Value, 0.25f, 3.f);
+		S.Brightness = FMath::Clamp(Value, 0.25f, 3.f);
 	}
 	else
 	{
 		static const float Steps[] = { 0.5f, 0.75f, 1.f, 1.25f, 1.5f, 2.f };
 		int32 Next = 0;
-		while (Next < UE_ARRAY_COUNT(Steps) && Steps[Next] <= S->Brightness + 0.01f)
+		while (Next < UE_ARRAY_COUNT(Steps) && Steps[Next] <= S.Brightness + 0.01f)
 		{
 			++Next;
 		}
-		S->Brightness = Steps[Next % UE_ARRAY_COUNT(Steps)];
+		S.Brightness = Steps[Next % UE_ARRAY_COUNT(Steps)];
 	}
-	S->SaveSettings();
+	S.SaveSettings();
 	ADFMapInfo::ApplyAmbient(GetWorld());
-	ClientMessage(FString::Printf(TEXT("Brightness %.2f"), S->Brightness));
+	ClientMessage(FString::Printf(TEXT("Brightness %.2f"), S.Brightness));
 }
 
 void ADFPlayerController::RenderScale(float Value)
 {
-	if (UDFUserSettings* S = UDFUserSettings::Get())
-	{
-		S->RenderScale = Value;
-		S->ApplyNonResolutionSettings();
-		S->SaveSettings();
-		ClientMessage(FString::Printf(TEXT("Render scale %d%%"), FMath::RoundToInt(S->RenderScale * 100.f)));
-	}
+	UDFUserSettings& S = UDFUserSettings::Get();
+	S.RenderScale = Value;
+	S.ApplyNonResolutionSettings();
+	S.SaveSettings();
+	ClientMessage(FString::Printf(TEXT("Render scale %d%%"), FMath::RoundToInt(S.RenderScale * 100.f)));
 }
 
 void ADFPlayerController::DFApplyUserSettings()

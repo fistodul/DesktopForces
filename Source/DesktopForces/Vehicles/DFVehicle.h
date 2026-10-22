@@ -144,7 +144,6 @@ public:
 	ADFVehicle* GetTrailer() const { return Trailer; }
 	/** Server: brakes on, nobody can drive it any more (MF LockDown). */
 	void LockDown();
-	bool IsLocked() const { return bLocked; }
 
 	/** Server: blow out a tyre (MF DestroyWheel); it re-inflates after ReInflatePause. */
 	void BlowOutWheel(int32 Index);

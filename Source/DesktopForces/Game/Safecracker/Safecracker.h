@@ -100,7 +100,6 @@ public:
 	/** RageSafeCrackerRepInfo: attackers "Crack their safe", defenders "Defend your safe". */
 	virtual FName GetInstructionSound(const AController* C) const override;
 	uint8 DefenderTeam() const { return 1 - AttackerTeam(); }
-	int32 GetPart() const { return Part; }
 
 	/** Team attacking in part 1 (MF FirstAttackerIndex; 1 = red). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")

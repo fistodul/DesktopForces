@@ -6,7 +6,6 @@
 #include "Player/DFPlayerController.h"
 #include "Game/DFGameMode.h"
 #include "Game/DFPlayerStart.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/CommandLine.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -261,6 +260,7 @@ private:
 	// options
 	FString PlayerName;
 	TArray<TSharedPtr<FString>> Resolutions;
+	TArray<FIntPoint> ResolutionSizes;   // what each Resolutions entry says
 	TSharedPtr<FString> SelectedResolution;
 	TArray<TSharedPtr<FString>> WindowModes;
 	TSharedPtr<FString> SelectedWindowMode;
@@ -708,23 +708,10 @@ private:
 	// --- data ---------------------------------------------------------------------------
 	void FindMaps()
 	{
-		IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		// our maps, cleared community maps (core), and the classic plugin's (when installed)
-		const TArray<FString> Roots = { TEXT("/Game/Maps"), TEXT("/Game/MF/Maps"), FString(DF::ClassicRoot) / TEXT("Maps") };
-#if WITH_EDITOR
-		AR.ScanPathsSynchronous(Roots, false);
-#endif
-		TArray<FAssetData> Assets;
-		AR.GetAssetsByClass(UWorld::StaticClass()->GetClassPathName(), Assets);
-		Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
-		for (const FAssetData& A : Assets)
+		for (const FString& Path : DF::FindMaps())
 		{
-			const FString Path = A.PackageName.ToString();
-			if (Roots.ContainsByPredicate([&Path](const FString& R) { return Path.StartsWith(R); }))
-			{
-				MapPaths.Add(Path);
-				MapNames.Add(MakeShared<FString>(A.AssetName.ToString()));
-			}
+			MapPaths.Add(Path);
+			MapNames.Add(MakeShared<FString>(FPackageName::GetShortName(Path)));
 		}
 		// most wanted first: the warehouse
 		const int32 Ware = MapNames.IndexOfByPredicate([](const TSharedPtr<FString>& N) { return N->Equals(TEXT("mf-warehouse"), ESearchCase::IgnoreCase); });
@@ -767,51 +754,50 @@ private:
 
 	void LoadOptions()
 	{
-		UDFUserSettings* S = UDFUserSettings::Get();
-		PlayerName = S && !S->PlayerName.IsEmpty() ? S->PlayerName : FString(TEXT("Player"));
-		Brightness = S ? S->Brightness : 1.f;
-		Sensitivity = S ? S->MouseSensitivity : 1.f;
-		bInvert = S ? S->bInvertMouse : false;
-		FOV = S ? S->FieldOfView : 100.f;
-		RenderScale = S ? S->RenderScale : 1.f;
+		const UDFUserSettings& S = UDFUserSettings::Get();
+		PlayerName = S.PlayerName.IsEmpty() ? FString(TEXT("Player")) : S.PlayerName;
+		Brightness = S.Brightness;
+		Sensitivity = S.MouseSensitivity;
+		bInvert = S.bInvertMouse;
+		FOV = S.FieldOfView;
+		RenderScale = S.RenderScale;
 		DecalModes = { MakeShared<FString>(TEXT("Off")), MakeShared<FString>(TEXT("Simple")), MakeShared<FString>(TEXT("Full")) };
-		SelectedDecals = DecalModes[FMath::Clamp(S ? S->DecalQuality : 2, 0, 2)];
-		MasterVolume = S ? S->MasterVolume : 1.f;
-		MusicVolume = S ? S->MusicVolume : 1.f;
-		Crosshair = S ? S->Crosshair : 13;
-		HUDSize = S ? S->HUDSize : 2;
-		PendingKeys = S ? S->KeyBindings : TMap<FName, FKey>();
+		SelectedDecals = DecalModes[FMath::Clamp(S.DecalQuality, 0, 2)];
+		MasterVolume = S.MasterVolume;
+		MusicVolume = S.MusicVolume;
+		Crosshair = S.Crosshair;
+		HUDSize = S.HUDSize;
+		PendingKeys = S.KeyBindings;
 		UpdateCrosshairBrush();
 
-		// what the monitor offers, plus the usual sizes of its own shape (16:10 screens get
-		// 1680 x 1050, 1920 x 1200 ...), never bigger than the desktop
-		TArray<FIntPoint> Supported;
+		// the display's own modes (Direct3D lists them; Vulkan - Linux - lists none) and the
+		// engine's windowed sizes cut from the desktop in its common shapes, any monitor size;
+		// the desktop and the current size always
+		TArray<FIntPoint> Supported, Windowed;
 		UKismetSystemLibrary::GetSupportedFullscreenResolutions(Supported);
-		const FIntPoint Desktop = S ? S->GetDesktopResolution() : FIntPoint(1920, 1080);
-		const float Aspect = Desktop.Y > 0 ? float(Desktop.X) / Desktop.Y : 16.f / 9.f;
-		for (const int32 H : { 600, 720, 768, 800, 900, 960, 1050, 1080, 1200, 1440, 1600, 2160 })
+		UKismetSystemLibrary::GetConvenientWindowedResolutions(Windowed);
+		const FIntPoint Current = S.GetScreenResolution();
+		for (const FIntPoint& P : Windowed)
 		{
-			const int32 W = FMath::RoundToInt(H * Aspect / 8.f) * 8;
-			Supported.AddUnique(FIntPoint(W, H));
+			Supported.AddUnique(P);
 		}
-		Supported.AddUnique(Desktop);
-		Supported.RemoveAll([&Desktop](const FIntPoint& P) { return P.X > Desktop.X || P.Y > Desktop.Y || P.X < 640 || P.Y < 480; });
-		Supported.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X * A.Y < B.X * B.Y; });
-		const FIntPoint Current = S ? S->GetScreenResolution() : FIntPoint(1280, 720);
+		Supported.AddUnique(S.GetDesktopResolution());
 		Supported.AddUnique(Current);
+		Supported.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X * A.Y < B.X * B.Y; });
 		for (const FIntPoint& P : Supported)
 		{
 			Resolutions.Add(MakeShared<FString>(FString::Printf(TEXT("%d x %d"), P.X, P.Y)));
+			ResolutionSizes.Add(P);
 			if (P == Current)
 			{
 				SelectedResolution = Resolutions.Last();
 			}
 		}
 		WindowModes = { MakeShared<FString>(TEXT("Fullscreen")), MakeShared<FString>(TEXT("Borderless window")), MakeShared<FString>(TEXT("Window")) };
-		SelectedWindowMode = WindowModes[FMath::Clamp(S ? int32(S->GetFullscreenMode()) : 2, 0, 2)];
+		SelectedWindowMode = WindowModes[FMath::Clamp(int32(S.GetFullscreenMode()), 0, 2)];
 		// UE scalability 0-3; Low is the potato default (no post, small shadow maps)
 		Qualities = { MakeShared<FString>(TEXT("Low")), MakeShared<FString>(TEXT("Medium")), MakeShared<FString>(TEXT("High")), MakeShared<FString>(TEXT("Epic")) };
-		const int32 Q = S ? S->GetOverallScalabilityLevel() : 0;
+		const int32 Q = S.GetOverallScalabilityLevel();
 		SelectedQuality = Qualities[FMath::Clamp(Q < 0 ? 0 : Q, 0, 3)];
 	}
 
@@ -822,50 +808,43 @@ private:
 
 	void SaveName()
 	{
-		if (UDFUserSettings* S = UDFUserSettings::Get())
-		{
-			S->PlayerName = PlayerName;
-			S->SaveSettings();
-		}
+		UDFUserSettings& S = UDFUserSettings::Get();
+		S.PlayerName = PlayerName;
+		S.SaveSettings();
 	}
 
 	void ApplyOptions()
 	{
-		UDFUserSettings* S = UDFUserSettings::Get();
-		if (!S)
-		{
-			return;
-		}
-		S->PlayerName = PlayerName;
-		S->Brightness = Brightness;
-		S->MouseSensitivity = Sensitivity;
-		S->bInvertMouse = bInvert;
-		S->FieldOfView = FOV;
-		S->RenderScale = RenderScale;
-		S->DecalQuality = FMath::Max(0, IndexOf(DecalModes, SelectedDecals));
-		S->MasterVolume = MasterVolume;
-		S->MusicVolume = MusicVolume;
-		S->Crosshair = Crosshair;
-		S->HUDSize = FMath::RoundToInt(HUDSize);
+		UDFUserSettings& S = UDFUserSettings::Get();
+		S.PlayerName = PlayerName;
+		S.Brightness = Brightness;
+		S.MouseSensitivity = Sensitivity;
+		S.bInvertMouse = bInvert;
+		S.FieldOfView = FOV;
+		S.RenderScale = RenderScale;
+		S.DecalQuality = FMath::Max(0, IndexOf(DecalModes, SelectedDecals));
+		S.MasterVolume = MasterVolume;
+		S.MusicVolume = MusicVolume;
+		S.Crosshair = Crosshair;
+		S.HUDSize = FMath::RoundToInt(HUDSize);
 		// only what differs from MF's defaults is kept
-		S->KeyBindings.Reset();
+		S.KeyBindings.Reset();
 		for (const TPair<FName, FKey>& Slot : KeySlots())
 		{
 			if (const FKey* K = PendingKeys.Find(Slot.Key); K && *K != Slot.Value)
 			{
-				S->KeyBindings.Add(Slot.Key, *K);
+				S.KeyBindings.Add(Slot.Key, *K);
 			}
 		}
 		Capturing = NAME_None;
-		FString W, H;
-		if (SelectedResolution.IsValid() && SelectedResolution->Split(TEXT(" x "), &W, &H))
+		if (const int32 R = IndexOf(Resolutions, SelectedResolution); ResolutionSizes.IsValidIndex(R))
 		{
-			S->SetScreenResolution(FIntPoint(FCString::Atoi(*W), FCString::Atoi(*H)));
+			S.SetScreenResolution(ResolutionSizes[R]);
 		}
-		S->SetFullscreenMode(EWindowMode::ConvertIntToWindowMode(FMath::Max(0, IndexOf(WindowModes, SelectedWindowMode))));
-		S->SetOverallScalabilityLevel(FMath::Max(0, IndexOf(Qualities, SelectedQuality)));
-		S->ApplySettings(false);
-		S->SaveSettings();
+		S.SetFullscreenMode(EWindowMode::ConvertIntToWindowMode(FMath::Max(0, IndexOf(WindowModes, SelectedWindowMode))));
+		S.SetOverallScalabilityLevel(FMath::Max(0, IndexOf(Qualities, SelectedQuality)));
+		S.ApplySettings(false);
+		S.SaveSettings();
 		if (APlayerController* PC = Owner.Get())
 		{
 			PC->ConsoleCommand(TEXT("DFApplyUserSettings"));

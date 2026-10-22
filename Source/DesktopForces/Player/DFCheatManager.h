@@ -17,8 +17,6 @@ public:
 	/** On a client: server cheats go to the server (ADFPlayerController::ServerAdmin, which
 	 *  checks the player may cheat); views and test helpers run here. */
 	virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
-	/** Our classes by their short name (summon Buggy, summon RocketLauncher), the rest as UE does. */
-	virtual void Summon(const FString& ClassName) override;
 
 	// --- admin (ZombiePlayer's, for every mode; admins, or anyone with cheats on) ------------
 	/** Run a console command as another player: RunAs <player> <command>. */

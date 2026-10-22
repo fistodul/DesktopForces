@@ -8,9 +8,9 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 
-UDFUserSettings* UDFUserSettings::Get()
+UDFUserSettings& UDFUserSettings::Get()
 {
-	return GEngine ? Cast<UDFUserSettings>(GEngine->GetGameUserSettings()) : nullptr;
+	return *CastChecked<UDFUserSettings>(GEngine->GetGameUserSettings());
 }
 
 void UDFUserSettings::ApplyNonResolutionSettings()

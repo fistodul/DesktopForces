@@ -43,8 +43,7 @@ void ADFMapInfo::ApplyAmbient(UWorld* World)
 	{
 		Ambient = It->Ambient;
 	}
-	const UDFUserSettings* User = UDFUserSettings::Get();
-	const float Scale = UDFGameSettings::Get().AmbientFloor * (User ? User->Brightness : 1.f);
+	const float Scale = UDFGameSettings::Get().AmbientFloor * UDFUserSettings::Get().Brightness;
 	UKismetMaterialLibrary::SetVectorParameterValue(World, MPC, TEXT("Ambient"), Ambient * Scale);
 	UKismetMaterialLibrary::SetScalarParameterValue(World, MPC, TEXT("AmbientScale"), Scale);   // world: zone ambient in vertex colour
 }

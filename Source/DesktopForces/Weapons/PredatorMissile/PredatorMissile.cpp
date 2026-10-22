@@ -104,6 +104,13 @@ AActor* APredatorRocket::FindBotTarget() const
 	return Best;
 }
 
+void APredatorRocket::BeginPlay()
+{
+	Super::BeginPlay();
+	// PredatorMissile: AmbientSound RocketFly, SoundRadius 255 (heard across the map)
+	DF::PlayLoop(RootComponent, TEXT("WeaponSFX_RocketLauncher.RocketFly"), 6400.f);
+}
+
 void APredatorRocket::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

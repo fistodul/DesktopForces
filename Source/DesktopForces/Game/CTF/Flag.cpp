@@ -1,4 +1,5 @@
 #include "Game/CTF/Flag.h"
+#include "Core/DFContent.h"
 #include "Core/DFProps.h"
 #include "DesktopForces.h"
 #include "AI/DFBotController.h"
@@ -300,8 +301,7 @@ void AFlagGame::FlagPickedUp(AFlag* Flag, ADFCharacter* By)
 		ObjectName == TEXT("gold") ? TEXT("Gold_captured") : TEXT("Flag_captured"));
 	if (Flag->HomeBase)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/CTFSFX/flagtaken.flagtaken"),
-			nullptr, LOAD_NoWarn | LOAD_Quiet), Flag->HomeBase->GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("CTFSFX.flagtaken")), Flag->HomeBase->GetActorLocation());
 	}
 }
 

@@ -1,4 +1,5 @@
 #include "Weapons/TripBombs/TripBombs.h"
+#include "Core/DFContent.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
@@ -143,7 +144,7 @@ bool ATripBombs::TryPlant()
 	const FVector BombLoc = Wall.ImpactPoint + Wall.ImpactNormal * 6.f;
 	if (bNeedLaserTarget && !GetWorld()->LineTraceSingleByChannel(Opposite, BombLoc, BombLoc + Wall.ImpactNormal * MaxLaserDistance, ECC_Visibility, Params))
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, LoadObject<USoundBase>(nullptr, TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/PlantFail.PlantFail"), nullptr, LOAD_NoWarn | LOAD_Quiet), BombLoc);
+		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("WeaponSFX_TripBombs.PlantFail")), BombLoc);
 		return false;   // too far for the laser to work reliably
 	}
 	FActorSpawnParameters SP;

@@ -216,9 +216,9 @@ void ADFCharacter::ResumeWeapon()
 
 void ADFCharacter::ApplyUserSettings()
 {
-	if (const UDFUserSettings* S = UDFUserSettings::Get(); S && IsLocallyControlled())
+	if (IsLocallyControlled())
 	{
-		DefaultFOV = FMath::Clamp(S->FieldOfView, 60.f, 140.f);
+		DefaultFOV = FMath::Clamp(UDFUserSettings::Get().FieldOfView, 60.f, 140.f);
 		FirstPersonCamera->SetFieldOfView(GetDesiredFOV());
 	}
 }

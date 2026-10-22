@@ -75,20 +75,7 @@ void ADFProjectile::BeginPlay()
 	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
-		FString Package, Name;
-		if (ClassicAmbientSound.Split(TEXT("."), &Package, &Name))
-		{
-			USoundBase* Loop = DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name));
-			if (USoundWave* Wave = Cast<USoundWave>(Loop))
-			{
-				Wave->bLooping = true;
-			}
-			if (Loop)
-			{
-				UGameplayStatics::SpawnSoundAttached(Loop, RootComponent, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
-					true, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
-			}
-		}
+		DF::PlayLoop(RootComponent, ClassicAmbientSound);
 		if (bTicking)
 		{
 			FTimerHandle Tick;
@@ -103,11 +90,7 @@ void ADFProjectile::BeginPlay()
 	}
 	if (!ExplosionSound && !ClassicExplosionSound.IsEmpty() && GetNetMode() != NM_DedicatedServer)
 	{
-		FString Package, Name;
-		if (ClassicExplosionSound.Split(TEXT("."), &Package, &Name))
-		{
-			ExplosionSound = LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/MobileForcesClassic/Sounds/%s/%s.%s"), *Package, *Name, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
-		}
+		ExplosionSound = DF::LoadSound(ClassicExplosionSound);
 	}
 }
 

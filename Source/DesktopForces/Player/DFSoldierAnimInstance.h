@@ -53,7 +53,6 @@ public:
 	void SetIdle(FName Name, float InTweenTime = 0.25f) { IdleName = Name; IdleTween = InTweenTime; }
 	bool HasSequence(FName Name) { return Find(Name) != nullptr; }
 
-	FName GetCurrentName() const { return CurrentName; }
 	/** A non-looping sequence still has frames to play. */
 	bool IsPlayingOnce() const;
 

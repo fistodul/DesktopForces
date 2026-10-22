@@ -273,7 +273,6 @@ protected:
 	void RunVote(const FString& Command);
 	/** "travel" / "nextmap": the map's package and URL, or empty. */
 	FString VoteMapURL(const FString& Map, const FString& Mode) const;
-	TArray<FString> VoteMapList() const;
 	TMap<TWeakObjectPtr<AController>, FTimerHandle> RespawnTimers;
 	TWeakObjectPtr<AActor> LastStartSpot;
 	int32 BotsAdded = 0;

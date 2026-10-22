@@ -60,6 +60,7 @@ GAMEPLAY_PACKAGES = [
     'WeaponSFX_SniperRifle', 'WeaponSFX_HeavyMachineGun', 'WeaponSFX_RocketLauncher',
     'WeaponSFX_Grenades', 'WeaponSFX_TripBombs', 'WeaponSFX_AdrenalineShot',
     'MiscSFX', 'footstepSFX', 'RagePlayerSounds', 'Announcer',
+    'CTFSFX', 'RageMenuSFX',   # flag / safe taken (RageFlagBase.TakenSound), menu clicks
     'deagleSFX', 'gren',   # MF-mods weapons
     'WallHitSFX', 'GibsSFX',   # bullet impacts (RageEffect.AddWallHit), gibs
     'BuggySFX', 'HumveeSFX', 'TruckSFX', 'ArmadilloSFX', 'TrailerSFX', 'WheelSFX', 'VehicleFragSFX',   # vehicles

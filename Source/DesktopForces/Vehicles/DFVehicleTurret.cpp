@@ -18,15 +18,6 @@
 
 #define LOCTEXT_NAMESPACE "DFVehicleTurret"
 
-namespace VehicleTurretLocal
-{
-	USoundBase* LoadMFSound(const FString& MFName)
-	{
-		FString Package, Name;
-		return MFName.Split(TEXT("."), &Package, &Name) ? DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name)) : nullptr;
-	}
-}
-
 UDFVehicleTurret::UDFVehicleTurret()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -66,8 +57,8 @@ void UDFVehicleTurret::BeginPlay()
 	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
-		FireSound = VehicleTurretLocal::LoadMFSound(ClassicFireSound);
-		ReloadSound = VehicleTurretLocal::LoadMFSound(ClassicReloadSound);
+		FireSound = DF::LoadSound(ClassicFireSound);
+		ReloadSound = DF::LoadSound(ClassicReloadSound);
 	}
 }
 
