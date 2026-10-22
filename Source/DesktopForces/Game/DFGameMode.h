@@ -160,7 +160,8 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bHardCoreMode = true;
 
-	/** Vehicles at the map's generators (URL ?Vehicles=0 turns them off). */
+	/** Vehicles at the map's generators. ?Vehicles=0 none, ?Vehicles=Buggy (a class name) or
+	 *  Random: every road generator makes that (AllVehicles). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bVehicles = true;
 
@@ -212,13 +213,11 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bTurboCars = true;
 
-	/** Shots come this many times as fast (?FireRate=4). */
+	/** Gregaras' OPWeapons, simplified (?OPWeapons=1): clips never run dry (ADFWeapon::
+	 *  HasInfiniteAmmo) and shots come OPFireRate times as fast (MF: clips of hundreds, fire
+	 *  animations played 10-50 times as fast). Into ADFGameState::bInfiniteAmmo / FireRate. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
-	float FireRate = 1.f;
-	/** Clips never run dry (?InfiniteAmmo=1). Gregaras' OPWeapons, simplified: ?OPWeapons=1 is
-	 *  both, at OPFireRate (MF: clips of hundreds, fire animations played 10-50 times as fast). */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
-	bool bInfiniteAmmo = false;
+	bool bOPWeapons = false;
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	float OPFireRate = 4.f;
 	/** Weapons loadouts don't hand out, by class name, their subclasses too
@@ -227,11 +226,15 @@ public:
 	TArray<FString> NoWeapons;
 
 	/** Every road vehicle generator (buggy, humvee, truck, APC) makes this vehicle instead, by
-	 *  class name; Random: one of the four each time (?AllVehicles=Buggy; FNG AllBuggys ...
+	 *  class name; Random: one of the four each time (?Vehicles=Buggy; FNG AllBuggys ...
 	 *  AllRandom). The trailer cab stays. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	FString AllVehicles;
-	/** World gravity times this (?Gravity=0.5; ?LowGrav=1: FNG LowGrav, 200 of MF's 950 uu/s^2). */
+	/** What the truck generators make instead, by class name (?Trucks=Jeep: MF-mods jeeps with a
+	 *  gunner; ?Trucks=Heli: the community servers' mutPack replaceVehicles). Empty: trucks. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
+	FString Trucks;
+	/** World gravity times this (?Gravity=0.2: FNG LowGrav, 200 of MF's 950 uu/s^2). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	float Gravity = 1.f;
 
@@ -244,14 +247,6 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Server")
 	int32 ServerMessageGroup = 1;
 
-	/** MF-mods jeeps (gunner seat) from the truck generators instead of trucks (?Jeeps=1). */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	bool bJeeps = false;
-	/** Helis at every Truck generator, as the community servers' mutPack replaceVehicles did
-	 *  (?Helis=1; ?Jeeps=1 wins). Off: helis only where a map has them (its own generators,
-	 *  UDFGameSettings::AddedVehicles and VehicleSwaps). */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	bool bHelis = false;
 	/** mutPack addVehicles: UDFGameSettings::AddedVehicles on their maps (?AddVehicles=0 off). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bAddVehicles = true;

@@ -72,6 +72,7 @@ Game.ini, or `-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=...` on
 | `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
 | `TeleportTo Name` | next to a player (ZombieGame's `Teleport`; UE's `Teleport` goes where you aim) |
 | `BecomeHuman` / `BecomeSurvivor` / `BecomeZombie` / `BecomeNemesis` | Zombie mode: that side's stats on you (not a team change) |
+| `InfiniteAmmo` | your clips never run dry (weapons with more than one use; again: off) |
 
 ## Cheats
 

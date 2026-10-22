@@ -915,6 +915,15 @@ void UDFCheatManager::BecomeNemesis()
 	}
 }
 
+void UDFCheatManager::InfiniteAmmo()
+{
+	if (ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn()))
+	{
+		C->SetInfiniteAmmo(!C->HasInfiniteAmmo());
+		GetPlayerController()->ClientMessage(C->HasInfiniteAmmo() ? TEXT("Infinite ammo on") : TEXT("Infinite ammo off"));
+	}
+}
+
 void UDFCheatManager::Kick(const FString& PlayerName)
 {
 	AController* C = nullptr;

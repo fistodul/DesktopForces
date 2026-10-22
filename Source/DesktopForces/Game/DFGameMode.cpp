@@ -54,37 +54,25 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	GoalTeamScore = UGameplayStatics::GetIntOption(Options, TEXT("GoalTeamScore"), GoalTeamScore);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
-	bVehicles = UGameplayStatics::GetIntOption(Options, TEXT("Vehicles"), bVehicles ? 1 : 0) != 0;
+	if (const FString V = UGameplayStatics::ParseOption(Options, TEXT("Vehicles")); !V.IsEmpty())
+	{
+		bVehicles = V != TEXT("0");
+		AllVehicles = V.IsNumeric() ? FString() : V;   // 1: the map's own
+	}
 	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
 	bChangeDamage = UGameplayStatics::GetIntOption(Options, TEXT("ChangeDamage"), bChangeDamage ? 1 : 0) != 0;
 	bAllowCheats = UGameplayStatics::GetIntOption(Options, TEXT("Cheats"), bAllowCheats ? 1 : 0) != 0;
 	bParachutes = UGameplayStatics::GetIntOption(Options, TEXT("Parachutes"), bParachutes ? 1 : 0) != 0;
-	bJeeps = UGameplayStatics::GetIntOption(Options, TEXT("Jeeps"), bJeeps ? 1 : 0) != 0;
-	bHelis = UGameplayStatics::GetIntOption(Options, TEXT("Helis"), bHelis ? 1 : 0) != 0;
+	if (UGameplayStatics::HasOption(Options, TEXT("Trucks")))
+	{
+		Trucks = UGameplayStatics::ParseOption(Options, TEXT("Trucks"));
+	}
 	bAddVehicles = UGameplayStatics::GetIntOption(Options, TEXT("AddVehicles"), bAddVehicles ? 1 : 0) != 0;
 	bTurboCars = UGameplayStatics::GetIntOption(Options, TEXT("TurboCars"), bTurboCars ? 1 : 0) != 0;
-	if (UGameplayStatics::GetIntOption(Options, TEXT("OPWeapons"), 0) != 0)
-	{
-		FireRate = OPFireRate;
-		bInfiniteAmmo = true;
-	}
-	bInfiniteAmmo = UGameplayStatics::GetIntOption(Options, TEXT("InfiniteAmmo"), bInfiniteAmmo ? 1 : 0) != 0;
-	if (const FString Rate = UGameplayStatics::ParseOption(Options, TEXT("FireRate")); !Rate.IsEmpty())
-	{
-		FireRate = FCString::Atof(*Rate);
-	}
-	FireRate = FMath::Clamp(FireRate, 0.1f, 20.f);
+	bOPWeapons = UGameplayStatics::GetIntOption(Options, TEXT("OPWeapons"), bOPWeapons ? 1 : 0) != 0;
 	if (const FString Banned = UGameplayStatics::ParseOption(Options, TEXT("NoWeapons")); !Banned.IsEmpty())
 	{
 		Banned.ParseIntoArray(NoWeapons, TEXT(","));
-	}
-	if (UGameplayStatics::HasOption(Options, TEXT("AllVehicles")))
-	{
-		AllVehicles = UGameplayStatics::ParseOption(Options, TEXT("AllVehicles"));
-	}
-	if (UGameplayStatics::GetIntOption(Options, TEXT("LowGrav"), 0) != 0)
-	{
-		Gravity = 200.f / 950.f;
 	}
 	if (const FString G = UGameplayStatics::ParseOption(Options, TEXT("Gravity")); !G.IsEmpty())
 	{
@@ -113,8 +101,8 @@ void ADFGameMode::InitGameState()
 		GS->TeamScores.Init(0, NumTeams);
 		GS->bCheatsAllowed = bAllowCheats;
 		GS->bParachutes = bParachutes;
-		GS->FireRate = FireRate;
-		GS->bInfiniteAmmo = bInfiniteAmmo;
+		GS->FireRate = bOPWeapons ? FMath::Clamp(OPFireRate, 0.1f, 20.f) : 1.f;
+		GS->bInfiniteAmmo = bOPWeapons;
 		for (const FString& Name : NoWeapons)
 		{
 			UClass* C = UClass::TryFindTypeSlow<UClass>(Name.TrimStartAndEnd());
@@ -524,12 +512,12 @@ UClass* ADFGameMode::GetVehicleClassFor(UClass* StockClass) const
 			}
 		}
 	}
-	if ((bJeeps || bHelis) && StockClass && StockClass->GetName() == TEXT("Truck"))
+	if (!Trucks.IsEmpty() && StockClass && StockClass->GetName() == TEXT("Truck"))
 	{
 		// mutPack addVehicles / replaceVehicles style swaps
-		if (UClass* Replacement = LoadClass<AActor>(nullptr, bJeeps ? TEXT("/Script/DesktopForces.Jeep") : TEXT("/Script/DesktopForces.Heli")))
+		if (UClass* To = UClass::TryFindTypeSlow<UClass>(Trucks); To && To->IsChildOf<ADFVehicle>())
 		{
-			return Replacement;
+			return To;
 		}
 	}
 	return StockClass;

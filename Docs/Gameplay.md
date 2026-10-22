@@ -211,7 +211,8 @@ scopes hide the arms (the scope mask covers the view).
   take it; 3 rounds, original teams each round. A lone zombie against 5+ humans is a
   **NEMESIS** (boost exponent 0.24, cap 10, regenerates 1.5 / s): infection stops and dead humans
   wait for the next round until it dies. A lone human against 5+ zombies is a **SURVIVOR**
-  (health × max(ratio / 2.5, 2), regenerates). `?Infect=0`: team deathmatch with zombie bodies.
+  (health × max(ratio / 2.5, 2), regenerates, clips that never run dry on every weapon with more
+  than one use). `?Infect=0`: team deathmatch with zombie bodies.
 - Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
   All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
   flag.", Safecracker "Guard the safe." / "Grab the gold."), spoken aloud by whoever gives it
@@ -353,15 +354,15 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   reverse 0.2 x 12; steering spins it (0.05 a tick), reversed when backing. Three seats.
 - **Jeep** (MF-mods jeep: model Marcin, code Gregaras): 1000 kg 4x4, 60 mph (handling JEEP,
   jeep.COL), two front seats and a gunner standing at the back on a machine gun (3000
-  round belt, MachineGun damage, aimed with the gunner's view). `?Jeeps=1`: truck generators
+  round belt, MachineGun damage, aimed with the gunner's view). `?Trucks=Jeep`: truck generators
   make jeeps (the servers' mutPack placed them per map).
 - **Heli** (MF-mods heli, Gregaras): 1500 kg, flies by hovering: the rotor spins up for about
   5 s after the pilot gets in, then Jump climbs, Crouch sinks, forward / back / strafe tilt it
   and push it along (MF hover forces, lift scaled to the world's gravity). Four glass panes
   (300 hit points each, back after 20 s) crack and shatter. Bots ride along with a player at
   the controls but don't fly. **HeliHmg**: two side gunners on machine guns (jeep gun, 90°
-  either way). On the servers mutPack's replaceVehicles turned trucks into helis: `?Helis=1`
-  (default) does that, `?Helis=0` keeps the trucks.
+  either way). On the servers mutPack's replaceVehicles turned trucks into helis: `?Trucks=Heli`
+  does that (default: trucks).
 - **Piper** (MF-mods piper, Gregaras; one or two seats, three liveries): drives like a car to
   50 mph (propeller pull, no rolling resistance); Jump with throttle past 10 m/s lifts off.
   Airborne it holds its airspeed (up to 30 m/s, slowing in steep climbs, picking up in dives,

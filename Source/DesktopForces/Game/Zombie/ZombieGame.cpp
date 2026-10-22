@@ -235,6 +235,7 @@ void AZombieGame::BecomeZombie(ADFCharacter* C, bool bSpecial)
 	S.FallDamage = FMath::Min(1.5f * Boost, 2.55f);
 	S.FallDeath = 1.5f * Boost;
 	C->SetBodyScale(S);
+	C->SetInfiniteAmmo(false);
 	C->MaxHealth = FMath::RoundToInt(Def->MaxHealth * 3.33f * Boost);
 	UE_LOG(LogDF, Log, TEXT("Zombie: %s is a zombie (boost %.2f, health %d, speed x%.2f%s)"), C->GetPlayerState() ? *C->GetPlayerState()->GetPlayerName() : TEXT("?"), Boost, C->MaxHealth, S.Speed, bNemesis ? TEXT(", NEMESIS") : TEXT(""));
 	C->MaxCarry = Def->MaxCarry - 2;
@@ -279,6 +280,7 @@ void AZombieGame::BecomeHuman(ADFCharacter* C, bool bSpecial)
 		Hide->DestroyComponent();
 	}
 	TransformItems(C);
+	C->SetInfiniteAmmo(bSurvivor);   // ZombiePlayer.AddInventory: a survivor's weapons never run dry
 }
 
 void AZombieGame::Regenerate()

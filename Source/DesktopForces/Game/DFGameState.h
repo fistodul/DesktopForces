@@ -90,7 +90,8 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	bool bParachutes = true;
 
-	/** ADFGameMode::FireRate / bInfiniteAmmo (?FireRate, ?InfiniteAmmo, ?OPWeapons). */
+	/** Shots this many times as fast; clips that never run dry (ADFWeapon::HasInfiniteAmmo).
+	 *  ?OPWeapons=1 sets both (ADFGameMode::bOPWeapons). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	float FireRate = 1.f;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")

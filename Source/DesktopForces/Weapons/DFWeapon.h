@@ -132,8 +132,11 @@ public:
 	int32 GetTotalAmmo() const { return TotalAmmo; }
 	int32 GetAmmoCount() const { return ClipAmmo + TotalAmmo; }
 	bool HasAmmoInClip() const { return ClipAmmo > 0; }
-	/** Take Count from the clip (nothing with ?InfiniteAmmo). */
+	/** Take Count from the clip (nothing while HasInfiniteAmmo). */
 	void UseAmmo(int32 Count = 1);
+	/** Clips that never run dry: the game's (?OPWeapons) or the holder's (a zombie survivor),
+	 *  for weapons with more than one use - single-use items stay single. */
+	bool HasInfiniteAmmo() const;
 	bool CanReload() const { return TotalAmmo > 0 && ClipAmmo < MaxClipAmmo; }
 	bool HasAnyAmmo() const { return GetAmmoCount() > 0; }
 	/** Uses ammo and has none left (ammo-less items - armour, the knife in hand - never are). */

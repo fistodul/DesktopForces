@@ -96,6 +96,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Replicated, Category = "DF|Inventory")
 	int32 MaxCarry = 6;
 
+	/** Server: this soldier's clips never run dry (ADFWeapon::HasInfiniteAmmo: weapons with more
+	 *  than one use). Zombie survivors; the InfiniteAmmo cheat. Turning it on fills them up. */
+	void SetInfiniteAmmo(bool bOn);
+	bool HasInfiniteAmmo() const { return bInfiniteAmmo; }
+
 	/** Server: scale this soldier's body (modes / mods: zombies, survivors); replicated so the
 	 *  owner predicts the same movement. Multiplies the class defaults, never stacks. */
 	void SetBodyScale(const FDFBodyScale& NewScale);
@@ -274,6 +279,8 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Inventory)
 	TArray<TObjectPtr<ADFWeapon>> Inventory;
+	UPROPERTY(Replicated)
+	bool bInfiniteAmmo = false;
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon)
 	TObjectPtr<ADFWeapon> CurrentWeapon;

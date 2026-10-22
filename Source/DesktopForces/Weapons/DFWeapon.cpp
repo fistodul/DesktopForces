@@ -244,11 +244,21 @@ void ADFWeapon::PlaySoundLocal(USoundBase* Sound) const
 
 void ADFWeapon::UseAmmo(int32 Count)
 {
-	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
-	if (!GS || !GS->bInfiniteAmmo)
+	if (!HasInfiniteAmmo())
 	{
 		ClipAmmo = FMath::Max(0, ClipAmmo - Count);
 	}
+}
+
+bool ADFWeapon::HasInfiniteAmmo() const
+{
+	if (MaxClips <= 1 && MaxClipAmmo <= 1)
+	{
+		return false;
+	}
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	const ADFCharacter* C = GetOwnerCharacter();
+	return (GS && GS->bInfiniteAmmo) || (C && C->HasInfiniteAmmo());
 }
 
 void ADFWeapon::SetState(EDFWeaponState NewState, float Duration)

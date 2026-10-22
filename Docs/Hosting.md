@@ -40,12 +40,11 @@ Add to the map: `map?option=value?option=value`.
 | `TimeLimit=min`, `FragLimit=N`, `GoalTeamScore=N` | limits (0 = the mode's default) |
 | `Teams=N` | number of teams in team modes (MF: 2) |
 | `RespawnWait=s` | seconds before a respawn |
-| `Vehicles=0` | no vehicles; `TurboCars=0` no nitro; `Jeeps=1` / `Helis=1` jeeps or helis at the truck generators; `ArmedAPC=1\|2` armed APCs; `AddVehicles=0` none of the server's added vehicles |
+| `Vehicles=0` | no vehicles; `Vehicles=Buggy` (any vehicle class: `Humvee`, `Jeep`, `Heli` ...) every road generator makes that one, `Vehicles=Random` one of the four stock cars each time; `Trucks=Jeep` / `Trucks=Heli` what the truck generators make; `TurboCars=0` no nitro; `ArmedAPC=1\|2` armed APCs; `AddVehicles=0` none of the server's added vehicles |
 | `ChangeDamage=0` | MF's own damage rules instead of the community servers' (mutPack) |
-| `OPWeapons=1` | Gregaras' overpowered weapons: clips never run dry, shots 4x as fast (`OPFireRate`); or each on its own: `InfiniteAmmo=1`, `FireRate=x` |
+| `OPWeapons=1` | Gregaras' overpowered weapons: clips never run dry (weapons with more than one use, as for zombie survivors), shots 4x as fast (`OPFireRate`) |
 | `NoWeapons=Grenades,RocketLauncher` | weapons loadouts don't hand out, by class name (their variants too: no rocket launchers of any kind) |
-| `AllVehicles=Buggy` | every road vehicle generator makes this one (`Humvee`, `Truck`, `Armadillo`, `Jeep`, `Heli` ...; `Random`: one of the four stock cars each time) |
-| `LowGrav=1`, `Gravity=x` | low gravity (200 of MF's 950); world gravity times x |
+| `Gravity=x` | world gravity times x (`0.2`: FNG's LowGrav) |
 | `Cheats=1` | cheats for everyone (else admins only) |
 | `listen` | (listen servers) accept players |
 
@@ -68,7 +67,9 @@ ServerMessageInterval=600
 ServerMessageGroup=1
 ; the same as the URL options above, for every match
 ;NoWeapons=Grenades
-;AllVehicles=Random
+;AllVehicles=Random     ; ?Vehicles=Random
+;Trucks=Heli
+;bOPWeapons=True
 
 [/Script/DesktopForces.DFGameSettings]
 ; extra vehicles and swaps for this server only (maps already carry the community's ones)
@@ -116,7 +117,7 @@ ServerMessageGroup=1
 </details>
 
 The FNG mutator pack's ideas live on as options: ServerAds = `ServerMessages`, EnableRotation =
-`MapRotation`, LowGrav, AllBuggys ... AllRandom = `AllVehicles`, NoGrenades / NoRocketLauncher /
+`MapRotation`, LowGrav = `Gravity=0.2`, AllBuggys ... AllRandom = `Vehicles=<class>|Random`, NoGrenades / NoRocketLauncher /
 NoTripBombs = `NoWeapons`; AutoDemoRec: UE records demos itself (`demorec <name>` ... `demostop` in
 the console: `Saved/Demos/<name>.replay`; playing them back is untried).
 

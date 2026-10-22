@@ -88,12 +88,25 @@ void ADFCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ADFCharacter, Health);
 	DOREPLIFETIME_CONDITION(ADFCharacter, bParachute, COND_SkipOwner);
 	DOREPLIFETIME(ADFCharacter, MaxHealth);
+	DOREPLIFETIME_CONDITION(ADFCharacter, bInfiniteAmmo, COND_OwnerOnly);
 	DOREPLIFETIME(ADFCharacter, MaxCarry);
 	DOREPLIFETIME(ADFCharacter, BodyScale);
 	DOREPLIFETIME(ADFCharacter, bDying);
 	DOREPLIFETIME(ADFCharacter, Inventory);
 	DOREPLIFETIME(ADFCharacter, CurrentWeapon);
 	DOREPLIFETIME(ADFCharacter, bInLoadout);
+}
+
+void ADFCharacter::SetInfiniteAmmo(bool bOn)
+{
+	bInfiniteAmmo = bOn;
+	for (ADFWeapon* W : Inventory)
+	{
+		if (W && W->HasInfiniteAmmo())
+		{
+			W->GiveFullAmmo();   // ZombiePlayer.AddInventory: MaxClipAmmo 9999, GiveFullAmmo
+		}
+	}
 }
 
 void ADFCharacter::BeginPlay()
