@@ -14,8 +14,10 @@ original game's converted content, and the Python pipeline.
 Game code reaches classic content by path (`/MobileForcesClassic/...`, helper `DF::LoadClassic`
 in `Core/DFContent.h`) and copes when it's missing.
 
-The project was called `MobileForces` until 2026-10-20; `[CoreRedirects]` in
-`DefaultEngine.ini` keep old assets loading.
+The project was called `MobileForces` until 2026-10-20, its classes carried `MF`. There are
+no redirects for the old names: content saved under them was resaved (maps converted before the
+rename: `mfport.py import` again, or `ResavePackages` with the 2026-10-22 redirects from git
+history).
 
 **Names** (2026-10-22): the framework's classes carry `DF` (`ADFCharacter`, `ADFGameMode`,
 `ADFWeapon`, `UDFUserSettings`, namespace `DF::`, log `LogDF`); what you meet in the game has a
