@@ -270,6 +270,20 @@ void ADFGameMode::RestartPlayer(AController* NewPlayer)
 {
 	RespawnTimers.Remove(NewPlayer);
 	Super::RestartPlayer(NewPlayer);
+	if (NewPlayer && !NewPlayer->GetPawn() && NewPlayer->PlayerState && !NewPlayer->PlayerState->IsSpectator())
+	{
+		// no start had room (bots added in a crowd fill the spawn room): try again in a moment
+		// rather than leaving them on the scoreboard without a body
+		TWeakObjectPtr<AController> Weak(NewPlayer);
+		FTimerHandle& H = RespawnTimers.FindOrAdd(NewPlayer);
+		GetWorldTimerManager().SetTimer(H, FTimerDelegate::CreateWeakLambda(this, [this, Weak]()
+		{
+			if (AController* C = Weak.Get(); C && !C->GetPawn())
+			{
+				RestartPlayer(C);
+			}
+		}), 1.f, false);
+	}
 }
 
 APawn* ADFGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform)

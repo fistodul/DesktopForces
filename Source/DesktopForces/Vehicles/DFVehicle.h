@@ -48,8 +48,21 @@ struct FDFWheelSetup
 	FString BlownMesh;
 };
 
+/** The seats a door leads to, best first (MF aSeatsDoor / aDoorsSeat / aSeatNearDrivers). */
+USTRUCT()
+struct FDFDoorSeats
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	TArray<int32> Seats;
+};
+
 namespace DF
 {
+	/** Door -> seats lists for a vehicle constructor: { {0, 1}, {3, 2, 0, 1} }. */
+	DESKTOPFORCES_API TArray<FDFDoorSeats> DoorSeats(std::initializer_list<std::initializer_list<int32>> PerDoor);
+
 	/** A wheel of MF's own cars (RageGame): Physics/<Vehicle>.COL sphere, cm; the flat tyre
 	 *  mesh follows MF's naming (WheelBlownMesh). */
 	DESKTOPFORCES_API FDFWheelSetup RageWheel(const FVector& Pos, float Radius, bool bSteer, bool bDrive, const TCHAR* Mesh);
@@ -225,9 +238,29 @@ protected:
 	/** Top speed, km/h (handling MaxSpeed). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float TopSpeedKmh = 110.f;
-	/** Seconds from standstill to near top speed. */
+	/** Seconds from standstill to near top speed (vehicles without a gearbox below). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float AccelTime = 6.f;
+	/** MF handling.hnd2 engine and gearbox: GraphTorque (N m) over GraphRPM, Ratios, ReverseRatio,
+	 *  FinalDrive. The pull is the torque through the gear that pulls hardest at the speed, over
+	 *  the driven wheels' radius, up to MaxSpeed (and the tyres' grip). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Engine")
+	TArray<float> TorqueCurve;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Engine")
+	TArray<float> TorqueRpm;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Engine")
+	TArray<float> GearRatios;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Engine")
+	float ReverseRatio = 3.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Engine")
+	float FinalDrive = 10.f;
+	/** What the tyres pass on at most (cm/s^2). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Engine")
+	float MaxDriveAccel = 1000.f;
+	/** MF handling Engine / gearbox data in one go (the hnd2 lines as they are). */
+	void SetHandling(std::initializer_list<float> Torque, std::initializer_list<float> Rpm, std::initializer_list<float> Ratios, float Reverse, float Final);
+	/** Engine pull along the car (cm kg/s^2) at a forward speed (cm/s) and throttle. */
+	float GetDriveForce(float ForwardSpeed, float InThrottle) const;
 	/** Rolling resistance per second of speed, under throttle / coasting. */
 	float RollingDrag = 0.05f;
 	float CoastDrag = 0.3f;
@@ -301,6 +334,10 @@ protected:
 	TArray<FVector> SeatPositions;
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<FVector> DoorPositions;
+	/** Per door, the seats it gets you into, best first; seat 0 drives. Empty: the driver's
+	 *  seat, then the first free one. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	TArray<FDFDoorSeats> DoorSeats;
 	/** MF aSeatsSit: who rides that seat sits (the passenger animations); the others stand.
 	 *  Seats past the end sit if they are the driver's. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
@@ -331,6 +368,8 @@ protected:
 	virtual void PassengerEntered(ADFCharacter* C, int32 Seat);
 	virtual void PassengerLeft(ADFCharacter* C, int32 Seat);
 	void SeatPassenger(ADFCharacter* C, int32 Seat);
+	/** Into the driver's seat: the soldier's controller drives. */
+	bool EnterDriver(ADFCharacter* C);
 	void UnseatPassenger(ADFCharacter* C);
 	bool FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const;
 
@@ -354,6 +393,8 @@ protected:
 	TArray<float> LastCompression;
 	TArray<float> WheelSpin;
 	float UpsideDownTime = 0.f;
+	/** Velocity before this frame's contacts (a soldier hit is judged on it, not on the stop). */
+	FVector PrevVelocity = FVector::ZeroVector;
 	bool bBlownUp = false;
 	/** PhysicalWaterInfo.WaterHeight (cm); none: -inf. Submerged share of the body (0..1). */
 	float WaterPlaneZ = -1e9f;

@@ -254,6 +254,7 @@ void ADFVehicle::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (HasAuthority() && !bBlownUp && Body->IsSimulatingPhysics())
 	{
+		PrevVelocity = Body->GetPhysicsLinearVelocity();
 		SimulateWheels(FMath::Min(DeltaSeconds, 0.05f));
 	}
 	if (GetNetMode() != NM_DedicatedServer)
@@ -324,6 +325,7 @@ void ADFVehicle::SimulateWheels(float Dt)
 		Driven += W.bDrive;
 	}
 	const float Speed = FVector::DotProduct(Body->GetPhysicsLinearVelocity(), Fwd);
+	const float DriveForce = GearRatios.Num() ? GetDriveForce(Speed, Throttle) : Throttle * (Throttle < 0.f ? 0.5f : 1.f) * EngineForce;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFWheel), false, this);
 	if (Driver)
 	{
@@ -369,22 +371,24 @@ void ADFVehicle::SimulateWheels(float Dt)
 		const FVector V = Body->GetPhysicsLinearVelocityAtPoint(Contact);
 		const float VLat = FVector::DotProduct(V, WRight);
 		const float VLong = FVector::DotProduct(V, WFwd);
-		// sideways grip, weaker on the rear with the handbrake (slides)
-		const float GripHere = ((bHandbrake && !W.bSteer) ? Grip * 0.25f : Grip) * (bFlat ? 0.35f : 1.f);
+		// sideways grip, weaker on the rear with the handbrake pulled (slides; a parked car keeps it)
+		const float GripHere = ((bHandbrake && Driver && !W.bSteer) ? Grip * 0.25f : Grip) * (bFlat ? 0.35f : 1.f);
 		const float MaxFriction = 1.3f * Fz;
 		float FLat = FMath::Clamp(-VLat * GripHere * WheelMass, -MaxFriction, MaxFriction);
 		// engine, brakes, rolling resistance (strong when coasting: cars roll to a stop like MF's)
 		float FLong = -VLong * (FMath::IsNearlyZero(Throttle) ? CoastDrag : RollingDrag) * WheelMass;
 		const bool bBraking = !FMath::IsNearlyZero(Throttle) && FMath::Abs(Speed) > 60.f && FMath::Sign(Throttle) != FMath::Sign(Speed);
-		if (bBraking || bHandbrake)
+		// no throttle and next to no speed: held (a car left with its engine idling doesn't roll
+		// away down a slope; MF's engine braking and clutch held them)
+		const bool bHold = FMath::IsNearlyZero(Throttle) && FMath::Abs(Speed) < 150.f;
+		if (bBraking || bHandbrake || bHold)
 		{
-			const float Brake = BrakeDecel * WheelMass * (bHandbrake ? 1.f : FMath::Abs(Throttle));
+			const float Brake = BrakeDecel * WheelMass * (bHandbrake || bHold ? 1.f : FMath::Abs(Throttle));
 			FLong = -FMath::Sign(VLong) * FMath::Min(Brake, FMath::Abs(VLong) * WheelMass / FMath::Max(Dt, 1e-3f));
 		}
 		else if (W.bDrive && Driven > 0)
 		{
-			const float Reverse = Throttle < 0.f ? 0.5f : 1.f;   // reverse is slower
-			FLong += Throttle * Reverse * EngineForce / Driven * (bFlat ? 0.5f : 1.f);
+			FLong += DriveForce / Driven * (bFlat ? 0.5f : 1.f);
 		}
 		FLong = FMath::Clamp(FLong, -MaxFriction * 1.2f, MaxFriction * 1.2f);
 		Body->AddForceAtLocation(Up * Fz + WRight * FLat + WFwd * FLong, Contact);
@@ -619,20 +623,51 @@ bool ADFVehicle::TryEnter(ADFCharacter* C)
 	{
 		return false;
 	}
-	if (Driver || !bDriveable)
+	// MF PawnEnterVehicle: the nearest door with a free seat, the seats behind it in MF's order
+	// (the buggy's back door is the gunner's, the humvee's the back seats'); then any free one
+	TArray<int32> Order;
+	if (DoorSeats.Num() && DoorPositions.Num())
 	{
-		// driver's seat taken: the first free passenger seat (MF aSeatsPos 1..)
-		Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
-		for (int32 Seat = 1; Seat < SeatPositions.Num(); ++Seat)
+		TArray<int32> Doors;
+		for (int32 D = 0; D < DoorPositions.Num(); ++D)
 		{
-			if (!Passengers[Seat])
+			Doors.Add(D);
+		}
+		const FVector At = C->GetActorLocation();
+		Doors.Sort([this, &At](int32 A, int32 B) { return FVector::DistSquared(DoorExit(A), At) < FVector::DistSquared(DoorExit(B), At); });
+		for (const int32 D : Doors)
+		{
+			if (DoorSeats.IsValidIndex(D))
 			{
-				SeatPassenger(C, Seat);
-				return true;
+				for (const int32 Seat : DoorSeats[D].Seats)
+				{
+					Order.AddUnique(Seat);
+				}
 			}
 		}
-		return false;
 	}
+	for (int32 Seat = 0; Seat < FMath::Max(1, SeatPositions.Num()); ++Seat)
+	{
+		Order.AddUnique(Seat);
+	}
+	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
+	for (const int32 Seat : Order)
+	{
+		if (Seat == 0 && bDriveable && !Driver)
+		{
+			return EnterDriver(C);
+		}
+		if (Seat > 0 && Passengers.IsValidIndex(Seat) && !Passengers[Seat])
+		{
+			SeatPassenger(C, Seat);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ADFVehicle::EnterDriver(ADFCharacter* C)
+{
 	AController* PC = C->GetController();
 	if (!PC)
 	{
@@ -1083,18 +1118,33 @@ void ADFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 			MulticastBump(FMath::Min(HitSpeed, 700.f) / 700.f * 0.8f);
 		}
 	}
-	// MF Vehicle: hitting someone at KillSpeed or faster runs them over
+	// MF Vehicle.CheckKill (Bump): the car's speed at the soldier, KillSpeed or more, runs him
+	// down (100 'RunDown'). Judged on the speed before this frame's contact: by the time the
+	// hit is reported the physics has already stopped the car against the soldier's capsule
 	ADFCharacter* C = Cast<ADFCharacter>(Other);
-	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE)
+	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE || C->GetMovementBase() == Body
+		|| FMath::Abs(Hit.ImpactNormal.Z) > 0.7f)
+	{
+		return;   // riders, and soldiers standing on it, aren't run over
+	}
+	const FVector Away = (C->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+	const float Closing = FVector::DotProduct(PrevVelocity - C->GetVelocity(), Away);
+	if (Closing < 50.f)
 	{
 		return;
 	}
-	const float Closing = FVector::DotProduct(GetVelocity() - C->GetVelocity(), (C->GetActorLocation() - GetActorLocation()).GetSafeNormal2D());
-	if (Closing >= KillSpeed)
+	if (PrevVelocity.Size() >= KillSpeed)
 	{
 		FDamageEvent Ev(UDFDamage_RunOver::StaticClass());
-		C->TakeDamage(1000.f, Ev, GetController(), this);
+		C->TakeDamage(100.f, Ev, GetController(), this);
 	}
+	// a soldier doesn't stop a car: he is shoved aside, the car keeps nearly all its way
+	// (80 kg against its mass)
+	if (C->IsAlive())
+	{
+		C->LaunchCharacter(Away * Closing * 1.1f + FVector(0.f, 0.f, FMath::Min(Closing * 0.3f, 400.f)), true, true);
+	}
+	Body->SetPhysicsLinearVelocity(PrevVelocity * (MassKg / (MassKg + 80.f)));
 }
 
 // --- generator -------------------------------------------------------------------------------------
@@ -1322,4 +1372,89 @@ void ADFVehicle::UpdateFlag()
 		const FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
 		FlagCloth->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
 	}
+}
+
+// --- MF engine and gearbox ------------------------------------------------------------------
+
+TArray<FDFDoorSeats> DF::DoorSeats(std::initializer_list<std::initializer_list<int32>> PerDoor)
+{
+	TArray<FDFDoorSeats> Out;
+	for (const std::initializer_list<int32>& Door : PerDoor)
+	{
+		Out.AddDefaulted_GetRef().Seats = TArray<int32>(Door);
+	}
+	return Out;
+}
+
+void ADFVehicle::SetHandling(std::initializer_list<float> Torque, std::initializer_list<float> Rpm, std::initializer_list<float> Ratios, float Reverse, float Final)
+{
+	TorqueCurve = TArray<float>(Torque);
+	TorqueRpm = TArray<float>(Rpm);
+	GearRatios.Reset();
+	for (const float R : Ratios)
+	{
+		if (R > 0.f)
+		{
+			GearRatios.Add(R);   // the file pads the gears with 0.00
+		}
+	}
+	ReverseRatio = Reverse;
+	FinalDrive = Final;
+}
+
+float ADFVehicle::GetDriveForce(float ForwardSpeed, float InThrottle) const
+{
+	if (FMath::IsNearlyZero(InThrottle) || TorqueCurve.Num() < 2 || TorqueCurve.Num() != TorqueRpm.Num())
+	{
+		return 0.f;
+	}
+	// driven wheels' radius (cm)
+	float Radius = 0.f;
+	int32 N = 0;
+	for (const FDFWheelSetup& W : Wheels)
+	{
+		if (W.bDrive)
+		{
+			Radius += W.Radius;
+			++N;
+		}
+	}
+	Radius = N ? Radius / N : 40.f;
+	auto TorqueAt = [this](float Rpm)
+	{
+		// the clutch slips below the curve's first point; past its end the engine gives nothing
+		Rpm = FMath::Max(Rpm, TorqueRpm[0]);
+		for (int32 i = 1; i < TorqueRpm.Num(); ++i)
+		{
+			if (Rpm <= TorqueRpm[i])
+			{
+				const float A = (Rpm - TorqueRpm[i - 1]) / FMath::Max(TorqueRpm[i] - TorqueRpm[i - 1], 1.f);
+				return FMath::Lerp(TorqueCurve[i - 1], TorqueCurve[i], A);
+			}
+		}
+		return 0.f;
+	};
+	const bool bReverse = InThrottle < 0.f;
+	const float WheelRpm = FMath::Abs(ForwardSpeed) / (2.f * PI * Radius) * 60.f;
+	float Pull = 0.f;   // N
+	auto Gear = [&](float Ratio) { Pull = FMath::Max(Pull, TorqueAt(WheelRpm * Ratio * FinalDrive) * Ratio * FinalDrive / (Radius / 100.f)); };
+	if (bReverse)
+	{
+		Gear(ReverseRatio);
+	}
+	else
+	{
+		for (const float R : GearRatios)
+		{
+			Gear(R);   // an automatic box: whichever gear pulls hardest at this speed
+		}
+	}
+	// MaxSpeed is a governor: the pull fades over its last 3 %
+	const float Top = TopSpeedKmh / 0.036f;
+	if (!bReverse)
+	{
+		Pull *= FMath::Clamp((Top - ForwardSpeed) / (Top * 0.03f), 0.f, 1.f);
+	}
+	const float Force = FMath::Min(Pull * 100.f, MassKg * MaxDriveAccel);   // N -> kg cm/s^2
+	return Force * InThrottle;
 }

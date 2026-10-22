@@ -11,6 +11,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerState.h"
 #include "EngineUtils.h"
 #include "GameMapsSettings.h"
 #include "Kismet/GameplayStatics.h"
@@ -845,6 +846,10 @@ private:
 		if (APlayerController* PC = Owner.Get())
 		{
 			PC->ConsoleCommand(TEXT("DFApplyUserSettings"));
+			if (PC->PlayerState && !PlayerName.IsEmpty() && PC->PlayerState->GetPlayerName() != PlayerName)
+			{
+				PC->SetName(PlayerName.Replace(TEXT("?"), TEXT("")).Left(20));   // in a game: rename now
+			}
 		}
 		Switcher->SetActiveWidgetIndex(0);
 	}

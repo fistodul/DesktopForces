@@ -44,6 +44,7 @@ AHeli::AHeli()
 	SeatPositions = { FVector(360.f, -47.25f, 90.f), FVector(360.f, 74.25f, 90.f), FVector(168.75f, 123.75f, 56.25f), FVector(168.75f, -90.f, 56.25f) };
 	SeatSits = { true, true, true, true };   // aSeatsSit
 	DoorPositions = { FVector(416.25f, -157.5f, 0.f), FVector(416.25f, 202.5f, 0.f), FVector(202.5f, -180.f, 0.f), FVector(202.5f, 202.5f, 0.f) };
+	DoorSeats = DF::DoorSeats({ { 0, 1 }, { 0, 1 }, { 3, 0, 1 }, { 2, 0, 1 } });   // front seats near the pilot, aSeatsDoor(2)=3 / (3)=2 (our doors 0 / 1 are MF 1 / 0)
 
 	auto Part = [this](const TCHAR* Name, const FVector& Pos)
 	{

@@ -180,7 +180,9 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 	}
 	const FVector Accel = GetCurrentAcceleration();
 	const FVector Into = -LadderWallNormal;
-	const float Climb = FVector::DotProduct(Accel.GetSafeNormal(), Into);
+	// players push into the wall (level input); bots steer at the next path point, up or down
+	// the ladder: both count, or bots climbed at a fraction of the speed
+	const float Climb = FMath::Clamp(FVector::DotProduct(Accel.GetSafeNormal(), Into) + Accel.GetSafeNormal().Z, -1.f, 1.f);
 	const FVector Side = FVector::CrossProduct(FVector::UpVector, LadderWallNormal);
 	const float Strafe = FVector::DotProduct(Accel.GetSafeNormal(), Side);
 

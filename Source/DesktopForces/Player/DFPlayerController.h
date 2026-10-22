@@ -103,6 +103,10 @@ public:
 	/** UE1 PlayerPawn.BehindView: the camera behind you (1), in your eyes (0), or the other one. */
 	UFUNCTION(Exec)
 	void BehindView(int32 On = -1);
+
+	/** MF / UT `Name <new name>`: rename yourself (kept as the name in Options too). */
+	UFUNCTION(Exec)
+	void Name(const FString& NewName);
 	bool IsBehindView() const { return bBehindView; }
 
 	/** Admin (MF AdminLogin / AdminLogout / Admin): ADFGameMode::AdminPassword. */
@@ -269,6 +273,7 @@ protected:
 	virtual void AcknowledgePossession(APawn* P) override;
 	/** Black from the map's start until the first spawn (no glimpse of the world half streamed in). */
 	void FadeIn();
+	void FadeInSoon(APawn* P);
 	bool bFadedIn = false;
 	FTimerHandle FadeInTimer;
 

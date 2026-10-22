@@ -29,6 +29,11 @@ AArmadillo::AArmadillo()
 	};
 	SeatPositions = { FVector(112.5f, 0.f, 58.5f), FVector(0.f, 0.f, 180.f) };
 	DoorPositions = { FVector(135.f, 225.f, 0.f), FVector(135.f, -225.f, 0.f), FVector(-337.5f, 0.f, 0.f), FVector(0.f, 0.f, 180.f) };
+	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
+	SetHandling({ 540.f, 540.f, 543.f, 543.f, 543.f, 543.f, 543.f, 543.f, 40.f, 0.f },
+		{ 1000.f, 2000.f, 2800.f, 3500.f, 4200.f, 5000.f, 5700.f, 6200.f, 6700.f, 7000.f },
+		{ 4.33f, 3.09f, 2.35f, 1.f }, 3.f, 12.f);
+	DoorSeats = DF::DoorSeats({ { 0 }, { 0 }, { 1, 0 }, { 1 } });   // aSeatsDoor(1)=2, aDoorsSeat(3)=1: the gunner through the back or the hatch
 	CameraDistance = 562.5f;
 }
 

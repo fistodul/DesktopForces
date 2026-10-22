@@ -37,6 +37,11 @@ AJeep::AJeep()
 	SeatPositions = { FVector(9.f, -56.25f, 112.5f), FVector(9.f, 56.25f, 112.5f), FVector(-67.5f, -11.25f, 180.f) };
 	SeatSits = { true, true };   // aSeatsSit
 	DoorPositions = { FVector(22.5f, 148.5f, 57.4f), FVector(22.5f, -148.5f, 57.4f), FVector(-299.25f, 0.f, 57.4f) };
+	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
+	SetHandling({ 540.f, 540.f, 543.f, 543.f, 543.f, 543.f, 543.f, 543.f, 40.f, 0.f },
+		{ 1000.f, 2000.f, 2800.f, 3500.f, 4200.f, 5000.f, 5700.f, 6200.f, 6700.f, 7000.f },
+		{ 3.f, 1.2f, 0.8f }, 1.5f, 8.f);
+	DoorSeats = DF::DoorSeats({ { 0, 1 }, { 0, 1 }, { 2, 0, 1 } });   // front seats near the driver, the gunner from the back
 	PetrolCapPosition = FVector(-60.75f, -105.75f, 29.25f);   // PetrolCapPos (-27, -47, 13)
 	PetrolCapRadius = 9.f;                                       // PetrolCapRadius 4
 	CameraDistance = 562.5f;                                     // NearCamera 250

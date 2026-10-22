@@ -46,8 +46,14 @@ void ADFTracer::Fire(UWorld* World, const FVector& Start, const FVector& End)
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	if (ADFTracer* T = World->SpawnActor<ADFTracer>(From, Dir.Rotation(), SP))
 	{
-		static UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Tracer.M_MF_Tracer"), nullptr, LOAD_NoWarn | LOAD_Quiet);
-		if (Material)
+		// a weak cache: a raw static outlived the material after a map change (garbage
+		// collected) and crashed the next shot
+		static TWeakObjectPtr<UMaterialInterface> Cached;
+		if (!Cached.IsValid())
+		{
+			Cached = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Tracer.M_MF_Tracer"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		}
+		if (UMaterialInterface* Material = Cached.Get())
 		{
 			T->Streak->SetMaterial(0, Material);
 		}

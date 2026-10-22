@@ -629,11 +629,11 @@ void ADFHUD::DrawMiniMapMF(ADFCharacter* C)
 			}
 		}
 	}
-	// us: PlayerIcon_Team (Y=0), turned with the view (MF draws a 3D arrow here)
-	// the icon is drawn pointing down the map (+Y) unturned (checked: facing +X it points the
-	// way walking forward moves the dot); the view is the player controller's (in a vehicle
-	// the soldier has no controller of their own)
-	DrawIcon(P, TeamU, 0.f, (PlayerOwner ? PlayerOwner->GetControlRotation().Yaw : C->GetActorRotation().Yaw) - 90.f, true);
+	// us: PlayerIcon_Team (Y=0), turned with the view (MF draws a 3D arrow here). The icon
+	// points up the map (-Y) unturned (looked at in MinimapNewIcons), the map has +X right and
+	// +Y down, and a canvas turn is clockwise: yaw + 90. The view is the player controller's (in
+	// a vehicle the soldier has no controller of their own)
+	DrawIcon(P, TeamU, 0.f, (PlayerOwner ? PlayerOwner->GetControlRotation().Yaw : C->GetActorRotation().Yaw) + 90.f, true);
 
 	// border: 16 px pieces around MiniMapSize + 4, team rects in MinimapNewIcons
 	const float BX = 6.f * RS, Edge = 16.f * RS, BS = (192.f + 4.f) * RS;

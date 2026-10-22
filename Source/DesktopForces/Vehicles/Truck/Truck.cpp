@@ -32,6 +32,11 @@ ATruck::ATruck()
 	SeatPositions = { FVector(182.8f, -70.3f, 68.f), FVector(182.8f, 70.3f, 68.f), FVector(0.f, 0.f, 123.75f), FVector(-154.7f, 0.f, 123.75f), FVector(-337.5f, 0.f, 123.75f) };
 	SeatSits = { true, true };   // aSeatsSit
 	DoorPositions = { FVector(196.9f, -270.f, 0.f), FVector(196.9f, 270.f, 0.f), FVector(-506.f, 0.f, 0.f) };
+	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
+	SetHandling({ 530.f, 530.f, 530.f, 530.f, 530.f, 530.f, 530.f, 540.f, 90.f, 0.f },
+		{ 1000.f, 2000.f, 2800.f, 3500.f, 4200.f, 5000.f, 5700.f, 6200.f, 6700.f, 7000.f },
+		{ 4.f, 3.f, 2.2f, 1.f }, 3.f, 13.f);
+	DoorSeats = DF::DoorSeats({ { 0 }, { 0, 1 }, { 4, 3, 2, 0, 1 } });   // front seats near the driver, the bed from the back
 	CameraDistance = 742.5f;           // NearCamera 330
 }
 

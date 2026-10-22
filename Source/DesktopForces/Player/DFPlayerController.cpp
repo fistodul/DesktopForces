@@ -64,7 +64,7 @@ void ADFPlayerController::BeginPlay()
 		if (PlayerCameraManager)
 		{
 			PlayerCameraManager->SetManualCameraFade(1.f, FLinearColor::Black, false);
-			GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 4.f, false);   // spectators, waiting
+			GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 1.5f, false);   // spectators, waiting
 		}
 	}
 }
@@ -72,10 +72,15 @@ void ADFPlayerController::BeginPlay()
 void ADFPlayerController::AcknowledgePossession(APawn* P)
 {
 	Super::AcknowledgePossession(P);
-	if (P && !bFadedIn)
+	FadeInSoon(P);
+}
+
+void ADFPlayerController::FadeInSoon(APawn* P)
+{
+	if (P && !bFadedIn && IsLocalController())
 	{
 		// a moment for the spawn spot's textures, then in
-		GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 0.15f, false);
+		GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 0.1f, false);
 	}
 }
 
@@ -84,7 +89,7 @@ void ADFPlayerController::FadeIn()
 	if (!bFadedIn && PlayerCameraManager)
 	{
 		bFadedIn = true;
-		PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.4f, FLinearColor::Black, false, false);
+		PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.3f, FLinearColor::Black, false, false);
 	}
 }
 
@@ -92,6 +97,22 @@ void ADFPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 	SetControlRotation(InPawn ? InPawn->GetActorRotation() : FRotator::ZeroRotator);
+	FadeInSoon(InPawn);   // a listen server / standalone player isn't always told through AcknowledgePossession
+}
+
+void ADFPlayerController::Name(const FString& NewName)
+{
+	const FString Clean = NewName.TrimStartAndEnd().Replace(TEXT("?"), TEXT("")).Left(20);
+	if (Clean.IsEmpty())
+	{
+		return;
+	}
+	SetName(Clean);   // ServerChangeName -> GameMode ChangeName (everyone is told)
+	if (UDFUserSettings* S = UDFUserSettings::Get())
+	{
+		S->PlayerName = Clean;
+		S->SaveSettings();
+	}
 }
 
 // --- input setup ---------------------------------------------------------------------

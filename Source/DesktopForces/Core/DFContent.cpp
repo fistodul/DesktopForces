@@ -2,6 +2,7 @@
 #include "Components/AudioComponent.h"
 #include "Core/DFUserSettings.h"
 #include "UObject/UObjectGlobals.h"
+#include "Misc/PackageName.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
@@ -17,14 +18,30 @@ FString DF::ClassicPath(const FString& Rel)
 
 UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel)
 {
+	// which root has it is worked out once: asking for a package that isn't there costs a
+	// synchronous load attempt (FlushAsyncLoading, a hitch) every time - and classic assets were
+	// first asked for under the community root on every footstep and every effect
+	static TMap<FString, FString> Resolved;   // Rel -> object path; empty: in no root
+	if (const FString* Path = Resolved.Find(Rel))
+	{
+		return Path->IsEmpty() ? nullptr : StaticLoadObject(Class, nullptr, **Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
 	const FString Name = FPaths::GetBaseFilename(Rel);
 	for (const TCHAR* Root : ContentRoots)
 	{
-		if (UObject* O = StaticLoadObject(Class, nullptr, *FString::Printf(TEXT("%s/%s.%s"), Root, *Rel, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		const FString Package = FString::Printf(TEXT("%s/%s"), Root, *Rel);
+		if (!FPackageName::DoesPackageExist(Package))
 		{
+			continue;
+		}
+		const FString Path = Package + TEXT(".") + Name;
+		if (UObject* O = StaticLoadObject(Class, nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			Resolved.Add(Rel, Path);
 			return O;
 		}
 	}
+	Resolved.Add(Rel, FString());
 	return nullptr;
 }
 
