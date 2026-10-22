@@ -48,7 +48,7 @@ rsync -av $DRY --delete \
     "$PROJECT_DIR/" "$WIN_DEST/"
 
 echo "=========================================================="
-echo " Sync complete!"
+if [ -n "$DRY" ]; then echo " Dry run: nothing was copied"; else echo " Sync complete!"; fi
 echo " In Windows, open: $(python3 "$SCRIPT_DIR/winpaths.py" to-windows "$WIN_DEST" 2>/dev/null || echo "$WIN_DEST")"
 echo " Run: powershell -ExecutionPolicy Bypass -File Tools\\build_windows.ps1"
 echo "=========================================================="
