@@ -713,7 +713,7 @@ int32 ADFCharacter::GetCurrentCarry() const
 	{
 		if (W)
 		{
-			Total += W->CarrySize;
+			Total += W->GetCarrySize(this);
 		}
 	}
 	return Total;
@@ -762,7 +762,7 @@ bool ADFCharacter::CanCarry(TSubclassOf<ADFWeapon> WeaponClass) const
 		return false;
 	}
 	const ADFWeapon* CDO = WeaponClass->GetDefaultObject<ADFWeapon>();
-	return GetCurrentCarry() + CDO->CarrySize <= MaxCarry && CountOfClass(WeaponClass) < CDO->MaxCanCarry;
+	return GetCurrentCarry() + CDO->GetCarrySize(this) <= MaxCarry && CountOfClass(WeaponClass) < CDO->MaxCanCarry;
 }
 
 ADFWeapon* ADFCharacter::GiveWeapon(TSubclassOf<ADFWeapon> WeaponClass, bool bEquip)

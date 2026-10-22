@@ -21,6 +21,7 @@ void ADFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ADFGameState, bParachutes);
 	DOREPLIFETIME(ADFGameState, FireRate);
 	DOREPLIFETIME(ADFGameState, bInfiniteAmmo);
+	DOREPLIFETIME(ADFGameState, bImprovedRL);
 	DOREPLIFETIME(ADFGameState, BannedItems);
 	DOREPLIFETIME(ADFGameState, AllowedItemGroups);
 	DOREPLIFETIME(ADFGameState, FragLimit);

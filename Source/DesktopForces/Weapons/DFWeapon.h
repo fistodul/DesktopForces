@@ -75,9 +75,12 @@ public:
 	int32 GetSoldierAnimSet() const { return SoldierAnimSet ? SoldierAnimSet : (InventoryGroup <= 10 ? InventoryGroup : 0); }
 	static FString SlotKeyName(int32 Key) { return Key >= 11 ? TEXT("X") : FString::FromInt(Key % 10); }
 
-	/** Inventory blocks used (MF CarrySize); a soldier carries 6. */
+	/** Inventory blocks used (MF CarrySize); a soldier carries 6. Read through GetCarrySize. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	int32 CarrySize = 0;
+	/** CarrySize in this game (also on the class default, for the loadout: WorldContext is
+	 *  where it's asked from). */
+	virtual int32 GetCarrySize(const UObject* WorldContext) const { return CarrySize; }
 
 	/** How many of this item can be carried (MF MaxCanCarry). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")

@@ -219,6 +219,10 @@ public:
 	bool bOPWeapons = false;
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	float OPFireRate = 4.f;
+	/** Gian's improved rocket launcher instead of MF's (?ImprovedRL=1): lighter, faster rockets
+	 *  (ARocketLauncher). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	bool bImprovedRL = false;
 	/** Weapons loadouts don't hand out, by class name, their subclasses too
 	 *  (?NoWeapons=Grenades,RocketLauncher; the FNG mutators NoGrenades, NoRocketLauncher ...). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")

@@ -147,7 +147,7 @@ public:
 			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(24.f, 16.f)
 			[
 				SNew(STextBlock).Font(Font(10)).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f)).ShadowOffset(FVector2D(1.f, 1.f))
-				.Text(LOCTEXT("Footer", "by fistodul, for the world's gamers  -  a fan project, not affiliated with Mobile Forces or its makers"))
+				.Text(LOCTEXT("Footer", "by fistodul, for the world's gamers  -  a fan project, not affiliated with Mobile Forces"))
 			]
 		];
 	}
@@ -480,11 +480,6 @@ private:
 		Audio->AddSlot(0, 1)[Label(LOCTEXT("Music", "Music"))];
 		Audio->AddSlot(1, 1).Padding(2.f)[Slider(MusicVolume, 0.f, 1.f, TEXT("percent"))];
 
-		TSharedRef<SGridPanel> Mouse = Grid();
-		Mouse->AddSlot(0, 0)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))];
-		Mouse->AddSlot(1, 0).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
-		Mouse->AddSlot(0, 1)[Label(LOCTEXT("Invert", "Invert mouse"))];
-		Mouse->AddSlot(1, 1).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
 		TSharedRef<SGridPanel> Keys = Grid();
 		int32 Row = 0;
 		for (const FDFBinding& B : ADFPlayerController::GetBindings())
@@ -516,8 +511,7 @@ private:
 			++Row;
 		}
 		TSharedRef<SVerticalBox> Controls = SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight()[Mouse]
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 2.f)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 2.f)
 			[
 				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
 				.Text(LOCTEXT("KeysHint", "Click a key, then press the new one (a key in use swaps with it)."))
@@ -547,6 +541,10 @@ private:
 		];
 		Game->AddSlot(0, 2)[Label(LOCTEXT("HUDSize", "HUD size"))];
 		Game->AddSlot(1, 2).Padding(2.f)[Slider(HUDSize, 0.f, 4.f, TEXT("int"), 1.f)];
+		Game->AddSlot(0, 3)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))];
+		Game->AddSlot(1, 3).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
+		Game->AddSlot(0, 4)[Label(LOCTEXT("Invert", "Invert mouse"))];
+		Game->AddSlot(1, 4).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
 
 		auto Tab = [this](const FText& Text, int32 Index)
 		{

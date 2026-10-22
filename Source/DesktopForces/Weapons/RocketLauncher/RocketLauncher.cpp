@@ -1,4 +1,5 @@
 #include "Weapons/RocketLauncher/RocketLauncher.h"
+#include "Game/DFGameState.h"
 #include "Sound/SoundBase.h"
 #include "EngineUtils.h"
 #include "Vehicles/DFVehicle.h"
@@ -50,6 +51,18 @@ void ARocketLauncher::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ARocketLauncher, LockedTarget, COND_OwnerOnly);
+}
+
+bool ARocketLauncher::IsImproved(const UObject* WorldContext)
+{
+	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	const ADFGameState* GS = World ? World->GetGameState<ADFGameState>() : nullptr;
+	return GS && GS->bImprovedRL;
+}
+
+int32 ARocketLauncher::GetCarrySize(const UObject* WorldContext) const
+{
+	return IsImproved(WorldContext ? WorldContext : this) ? 3 : CarrySize;   // improvedRL CarrySize 3
 }
 
 FString ARocketLauncher::GetHUDStatus() const
@@ -158,7 +171,12 @@ AActor* ARocketLauncher::FindTarget() const
 
 ADFProjectile* ARocketLauncher::SpawnProjectile(TSubclassOf<ADFProjectile> Class, float Speed, bool bAlt)
 {
-	ADFProjectile* Rocket = Super::SpawnProjectile(Class, Speed, bAlt);
+	const bool bImproved = IsImproved(this);
+	ADFProjectile* Rocket = Super::SpawnProjectile(Class, bImproved ? 4050.f : Speed, bAlt);   // ImprovedRocket.speed 1800 uu/s
+	if (Rocket && bImproved)
+	{
+		Rocket->Damage = 140.f;   // ImprovedRocket.Damage
+	}
 	if (Rocket && LockedTarget)
 	{
 		Rocket->HomeOn(LockedTarget, 0.08f);   // SmartRocket.StartSeekCount: 2 smoke puffs

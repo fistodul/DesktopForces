@@ -96,6 +96,9 @@ public:
 	float FireRate = 1.f;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	bool bInfiniteAmmo = false;
+	/** Rocket launchers are Gian's improved one (ADFGameMode::bImprovedRL, ?ImprovedRL=1). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	bool bImprovedRL = false;
 
 	/** Cheats for everyone on this server (?Cheats=1, ADFGameMode::bAllowCheats). */
 	UPROPERTY(ReplicatedUsing = OnRep_CheatsAllowed, BlueprintReadOnly, Category = "DF")

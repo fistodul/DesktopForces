@@ -9,6 +9,8 @@
  * (RocketLauncher.ZoomedIn): every 1.25 s it looks for an enemy within ~22 degrees of the view;
  * the same one twice running is locked (a beep; another when it's lost) and the next rocket is a
  * SmartRocket that steers at it.
+ * ?ImprovedRL=1: Gian's improved rocket launcher (improvedRL.u) - lighter (carry size 3), rockets
+ * at 1800 uu/s and 140 damage; an assault launcher.
  */
 UCLASS()
 class DESKTOPFORCES_API ARocketLauncher : public ADFWeapon
@@ -18,6 +20,9 @@ public:
 	ARocketLauncher();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual FString GetHUDStatus() const override;
+	virtual int32 GetCarrySize(const UObject* WorldContext) const override;
+	/** The game plays with Gian's improved launcher (ADFGameState::bImprovedRL). */
+	static bool IsImproved(const UObject* WorldContext);
 
 protected:
 	virtual void ToggleZoom() override;

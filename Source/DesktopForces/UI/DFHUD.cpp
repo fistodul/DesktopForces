@@ -386,13 +386,13 @@ void ADFHUD::DrawWeaponBar(ADFCharacter* C)
 	float Total = FreeBlocks > 0 ? WidthOf(FreeBlocks) : 0.f;
 	for (const ADFWeapon* W : Items)
 	{
-		Total += WidthOf(FMath::Max(1, W->CarrySize)) + Gap;
+		Total += WidthOf(FMath::Max(1, W->GetCarrySize(this))) + Gap;
 	}
 	float X = Canvas->ClipX * 0.5f - Total * 0.5f;
 	const float Y = Canvas->ClipY - CellH - 22.f * UIScale;
 	for (ADFWeapon* W : Items)
 	{
-		const float CW = WidthOf(FMath::Max(1, W->CarrySize));
+		const float CW = WidthOf(FMath::Max(1, W->GetCarrySize(this)));
 		DrawItemCell(W, X, Y, CW, CellH, EDFCellState::Owned, AmmoText(W, true), ADFWeapon::SlotKeyName(W->GetSlotKey()));
 		if (W == C->GetCurrentWeapon())
 		{
@@ -1069,7 +1069,7 @@ void ADFHUD::DrawWeapIconMF(const ADFWeapon* W, float X, float Y, int32 Set, con
 {
 	// RageHUD.DrawWeapIcon: box (single or left/middle.../right), translucent back in the
 	// set colour, ammo bar along the bottom quarter, ammo text, group key, icon centred
-	const int32 Count = FMath::Max(1, W->CarrySize);
+	const int32 Count = FMath::Max(1, W->GetCarrySize(this));
 	const int32 MaxAmmo = FMath::Max(1, W->MaxClips * W->MaxClipAmmo);
 	float AmmoW = 64.f * Count * FMath::Clamp(float(W->GetAmmoCount()) / MaxAmmo, 0.f, 1.f);
 	if (!W->GetOwner())
@@ -1163,8 +1163,8 @@ void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC)
 	for (ADFWeapon* W : Items)
 	{
 		DrawWeapIconMF(W, X, Y, W == Selected ? 2 : TeamSet(), AmmoText(W, true), ADFWeapon::SlotKeyName(W->GetSlotKey()));
-		X += FMath::Max(1, W->CarrySize) * Block;
-		Left -= W->CarrySize;
+		X += FMath::Max(1, W->GetCarrySize(this)) * Block;
+		Left -= W->GetCarrySize(this);
 	}
 	if (Left > 0)
 	{
@@ -1237,7 +1237,7 @@ void ADFHUD::DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC)
 			InRow = 0;
 		}
 		++InRow;
-		const float W = FMath::Max(1, CDO->CarrySize) * Block;
+		const float W = FMath::Max(1, CDO->GetCarrySize(this)) * Block;
 		if (X > 0.f && X + W > Canvas->ClipX)
 		{
 			X = 0.f;            // wrap like MF when a row doesn't fit

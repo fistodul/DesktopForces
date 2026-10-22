@@ -16,7 +16,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | DeBall (MoBall), TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
 | Battle Royale, Arena | Edgaras "Gregaras" Ziaugra (design, models: item crate, metal tower, platform, safe zone; metal textures; all CC0) |
 | Parachutes | Edgaras "Gregaras" Ziaugra (code from VehicleFlag; model, `Strings.pcx`: CC0; `Top.pcx` edited from a CC0 photo, pickupimage.com/free-photos/jumping-out-of-a-C130-Hercules/2335355; the sound layered with EugeneEverett's CC0 freesound.org/s/596522: all CC0) |
-| Improved rocket launcher, minefields (improvedRL, mineGenerator) | Gian |
+| Improved rocket launcher (improvedRL: `?ImprovedRL=1`), minefields (mineGenerator) | Gian |
 | Overpowered weapons (OPWeapons: `?OPWeapons=1`), breakable boxes (BoxPhysics: model, wood texture) | Edgaras "Gregaras" Ziaugra |
 | Desert Eagle (the servers' desert.u: model, arms, icon, sounds) | the MF community servers' mods (cleared for the game 22 October 2026) |
 | The servers' other weapon mods (Unverified pack: not in this repository, not shipped) | being checked - so far: assault rifles (AK-74, M4A1, FAMAS, G36, SC-20K) and the grenade launcher mostly Gian, the Deagle, the long shotgun (M1887) and maybe the assault HMG (Ultimax) Gregaras; models self-made or free Sketchfab assets whose authors still need crediting |
