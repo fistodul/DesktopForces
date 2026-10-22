@@ -29,6 +29,8 @@ struct FDFBinding
 	FName Action;
 	FText Label;
 	FKey Default;
+	/** The second key MF's DefUser.ini gives the same thing (Ctrl and C = Duck); none: unbound. */
+	FKey AltDefault;
 };
 
 /**
@@ -341,7 +343,9 @@ public:
 	/** The keys a player may change, MF defaults (DefUser.ini / Manual.pdf) first. */
 	static TArray<FDFBinding> GetBindings();
 	/** The key an action has now (the player's or the default). */
-	static FKey GetBoundKey(const FDFBinding& B);
+	static FKey GetBoundKey(const FDFBinding& B, bool bAlt = false);
+	/** Where an action's second key is kept in the settings ("Crouch" -> "Crouch_Alt"). */
+	static FName AltSlot(FName Action) { return FName(*(Action.ToString() + TEXT("_Alt"))); }
 	/** Re-read the player's keys (after Options > Controls). */
 	void ApplyKeyBindings();
 

@@ -121,23 +121,23 @@ void ADFPlayerController::Name(const FString& NewName)
 
 TArray<FDFBinding> ADFPlayerController::GetBindings()
 {
+	// MF DefUser.ini, both keys where it binds two: W / Up = MoveForward, Ctrl / C = Duck,
+	// E / Enter = TryEnterExit, Q / Backspace = TryLoadout, MouseWheelDown / ] = NextWeapon ...
 	TArray<FDFBinding> Out = {
-		{ TEXT("MoveForward"), LOCTEXT("KMoveForward", "Move forward"), EKeys::W },
-		{ TEXT("MoveBack"), LOCTEXT("KMoveBack", "Move back"), EKeys::S },
-		{ TEXT("StrafeLeft"), LOCTEXT("KStrafeLeft", "Strafe left"), EKeys::A },
-		{ TEXT("StrafeRight"), LOCTEXT("KStrafeRight", "Strafe right"), EKeys::D },
+		{ TEXT("MoveForward"), LOCTEXT("KMoveForward", "Move forward"), EKeys::W, EKeys::Up },
+		{ TEXT("MoveBack"), LOCTEXT("KMoveBack", "Move back"), EKeys::S, EKeys::Down },
+		{ TEXT("StrafeLeft"), LOCTEXT("KStrafeLeft", "Strafe left"), EKeys::A, EKeys::Left },
+		{ TEXT("StrafeRight"), LOCTEXT("KStrafeRight", "Strafe right"), EKeys::D, EKeys::Right },
 		{ TEXT("Fire"), LOCTEXT("KFire", "Fire"), EKeys::LeftMouseButton },
 		{ TEXT("AltFire"), LOCTEXT("KAltFire", "Alt fire"), EKeys::RightMouseButton },
-		{ TEXT("Jump"), LOCTEXT("KJump", "Jump"), EKeys::SpaceBar },
-		// MF DefUser.ini: Ctrl and C = Duck
-		{ TEXT("Crouch"), LOCTEXT("KCrouch", "Crouch"), EKeys::LeftControl },
+		{ TEXT("Jump"), LOCTEXT("KJump", "Jump"), EKeys::SpaceBar, EKeys::NumPadZero },
+		{ TEXT("Crouch"), LOCTEXT("KCrouch", "Crouch"), EKeys::LeftControl, EKeys::C },
 		{ TEXT("Walk"), LOCTEXT("KWalk", "Walk"), EKeys::LeftShift },
 		{ TEXT("Reload"), LOCTEXT("KReload", "Reload"), EKeys::R },
-		{ TEXT("Loadout"), LOCTEXT("KLoadout", "Loadout"), EKeys::Q },
-		{ TEXT("Use"), LOCTEXT("KUse", "Use / get in or out"), EKeys::E },
-		// MF DefUser.ini: MouseWheelDown / ] = NextWeapon, MouseWheelUp / [ = PrevWeapon
-		{ TEXT("NextWeapon"), LOCTEXT("KNextWeapon", "Next weapon"), EKeys::MouseScrollDown },
-		{ TEXT("PrevWeapon"), LOCTEXT("KPrevWeapon", "Previous weapon"), EKeys::MouseScrollUp },
+		{ TEXT("Loadout"), LOCTEXT("KLoadout", "Loadout"), EKeys::Q, EKeys::BackSpace },
+		{ TEXT("Use"), LOCTEXT("KUse", "Use / get in or out"), EKeys::E, EKeys::Enter },
+		{ TEXT("NextWeapon"), LOCTEXT("KNextWeapon", "Next weapon"), EKeys::MouseScrollDown, EKeys::RightBracket },
+		{ TEXT("PrevWeapon"), LOCTEXT("KPrevWeapon", "Previous weapon"), EKeys::MouseScrollUp, EKeys::LeftBracket },
 		{ TEXT("Throw"), LOCTEXT("KThrow", "Drop weapon"), EKeys::Semicolon },
 		{ TEXT("Scores"), LOCTEXT("KScores", "Scores"), EKeys::F1 },
 	};
@@ -161,11 +161,11 @@ TArray<FDFBinding> ADFPlayerController::GetBindings()
 	return Out;
 }
 
-FKey ADFPlayerController::GetBoundKey(const FDFBinding& B)
+FKey ADFPlayerController::GetBoundKey(const FDFBinding& B, bool bAlt)
 {
 	const UDFUserSettings* S = UDFUserSettings::Get();
-	const FKey* Changed = S ? S->KeyBindings.Find(B.Action) : nullptr;
-	return Changed ? *Changed : B.Default;
+	const FKey* Changed = S ? S->KeyBindings.Find(bAlt ? AltSlot(B.Action) : B.Action) : nullptr;
+	return Changed ? *Changed : (bAlt ? B.AltDefault : B.Default);
 }
 
 #undef LOCTEXT_NAMESPACE
@@ -209,10 +209,11 @@ void ADFPlayerController::MapKeys()
 	{
 		return Action && Key.IsValid() ? &MappingContext->MapKey(Action, Key) : nullptr;
 	};
-	TMap<FName, FKey> Keys;
+	TMap<FName, FKey> Keys, AltKeys;
 	for (const FDFBinding& B : GetBindings())
 	{
 		Keys.Add(B.Action, GetBoundKey(B));
+		AltKeys.Add(B.Action, GetBoundKey(B, true));
 	}
 	// moving: Move is (X = right, Y = forward); forward / back swizzle into Y, back / left negate
 	auto MapMove = [&](const FKey& Key, bool bForwardAxis, bool bNegative)
@@ -231,15 +232,14 @@ void ADFPlayerController::MapKeys()
 			}
 		}
 	};
-	MapMove(Keys.FindRef(TEXT("MoveForward")), true, false);
-	MapMove(Keys.FindRef(TEXT("MoveBack")), true, true);
-	MapMove(Keys.FindRef(TEXT("StrafeLeft")), false, true);
-	MapMove(Keys.FindRef(TEXT("StrafeRight")), false, false);
-	// MF DefUser.ini: arrows move and strafe, , and . strafe too
-	MapMove(EKeys::Up, true, false);
-	MapMove(EKeys::Down, true, true);
-	MapMove(EKeys::Left, false, true);
-	MapMove(EKeys::Right, false, false);
+	for (const TMap<FName, FKey>* Set : { &Keys, &AltKeys })
+	{
+		MapMove(Set->FindRef(TEXT("MoveForward")), true, false);
+		MapMove(Set->FindRef(TEXT("MoveBack")), true, true);
+		MapMove(Set->FindRef(TEXT("StrafeLeft")), false, true);
+		MapMove(Set->FindRef(TEXT("StrafeRight")), false, false);
+	}
+	// MF DefUser.ini: , and . strafe too
 	MapMove(EKeys::Comma, false, true);
 	MapMove(EKeys::Period, false, false);
 	Map(A(TEXT("LookKey")), EKeys::Delete);
@@ -266,20 +266,31 @@ void ADFPlayerController::MapKeys()
 			Map(Actions.FindRef(K.Key), K.Value);
 		}
 	}
+	// second keys: their own actions where holding both at once matters (crouch) or a wheel
+	// notch and a key press differ (weapon cycling)
+	static const TMap<FName, FName> AltAction = { { TEXT("Crouch"), TEXT("CrouchAlt") }, { TEXT("Loadout"), TEXT("LoadoutAlt") },
+		{ TEXT("NextWeapon"), TEXT("NextWeaponKey") }, { TEXT("PrevWeapon"), TEXT("PrevWeaponKey") } };
+	for (const TPair<FName, FKey>& K : AltKeys)
+	{
+		if (!K.Key.ToString().StartsWith(TEXT("Move")) && !K.Key.ToString().StartsWith(TEXT("Strafe")))
+		{
+			const FName* Own = AltAction.Find(K.Key);
+			Map(Actions.FindRef(Own ? *Own : K.Key), K.Value);
+		}
+	}
 	struct FExtra { const TCHAR* Action; FKey Key; };
 	const FExtra Extras[] = {
 		{ TEXT("Fire"), EKeys::Gamepad_RightTrigger }, { TEXT("AltFire"), EKeys::Gamepad_LeftTrigger },
-		{ TEXT("Jump"), EKeys::Gamepad_FaceButton_Bottom }, { TEXT("Jump"), EKeys::NumPadZero },   // MF NumPad0 = Jump
-		{ TEXT("Crouch"), EKeys::Gamepad_FaceButton_Right }, { TEXT("CrouchAlt"), EKeys::RightControl }, { TEXT("CrouchAlt"), EKeys::C },
+		{ TEXT("Jump"), EKeys::Gamepad_FaceButton_Bottom },
+		{ TEXT("Crouch"), EKeys::Gamepad_FaceButton_Right }, { TEXT("CrouchAlt"), EKeys::RightControl },   // MF Ctrl: either one
 		{ TEXT("Reload"), EKeys::Gamepad_FaceButton_Left }, { TEXT("Loadout"), EKeys::Gamepad_Special_Right },
 		{ TEXT("Use"), EKeys::Gamepad_FaceButton_Top }, { TEXT("NextWeapon"), EKeys::Gamepad_RightShoulder },
-		{ TEXT("PrevWeapon"), EKeys::Gamepad_LeftShoulder }, { TEXT("NextWeaponKey"), EKeys::RightBracket },
-		{ TEXT("PrevWeaponKey"), EKeys::LeftBracket }, { TEXT("LoadoutAlt"), EKeys::BackSpace },
+		{ TEXT("PrevWeapon"), EKeys::Gamepad_LeftShoulder },
 		{ TEXT("Scores"), EKeys::Gamepad_Special_Left },
 		// in loadout the move keys walk the cursor too (MF MoveForward = LoadoutPrev, MoveBackward = LoadoutNext)
-		{ TEXT("MenuUp"), EKeys::Up }, { TEXT("MenuUp"), Keys.FindRef(TEXT("MoveForward")) },
-		{ TEXT("MenuDown"), EKeys::Down }, { TEXT("MenuDown"), Keys.FindRef(TEXT("MoveBack")) },
-		{ TEXT("MenuSelect"), EKeys::Enter },
+		{ TEXT("MenuUp"), Keys.FindRef(TEXT("MoveForward")) }, { TEXT("MenuUp"), AltKeys.FindRef(TEXT("MoveForward")) },
+		{ TEXT("MenuDown"), Keys.FindRef(TEXT("MoveBack")) }, { TEXT("MenuDown"), AltKeys.FindRef(TEXT("MoveBack")) },
+		// (Enter selects as Use's second key: Use picks in the loadout and gets in or out elsewhere)
 	};
 	for (const FExtra& E : Extras)
 	{

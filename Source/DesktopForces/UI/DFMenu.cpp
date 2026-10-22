@@ -489,25 +489,30 @@ private:
 		int32 Row = 0;
 		for (const FDFBinding& B : ADFPlayerController::GetBindings())
 		{
-			const FName Action = B.Action;
 			Keys->AddSlot(0, Row)[Label(B.Label)];
-			Keys->AddSlot(1, Row).Padding(2.f, 1.f)
-			[
-				SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(8.f, 3.f))
-				.OnClicked_Lambda([this, Action]() { Capturing = Action; FSlateApplication::Get().SetKeyboardFocus(SharedThis(this)); return FReply::Handled(); })
+			// the key and the second key (MF binds two to many things: Ctrl and C crouch)
+			for (int32 Col = 0; Col < 2; ++Col)
+			{
+				const FName Slot = Col ? ADFPlayerController::AltSlot(B.Action) : B.Action;
+				const FKey Default = Col ? B.AltDefault : B.Default;
+				Keys->AddSlot(1 + Col, Row).Padding(2.f, 1.f)
 				[
-					SNew(STextBlock).Font(Font(12)).Text_Lambda([this, B]()
-					{
-						if (Capturing == B.Action)
+					SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(8.f, 3.f))
+					.OnClicked_Lambda([this, Slot]() { Capturing = Slot; FSlateApplication::Get().SetKeyboardFocus(SharedThis(this)); return FReply::Handled(); })
+					[
+						SNew(STextBlock).Font(Font(12)).Text_Lambda([this, Slot, Default]()
 						{
-							return LOCTEXT("PressKey", "press a key (Esc: keep)");
-						}
-						const FKey* K = PendingKeys.Find(B.Action);
-						const FKey Key = K ? *K : B.Default;
-						return Key.IsValid() ? Key.GetDisplayName() : LOCTEXT("Unbound", "-");
-					})
-				]
-			];
+							if (Capturing == Slot)
+							{
+								return LOCTEXT("PressKey", "press a key (Esc: keep)");
+							}
+							const FKey* K = PendingKeys.Find(Slot);
+							const FKey Key = K ? *K : Default;
+							return Key.IsValid() ? Key.GetDisplayName() : LOCTEXT("Unbound", "-");
+						})
+					]
+				];
+			}
 			++Row;
 		}
 		TSharedRef<SVerticalBox> Controls = SNew(SVerticalBox)
@@ -628,24 +633,36 @@ private:
 	}
 
 	/** Give Action this key; whoever had it gets Action's old key (no key does two things). */
-	void SetKey(FName Action, const FKey& Key)
+	/** Every key slot (each action's key and second key) with its default. */
+	static TArray<TPair<FName, FKey>> KeySlots()
 	{
-		const TArray<FDFBinding> Bindings = ADFPlayerController::GetBindings();
-		auto Current = [this](const FDFBinding& B) { const FKey* K = PendingKeys.Find(B.Action); return K ? *K : B.Default; };
-		const FDFBinding* Mine = Bindings.FindByPredicate([Action](const FDFBinding& B) { return B.Action == Action; });
+		TArray<TPair<FName, FKey>> Out;
+		for (const FDFBinding& B : ADFPlayerController::GetBindings())
+		{
+			Out.Add({ B.Action, B.Default });
+			Out.Add({ ADFPlayerController::AltSlot(B.Action), B.AltDefault });
+		}
+		return Out;
+	}
+
+	void SetKey(FName Slot, const FKey& Key)
+	{
+		const TArray<TPair<FName, FKey>> Slots = KeySlots();
+		auto Current = [this](const TPair<FName, FKey>& S) { const FKey* K = PendingKeys.Find(S.Key); return K ? *K : S.Value; };
+		const TPair<FName, FKey>* Mine = Slots.FindByPredicate([Slot](const TPair<FName, FKey>& S) { return S.Key == Slot; });
 		if (!Mine)
 		{
 			return;
 		}
 		const FKey Old = Current(*Mine);
-		for (const FDFBinding& B : Bindings)
+		for (const TPair<FName, FKey>& S : Slots)
 		{
-			if (B.Action != Action && Current(B) == Key)
+			if (S.Key != Slot && Current(S) == Key)
 			{
-				PendingKeys.Add(B.Action, Old);
+				PendingKeys.Add(S.Key, Old);   // a key in use swaps over
 			}
 		}
-		PendingKeys.Add(Action, Key);
+		PendingKeys.Add(Slot, Key);
 	}
 
 	TSharedRef<SWidget> MakeCredits()
@@ -766,13 +783,19 @@ private:
 		PendingKeys = S ? S->KeyBindings : TMap<FName, FKey>();
 		UpdateCrosshairBrush();
 
+		// what the monitor offers, plus the usual sizes of its own shape (16:10 screens get
+		// 1680 x 1050, 1920 x 1200 ...), never bigger than the desktop
 		TArray<FIntPoint> Supported;
 		UKismetSystemLibrary::GetSupportedFullscreenResolutions(Supported);
-		for (const FIntPoint P : { FIntPoint(800, 600), FIntPoint(1024, 768), FIntPoint(1280, 720), FIntPoint(1366, 768),
-			FIntPoint(1600, 900), FIntPoint(1920, 1080), FIntPoint(2560, 1440) })
+		const FIntPoint Desktop = S ? S->GetDesktopResolution() : FIntPoint(1920, 1080);
+		const float Aspect = Desktop.Y > 0 ? float(Desktop.X) / Desktop.Y : 16.f / 9.f;
+		for (const int32 H : { 600, 720, 768, 800, 900, 960, 1050, 1080, 1200, 1440, 1600, 2160 })
 		{
-			Supported.AddUnique(P);
+			const int32 W = FMath::RoundToInt(H * Aspect / 8.f) * 8;
+			Supported.AddUnique(FIntPoint(W, H));
 		}
+		Supported.AddUnique(Desktop);
+		Supported.RemoveAll([&Desktop](const FIntPoint& P) { return P.X > Desktop.X || P.Y > Desktop.Y || P.X < 640 || P.Y < 480; });
 		Supported.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X * A.Y < B.X * B.Y; });
 		const FIntPoint Current = S ? S->GetScreenResolution() : FIntPoint(1280, 720);
 		Supported.AddUnique(Current);
@@ -826,11 +849,11 @@ private:
 		S->HUDSize = FMath::RoundToInt(HUDSize);
 		// only what differs from MF's defaults is kept
 		S->KeyBindings.Reset();
-		for (const FDFBinding& B : ADFPlayerController::GetBindings())
+		for (const TPair<FName, FKey>& Slot : KeySlots())
 		{
-			if (const FKey* K = PendingKeys.Find(B.Action); K && *K != B.Default)
+			if (const FKey* K = PendingKeys.Find(Slot.Key); K && *K != Slot.Value)
 			{
-				S->KeyBindings.Add(B.Action, *K);
+				S->KeyBindings.Add(Slot.Key, *K);
 			}
 		}
 		Capturing = NAME_None;
