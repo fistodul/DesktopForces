@@ -26,13 +26,13 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
 | `mfport.py props` | gameplay meshes from Rage.u / RageGame.u / RageWeapons.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers; `LodMesh`: weapon models, rockets, det key) → `.mfmesh` |
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
 | `mfport.py effects` | MF sprite particles (`mflib/effects.py`): the effect textures' AnimNext chains → flipbook atlases, plus emitter descriptions for the scripted effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, EffectsFix smoke puffs, wall hits, blood) and every map's ParticleEffect / FireyExample → `Effects/effects.json`. Run after `map` |
-| `mfport.py soldiers` | the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava) with all 302 animations each → glTF (`Soldiers/*.glb`, `soldiers.json`); the importer's `soldiers` step brings them in through Interchange (`/MobileForcesClassic/Soldiers/<Mesh>/…`) and puts MF's team skins on |
+| `mfport.py skeletal` | skeletal meshes with their animations → glTF (`Skeletal/<package>/*.glb`, `skeletal.json`): the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava, 302 animations each) and every first-person weapon (`<X>PlayerMesh` in the weapon packages); the importer's `skeletal` step brings them in through Interchange (`<pack>/Soldiers/…`, `<pack>/Weapons/…`) and puts MF's textures (team skins) on |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
 | `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
-| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,effects,soldiers,sounds,music,maps`; maps also get their navmesh baked; `effects`: flipbooks, particle materials, `/MobileForcesClassic/Effects/P_<Name>` systems). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers, blockers (invisible walls, spawn room doors) and particle effects of already built maps in place (no rebuild, the bake stays) |
+| `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,effects,skeletal,sounds,music,maps`; maps also get their navmesh baked; `effects`: flipbooks, particle materials, `/MobileForcesClassic/Effects/P_<Name>` systems). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers, blockers (invisible walls, spawn room doors) and particle effects of already built maps in place (no rebuild, the bake stays) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
 
@@ -89,9 +89,14 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   every other bone's conjugated, world = parent × local), each bone's run of influences
   (point, weight / 65535) and every influence's point in that bone's space. Rebuilding the
   points from the bones matches to 0.006 uu, which pins the conventions down. Written as glTF
-  (`.glb`) in actor space (the mesh's ORIGIN / SCALE / yaw baked in, cm; glTF is metres, Y up:
-  the exporter does the inverse of Interchange's axis swap), animations as glTF animations
-  (keys are seconds; looping sequences get a closing key back to the first frame).
+  (`.glb`) in actor space, cm (glTF is metres, Y up: the exporter does the inverse of
+  Interchange's axis swap), with the mesh's ORIGIN baked in the way UE1 draws skeletal meshes:
+  turned by the *inverse* RotOrigin and mirrored in Y against the .psk (only so do soldiers
+  face where they walk with the gun in the right hand, and the first-person arms reach
+  forward). A non-uniform MESHMAP SCALE (first-person weapons: 1, 0.5, 1) can't live in a
+  skeleton: its rest is left for the mesh component (`UDFMeshScaleData` on the asset). Repeated
+  bone names are numbered. Animations become glTF animations (keys are seconds; looping
+  sequences get a closing key back to the first frame).
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
   triangles have position, normal and normalised UV.
 - **Animations** (`mflib/anims.py`): `MeshAnimation` objects parse fully (bones, motion
