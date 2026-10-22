@@ -1,4 +1,6 @@
 #include "Weapons/DFWeapon.h"
+#include "Weapons/DFTracer.h"
+#include "Weapons/DFShellCase.h"
 #include "World/DFDecals.h"
 #include "Sound/SoundWave.h"
 #include "Components/AudioComponent.h"
@@ -82,7 +84,8 @@ void ADFWeapon::PostInitializeComponents()
 	{
 		// view-model placement from the mesh's bounds: rear ViewOffset.X in front of the eye,
 		// centred ViewOffset.Y to the right, top ViewOffset.Z below, at ViewScale
-		const FBox B = Mesh1P->GetStaticMesh()->GetBoundingBox();
+		// (the bounds as turned by ViewRotation: some mods' models face the other way)
+		const FBox B = Mesh1P->GetStaticMesh()->GetBoundingBox().TransformBy(FTransform(ViewRotation));
 		const FVector Loc = ViewOffset + FVector(-B.Min.X, -B.GetCenter().Y, -B.Max.Z) * ViewScale;
 		HandTransform = FTransform(ViewRotation, Loc, FVector(ViewScale));
 		bHasViewMesh = true;
@@ -97,24 +100,24 @@ void ADFWeapon::Destroyed()
 	Super::Destroyed();
 }
 
+bool ADFWeapon::IsContentAvailable() const
+{
+	return RequiredContent.IsEmpty() || DF::LoadClassicObject(UObject::StaticClass(), RequiredContent) != nullptr;
+}
+
 void ADFWeapon::ResolveSounds()
 {
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
-	// Converted original sounds live in /MobileForcesClassic/Sounds/<Package>/<Name> (see Tools/mfport).
-	auto Load = [](TObjectPtr<USoundBase>& Slot, const FString& MFName)
+	// converted sounds: <content root>/Sounds/<Package>/<Name> (Tools/mfport; DF::ContentRoots)
+	auto Load = [](TObjectPtr<USoundBase>& Slot, const FString& ClassicName)
 	{
-		if (Slot || MFName.IsEmpty())
-		{
-			return;
-		}
 		FString Package, Name;
-		if (MFName.Split(TEXT("."), &Package, &Name))
+		if (!Slot && ClassicName.Split(TEXT("."), &Package, &Name))
 		{
-			const FString Path = FString::Printf(TEXT("/MobileForcesClassic/Sounds/%s/%s.%s"), *Package, *Name, *Name);
-			Slot = LoadObject<USoundBase>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+			Slot = DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name));
 		}
 	};
 	Load(FireSound, ClassicFireSound);
@@ -503,10 +506,33 @@ void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
 			+ InAccuracy * (FMath::FRand() - 0.5f) * Z * 2250.f
 			+ X * MaxTraceDistance;
 		FHitResult Hit;
-		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_MFWeapon, Params))
+		const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_MFWeapon, Params);
+		if (bHit)
 		{
 			ProcessTraceHit(Hit, (End - Start).GetSafeNormal(), bAlt);
 		}
+		// RageWeapon.TraceFire: TracerCount counts down, a tracer when it runs out
+		if (TracerEvery > 0 && --TracerCount <= 0)
+		{
+			TracerCount = TracerEvery;
+			const FVector To = bHit ? FVector(Hit.ImpactPoint) : End;
+			if (IsLocallyControlled())
+			{
+				ADFTracer::Fire(GetWorld(), Start, To);
+			}
+			if (HasAuthority())
+			{
+				MulticastTracer(Start, To);
+			}
+		}
+	}
+}
+
+void ADFWeapon::MulticastTracer_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End)
+{
+	if (!IsLocallyControlled())
+	{
+		ADFTracer::Fire(GetWorld(), Start, End);
 	}
 }
 
@@ -568,9 +594,18 @@ ADFProjectile* ADFWeapon::SpawnProjectile(TSubclassOf<ADFProjectile> Class, floa
 void ADFWeapon::PlayFireEffects(bool bAlt)
 {
 	PlaySoundLocal(FireSound);
-	if (ADFCharacter* C = GetOwnerCharacter(); C && C->IsLocallyControlled())
+	ADFCharacter* C = GetOwnerCharacter();
+	if (C && C->IsLocallyControlled())
 	{
 		C->AddRecoil(RecoilPower * 6.f);
+	}
+	if (C && !CasingMesh.IsEmpty())
+	{
+		// EjectBrass, from where the shooter looks
+		FVector Eye;
+		FRotator View;
+		C->GetActorEyesViewPoint(Eye, View);
+		ADFShellCase::Eject(GetWorld(), CasingMesh, CasingScale, Eye, View, C->GetVelocity());
 	}
 }
 

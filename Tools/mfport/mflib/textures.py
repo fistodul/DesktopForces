@@ -35,6 +35,11 @@ UI_TEXTURES = {
     'deagle.icons.deagleicon': {'masked', 'ui'},       # MF-mods weapon icons
     'grenlaunch.skins.grenlaunchimage': {'masked', 'ui'},
     'predatormissile.icons.predatoricon': {'masked', 'ui'},
+    # the servers' weapon mods (unverified pack)
+    **{k: {'masked', 'ui'} for k in ('ak74.skins.ak74image', 'm4a1.skins.m4a1image', 'f2000.skins.sc20kimage',
+        'mac10.skins.mac10image', 'famas.skins.famasimage', 'g36.skins.g36image', 'glock.skins.glockimage',
+        'desert.skins.desertimage', 'ultimax.skins.ultimaximage', 'm24.skins.m24image', 'wa2000.skins.wa2000image',
+        'm87.skins.m87image')},
     'rageweapons.icons.scopemask': {'masked', 'ui'},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},
     'rageweapons.icons.rocketlauncheraim': {'masked', 'ui'},

@@ -32,7 +32,8 @@ const TArray<TSubclassOf<ADFWeapon>>& UDFGameSettings::GetLoadoutItems() const
 		for (TObjectIterator<UClass> It; It; ++It)
 		{
 			if (It->IsChildOf(ADFWeapon::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists)
-				&& It->GetDefaultObject<ADFWeapon>()->bAddToLoadout && !CachedItems.Contains(*It))
+				&& It->GetDefaultObject<ADFWeapon>()->bAddToLoadout && It->GetDefaultObject<ADFWeapon>()->IsContentAvailable()
+				&& !CachedItems.Contains(*It))
 			{
 				CachedItems.Add(*It);
 			}

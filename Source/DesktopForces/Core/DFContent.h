@@ -13,10 +13,16 @@ namespace DF
 {
 	/** Mount point of the MobileForcesClassic plugin. */
 	inline const TCHAR* ClassicRoot = TEXT("/MobileForcesClassic");
+	/** Community content not vouched for yet (the servers' weapon mods ...): its own plugin. */
+	inline const TCHAR* UnverifiedRoot = TEXT("/MobileForcesUnverified");
+	/** Where converted content may be, searched in this order: the game's own community
+	 *  content, the classic plugin, the unverified plugin (packs.toml decides which). */
+	inline const TCHAR* ContentRoots[] = { TEXT("/Game/MF/Community"), ClassicRoot, UnverifiedRoot };
 
 	/** "Sounds/MiscSFX/Explode" -> "/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode" */
 	DESKTOPFORCES_API FString ClassicPath(const FString& Rel);
 
+	/** Rel ("Sounds/AK74/AK74Fire") from the first content root that has it. */
 	DESKTOPFORCES_API UObject* LoadClassicObject(UClass* Class, const FString& Rel);
 
 	template <typename T>

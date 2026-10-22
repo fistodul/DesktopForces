@@ -91,6 +91,8 @@ public:
 	void EnsureDecalMaterials();
 	/** SM_MF_Ring + M_MF_GoalField: MoBall's goal rings. */
 	void EnsureGoalAssets();
+	/** M_MF_Tracer: bullet tracers (ADFTracer). */
+	void EnsureTracerMaterial();
 
 	/**
 	 * MF sprite particles (DFEffectsImport.cpp, work/out/Effects from mfport.py effects):

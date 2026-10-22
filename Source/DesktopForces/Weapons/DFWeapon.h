@@ -83,6 +83,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	bool bAddToLoadout = false;
 
+	/** Content this item can't do without (relative to a content root, e.g.
+	 *  "Props/AK74/AK74PickupCarryMesh"): missing (a build without that pack), it isn't offered. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Loadout")
+	FString RequiredContent;
+	bool IsContentAvailable() const;
+
 	/** Can be held in hands (armour can't). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	bool bSelectable = true;
@@ -177,6 +183,18 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
 	int32 Pellets = 1;
+
+	/** Spent case thrown out on each shot (a converted prop: "RageWeapons/MachineGunBullet";
+	 *  empty: none). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FString CasingMesh;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float CasingScale = 1.f;
+
+	/** RageWeapon.TracerEvery: a tracer every Nth shot (pistol 1, machine gun 5, shotgun 2;
+	 *  0 none). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
+	int32 TracerEvery = 0;
 
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
 	TSubclassOf<UDFDamageType> DamageType;
@@ -383,6 +401,10 @@ protected:
 
 	/** Server: hitscan per MF TraceFire. */
 	virtual void TraceFire(float InAccuracy, int32 InPellets, bool bAlt);
+	/** The others' copies of a tracer (the shooter draws its own when it fires). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastTracer(FVector_NetQuantize Start, FVector_NetQuantize End);
+	int32 TracerCount = 0;
 	/** Server: what happens on a hitscan hit (MF ProcessTraceHit). */
 	virtual void ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt);
 	/** Server: spawn a projectile. */

@@ -18,6 +18,7 @@ void ADFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ADFGameState, TeamLoadoutAccess);
 	DOREPLIFETIME(ADFGameState, TeamNameOverrides);
 	DOREPLIFETIME(ADFGameState, bCheatsAllowed);
+	DOREPLIFETIME(ADFGameState, bParachutes);
 	DOREPLIFETIME(ADFGameState, AllowedItemGroups);
 	DOREPLIFETIME(ADFGameState, FragLimit);
 	DOREPLIFETIME(ADFGameState, TimeLimit);

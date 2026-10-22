@@ -21,7 +21,10 @@ from .textures import _package_path, texture_index
 from .upkg import Package
 
 # + MF-mods packages with weapon models (missing ones are skipped)
-PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'RageEffects', 'deagle', 'grenLaunch', 'battleRoyale', 'boat', 'jeep', 'heli', 'piper')
+PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'RageEffects', 'deagle', 'grenLaunch', 'battleRoyale', 'boat', 'jeep', 'heli', 'piper',
+            # the servers' weapon mods (unverified pack)
+            'AK74', 'm4a1', 'F2000', 'MAC10', 'M24', 'M18', 'm87', 'desert', 'famas', 'g36', 'glock', 'ultimax',
+            'wa2000', 'improvedRL', 'parachute', 'BoxPhysics', 'mineGenerator')
 # packages whose StaticMeshes are props too (exported as T3D by UCC: Gregaras' CC0 Battle Royale models)
 STATIC_MESH_PACKAGES = ('battleRoyale',)
 

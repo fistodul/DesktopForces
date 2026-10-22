@@ -34,6 +34,9 @@ APistol::APistol()
 	MaxZoomLevel = 1;
 	ZoomScale = 1.5f;
 	RecoilPower = 1.f;
+	TracerEvery = 1;
+	CasingMesh = TEXT("RageWeapons/PistolBullet");   // EjectBrass
+	CasingScale = 1.f;              // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_Pistol.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Pistol.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Pistol.Select");

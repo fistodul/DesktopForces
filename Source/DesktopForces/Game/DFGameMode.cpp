@@ -52,6 +52,7 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
 	bChangeDamage = UGameplayStatics::GetIntOption(Options, TEXT("ChangeDamage"), bChangeDamage ? 1 : 0) != 0;
 	bAllowCheats = UGameplayStatics::GetIntOption(Options, TEXT("Cheats"), bAllowCheats ? 1 : 0) != 0;
+	bParachutes = UGameplayStatics::GetIntOption(Options, TEXT("Parachutes"), bParachutes ? 1 : 0) != 0;
 	bJeeps = UGameplayStatics::GetIntOption(Options, TEXT("Jeeps"), bJeeps ? 1 : 0) != 0;
 	bHelis = UGameplayStatics::GetIntOption(Options, TEXT("Helis"), bHelis ? 1 : 0) != 0;
 	bAddVehicles = UGameplayStatics::GetIntOption(Options, TEXT("AddVehicles"), bAddVehicles ? 1 : 0) != 0;
@@ -71,6 +72,7 @@ void ADFGameMode::InitGameState()
 		GS->NumTeams = NumTeams;
 		GS->TeamScores.Init(0, NumTeams);
 		GS->bCheatsAllowed = bAllowCheats;
+		GS->bParachutes = bParachutes;
 		GS->FragLimit = FragLimit;
 		GS->TimeLimit = TimeLimit;
 		GS->TimeLimitSeconds = TimeLimitSeconds;

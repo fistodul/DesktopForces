@@ -33,6 +33,9 @@ AMachineGun::AMachineGun()
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
 	RecoilPower = 0.8f;
+	TracerEvery = 5;
+	CasingMesh = TEXT("RageWeapons/MachineGunBullet");   // EjectBrass
+	CasingScale = 0.7f;              // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_MachineGun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_MachineGun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_MachineGun.Select");

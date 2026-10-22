@@ -1,4 +1,6 @@
 #include "Player/DFCharacter.h"
+#include "Game/DFGameState.h"
+#include "Core/DFProps.h"
 #include "Player/DFPlayerController.h"
 #include "Sound/SoundBase.h"
 #include "Core/DFContent.h"
@@ -81,6 +83,7 @@ void ADFCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFCharacter, Health);
+	DOREPLIFETIME_CONDITION(ADFCharacter, bParachute, COND_SkipOwner);
 	DOREPLIFETIME(ADFCharacter, MaxHealth);
 	DOREPLIFETIME(ADFCharacter, MaxCarry);
 	DOREPLIFETIME(ADFCharacter, BodyScale);
@@ -178,6 +181,10 @@ float ADFCharacter::GetDesiredFOV() const
 void ADFCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (HasAuthority() || IsLocallyControlled())
+	{
+		UpdateParachute(DeltaSeconds);
+	}
 	if (IsLocallyControlled())
 	{
 		// behind view: our own body shows, the held model (in front of the eyes) doesn't
@@ -1018,5 +1025,62 @@ void ADFCharacter::ApplyLoadoutVisibility()
 			CurrentWeapon->StopFire(false);
 			CurrentWeapon->StopFire(true);
 		}
+	}
+}
+
+void ADFCharacter::UpdateParachute(float DeltaSeconds)
+{
+	UCharacterMovementComponent* M = GetCharacterMovement();
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	// RagePlayer.RageTick: Jump held (aUp), falling, at least 150 uu/s down
+	const bool bWant = GS && GS->bParachutes && IsAlive() && !GetAttachParentActor() && bPressedJump
+		&& M->IsFalling() && M->Velocity.Z <= -337.5f;
+	if (bWant != bParachute)
+	{
+		bParachute = bWant;
+		OnRep_Parachute();
+	}
+	if (!bParachute)
+	{
+		return;
+	}
+	// down to 200 uu/s (MF: x0.7 a frame below it), the speed along the ground turned the way
+	// the soldier looks (and eased off above 1000 uu/s)
+	if (M->Velocity.Z < -450.f)
+	{
+		M->Velocity.Z = FMath::Max(-450.f, M->Velocity.Z * FMath::Pow(0.7f, DeltaSeconds * 60.f));
+	}
+	const FVector Facing = FRotator(0.f, GetControlRotation().Yaw, 0.f).Vector();
+	float Ground = FVector2D(M->Velocity).Size();
+	if (Ground > 2250.f)
+	{
+		Ground *= FMath::Pow(0.97f, DeltaSeconds * 60.f);
+	}
+	M->Velocity = FVector(Facing.X * Ground, Facing.Y * Ground, M->Velocity.Z);
+}
+
+void ADFCharacter::OnRep_Parachute()
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	if (bParachute && !ParachuteMesh)
+	{
+		ParachuteMesh = NewObject<UStaticMeshComponent>(this);
+		ParachuteMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ParachuteMesh->SetCastShadow(false);
+		ParachuteMesh->SetupAttachment(GetCapsuleComponent());
+		ParachuteMesh->SetRelativeLocation(FVector(0.f, 0.f, 90.f));   // 40 uu above
+		ParachuteMesh->RegisterComponent();
+		DF::ApplyPropMesh(ParachuteMesh, TEXT("parachute/Parachute"));
+	}
+	if (ParachuteMesh)
+	{
+		ParachuteMesh->SetVisibility(bParachute);
+	}
+	if (bParachute)
+	{
+		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/parachute/parachute_sound")), GetActorLocation(), 1.f, 1600.f);
 	}
 }

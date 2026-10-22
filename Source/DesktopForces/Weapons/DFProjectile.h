@@ -75,9 +75,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString PropMesh;
 
+	/** RageWeapons.SmartRocket: after Delay, steer at Target (UE's projectile homing) while it
+	 *  stays ahead of the launch direction. */
+	void HomeOn(AActor* Target, float Delay);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void LifeSpanExpired() override;
+	void UpdateHoming();
+	TWeakObjectPtr<AActor> HomingTarget;
+	FVector LaunchDir = FVector::ZeroVector;
+	FTimerHandle HomingTimer;
 
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<USphereComponent> Collision;

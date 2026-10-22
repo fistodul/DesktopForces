@@ -50,10 +50,22 @@ json.dump(d, open(p, 'w'), indent='\t')
 PY
 fi
 
-echo "Packaging $PLATFORM $CONFIG$NOTE -> $OUT"
+# every built map (the cooker doesn't take maps from the always-cook folders): the game's own
+# and, unless --public, the content plugins'
+MAPS=""
+for D in "$PROJECT_DIR/Content/Maps:/Game/Maps" "$PROJECT_DIR/Content/MF/Maps:/Game/MF/Maps" \
+         "$PROJECT_DIR/Plugins/MobileForcesClassic/Content/Maps:/MobileForcesClassic/Maps" \
+         "$PROJECT_DIR/Plugins/MobileForcesUnverified/Content/Maps:/MobileForcesUnverified/Maps"; do
+  DIR="${D%%:*}"; ROOT="${D##*:}"
+  if [ $PUBLIC = 1 ] && [[ "$ROOT" == /MobileForces* ]]; then continue; fi
+  for M in "$DIR"/*.umap; do
+    [ -e "$M" ] && MAPS="$MAPS${MAPS:++}$ROOT/$(basename "$M" .umap)"
+  done
+done
+echo "Packaging $PLATFORM $CONFIG$NOTE -> $OUT ($(echo "$MAPS" | tr '+' '\n' | grep -c .) maps)"
 "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun \
   -project="$UPROJECT" -noP4 -utf8output -unattended \
   -platform="$PLATFORM" -clientconfig="$CONFIG" \
-  -build -cook -stage -pak -iostore -compressed -prereqs \
+  -build -cook -map="$MAPS" -stage -pak -iostore -compressed -prereqs \
   -archive -archivedirectory="$OUT" $DEBUGINFO
 echo "Done: $OUT"

@@ -396,3 +396,29 @@ void AThrownKnife::Destroyed()
 	}
 	Super::Destroyed();
 }
+
+void ADFProjectile::HomeOn(AActor* Target, float Delay)
+{
+	if (!Target || !Movement)
+	{
+		return;
+	}
+	HomingTarget = Target;
+	LaunchDir = Movement->Velocity.GetSafeNormal();
+	GetWorldTimerManager().SetTimer(HomingTimer, this, &ADFProjectile::UpdateHoming, 0.05f, true, Delay);
+}
+
+void ADFProjectile::UpdateHoming()
+{
+	// SmartRocket.SeekingState: turn hard towards the target, only while it's in front of the
+	// launch direction (it doesn't come round for another pass)
+	const AActor* T = HomingTarget.Get();
+	const bool bAhead = T && FVector::DotProduct((T->GetActorLocation() - GetActorLocation()).GetSafeNormal(), LaunchDir) > 0.f;
+	Movement->bIsHomingProjectile = bAhead;
+	Movement->HomingTargetComponent = bAhead ? T->GetRootComponent() : nullptr;
+	Movement->HomingAccelerationMagnitude = 60000.f;   // MF: half the speed towards it every smoke puff (~1000 deg/s)
+	if (!T)
+	{
+		GetWorldTimerManager().ClearTimer(HomingTimer);
+	}
+}

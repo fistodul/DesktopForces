@@ -9,6 +9,7 @@
 #   - everything from the retail game is classic, whatever this file says
 #   - a converted map is classic unless it is listed under [core.maps]
 #   - a texture / sound / music package is classic unless it is listed under [core.packages]
+"parachute" = "Gregaras (model, textures, sound: CC0, sources listed in parachute.uc)"
 #     or it is a core map's own package (textures saved inside the map file)
 #   - replacement art (overrides/textures/...) is core: /Game/MF/Replacements; core maps use it,
 #     classic maps keep the original texture unless remaster_classic = true
@@ -82,7 +83,7 @@ remaster_classic = false              # true: classic maps use replacement art t
 # game; their models, textures and sounds land here.
 root = "/MobileForcesUnverified"
 packages = [
-  "ak74", "m4a1", "SC20K", "mac10", "m24", "m18", "m87", "desert", "famas", "g36", "glock",
-  "ultimax", "wa2000", "improvedRL", "parachute", "OPWeapons", "mineGenerator", "BoxPhysics",
-  "Serious",
+  "ak74", "m4a1", "F2000", "SC20K", "mac10", "m24", "m18", "m87", "desert", "famas", "g36", "glock",
+  "ultimax", "wa2000", "improvedRL", "OPWeapons", "mineGenerator", "BoxPhysics",
+  "Serious", "SwatSkin", "SwatGfx", "m871", "Glock",
 ]

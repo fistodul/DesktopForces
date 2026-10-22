@@ -527,6 +527,7 @@ bool FDFImporter::ImportArt()
 	EnsureCrateMaterial();
 	EnsureDecalMaterials();
 	EnsureGoalAssets();
+	EnsureTracerMaterial();
 	return true;
 }
 
@@ -613,6 +614,29 @@ void FDFImporter::EnsureDecalMaterials()
 			SaveAsset(MI);
 		}
 	}
+}
+
+void FDFImporter::EnsureTracerMaterial()
+{
+	// ADFTracer's streak: unlit, additive, a warm white
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_Tracer"), bCreated);
+	if (!bCreated)
+	{
+		return;
+	}
+	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+	UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(M);
+	Color->ParameterName = TEXT("Color");
+	Color->DefaultValue = FLinearColor(6.f, 4.5f, 2.2f);
+	M->GetExpressionCollection().AddExpression(Color);
+	E->EmissiveColor.Connect(0, Color);
+	M->SetShadingModel(MSM_Unlit);
+	M->BlendMode = BLEND_Additive;
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_Tracer"));
 }
 
 void FDFImporter::EnsureGoalAssets()

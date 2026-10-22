@@ -17,7 +17,15 @@ FString DF::ClassicPath(const FString& Rel)
 
 UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel)
 {
-	return StaticLoadObject(Class, nullptr, *ClassicPath(Rel), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	const FString Name = FPaths::GetBaseFilename(Rel);
+	for (const TCHAR* Root : ContentRoots)
+	{
+		if (UObject* O = StaticLoadObject(Class, nullptr, *FString::Printf(TEXT("%s/%s.%s"), Root, *Rel, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			return O;
+		}
+	}
+	return nullptr;
 }
 
 USoundAttenuation* DF::GetAttenuation(float RadiusUU)

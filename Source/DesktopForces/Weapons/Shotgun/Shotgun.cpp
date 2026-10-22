@@ -32,6 +32,7 @@ AShotgun::AShotgun()
 	MaxTraceDistance = 11250.f; // MF 5000
 	DamageType = UDFDamage_Shotgun::StaticClass();
 	RecoilPower = 0.42f;
+	TracerEvery = 2;              // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_Shotgun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Shotgun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");

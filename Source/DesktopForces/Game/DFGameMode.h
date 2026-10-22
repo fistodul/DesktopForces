@@ -196,6 +196,11 @@ public:
 	/** Server: log in (true) or say why not. */
 	bool AdminLogin(APlayerController* PC, const FString& Password);
 
+	/** Gregaras' parachutes (the community servers' mutPack bCanUseParachutes): hold Jump while
+	 *  falling fast and a canopy opens; steer by looking. ?Parachutes=0 off. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
+	bool bParachutes = true;
+
 	/** Most weapons lying around at once; the oldest disappears beyond it. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	int32 MaxDroppedWeapons = 32;

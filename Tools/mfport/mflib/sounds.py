@@ -20,8 +20,9 @@ def export_package(cfg: Config, package: str) -> Path:
     out = cfg.raw_dir / 'Sounds' / package
     if out.exists() and any(out.iterdir()):
         return out
-    src = cfg.game_dir / 'Sounds' / f'{package}.uax'
-    rel = src.relative_to(cfg.game_dir).as_posix() if src.exists() else f'System/{package}.u'
+    # a .uax in Sounds (any case: Glock.uax holds 'glock.*'), else sounds inside a code package
+    src = next((f for f in (cfg.game_dir / 'Sounds').glob('*.uax') if f.stem.lower() == package.lower()), None)
+    rel = src.relative_to(cfg.game_dir).as_posix() if src else f'System/{package}.u'
     ucc.batch_export(cfg, rel, 'Sound', 'wav', out)
     return out
 
@@ -64,4 +65,8 @@ GAMEPLAY_PACKAGES = [
     'BuggySFX', 'HumveeSFX', 'TruckSFX', 'ArmadilloSFX', 'TrailerSFX', 'WheelSFX', 'VehicleFragSFX',   # vehicles
     'boat', 'jeep',   # MF-mods boat (Gregaras), jeep (Marcin, Gregaras): engines, the jeep's gun
     'heli',           # MF-mods heli (Marcin, Gregaras): engine loop, cockpit glass
+    'parachute',      # Gregaras' parachute (CC0)
+    # the servers' weapon mods (unverified pack: packs.toml [unverified])
+    'AK74', 'm4a1', 'SC20K', 'MAC10', 'M24', 'm871', 'Desert', 'famas', 'g36', 'Glock', 'ultimax',
+    'wa2000', 'M18', 'improvedRL',
 ]

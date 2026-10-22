@@ -82,6 +82,10 @@ public:
 
 	bool IsItemAllowed(TSubclassOf<class ADFWeapon> Item) const;
 
+	/** Parachutes for everyone (the servers' mutPack: hold Jump while falling). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	bool bParachutes = true;
+
 	/** Cheats for everyone on this server (?Cheats=1, ADFGameMode::bAllowCheats). */
 	UPROPERTY(ReplicatedUsing = OnRep_CheatsAllowed, BlueprintReadOnly, Category = "DF")
 	bool bCheatsAllowed = false;

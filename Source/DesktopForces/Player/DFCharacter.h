@@ -57,6 +57,8 @@ public:
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
 	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
+	/** Under a parachute (RagePlayer.bUsingParachute). */
+	bool IsParachuting() const { return bParachute; }
 	/** The local player looks from behind (ADFPlayerController::BehindView). */
 	bool IsBehindView() const;
 
@@ -226,6 +228,16 @@ protected:
 	/** Simple body shown to other players until the MF soldier meshes are converted. */
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UStaticMeshComponent> PlaceholderBody;
+
+	/** RagePlayer.RageTick (Gregaras): Jump held, falling faster than 150 uu/s: the canopy opens,
+	 *  the fall slows to 200 uu/s and the soldier glides the way they look. */
+	void UpdateParachute(float DeltaSeconds);
+	UPROPERTY(ReplicatedUsing = OnRep_Parachute)
+	bool bParachute = false;
+	UFUNCTION()
+	void OnRep_Parachute();
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> ParachuteMesh;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Health, BlueprintReadOnly, Category = "DF")
 	int32 Health = 100;
