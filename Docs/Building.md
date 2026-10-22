@@ -124,7 +124,7 @@ content, nothing converted twice.
 4. Windows: PowerShell in `C:\Users\<you>\DesktopForces`:
    `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Config Development -Zip`.
    The first run compiles the editor and every shader: count on an hour or two.
-5. Start `Build\Windows\Windows\DesktopForces.exe`, then hand the zip to the team (classic
+5. Start `Build\Windows\DesktopForces.exe`, then hand the zip to the team (classic
    content inside: team only).
 
 ## CI (`.github/workflows/build.yml`)

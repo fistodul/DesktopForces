@@ -188,6 +188,7 @@ if (-not $Package) {
 # -----------------------------------------------------------------------------
 # 5. Cook & Package (BuildCookRun)
 # -----------------------------------------------------------------------------
+# the game lands right in it: UAT adds no Windows\ folder to an archive path that already names the platform
 $OutputDir = Join-Path $ProjectDir "Build\Windows"
 if ($Public) { $OutputDir = "$OutputDir-public" }
 Write-Host ""
@@ -247,7 +248,7 @@ $ZipFile = $null
 if ($Zip) {
     $ZipFile = Join-Path (Split-Path $OutputDir) ("DesktopForces-Win64-$Config$(if ($Public) { '-public' })-" + (Get-Date -Format "yyyyMMdd") + ".zip")
     Write-Host "[*] Zipping to $ZipFile ..." -ForegroundColor Cyan
-    $Code = Invoke-Tool "tar.exe" @("-a", "-c", "-f", $ZipFile, "-C", $OutputDir, "Windows")
+    $Code = Invoke-Tool "tar.exe" @("-a", "-c", "-f", $ZipFile, "-C", (Split-Path $OutputDir), (Split-Path $OutputDir -Leaf))
     if ($Code -ne 0) {
         Write-Host "[!] Zipping failed with exit code $Code" -ForegroundColor Red
         exit $Code
@@ -257,6 +258,6 @@ if ($Zip) {
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host " Build & Packaging $(if ($DryRun) { 'dry run done' } else { 'Successful!' })" -ForegroundColor Green
-Write-Host " Output: $OutputDir\Windows (DesktopForces.exe)" -ForegroundColor Green
+Write-Host " Output: $OutputDir\DesktopForces.exe" -ForegroundColor Green
 if ($ZipFile) { Write-Host " Zip: $ZipFile" -ForegroundColor Green }
 Write-Host "==========================================================" -ForegroundColor Green
