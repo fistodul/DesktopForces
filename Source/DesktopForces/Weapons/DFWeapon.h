@@ -457,7 +457,7 @@ protected:
 
 	/** Server: hitscan per MF TraceFire. */
 	virtual void TraceFire(float InAccuracy, int32 InPellets, bool bAlt);
-	/** The others' copies of a tracer (the shooter draws its own when it fires). */
+	/** A tracer, on every machine (the shooter's included: the shot is the server's). */
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastTracer(FVector_NetQuantize Start, FVector_NetQuantize End);
 	/** Server: a reload started (others hear it, Owner.PlaySound, and see the soldier do it). */

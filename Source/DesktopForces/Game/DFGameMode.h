@@ -46,8 +46,9 @@ public:
 	/** The mapper's placed RageBots (ADFBotSpot) come alive. */
 	void SpawnPlacedBots();
 	virtual void HandleMatchHasEnded() override;
-	/** The next map of MapRotation, else the same one again. */
-	virtual void RestartGame() override;
+	/** After a match's end screen: the next map of MapRotation, else the same one again
+	 *  (RestartGame stays a plain restart: the restart vote). */
+	virtual void TravelAfterMatch();
 
 	/** Damage modifiers (hardcore x1.5, friendly fire). */
 	virtual float ModifyDamage(float Damage, ADFCharacter* Victim, AController* Instigator, AActor* DamageCauser = nullptr) const;

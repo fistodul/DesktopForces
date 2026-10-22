@@ -6,7 +6,9 @@ onto Linux or directly into a mounted Windows NTFS partition.
 Uses the underlying Epic Games manifest & chunk streaming protocol from legendary-gl.
 """
 
+import codecs
 import os
+import shutil
 import sys
 import json
 import glob
@@ -59,12 +61,23 @@ def register_in_windows_launcher(install_dir: str, build_version: str, dat_path:
         "InstallationList": []
     }
 
+    # the launcher's own list of every engine and game it installed: read it in whatever encoding
+    # it has (UTF-8, with or without BOM, or UTF-16), never write over one that doesn't parse
+    encoding = "utf-8"
     if os.path.exists(dat_path):
+        raw = open(dat_path, "rb").read()
+        if raw.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+            encoding = "utf-16"
+        elif raw.startswith(codecs.BOM_UTF8):
+            encoding = "utf-8-sig"
         try:
-            with open(dat_path, "r", encoding="utf-8") as f:
-                install_data = json.load(f)
-        except Exception as e:
-            print(f"Warning: could not parse existing {dat_path}: {e}")
+            install_data = json.loads(raw.decode(encoding))
+            if not isinstance(install_data.get("InstallationList"), list):
+                raise ValueError("no InstallationList")
+        except (UnicodeDecodeError, ValueError) as e:
+            sys.exit(f"{dat_path} couldn't be read ({e}): left as it is. The engine is downloaded; "
+                     f"register it by starting the Epic Games Launcher on Windows (or pass -UePath to build_windows.ps1).")
+        shutil.copy2(dat_path, dat_path + ".bak")
 
     # Remove existing entry for UE_5.8 if present
     install_list = [item for item in install_data.get("InstallationList", []) if item.get("AppName") != UE_APP_NAME]
@@ -80,8 +93,10 @@ def register_in_windows_launcher(install_dir: str, build_version: str, dat_path:
     install_list.append(new_entry)
     install_data["InstallationList"] = install_list
 
-    with open(dat_path, "w", encoding="utf-8") as f:
+    tmp = dat_path + ".tmp"
+    with open(tmp, "w", encoding=encoding) as f:
         json.dump(install_data, f, indent=2)
+    os.replace(tmp, dat_path)
 
     print(f"[+] Registered {UE_APP_NAME} in Windows LauncherInstalled.dat: {win_install_dir}")
 

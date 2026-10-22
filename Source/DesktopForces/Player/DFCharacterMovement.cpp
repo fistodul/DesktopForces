@@ -1,5 +1,7 @@
 #include "Player/DFCharacterMovement.h"
 #include "Vehicles/DFVehicle.h"
+#include "Game/DFGameState.h"
+#include "Player/DFCharacter.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "World/DFLadder.h"
@@ -70,6 +72,7 @@ void UDFCharacterMovement::UpdateFromCompressedFlags(uint8 Flags)
 {
 	Super::UpdateFromCompressedFlags(Flags);
 	bWantsToWalk = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
+	bWantsParachute = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 }
 
 FNetworkPredictionData_Client* UDFCharacterMovement::GetPredictionData_Client() const
@@ -128,6 +131,15 @@ bool UDFCharacterMovement::WantsLadder() const
 void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
+	// RagePlayer.RageTick (Gregaras' parachute): Jump held, falling at least 150 uu/s down. Decided
+	// in the move, so the owning client predicts it and the server (which doesn't tick remote
+	// players' pawns) runs the same; bParachute replicates the canopy to everyone else
+	if (ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner))
+	{
+		const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+		C->SetParachute(bWantsParachute && GS && GS->bParachutes && C->IsAlive() && !C->GetAttachParentActor()
+			&& IsFalling() && Velocity.Z <= -337.5f);
+	}
 	if (!IsOnLadder() && WantsLadder())
 	{
 		const ADFLadderVolume* L = TouchedLadder.Get();
@@ -157,6 +169,27 @@ void UDFCharacterMovement::ExitLadder()
 	{
 		SetMovementMode(MOVE_Falling);
 	}
+}
+
+void UDFCharacterMovement::PhysFalling(float DeltaTime, int32 Iterations)
+{
+	if (const ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner); C && C->IsParachuting())
+	{
+		// down to 200 uu/s (MF: x0.7 a frame below it), the speed along the ground turned the way
+		// the soldier looks (and eased off above 1000 uu/s)
+		if (Velocity.Z < -450.f)
+		{
+			Velocity.Z = FMath::Max(-450.f, Velocity.Z * FMath::Pow(0.7f, DeltaTime * 60.f));
+		}
+		const FVector Facing = FRotator(0.f, C->GetControlRotation().Yaw, 0.f).Vector();
+		float Ground = FVector2D(Velocity).Size();
+		if (Ground > 2250.f)
+		{
+			Ground *= FMath::Pow(0.97f, DeltaTime * 60.f);
+		}
+		Velocity = FVector(Facing.X * Ground, Facing.Y * Ground, Velocity.Z);
+	}
+	Super::PhysFalling(DeltaTime, Iterations);
 }
 
 void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
@@ -213,6 +246,7 @@ void FDFSavedMove::Clear()
 {
 	Super::Clear();
 	bSavedWantsToWalk = false;
+	bSavedWantsParachute = false;
 }
 
 uint8 FDFSavedMove::GetCompressedFlags() const
@@ -222,12 +256,17 @@ uint8 FDFSavedMove::GetCompressedFlags() const
 	{
 		Result |= FLAG_Custom_0;
 	}
+	if (bSavedWantsParachute)
+	{
+		Result |= FLAG_Custom_1;
+	}
 	return Result;
 }
 
 bool FDFSavedMove::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const
 {
-	if (bSavedWantsToWalk != static_cast<FDFSavedMove*>(NewMove.Get())->bSavedWantsToWalk)
+	const FDFSavedMove* New = static_cast<FDFSavedMove*>(NewMove.Get());
+	if (bSavedWantsToWalk != New->bSavedWantsToWalk || bSavedWantsParachute != New->bSavedWantsParachute)
 	{
 		return false;
 	}
@@ -240,6 +279,7 @@ void FDFSavedMove::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector 
 	if (const UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(Character->GetCharacterMovement()))
 	{
 		bSavedWantsToWalk = Move->bWantsToWalk;
+		bSavedWantsParachute = Move->bWantsParachute;
 	}
 }
 
@@ -249,6 +289,7 @@ void FDFSavedMove::PrepMoveFor(ACharacter* Character)
 	if (UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(Character->GetCharacterMovement()))
 	{
 		Move->bWantsToWalk = bSavedWantsToWalk;
+		Move->bWantsParachute = bSavedWantsParachute;
 	}
 }
 

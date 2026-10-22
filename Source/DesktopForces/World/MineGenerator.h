@@ -21,6 +21,9 @@ public:
 	static void SpawnAll(UWorld* World);
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/** A splashMakerGen: no mine, a river splash (set before spawning; clients get it with the
+	 *  actor, before their BeginPlay). */
+	UPROPERTY(Replicated)
 	bool bSplash = false;
 
 protected:

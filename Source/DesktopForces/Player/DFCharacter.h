@@ -101,6 +101,11 @@ public:
 	void SetInfiniteAmmo(bool bOn);
 	bool HasInfiniteAmmo() const { return bInfiniteAmmo; }
 
+	/** RagePlayer.RageTick (Gregaras): the canopy open or closed; UDFCharacterMovement decides
+	 *  it (Jump held while falling) and slows the fall. */
+	void SetParachute(bool bOpen);
+	bool IsParachuting() const { return bParachute; }
+
 	/** Server: scale this soldier's body (modes / mods: zombies, survivors); replicated so the
 	 *  owner predicts the same movement. Multiplies the class defaults, never stacks. */
 	void SetBodyScale(const FDFBodyScale& NewScale);
@@ -255,9 +260,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UStaticMeshComponent> PlaceholderBody;
 
-	/** RagePlayer.RageTick (Gregaras): Jump held, falling faster than 150 uu/s: the canopy opens,
-	 *  the fall slows to 200 uu/s and the soldier glides the way they look. */
-	void UpdateParachute(float DeltaSeconds);
 	UPROPERTY(ReplicatedUsing = OnRep_Parachute)
 	bool bParachute = false;
 	UFUNCTION()

@@ -107,7 +107,9 @@ function Invoke-Tool([string]$Exe, [string[]]$ToolArgs) {
         Write-Host "    would run: $Exe $($ToolArgs -join ' ')" -ForegroundColor DarkGray
         return 0
     }
-    & $Exe @ToolArgs
+    # its output to the console, not into this function's return value (PowerShell returns every
+    # uncaptured line), so the caller gets the exit code alone
+    & $Exe @ToolArgs | Out-Host
     return $LASTEXITCODE
 }
 

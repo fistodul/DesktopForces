@@ -93,6 +93,7 @@ public:
 	virtual FString GetOrderString(int32 Order) const override;
 	virtual FName GetOrderSound(int32 Order) const override;
 	virtual void RestartGame() override;
+	virtual void TravelAfterMatch() override;
 	virtual void FlagTouchedAtHome(AFlag* Flag, ADFCharacter* C) override;
 	virtual void FlagCaptured(AFlag* Flag, ADFCharacter* By) override;
 

@@ -269,10 +269,6 @@ float ADFCharacter::GetDesiredFOV() const
 void ADFCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (HasAuthority() || IsLocallyControlled())
-	{
-		UpdateParachute(DeltaSeconds);
-	}
 	if (IsLocallyControlled())
 	{
 		// behind view: our own body shows, the held model (in front of the eyes) doesn't
@@ -1143,7 +1139,7 @@ void ADFCharacter::ApplyLoadoutVisibility()
 {
 	// MF: "as far as other players are concerned, you aren't on the level until you come out of Loadout"
 	PlaceholderBody->SetHiddenInGame(bInLoadout);
-	GetMesh()->SetHiddenInGame(bInLoadout);
+	GetMesh()->SetHiddenInGame(bInLoadout, true);   // the gun in the hand too
 	GetCapsuleComponent()->SetCollisionEnabled(bInLoadout ? ECollisionEnabled::QueryOnly : ECollisionEnabled::QueryAndPhysics);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel2, bInLoadout ? ECR_Ignore : ECR_Block);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, bInLoadout ? ECR_Ignore : ECR_Block);
@@ -1166,35 +1162,13 @@ void ADFCharacter::ApplyLoadoutVisibility()
 	}
 }
 
-void ADFCharacter::UpdateParachute(float DeltaSeconds)
+void ADFCharacter::SetParachute(bool bOpen)
 {
-	UCharacterMovementComponent* M = GetCharacterMovement();
-	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
-	// RagePlayer.RageTick: Jump held (aUp), falling, at least 150 uu/s down
-	const bool bWant = GS && GS->bParachutes && IsAlive() && !GetAttachParentActor() && bPressedJump
-		&& M->IsFalling() && M->Velocity.Z <= -337.5f;
-	if (bWant != bParachute)
+	if (bOpen != bParachute)
 	{
-		bParachute = bWant;
+		bParachute = bOpen;
 		OnRep_Parachute();
 	}
-	if (!bParachute)
-	{
-		return;
-	}
-	// down to 200 uu/s (MF: x0.7 a frame below it), the speed along the ground turned the way
-	// the soldier looks (and eased off above 1000 uu/s)
-	if (M->Velocity.Z < -450.f)
-	{
-		M->Velocity.Z = FMath::Max(-450.f, M->Velocity.Z * FMath::Pow(0.7f, DeltaSeconds * 60.f));
-	}
-	const FVector Facing = FRotator(0.f, GetControlRotation().Yaw, 0.f).Vector();
-	float Ground = FVector2D(M->Velocity).Size();
-	if (Ground > 2250.f)
-	{
-		Ground *= FMath::Pow(0.97f, DeltaSeconds * 60.f);
-	}
-	M->Velocity = FVector(Facing.X * Ground, Facing.Y * Ground, M->Velocity.Z);
 }
 
 void ADFCharacter::OnRep_Parachute()

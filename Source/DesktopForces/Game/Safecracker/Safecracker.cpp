@@ -343,25 +343,36 @@ void ASafecracker::OnTimeLimit()
 	FinishMatch(FString::Printf(TEXT("%s safeguarded their gold%s"), TeamName(DefenderTeam()), Part == 2 ? TEXT(" and win!") : TEXT("!")));
 }
 
+namespace SafecrackerLocal
+{
+	/** The URL options without part 2's (Part, FirstCaptureTime). */
+	FString WithoutPart(FString Opts)
+	{
+		for (const TCHAR* Key : { TEXT("Part"), TEXT("FirstCaptureTime") })
+		{
+			const FString V = UGameplayStatics::ParseOption(Opts, Key);
+			Opts = Opts.Replace(*FString::Printf(TEXT("?%s=%s"), Key, *V), TEXT(""));
+		}
+		return Opts;
+	}
+}
+
 void ASafecracker::RestartGame()
 {
-	const FString Map = GetWorld()->GetOutermost()->GetName();
-	FString Opts = OptionsString;
-	for (const TCHAR* Key : { TEXT("Part"), TEXT("FirstCaptureTime") })
-	{
-		const FString V = UGameplayStatics::ParseOption(Opts, Key);
-		Opts = Opts.Replace(*FString::Printf(TEXT("?%s=%s"), Key, *V), TEXT(""));
-	}
+	// a restart (vote) starts over at part 1
+	GetWorld()->ServerTravel(GetWorld()->GetOutermost()->GetName() + SafecrackerLocal::WithoutPart(OptionsString), false);
+}
+
+void ASafecracker::TravelAfterMatch()
+{
 	if (Part == 1)
 	{
 		// MF RestartGame: part 2 on the same map, sides swapped, part 1's time to beat
-		GetWorld()->ServerTravel(FString::Printf(TEXT("%s%s?Part=2?FirstCaptureTime=%d"), *Map, *Opts, FirstCaptureTime), false);
+		GetWorld()->ServerTravel(FString::Printf(TEXT("%s%s?Part=2?FirstCaptureTime=%d"), *GetWorld()->GetOutermost()->GetName(),
+			*SafecrackerLocal::WithoutPart(OptionsString), FirstCaptureTime), false);
 		return;
 	}
-	if (!TravelToNextMap())
-	{
-		GetWorld()->ServerTravel(Map + Opts, false);
-	}
+	Super::TravelAfterMatch();   // the rotation's next map, else part 1 again
 }
 
 FString ASafecracker::GetOrderString(int32 Order) const

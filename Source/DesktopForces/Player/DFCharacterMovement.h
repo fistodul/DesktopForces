@@ -46,6 +46,8 @@ public:
 
 	/** Set by the owning client; replicated through compressed flags. */
 	bool bWantsToWalk = false;
+	/** Jump held (the owning client's input; FLAG_Custom_1): opens the parachute while falling. */
+	bool bWantsParachute = false;
 
 	// --- ladders (LadderClimber) ---
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Ladder")
@@ -67,6 +69,8 @@ public:
 
 protected:
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
+	/** Under a parachute: the fall eased to 200 uu/s, gliding the way the soldier looks. */
+	virtual void PhysFalling(float DeltaTime, int32 Iterations) override;
 	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
 	/** Grab the touched ladder now? (falling into it, or walking at it while close) */
 	bool WantsLadder() const;
@@ -78,12 +82,13 @@ protected:
 	float LadderRegrabTime = 0.f;
 };
 
-/** Saved move carrying the walk flag (FLAG_Custom_0). */
+/** Saved move carrying the walk (FLAG_Custom_0) and parachute (FLAG_Custom_1) flags. */
 class FDFSavedMove : public FSavedMove_Character
 {
 public:
 	using Super = FSavedMove_Character;
 	bool bSavedWantsToWalk = false;
+	bool bSavedWantsParachute = false;
 
 	virtual void Clear() override;
 	virtual uint8 GetCompressedFlags() const override;

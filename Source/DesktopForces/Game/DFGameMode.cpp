@@ -425,44 +425,56 @@ bool ADFGameMode::CanUseLoadout(ADFCharacter* Character) const
 	return UDFLoadoutLibrary::FindLoadoutSourceFor(Character) != nullptr;
 }
 
-void ADFGameMode::RestartGame()
+void ADFGameMode::TravelAfterMatch()
 {
 	if (!TravelToNextMap())
 	{
-		Super::RestartGame();
+		RestartGame();
 	}
 }
 
 bool ADFGameMode::TravelToNextMap()
 {
+	auto Split = [](const FString& URL) { TArray<FString> Parts; URL.ParseIntoArray(Parts, TEXT("?")); return Parts; };
+	auto KeyOf = [](const FString& Option) { FString Key = Option; Option.Split(TEXT("="), &Key, nullptr); return Key; };
 	// the position travels in the URL (?Rotation=i); a server started on any map begins at the top
 	const int32 Here = UGameplayStatics::GetIntOption(OptionsString, TEXT("Rotation"), INDEX_NONE);
+	// this server's own options (listen, Bots ...): what this map started with, minus what its
+	// rotation entry set - each entry stands alone, as in MF's MapList - and the per-map ones
+	TSet<FString> NotCarried = { TEXT("game"), TEXT("Rotation"), TEXT("Part"), TEXT("FirstCaptureTime") };
+	if (MapRotation.IsValidIndex(Here))
+	{
+		const TArray<FString> Current = Split(MapRotation[Here]);
+		for (int32 I = 1; I < Current.Num(); ++I)
+		{
+			NotCarried.Add(KeyOf(Current[I]));
+		}
+	}
+	const TArray<FString> ServerOptions = Split(OptionsString).FilterByPredicate([&](const FString& O) { return !NotCarried.Contains(KeyOf(O)); });
 	for (int32 Step = 1; Step <= MapRotation.Num(); ++Step)
 	{
 		const int32 Index = (Here + Step) % MapRotation.Num();
-		TArray<FString> Parts;
-		MapRotation[Index].ParseIntoArray(Parts, TEXT("?"));
-		if (Parts.IsEmpty())
+		TArray<FString> Options = Split(MapRotation[Index]);
+		if (Options.IsEmpty())
 		{
 			continue;
 		}
-		const FString Entry = TEXT("?") + FString::Join(TArrayView<FString>(Parts).RightChop(1), TEXT("?"));
-		FString URL = VoteMapURL(Parts[0], UGameplayStatics::ParseOption(Entry, TEXT("game")));
+		const FString Map = Options[0];
+		Options.RemoveAt(0);
+		FString URL = VoteMapURL(Map, UGameplayStatics::ParseOption(TEXT("?") + FString::Join(Options, TEXT("?")), TEXT("game")));
 		if (URL.IsEmpty())
 		{
 			UE_LOG(LogDF, Warning, TEXT("MapRotation: %s isn't here, skipped"), *MapRotation[Index]);
 			continue;
 		}
-		TArray<FString> Options;
-		(Entry + OptionsString).ParseIntoArray(Options, TEXT("?"));
-		TSet<FString> Keys = { TEXT("game"), TEXT("Rotation"), TEXT("Part"), TEXT("FirstCaptureTime") };
+		// the entry's own options first, then the server's
+		Options.Append(ServerOptions);
+		TSet<FString> Keys = { TEXT("game") };
 		for (const FString& Option : Options)
 		{
-			FString Key = Option;
-			Option.Split(TEXT("="), &Key, nullptr);
-			if (!Keys.Contains(Key))   // the entry's own options first, then the server's
+			if (!Keys.Contains(KeyOf(Option)))
 			{
-				Keys.Add(Key);
+				Keys.Add(KeyOf(Option));
 				URL += TEXT("?") + Option;
 			}
 		}
@@ -921,7 +933,7 @@ void ADFGameMode::HandleMatchHasEnded()
 		}
 	}
 	FTimerHandle H;
-	GetWorldTimerManager().SetTimer(H, this, &ADFGameMode::RestartGame, float(RestartWait), false);
+	GetWorldTimerManager().SetTimer(H, this, &ADFGameMode::TravelAfterMatch, float(RestartWait), false);
 }
 
 ATeamDeathMatch::ATeamDeathMatch()

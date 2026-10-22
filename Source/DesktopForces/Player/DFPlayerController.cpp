@@ -434,6 +434,10 @@ void ADFPlayerController::OnJump()
 	if (ADFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout())
 	{
 		C->Jump();
+		if (UDFCharacterMovement* M = Cast<UDFCharacterMovement>(C->GetCharacterMovement()))
+		{
+			M->bWantsParachute = true;   // held: the parachute while falling
+		}
 	}
 }
 
@@ -443,6 +447,10 @@ void ADFPlayerController::OnJumpReleased()
 	if (ADFCharacter* C = GetMFCharacter())
 	{
 		C->StopJumping();
+		if (UDFCharacterMovement* M = Cast<UDFCharacterMovement>(C->GetCharacterMovement()))
+		{
+			M->bWantsParachute = false;
+		}
 	}
 }
 
@@ -1064,6 +1072,10 @@ void ADFPlayerController::PlayerTick(float DeltaTime)
 		if (Now > ForcedMoveUntil || !P)
 		{
 			ForcedMoveUntil = 0.f;
+			if (ForcedUp > 0.f && Cast<ACharacter>(P))
+			{
+				OnJumpReleased();
+			}
 		}
 		else if (ADFVehicle* V = Cast<ADFVehicle>(P))
 		{
@@ -1075,9 +1087,9 @@ void ADFPlayerController::PlayerTick(float DeltaTime)
 			const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
 			P->AddMovementInput(Yaw.Vector(), ForcedMove.X);
 			P->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), ForcedMove.Y);
-			if (ACharacter* Ch = Cast<ACharacter>(P); Ch && ForcedUp > 0.f)
+			if (ForcedUp > 0.f)
 			{
-				Ch->Jump();   // held: jumps again on landing
+				OnJump();   // held, as the key: jumps again on landing, the parachute while falling
 			}
 		}
 		if (P && Now >= ForcedMoveNextLog)

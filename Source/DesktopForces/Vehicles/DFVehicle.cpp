@@ -1127,7 +1127,7 @@ void ADFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 		return;   // riders, and soldiers standing on it, aren't run over
 	}
 	const FVector Away = (C->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
-	const float Closing = FVector::DotProduct(PrevVelocity - C->GetVelocity(), Away);
+	const float Closing = FVector::DotProduct(PrevVelocity, Away);   // the car's, not the soldier walking into it
 	if (Closing < 50.f)
 	{
 		return;

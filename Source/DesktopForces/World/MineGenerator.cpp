@@ -36,6 +36,7 @@ void AMineGenerator::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AMineGenerator, bArmed);
+	DOREPLIFETIME_CONDITION(AMineGenerator, bSplash, COND_InitialOnly);
 }
 
 void AMineGenerator::SpawnAll(UWorld* World)

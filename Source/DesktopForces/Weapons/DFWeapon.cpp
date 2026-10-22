@@ -561,25 +561,15 @@ void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
 		if (TracerEvery > 0 && --TracerCount <= 0)
 		{
 			TracerCount = TracerEvery;
-			const FVector To = bHit ? FVector(Hit.ImpactPoint) : End;
-			if (IsLocallyControlled())
-			{
-				ADFTracer::Fire(GetWorld(), Start, To);
-			}
-			if (HasAuthority())
-			{
-				MulticastTracer(Start, To);
-			}
+			// everyone sees it through the multicast, the shooter too (the shot is the server's)
+			MulticastTracer(Start, bHit ? FVector(Hit.ImpactPoint) : End);
 		}
 	}
 }
 
 void ADFWeapon::MulticastTracer_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End)
 {
-	if (!IsLocallyControlled())
-	{
-		ADFTracer::Fire(GetWorld(), Start, End);
-	}
+	ADFTracer::Fire(GetWorld(), Start, End);
 }
 
 void ADFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt)
@@ -873,6 +863,7 @@ void ADFWeapon::AttachToSoldier(USkeletalMeshComponent* Body)
 		Mesh3P->SetRelativeRotation(FRotator(-90.f, 90.f, 0.f));
 	}
 	Mesh3P->SetVisibility(true);
+	Mesh3P->SetHiddenInGame(Body->bHiddenInGame);   // taken in Loadout: hidden like its soldier
 }
 
 void ADFWeapon::UpdateDroppedLook()
