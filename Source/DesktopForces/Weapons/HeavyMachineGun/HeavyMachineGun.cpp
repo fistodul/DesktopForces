@@ -14,6 +14,9 @@
 AHeavyMachineGun::AHeavyMachineGun()
 {
 	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
+	ArmsMesh = TEXT("HeavyMachineGunPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(3.6f, 0.f, -2.5f);
 	HUDIconRect = FIntRect(64, 64, 256, 128);   // WeaponIcon X=64 Y=64 W=192 H=64
 	DisplayName = LOCTEXT("HMG", "Heavy Machine Gun");
 	InventoryGroup = 6;

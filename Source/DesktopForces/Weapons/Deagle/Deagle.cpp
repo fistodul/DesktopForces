@@ -9,6 +9,9 @@ ADeagle::ADeagle()
 {
 	DisplayName = LOCTEXT("Deagle", "Desert Eagle");
 	ViewMesh = TEXT("deagle/deaglePickupCarryMesh");
+	ArmsMesh = TEXT("deaglePlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.04f;
+	ArmsOffset = FVector(3.f, -1.f, 0.f);
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(DF::ClassicPath(TEXT("Textures/deagle/Icons/deagleIcon"))));
 	HUDIconRect = FIntRect(0, 0, 64, 64);   // WeaponIcon X=0 Y=0 W=64 H=64
 	bAddToLoadout = true;

@@ -66,7 +66,19 @@ on touching down, the knife's stab and grenade / trip bomb throws on firing (gun
 animation: they shoot from the pose they hold), one of Dead2/3/4/5/9B on dying. Changes tween
 over 0.1-0.25 s like UE1's TweenAnim. Drivers sit at the wheel (Drive, DriveLeft/Right by the
 turn, DriveStill); seats MF marks aSeatsSit get PassLgStill, the others stand. The weapon's
-carry mesh is in the right hand (Bone_weapon, MESH WEAPONPOSITION yaw 90 pitch -90).
+carry mesh is in the right hand (Bone_weapon, MESH WEAPONPOSITION yaw 90 pitch -90). Others
+see (and hear) reloads (WalkReload / DuckReload) and a flinch when hurt (GutHit / LeftHit /
+RightHit).
+
+**First-person weapons** (RageWeapon PlayerViewMesh): the arms models at the eye, at MF's
+PlayerViewScale (0.2; the Deagle 0.04) and PlayerViewOffset (uu: Weapon.setHand's x100 and
+CalcDrawOffset's 0.9 / FOV 90 cancel out), squashed to half depth like MF's MESHMAP SCALE 1 /
+0.5 / 1 (kept on the mesh as `UDFMeshScaleData`). Animations by MF's names, the first the mesh
+has: SelectUp / SelectDown, Fire (or the Fire01-04 / ContinuousFire01-04 / Slash01-04 takes at
+random, Shoot, ThrowOver, PlaceForward), AccurateAimFire when zoomed, AltFire / RightThrow,
+Reload, AccurateAimUp / Down or BringScopeUp / Down, Still / AccurateAimStill as the idle. Each
+plays at the rate that fits the weapon's state time, so MF's timings stay the rule. Raised
+scopes hide the arms (the scope mask covers the view).
 
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.

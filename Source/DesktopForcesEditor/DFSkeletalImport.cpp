@@ -1,9 +1,11 @@
-// MF soldiers (RageGfx RagePlayer1Mesh / RagePlayer2Mesh: skeletal meshes with their
-// MeshAnimations). Tools/mfport/mflib/skelmesh.py writes them as glTF (work/out/Soldiers),
-// already in actor space and cm; Interchange imports skeleton, mesh and every sequence as an
-// AnimSequence, and this puts MF's team skins on the material slots.
+// MF skeletal meshes with their MeshAnimations: the soldiers (RageGfx RagePlayer1Mesh /
+// RagePlayer2Mesh) and the first-person weapons (<X>PlayerMesh). Tools/mfport/mflib/skelmesh.py
+// writes them as glTF (work/out/Skeletal), already in actor space and cm; Interchange imports
+// skeleton, mesh and every sequence as an AnimSequence, and this puts MF's textures (the
+// soldiers' team skins) on the material slots.
 #include "DFImporter.h"
 #include "DFImportUtil.h"
+#include "Core/DFMeshScaleData.h"
 #include "AssetImportTask.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -14,12 +16,12 @@
 
 using namespace DFImportUtil;
 
-bool FDFImporter::ImportSoldiers()
+bool FDFImporter::ImportSkeletal()
 {
-	TSharedPtr<FJsonObject> Info = LoadJson(WorkDir / TEXT("Soldiers/soldiers.json"));
+	TSharedPtr<FJsonObject> Info = LoadJson(WorkDir / TEXT("Skeletal/skeletal.json"));
 	if (!Info)
 	{
-		UE_LOG(LogDFEditor, Warning, TEXT("No Soldiers/soldiers.json - run mfport.py soldiers"));
+		UE_LOG(LogDFEditor, Warning, TEXT("No Skeletal/skeletal.json - run mfport.py skeletal"));
 		return false;
 	}
 	// skinned meshes need their master material compiled for skeletal meshes too
@@ -35,7 +37,7 @@ bool FDFImporter::ImportSoldiers()
 	{
 		const TSharedPtr<FJsonObject> M = V->AsObject();
 		const FString Name = M->GetStringField(TEXT("name"));
-		const FString Dest = FString::Printf(TEXT("%s/Soldiers/%s"), *Packs.PackageRoot(M->GetStringField(TEXT("package"))), *Name);
+		const FString Dest = FString::Printf(TEXT("%s/%s/%s"), *Packs.PackageRoot(M->GetStringField(TEXT("package"))), *M->GetStringField(TEXT("folder")), *Name);
 		UAssetImportTask* Task = NewObject<UAssetImportTask>();
 		Task->Filename = FPaths::ConvertRelativePathToFull(WorkDir / M->GetStringField(TEXT("file")));
 		Task->DestinationPath = Dest;
@@ -63,23 +65,45 @@ bool FDFImporter::ImportSoldiers()
 		}
 		if (!Mesh)
 		{
-			UE_LOG(LogDFEditor, Error, TEXT("Soldier %s: no skeletal mesh imported into %s"), *Name, *Dest);
+			UE_LOG(LogDFEditor, Error, TEXT("%s: no skeletal mesh imported into %s"), *Name, *Dest);
 			continue;
 		}
-		// slot "SkinN" = MF texture index N = the team skin element (Pawn.SetMultiSkin): blue
-		// 00-03 by default; the game swaps in red (04-07) and captains' (08 / 09) at runtime
-		const FString Skin = M->GetStringField(TEXT("skin"));
+		// slot "SkinN" = MF texture index N (MESHMAP SETTEXTURE; on the soldiers the team skin
+		// element of Pawn.SetMultiSkin: blue 00-03 here, the game swaps in red 04-07 and the
+		// captains' 08 / 09, made beforehand as extra_materials)
+		const TSharedPtr<FJsonObject>* Keys = nullptr;
+		M->TryGetObjectField(TEXT("materials"), Keys);
 		TArray<FSkeletalMaterial> Mats = Mesh->GetMaterials();
 		for (FSkeletalMaterial& Slot : Mats)
 		{
-			const int32 Index = FCString::Atoi(*Slot.MaterialSlotName.ToString().RightChop(4));
-			Slot.MaterialInterface = GetMaterial(FString::Printf(TEXT("%s%02d|opaque"), *Skin, Index));
+			FString Key;
+			if (Keys && (*Keys)->TryGetStringField(Slot.MaterialSlotName.ToString().RightChop(4), Key))
+			{
+				Slot.MaterialInterface = GetMaterial(Key);
+			}
 		}
-		for (int32 i = 0; i < 10; ++i)
+		const TArray<TSharedPtr<FJsonValue>>* Extra = nullptr;
+		if (M->TryGetArrayField(TEXT("extra_materials"), Extra))
 		{
-			GetMaterial(FString::Printf(TEXT("%s%02d|opaque"), *Skin, i));
+			for (const TSharedPtr<FJsonValue>& E : *Extra)
+			{
+				GetMaterial(E->AsString());
+			}
 		}
 		Mesh->SetMaterials(Mats);
+		// a non-uniform MESHMAP SCALE can't be in the skeleton: its rest goes on the component
+		Mesh->RemoveUserDataOfClass(UDFMeshScaleData::StaticClass());
+		const TArray<TSharedPtr<FJsonValue>>* Scale = nullptr;
+		if (M->TryGetArrayField(TEXT("component_scale"), Scale) && Scale->Num() == 3)
+		{
+			const FVector Rest((*Scale)[0]->AsNumber(), (*Scale)[1]->AsNumber(), (*Scale)[2]->AsNumber());
+			if (!Rest.Equals(FVector::OneVector))
+			{
+				UDFMeshScaleData* Data = NewObject<UDFMeshScaleData>(Mesh);
+				Data->ComponentScale = Rest;
+				Mesh->AddAssetUserData(Data);
+			}
+		}
 		Mesh->PostEditChange();
 		if (Junk.Num())
 		{
@@ -96,7 +120,7 @@ bool FDFImporter::ImportSoldiers()
 				SaveAsset(Obj);
 			}
 		}
-		UE_LOG(LogDFEditor, Display, TEXT("Soldier %s: %d bones, %d animations"), *Name, Mesh->GetRefSkeleton().GetNum(), Anims);
+		UE_LOG(LogDFEditor, Display, TEXT("%s: %d bones, %d animations"), *Name, Mesh->GetRefSkeleton().GetNum(), Anims);
 		++Ok;
 	}
 	return Ok > 0;

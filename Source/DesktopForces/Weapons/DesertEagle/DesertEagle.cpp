@@ -8,6 +8,9 @@ ADesertEagle::ADesertEagle()
 {
 	// desert.u; Fire 5 @16 + 0.05; Reload 35 @14 + 0.25
 	ViewMesh = TEXT("desert/DesertPickupCarryMesh");
+	ArmsMesh = TEXT("DesertPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(1.f, -1.4f, -2.4f);
 	RequiredContent = TEXT("Props/desert/DesertPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/desert/Skins/Desertimage.Desertimage"), DF::UnverifiedRoot)));

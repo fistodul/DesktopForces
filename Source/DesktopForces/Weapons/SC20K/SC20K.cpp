@@ -8,6 +8,9 @@ ASC20K::ASC20K()
 {
 	// F2000.u; Fire01-04 3 @38 + 0.05; Reload 16 @5 + 0.25
 	ViewMesh = TEXT("F2000/SC20KPickupCarryMesh");
+	ArmsMesh = TEXT("SC20KPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(-6.6f, -2.f, -3.3f);
 	RequiredContent = TEXT("Props/F2000/SC20KPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/F2000/Skins/SC20Kimage.SC20Kimage"), DF::UnverifiedRoot)));

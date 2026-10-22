@@ -12,6 +12,9 @@ namespace
 AM18::AM18()
 {
 	ViewMesh = TEXT("M18/M18PickupCarryMesh");
+	ArmsMesh = TEXT("M18PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(-1.6f, -2.9f, -3.5f);
 	RequiredContent = TEXT("Props/M18/M18PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/M18/Skins/M18image.M18image"), DF::UnverifiedRoot)));

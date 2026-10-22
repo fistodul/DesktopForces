@@ -291,6 +291,27 @@ public:
 	bool bHasViewMesh = false;
 	FTransform HandTransform;
 
+	/** First-person arms holding the weapon (MF PlayerViewMesh, "PistolPlayerMesh": a skeletal
+	 *  mesh with its select / fire / reload / zoom animations; mfport skeletal). Without it the
+	 *  carry model above is held instead. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FString ArmsMesh;
+	/** MF PlayerViewScale. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float ArmsScale = 0.2f;
+	/** MF PlayerViewOffset (x 100 by Weapon.setHand, x 0.9 / FOV 90 by CalcDrawOffset: uu off the eye). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FVector ArmsOffset = FVector::ZeroVector;
+	UPROPERTY(Transient)
+	TObjectPtr<class USkeletalMeshComponent> Arms;
+	class UDFTweenAnimInstance* GetArmsAnim() const;
+	/** The arms' animation for entering ForState (lasting Duration) or for a shot. */
+	virtual void PlayArmsAnim(EDFWeaponState ForState, float Duration, bool bAlt = false);
+	/** MF's names for it (Pistol: SelectUp, Fire / AccurateAimFire, Reload, AccurateAimUp ...),
+	 *  the first one the mesh has. */
+	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt);
+	void SetupArms();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> MuzzleFlash;
 	FTimerHandle MuzzleFlashTimer;
@@ -306,6 +327,9 @@ public:
 	TObjectPtr<UStaticMeshComponent> Mesh3P;
 	/** Put Mesh3P in the owner's soldier hand (once the soldier model is on). */
 	void AttachToSoldier(class USkeletalMeshComponent* Body);
+	/** Owner's view each frame: the held model or arms (not in behind view; arms hide behind a
+	 *  scope once it is up, like MF), the third-person one in behind view. */
+	void UpdateFirstPersonView(bool bBehindView);
 
 	// --- interface used by ADFCharacter / HUD -------------------------------------------
 	ADFCharacter* GetOwnerCharacter() const;
@@ -427,6 +451,9 @@ protected:
 	/** The others' copies of a tracer (the shooter draws its own when it fires). */
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastTracer(FVector_NetQuantize Start, FVector_NetQuantize End);
+	/** Server: a reload started (others hear it, Owner.PlaySound, and see the soldier do it). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastReload();
 	int32 TracerCount = 0;
 	/** Server: what happens on a hitscan hit (MF ProcessTraceHit). */
 	virtual void ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt);

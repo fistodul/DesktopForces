@@ -102,8 +102,8 @@ public:
 	 * burning wrecks, smoke puffs, blood) -> /MobileForcesClassic/Effects/P_<Name>.
 	 */
 	bool ImportEffects();
-	/** Soldiers: skeletal meshes + animations (work/out/Soldiers glTF). DFSoldierImport.cpp */
-	bool ImportSoldiers();
+	/** Soldiers and first-person weapons: skeletal meshes + animations (work/out/Skeletal glTF). DFSkeletalImport.cpp */
+	bool ImportSkeletal();
 	/** A particle system from emitter descriptions (mflib/effects.py EMITTER); bLoop: forever. */
 	UParticleSystem* BuildParticleSystem(const FString& PackagePath, const FString& Name, const TArray<TSharedPtr<FJsonValue>>& Emitters, bool bLoop);
 

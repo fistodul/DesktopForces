@@ -14,6 +14,9 @@
 APistol::APistol()
 {
 	ViewMesh = TEXT("RageWeapons/PistolPickupCarryMesh");
+	ArmsMesh = TEXT("PistolPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(3.f, -1.f, 0.f);
 	HUDIconRect = FIntRect(0, 0, 48, 64);   // WeaponIcon X=0 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Pistol", "Pistol");
 	InventoryGroup = 2;

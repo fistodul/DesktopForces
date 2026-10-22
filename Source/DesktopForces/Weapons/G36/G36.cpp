@@ -8,6 +8,9 @@ AG36::AG36()
 {
 	// Reload @10 + 0.25
 	ViewMesh = TEXT("g36/g36PickupCarryMesh");
+	ArmsMesh = TEXT("g36PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(2.5f, -1.2f, -3.5f);
 	RequiredContent = TEXT("Props/g36/g36PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/g36/Skins/g36image.g36image"), DF::UnverifiedRoot)));

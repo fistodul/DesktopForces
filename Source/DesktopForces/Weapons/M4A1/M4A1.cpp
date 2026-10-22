@@ -8,6 +8,9 @@ AM4A1::AM4A1()
 {
 	// Fire01-04 3 @35 + 0.05; Reload 33 @14 + 0.25
 	ViewMesh = TEXT("m4a1/M4A1PickupCarryMesh");
+	ArmsMesh = TEXT("M4A1PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(-4.8f, -1.8f, -2.8f);
 	RequiredContent = TEXT("Props/m4a1/M4A1PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/m4a1/Skins/M4A1image.M4A1image"), DF::UnverifiedRoot)));

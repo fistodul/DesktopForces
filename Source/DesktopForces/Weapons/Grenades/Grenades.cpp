@@ -1,4 +1,5 @@
 #include "Weapons/Grenades/Grenades.h"
+#include "Player/DFSoldierAnimInstance.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
@@ -14,6 +15,9 @@
 AGrenades::AGrenades()
 {
 	ViewMesh = TEXT("RageWeapons/GrenadesPickupCarryMesh");
+	ArmsMesh = TEXT("GrenadesPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(1.6f, -1.f, -4.f);
 	HUDIconRect = FIntRect(48, 0, 96, 64);   // WeaponIcon X=48 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Grenades", "Grenades");
 	InventoryGroup = 8;
@@ -54,8 +58,14 @@ void AGrenades::StartFire(bool bAlt)
 	bWindingAlt = bAlt;
 	WindUpStart = GetWorld()->GetTimeSeconds();
 	// PlayFiringAnim: the pin comes out with the teeth or by hand, then Powering while winding up
-	PlayMFSound(FMath::RandBool() ? TEXT("WeaponSFX_Grenades.PullPinTeeth") : TEXT("WeaponSFX_Grenades.PullPinHand"));
+	const bool bTeeth = FMath::RandBool();
+	PlayMFSound(bTeeth ? TEXT("WeaponSFX_Grenades.PullPinTeeth") : TEXT("WeaponSFX_Grenades.PullPinHand"));
 	SetAmbientMFSound(TEXT("WeaponSFX_Grenades.Powering"));
+	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr)
+	{
+		Anim->SetIdle(NAME_None);   // the arm stays drawn back until the throw
+		Anim->Play(bTeeth ? TEXT("PullPinBack02") : TEXT("PullPinBack"), 0.9f, 0.05f, false);
+	}
 }
 
 void AGrenades::StopFire(bool bAlt)

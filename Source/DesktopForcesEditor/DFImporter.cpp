@@ -1128,6 +1128,18 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey)
 		return M;
 	}
 	UTexture2D* Tex = FindTextureFor(TexKey, bBuildingCoreMap);
+	if (Tex)
+	{
+		// the texture's own folder spelling: maps name packages in any case (UE1 didn't care:
+		// "Train.Ammocount" and "train.Ammocount"), and case twins of a folder hide each other's
+		// packages from the cooker
+		const FString TexDir = FPackageName::GetLongPackagePath(Tex->GetOutermost()->GetName());
+		const int32 At = TexDir.Find(TEXT("/Textures/"));
+		if (At != INDEX_NONE && TexDir.Mid(At + 10).Equals(Dir, ESearchCase::IgnoreCase))
+		{
+			Dir = TexDir.Mid(At + 10);
+		}
+	}
 	const FString MIName = FString::Printf(TEXT("MI_%s_%s"), *Name, *Mode);
 	bool bCreated = false;
 	UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(

@@ -1,4 +1,5 @@
 #include "Weapons/Knife/Knife.h"
+#include "Player/DFSoldierAnimInstance.h"
 #include "DesktopForces.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
@@ -15,6 +16,9 @@
 AKnife::AKnife()
 {
 	ViewMesh = TEXT("RageWeapons/KnifePickupCarryMesh");   // PickupViewMesh / ThirdPersonMesh
+	ArmsMesh = TEXT("KnifePlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(3.2f, -2.f, 0.f);
 	ViewRotation = FRotator(-70.f, 0.f, 0.f);              // the blade stands up in the model: point it forward
 	ViewOffset = FVector(16.f, 10.f, 9.f);
 	HUDIconRect = FIntRect(96, 0, 144, 64);   // WeaponIcon X=96 Y=0 W=48 H=64
@@ -90,6 +94,11 @@ void AKnife::StartFire(bool bAlt)
 	bThrowQueued = false;
 	WindUpStart = GetWorld()->GetTimeSeconds();
 	PlayMFSound(TEXT("WeaponSFX_Knife.Throw"));
+	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr)
+	{
+		Anim->SetIdle(NAME_None);   // PlayAltFiringAnim: toss it up, catch it, hold it ready
+		Anim->Play(TEXT("ThrowUpCatch"), 0.8f, 0.f, false);
+	}
 	GetWorldTimerManager().SetTimer(WindUpTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 	{
 		if (bThrowQueued)
@@ -195,6 +204,32 @@ void AKnife::KnifeReturned()
 	GetWorldTimerManager().ClearTimer(ReturnTimer);
 	ClipAmmo = 1;
 	UE_LOG(LogDF, Verbose, TEXT("%s: the thrown knife is back"), *GetName());
+	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() && State != EDFWeaponState::Inactive ? GetArmsAnim() : nullptr)
+	{
+		Anim->SetIdle(TEXT("Still"));
+		Anim->Play(TEXT("EmptyPickup"), 1.f, 0.f, false);   // PlayPickUpAnim
+	}
+}
+
+FName AKnife::GetArmsAnimName(EDFWeaponState ForState, bool bAlt)
+{
+	if (!HasAmmoInClip() && !(ForState == EDFWeaponState::Firing && bAlt))
+	{
+		switch (ForState)
+		{
+		case EDFWeaponState::Equipping:   return TEXT("EmptySelectUp");
+		case EDFWeaponState::PuttingDown: return TEXT("EmptySelectDown");
+		case EDFWeaponState::Firing:      return NAME_None;
+		default:                          return TEXT("EmptyStill");
+		}
+	}
+	if (ForState == EDFWeaponState::Firing && !bAlt)
+	{
+		// FireAnims[Rand(5)]
+		static const TCHAR* const Stabs[] = { TEXT("Slash01"), TEXT("Slash02"), TEXT("Slash03"), TEXT("Slash04"), TEXT("Punch01") };
+		return Stabs[FMath::RandHelper(UE_ARRAY_COUNT(Stabs))];
+	}
+	return Super::GetArmsAnimName(ForState, bAlt);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -14,6 +14,9 @@
 ARifle::ARifle()
 {
 	ViewMesh = TEXT("RageWeapons/SniperRiflePickupCarryMesh");
+	ArmsMesh = TEXT("SniperRiflePlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(3.6f, 0.2f, -3.5f);
 	HUDIconRect = FIntRect(104, 192, 248, 256);   // WeaponIcon X=104 Y=192 W=144 H=64
 	DisplayName = LOCTEXT("Rifle", "Sniper Rifle");
 	InventoryGroup = 5;

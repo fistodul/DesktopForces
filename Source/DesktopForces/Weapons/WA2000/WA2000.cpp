@@ -8,6 +8,9 @@ AWA2000::AWA2000()
 {
 	// head 10000000 (one shot); scope 3x - 30x in 6 steps in MF: a fixed 6x here
 	ViewMesh = TEXT("wa2000/wa2000PickupCarryMesh");
+	ArmsMesh = TEXT("wa2000PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(1.f, 0.5f, -3.5f);
 	RequiredContent = TEXT("Props/wa2000/wa2000PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/wa2000/Skins/wa2000image.wa2000image"), DF::UnverifiedRoot)));

@@ -22,7 +22,7 @@ int32 UDFImportCommandlet::Main(const FString& Params)
 		Work = FPaths::ProjectDir() / TEXT("Tools/mfport/work/out");
 	}
 	Work = FPaths::ConvertRelativePathToFull(Work);
-	const bool bNeedsWork = Steps.Contains(TEXT("textures")) || Steps.Contains(TEXT("props")) || Steps.Contains(TEXT("sounds")) || Steps.Contains(TEXT("music")) || Steps.Contains(TEXT("maps")) || Steps.Contains(TEXT("effects")) || Steps.Contains(TEXT("soldiers"));
+	const bool bNeedsWork = Steps.Contains(TEXT("textures")) || Steps.Contains(TEXT("props")) || Steps.Contains(TEXT("sounds")) || Steps.Contains(TEXT("music")) || Steps.Contains(TEXT("maps")) || Steps.Contains(TEXT("effects")) || Steps.Contains(TEXT("skeletal")) || Steps.Contains(TEXT("soldiers"));
 	if (bNeedsWork && !FPaths::DirectoryExists(Work))
 	{
 		UE_LOG(LogDFEditor, Error, TEXT("Work dir %s not found - run Tools/mfport/mfport.py first"), *Work);
@@ -57,9 +57,9 @@ int32 UDFImportCommandlet::Main(const FString& Params)
 	{
 		Importer.ImportEffects();
 	}
-	if (Steps.Contains(TEXT("soldiers")))
+	if (Steps.Contains(TEXT("skeletal")) || Steps.Contains(TEXT("soldiers")))
 	{
-		Importer.ImportSoldiers();
+		Importer.ImportSkeletal();
 	}
 	if (Steps.Contains(TEXT("testmap")))
 	{

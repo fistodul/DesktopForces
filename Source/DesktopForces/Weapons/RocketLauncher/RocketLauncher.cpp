@@ -19,6 +19,9 @@
 ARocketLauncher::ARocketLauncher()
 {
 	ViewMesh = TEXT("RageWeapons/RocketLauncherPickupCarryMesh");
+	ArmsMesh = TEXT("RocketLauncherPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(0.4f, -1.f, 0.f);
 	HUDIconRect = FIntRect(0, 128, 160, 192);   // WeaponIcon X=0 Y=128 W=160 H=64
 	DisplayName = LOCTEXT("RocketLauncher", "Rocket Launcher");
 	InventoryGroup = 7;

@@ -8,6 +8,9 @@ AUltimax::AUltimax()
 {
 	// NormalFire sleeps 0.112 s (0.45 aimed); Reload 28 @8 + 0.25
 	ViewMesh = TEXT("ultimax/UltimaxPickupCarryMesh");
+	ArmsMesh = TEXT("UltimaxPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(3.2f, -1.7f, -2.7f);
 	RequiredContent = TEXT("Props/ultimax/UltimaxPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/ultimax/Skins/Ultimaximage.Ultimaximage"), DF::UnverifiedRoot)));

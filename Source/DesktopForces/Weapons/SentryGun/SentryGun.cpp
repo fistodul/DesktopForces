@@ -308,6 +308,7 @@ ASentryGun::ASentryGun()
 {
 	DisplayName = LOCTEXT("SentryGun", "Sentry Gun");
 	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
+	ArmsMesh.Reset();   // no arms of its own: the carry model stays in hand
 	InventoryGroup = 11;
 	CarrySize = 2;
 	MaxClipAmmo = 1;

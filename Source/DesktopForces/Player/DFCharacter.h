@@ -214,6 +214,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float SoldierZOffset = 0.f;
 
+	/** PlayerPawn.Bob (MF 0.016; 0 = a still view). */
+	UPROPERTY(EditDefaultsOnly, Config, Category = "DF")
+	float ViewBob = 0.016f;
+
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -225,6 +229,11 @@ protected:
 	float StepBobTime = 0.f;
 	float LastPainSound = -10.f;
 	void UpdateFootsteps(float DeltaSeconds);
+	/** RPlayer.CheckBob + PlayerCalcView (CameraLocation += WalkBob): the view sways and
+	 *  bounces with the stride while walking on the ground. */
+	void UpdateViewBob(float DeltaSeconds);
+	float ViewBobTime = 0.f;
+	FVector ViewBobOffset = FVector::ZeroVector;
 
 	/** Seconds the head may stay under water (RPlayer.UnderWaterTime 20), then 5 a 2 s (PainTimer). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")

@@ -266,14 +266,11 @@ void ADFCharacter::Tick(float DeltaSeconds)
 		const bool bBehind = IsBehindView();
 		PlaceholderBody->SetOwnerNoSee(!bBehind);
 		GetMesh()->SetOwnerNoSee(!bBehind);
-		if (CurrentWeapon && CurrentWeapon->Mesh1P)
+		if (CurrentWeapon)
 		{
-			CurrentWeapon->Mesh1P->SetVisibility(!bBehind);
-			if (CurrentWeapon->Mesh3P)
-			{
-				CurrentWeapon->Mesh3P->SetOwnerNoSee(!bBehind);
-			}
+			CurrentWeapon->UpdateFirstPersonView(bBehind);
 		}
+		UpdateViewBob(DeltaSeconds);
 	}
 	if (GetNetMode() != NM_DedicatedServer)
 	{
@@ -514,6 +511,33 @@ void ADFCharacter::FellOutOfWorld(const UDamageType& DmgType)
 	}
 }
 
+void ADFCharacter::UpdateViewBob(float DeltaSeconds)
+{
+	const UCharacterMovementComponent* Move = GetCharacterMovement();
+	FVector Bob = FVector::ZeroVector;
+	if (Move->IsMovingOnGround() && IsAlive() && !GetAttachParentActor())
+	{
+		// uu: WalkBob = Y * 0.4 Bob Speed sin(8 t), Z = 0.3 Bob Speed sin(16 t) (none standing)
+		const float Speed = GetVelocity().Size2D() / 2.25f;
+		ViewBobTime += Speed < 10.f ? 0.2f * DeltaSeconds : DeltaSeconds * (0.3f + 0.7f * Speed / FMath::Max(Move->MaxWalkSpeed / 2.25f, 1.f));
+		if (Speed >= 10.f)
+		{
+			Bob = FVector(0.f, 0.4f * ViewBob * Speed * FMath::Sin(8.f * ViewBobTime), 0.3f * ViewBob * Speed * FMath::Sin(16.f * ViewBobTime)) * 2.25f;
+		}
+	}
+	else
+	{
+		// off the ground: BobTime 0, the bob dies away (8 x a second)
+		ViewBobTime = 0.f;
+		Bob = ViewBobOffset * (1.f - FMath::Min(1.f, 8.f * DeltaSeconds));
+	}
+	if (!Bob.Equals(ViewBobOffset, 0.01f))
+	{
+		FirstPersonCamera->SetRelativeLocation(FirstPersonCamera->GetRelativeLocation() - ViewBobOffset + Bob);
+		ViewBobOffset = Bob;
+	}
+}
+
 void ADFCharacter::UpdateFootsteps(float DeltaSeconds)
 {
 	// RPlayer.CheckBob: BobTime runs at 0.3 + 0.7 x speed / GroundSpeed; a step each time
@@ -590,6 +614,13 @@ void ADFCharacter::MulticastVoice_Implementation(FName Line)
 
 void ADFCharacter::MulticastBodySound_Implementation(uint8 Kind, float Volume, uint8 Variant)
 {
+	if (Kind == uint8(EBodySound::Pain))
+	{
+		if (UDFSoldierAnimInstance* Anim = GetSoldierAnim())
+		{
+			Anim->OnHurt();
+		}
+	}
 	// RPlayer.PlayHit / PlayDeathHit: hurt or dying with the head under water, bubbles come up
 	if ((Kind == uint8(EBodySound::Pain) || Kind == uint8(EBodySound::Death)) && GetNetMode() != NM_DedicatedServer
 		&& ADFZoneVolume::FindWater(GetWorld(), FirstPersonCamera->GetComponentLocation()))

@@ -14,6 +14,9 @@
 ATripBombs::ATripBombs()
 {
 	ViewMesh = TEXT("RageWeapons/TripBombsPickupCarryMesh");
+	ArmsMesh = TEXT("TripBombsPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(2.f, 0.2f, -1.f);
 	HUDIconRect = FIntRect(192, 0, 256, 64);   // WeaponIcon X=192 Y=0 W=64 H=64
 	DisplayName = LOCTEXT("TripBombs", "Trip Bombs");
 	InventoryGroup = 9;

@@ -168,8 +168,8 @@ public:
 	void DFCam(float X, float Y, float Z, float Yaw, float Pitch);
 
 	/** Camera riding along with your own pawn (Other 1: the nearest other one), Dist cm out at
-	 *  Yaw from where it faces (180 = in front of it), looking back at it: model and animation
-	 *  checks. */
+	 *  Yaw from where it faces (0 = in front of it, 180 = behind), looking back at it: model and
+	 *  animation checks. */
 	UFUNCTION(Exec)
 	void DFOrbit(float Yaw = 180.f, float Dist = 250.f, int32 Other = 0);
 

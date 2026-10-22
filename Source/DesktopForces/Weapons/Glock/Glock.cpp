@@ -8,6 +8,9 @@ AGlock::AGlock()
 {
 	// Fire 8 @30 + 0.05; aiming (no magnification) fires AccurateAimFire 5 @85: full auto, wild
 	ViewMesh = TEXT("glock/glockPickupCarryMesh");
+	ArmsMesh = TEXT("glockPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(0.2f, -0.8f, -2.2f);
 	RequiredContent = TEXT("Props/glock/glockPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/glock/Skins/glockimage.glockimage"), DF::UnverifiedRoot)));

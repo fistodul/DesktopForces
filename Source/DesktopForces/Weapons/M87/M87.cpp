@@ -8,6 +8,9 @@ AM87::AM87()
 {
 	// lever action (extends Pistol in MF: 8 shells); Fire 9 @35 x0.5..; Reload 2.25 s empty
 	ViewMesh = TEXT("m87/M87PickupCarryMesh");
+	ArmsMesh = TEXT("M87PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(-5.3f, -2.f, -4.2f);
 	RequiredContent = TEXT("Props/m87/M87PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/m87/Skins/M87image.M87image"), DF::UnverifiedRoot)));

@@ -8,6 +8,9 @@ AAK74::AAK74()
 {
 	// Fire01-04 3 frames @26 + 0.05; AccurateAimFire 6 @30; Reload 10 @6 + 0.25; SelectUp 3 @8
 	ViewMesh = TEXT("AK74/AK74PickupCarryMesh");
+	ArmsMesh = TEXT("AK74PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(-3.4f, -0.7f, -2.f);
 	RequiredContent = TEXT("Props/AK74/AK74PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/AK74/Skins/AK74image.AK74image"), DF::UnverifiedRoot)));

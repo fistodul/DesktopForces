@@ -1,5 +1,7 @@
 #include "Weapons/DFWeapon.h"
 #include "Player/DFSoldierAnimInstance.h"
+#include "Core/DFMeshScaleData.h"
+#include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Weapons/DFTracer.h"
@@ -108,6 +110,7 @@ void ADFWeapon::PostInitializeComponents()
 			Mesh3P->SetupAttachment(RootComponent);
 			Mesh3P->RegisterComponent();
 		}
+		SetupArms();
 		UpdateDroppedLook();
 	}
 }
@@ -254,6 +257,10 @@ void ADFWeapon::PlaySoundLocal(USoundBase* Sound) const
 void ADFWeapon::SetState(EDFWeaponState NewState, float Duration)
 {
 	State = NewState;
+	if (Arms && NewState != EDFWeaponState::Firing && NewState != EDFWeaponState::Inactive && IsLocallyControlled())
+	{
+		PlayArmsAnim(NewState, Duration);   // shots play theirs with the shot (PlayFireEffects)
+	}
 	ClearStateTimer();
 	if (Duration > 0.f)
 	{
@@ -412,6 +419,10 @@ void ADFWeapon::StartReload()
 		}
 	}
 	SetState(EDFWeaponState::Reloading, ReloadTime);
+	if (HasAuthority())
+	{
+		MulticastReload();
+	}
 	if (IsLocallyControlled())
 	{
 		PlaySoundLocal(ReloadSound);
@@ -622,6 +633,11 @@ void ADFWeapon::PlayFireEffects(bool bAlt)
 	{
 		ShowMuzzleFlash();
 	}
+	if (Arms && C && C->IsLocallyControlled())
+	{
+		const float Left = State == EDFWeaponState::Firing ? GetWorldTimerManager().GetTimerRemaining(StateTimer) : 0.f;
+		PlayArmsAnim(EDFWeaponState::Firing, Left > 0.f ? Left : (IsZoomed() ? ZoomedFireTime : FireTime), bAlt);
+	}
 	if (UDFSoldierAnimInstance* Anim = C ? C->GetSoldierAnim() : nullptr)
 	{
 		Anim->OnFire(bAlt);   // knife stab, grenade / trip bomb throw
@@ -642,6 +658,11 @@ void ADFWeapon::ShowMuzzleFlash()
 	{
 		return;
 	}
+	if (MuzzleFlash && Arms && MuzzleFlash->GetAttachParent() != Arms)
+	{
+		MuzzleFlash->DestroyComponent();
+		MuzzleFlash = nullptr;
+	}
 	if (!MuzzleFlash)
 	{
 		MuzzleFlash = NewObject<UStaticMeshComponent>(this);
@@ -650,16 +671,18 @@ void ADFWeapon::ShowMuzzleFlash()
 		MuzzleFlash->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		MuzzleFlash->SetCastShadow(false);
 		MuzzleFlash->SetOnlyOwnerSee(true);
-		MuzzleFlash->SetupAttachment(Mesh1P);
+		USceneComponent* On = Arms ? static_cast<USceneComponent*>(Arms) : Mesh1P;
+		MuzzleFlash->SetupAttachment(On);
 		MuzzleFlash->RegisterComponent();
 		// at the front of the model, a little below its top (where barrels are), facing back at the eye
-		const FBox B = Mesh1P->GetStaticMesh()->GetBoundingBox();
+		const FBox B = Arms ? Arms->GetSkeletalMeshAsset()->GetBounds().GetBox() : Mesh1P->GetStaticMesh()->GetBoundingBox();
 		MuzzleFlash->SetRelativeLocation(FVector(B.Max.X + 2.f, B.GetCenter().Y, B.Max.Z - B.GetSize().Z * 0.2f));
 	}
 	// a random turn and frame-ish size each shot (FlashYellow A01-A04 in MF)
 	MuzzleFlash->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));   // the plane's face towards the eye
 	MuzzleFlash->AddLocalRotation(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f));
-	const float Size = MuzzleFlashSize * FMath::FRandRange(0.8f, 1.2f) / FMath::Max(Mesh1P->GetRelativeScale3D().X, 0.01f) / 100.f;
+	const USceneComponent* On = MuzzleFlash->GetAttachParent();
+	const float Size = MuzzleFlashSize * FMath::FRandRange(0.8f, 1.2f) / FMath::Max(On ? On->GetRelativeScale3D().GetMax() : 1.f, 0.01f) / 100.f;
 	MuzzleFlash->SetRelativeScale3D(FVector(Size));
 	MuzzleFlash->SetVisibility(true);
 	GetWorldTimerManager().SetTimer(MuzzleFlashTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { if (MuzzleFlash) { MuzzleFlash->SetVisibility(false); } }), 0.05f, false);
@@ -843,6 +866,11 @@ void ADFWeapon::UpdateDroppedLook()
 		Mesh3P->SetVisibility(false);
 		Mesh3P->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	}
+	if (Arms)
+	{
+		Arms->SetVisibility(!bDropped);
+		Mesh1P->SetVisibility(bDropped);   // the carry model is only the pickup now
+	}
 	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
 	if (bHasViewMesh)
@@ -891,5 +919,160 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 	else if (R < 0.75f)
 	{
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(R < 0.5f ? TEXT("Sounds/WallHitSFX/imp01") : TEXT("Sounds/WallHitSFX/imp02")), At, 0.9f, 1000.f);
+	}
+}
+
+// --- first-person arms ---------------------------------------------------------------------
+
+void ADFWeapon::SetupArms()
+{
+	if (ArmsMesh.IsEmpty() || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	// the importer's layout: <pack>/Weapons/<Mesh>/<Mesh>/SkeletalMeshes/<Mesh>
+	USkeletalMesh* Mesh = DF::LoadClassic<USkeletalMesh>(FString::Printf(TEXT("Weapons/%s/%s/SkeletalMeshes/%s"), *ArmsMesh, *ArmsMesh, *ArmsMesh));
+	if (!Mesh)
+	{
+		return;
+	}
+	Arms = NewObject<USkeletalMeshComponent>(this, TEXT("Arms"));
+	Arms->SetOnlyOwnerSee(true);
+	Arms->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Arms->CastShadow = false;
+	Arms->bReceivesDecals = false;
+	Arms->SetGenerateOverlapEvents(false);
+	Arms->SetAnimInstanceClass(UDFTweenAnimInstance::StaticClass());
+	Arms->SetSkeletalMesh(Mesh);
+	Arms->SetupAttachment(RootComponent);
+	// at the eye, MF's draw scale times what the mesh's own (non-uniform) MESHMAP SCALE left
+	const UDFMeshScaleData* Rest = Mesh->GetAssetUserData<UDFMeshScaleData>();
+	Arms->SetRelativeLocation(ArmsOffset * 2.25f);
+	Arms->SetRelativeScale3D((Rest ? Rest->ComponentScale : FVector::OneVector) * ArmsScale);
+	Arms->RegisterComponent();
+	if (UDFTweenAnimInstance* Anim = GetArmsAnim())
+	{
+		Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
+		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));
+	}
+	UpdateDroppedLook();
+}
+
+UDFTweenAnimInstance* ADFWeapon::GetArmsAnim() const
+{
+	return Arms ? Cast<UDFTweenAnimInstance>(Arms->GetAnimInstance()) : nullptr;
+}
+
+FName ADFWeapon::GetArmsAnimName(EDFWeaponState ForState, bool bAlt)
+{
+	UDFTweenAnimInstance* Anim = GetArmsAnim();
+	if (!Anim)
+	{
+		return NAME_None;
+	}
+	// the first of these the mesh has; "Name0N" lists pick one of the numbered takes at random
+	auto Pick = [Anim](std::initializer_list<const TCHAR*> Names) -> FName
+	{
+		for (const TCHAR* N : Names)
+		{
+			if (Anim->HasSequence(N))
+			{
+				return N;
+			}
+			TArray<FName, TInlineAllocator<4>> Takes;
+			for (int32 i = 1; i <= 4; ++i)
+			{
+				const FName Take(*FString::Printf(TEXT("%s%02d"), N, i));
+				if (Anim->HasSequence(Take))
+				{
+					Takes.Add(Take);
+				}
+			}
+			if (Takes.Num())
+			{
+				return Takes[FMath::RandHelper(Takes.Num())];
+			}
+		}
+		return NAME_None;
+	};
+	const bool bZoomed = IsZoomed();
+	switch (ForState)
+	{
+	case EDFWeaponState::Equipping:   return Pick({ TEXT("SelectUp"), TEXT("SelectUpBothEmptyNoReload"), TEXT("EmptySelectUp") });
+	case EDFWeaponState::PuttingDown: return Pick({ TEXT("SelectDown"), TEXT("SelectDownBothFull"), TEXT("EmptySelectDown") });
+	case EDFWeaponState::Reloading:   return Pick({ TEXT("Reload"), TEXT("ReloadBothEmpty"), TEXT("ReloadEmpty") });
+	case EDFWeaponState::Zooming:
+		return bZoomed ? Pick({ TEXT("AccurateAimUp"), TEXT("BringScopeUp") }) : Pick({ TEXT("AccurateAimDown"), TEXT("BringScopeDown") });
+	case EDFWeaponState::Firing:
+		if (bZoomed && !bAlt)
+		{
+			return Pick({ TEXT("AccurateAimFire"), TEXT("Fire"), TEXT("Shoot") });
+		}
+		if (bAlt)
+		{
+			const FName Alt = Pick({ TEXT("AltFire"), TEXT("RightThrow"), TEXT("FireBothBarrelsFull") });
+			if (!Alt.IsNone())
+			{
+				return Alt;
+			}
+		}
+		return Pick({ TEXT("Fire"), TEXT("ContinuousFire"), TEXT("Shoot"), TEXT("Slash"), TEXT("ThrowOver"), TEXT("PlaceForward"), TEXT("FireLeftBarrelRightFull") });
+	default:
+		return bZoomed ? Pick({ TEXT("AccurateAimStill"), TEXT("AccurateAimUpStill"), TEXT("Still"), TEXT("StillBothFull") })
+			: Pick({ TEXT("Still"), TEXT("StillBothFull"), TEXT("EmptyStill"), TEXT("ActivateStill") });
+	}
+}
+
+void ADFWeapon::PlayArmsAnim(EDFWeaponState ForState, float Duration, bool bAlt)
+{
+	UDFTweenAnimInstance* Anim = GetArmsAnim();
+	if (!Anim)
+	{
+		return;
+	}
+	Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false), 0.1f);
+	const FName Name = GetArmsAnimName(ForState, bAlt);
+	if (!Name.IsNone())
+	{
+		Anim->PlayFitted(Name, Duration, ForState == EDFWeaponState::Reloading ? 0.2f : 0.05f);
+	}
+}
+
+void ADFWeapon::UpdateFirstPersonView(bool bBehindView)
+{
+	if (Mesh3P)
+	{
+		Mesh3P->SetOwnerNoSee(!bBehindView);
+	}
+	if (bDropped)
+	{
+		return;
+	}
+	// MF draws nothing in hand behind a raised scope (the HUD's scope mask covers the view)
+	const bool bScoped = IsZoomed() && ZoomScale >= 3.f && State != EDFWeaponState::Zooming;
+	if (Arms)
+	{
+		Arms->SetVisibility(!bBehindView && !bScoped);
+	}
+	else if (Mesh1P && bHasViewMesh)
+	{
+		Mesh1P->SetVisibility(!bBehindView);
+	}
+}
+
+void ADFWeapon::MulticastReload_Implementation()
+{
+	ADFCharacter* C = GetOwnerCharacter();
+	if (!C || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	if (!IsLocallyControlled())
+	{
+		DF::PlaySoundRadius(this, ReloadSound, C->GetActorLocation(), 0.6f);
+	}
+	if (UDFSoldierAnimInstance* Anim = C->GetSoldierAnim())
+	{
+		Anim->OnReload(ReloadTime);
 	}
 }

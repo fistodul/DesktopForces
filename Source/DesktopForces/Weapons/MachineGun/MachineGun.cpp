@@ -14,6 +14,9 @@
 AMachineGun::AMachineGun()
 {
 	ViewMesh = TEXT("RageWeapons/MachineGunPickupCarryMesh");
+	ArmsMesh = TEXT("MachineGunPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(2.2f, -1.f, 0.f);
 	HUDIconRect = FIntRect(0, 192, 104, 256);   // WeaponIcon X=0 Y=192 W=104 H=64
 	DisplayName = LOCTEXT("MachineGun", "Machine Gun");
 	InventoryGroup = 3;

@@ -8,6 +8,9 @@ AM24::AM24()
 {
 	// bolt action: Fire 17 @10 + 0.05; Reload 45 @15 + 0.25
 	ViewMesh = TEXT("M24/M24PickupCarryMesh");
+	ArmsMesh = TEXT("M24PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(-7.3f, -0.9f, -2.3f);
 	RequiredContent = TEXT("Props/M24/M24PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/M24/Skins/M24image.M24image"), DF::UnverifiedRoot)));

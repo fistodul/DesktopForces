@@ -47,6 +47,10 @@ namespace
 		  { TEXT("KnifeFireAlt"), TEXT("GrenRunThrowAlt"), TEXT("TripRunThrowSm") },
 		  { TEXT("KnifeDuckStillFireAlt"), TEXT("GrenDuckStillThrowAlt"), TEXT("TripDuckStillThrowSm") },
 		  { TEXT("KnifeFireAlt"), TEXT("GrenStillThrowAlt"), TEXT("TripStillThrowSm") } } };
+	// GetReloadAnim (guns only): [crouched, standing]
+	const FAnimRow ReloadAnims[2] = {
+		{ nullptr, TEXT("PistolDuckReload"), TEXT("MgunDuckReload"), TEXT("ShotDuckReload"), TEXT("SnipeDuckReload"), nullptr, TEXT("LaunchDuckReloadLg"), nullptr, nullptr, TEXT("MgunDuckReload") },
+		{ nullptr, TEXT("PistolWalkReload"), TEXT("MgunWalkReload"), TEXT("ShotWalkReloadLg"), TEXT("SnipeWalkReload"), nullptr, TEXT("LaunchWalkReload"), nullptr, nullptr, TEXT("MgunWalkReload") } };
 	// RPlayer.PlayDying (Dead1 and Dead9 are commented out there)
 	const TCHAR* const DeathAnims[] = { TEXT("Dead2"), TEXT("Dead3"), TEXT("Dead4"), TEXT("Dead5"), TEXT("Dead9B") };
 
@@ -63,7 +67,7 @@ namespace
 void FDFSoldierAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
 {
 	FAnimInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
-	const UDFSoldierAnimInstance* I = CastChecked<UDFSoldierAnimInstance>(InAnimInstance);
+	const UDFTweenAnimInstance* I = CastChecked<UDFTweenAnimInstance>(InAnimInstance);
 	Current = I->Current;
 	Previous = I->Previous;
 	Alpha = I->Alpha;
@@ -94,7 +98,7 @@ bool FDFSoldierAnimProxy::Evaluate(FPoseContext& Output)
 
 // --- game thread ---------------------------------------------------------------------------
 
-UAnimSequence* UDFSoldierAnimInstance::Find(FName Name)
+UAnimSequence* UDFTweenAnimInstance::Find(FName Name)
 {
 	if (const TObjectPtr<UAnimSequence>* Found = Sequences.Find(Name))
 	{
@@ -106,7 +110,7 @@ UAnimSequence* UDFSoldierAnimInstance::Find(FName Name)
 	return Seq;
 }
 
-bool UDFSoldierAnimInstance::Play(FName Name, float Rate, float InTweenTime, bool bLoop)
+bool UDFTweenAnimInstance::Play(FName Name, float Rate, float InTweenTime, bool bLoop)
 {
 	if (Name == CurrentName && bLoop && Current.bLoop)
 	{
@@ -126,9 +130,42 @@ bool UDFSoldierAnimInstance::Play(FName Name, float Rate, float InTweenTime, boo
 	return true;
 }
 
-bool UDFSoldierAnimInstance::IsPlayingOnce() const
+bool UDFTweenAnimInstance::PlayFitted(FName Name, float Duration, float InTweenTime)
+{
+	const UAnimSequence* Seq = Find(Name);
+	if (!Seq)
+	{
+		return false;
+	}
+	const float Rate = Duration > 0.f ? FMath::Clamp(Seq->GetPlayLength() / Duration, 0.25f, 8.f) : 1.f;
+	CurrentName = NAME_None;   // a one-shot restarts even if it is already the current one
+	return Play(Name, Rate, InTweenTime, false);
+}
+
+bool UDFTweenAnimInstance::IsPlayingOnce() const
 {
 	return Current.Seq && !Current.bLoop && Current.Time < Current.Seq->GetPlayLength();
+}
+
+void UDFTweenAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+{
+	Super::NativeUpdateAnimation(DeltaSeconds);
+	// advance: the current sequence plays (or loops); the one tweened from stays put (UE1 tweens
+	// from a pose, not a moving sequence)
+	if (Current.Seq)
+	{
+		const float Len = Current.Seq->GetPlayLength();
+		Current.Time += DeltaSeconds * Current.Rate;
+		Current.Time = Current.bLoop && Len > 0.f ? FMath::Fmod(Current.Time, Len) : FMath::Min(Current.Time, Len);
+	}
+	if (Alpha < 1.f)
+	{
+		Alpha = TweenTime > 0.f ? FMath::Min(1.f, Alpha + DeltaSeconds / TweenTime) : 1.f;
+	}
+	if (!IdleName.IsNone() && CurrentName != IdleName && !IsPlayingOnce())
+	{
+		Play(IdleName, 1.f, IdleTween, true);
+	}
 }
 
 void UDFSoldierAnimInstance::OnFire(bool bAlt)
@@ -144,6 +181,31 @@ void UDFSoldierAnimInstance::OnFire(bool bAlt)
 	const bool bCrouched = C->bIsCrouched;
 	const int32 Row = bCrouched ? (bMoving ? 0 : 3) : !bMoving ? 4 : C->GetVelocity().Size2D() < C->GetCharacterMovement()->MaxWalkSpeed * 0.5f ? 1 : 2;
 	Play(FireAnims[bAlt ? 1 : 0][Row][Col], 1.f, 0.1f, false);
+}
+
+void UDFSoldierAnimInstance::OnReload(float Duration)
+{
+	ADFCharacter* C = Cast<ADFCharacter>(TryGetPawnOwner());
+	const int32 Set = C ? AnimSetOf(C) : -1;
+	if (Set < 0 || bDead || C->GetAttachParentActor())
+	{
+		return;
+	}
+	if (const TCHAR* Name = ReloadAnims[C->bIsCrouched ? 0 : 1][Set])
+	{
+		PlayFitted(Name, Duration, 0.2f);
+	}
+}
+
+void UDFSoldierAnimInstance::OnHurt()
+{
+	ADFCharacter* C = Cast<ADFCharacter>(TryGetPawnOwner());
+	if (!C || bDead || IsPlayingOnce() || C->GetAttachParentActor())
+	{
+		return;
+	}
+	static const TCHAR* const Hits[] = { TEXT("Guthit"), TEXT("Guthit"), TEXT("Lefthit"), TEXT("Righthit") };
+	Play(Hits[FMath::RandHelper(UE_ARRAY_COUNT(Hits))], 1.f, 0.08f, false);
 }
 
 void UDFSoldierAnimInstance::OnDeath()
@@ -221,18 +283,6 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 void UDFSoldierAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
-	// advance: the current sequence plays (or loops); the one tweened from stays put (UE1 tweens
-	// from a pose, not a moving sequence)
-	if (Current.Seq)
-	{
-		const float Len = Current.Seq->GetPlayLength();
-		Current.Time += DeltaSeconds * Current.Rate;
-		Current.Time = Current.bLoop && Len > 0.f ? FMath::Fmod(Current.Time, Len) : FMath::Min(Current.Time, Len);
-	}
-	if (Alpha < 1.f)
-	{
-		Alpha = TweenTime > 0.f ? FMath::Min(1.f, Alpha + DeltaSeconds / TweenTime) : 1.f;
-	}
 
 	ADFCharacter* C = Cast<ADFCharacter>(TryGetPawnOwner());
 	if (!C || bDead)

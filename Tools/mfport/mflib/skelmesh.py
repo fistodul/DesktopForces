@@ -18,8 +18,9 @@ Bones follow the .psk convention: the root's quaternion as stored, every other b
 conjugated, world = parent * local. Rebuilding Points from LocalPoints that way matches to
 0.006 uu. Animation keys (anims.py) use the same convention; key times are seconds.
 
-The mesh's #exec ORIGIN / SCALE (vertex = RotOrigin * ((p - Origin) * Scale)) is baked in, so
-the glTF is in actor space: X forward, Z up, centred on the collision cylinder, cm.
+The mesh's #exec ORIGIN / SCALE is baked in (vertex = mirror_Y(RotOrigin^-1 * ((p - Origin) *
+Scale)): UE1 draws skeletal meshes turned by the inverse RotOrigin and mirrored against the
+.psk), so the glTF is in actor space: X forward, Z up, centred on the collision cylinder, cm.
 
 Usage:  python3 -m mflib.skelmesh <package.u> <SkeletalMesh> <Animation> <out.glb>
 """
@@ -51,6 +52,7 @@ class SkeletalMesh:
     faces: list = field(default_factory=list)       # (w0, w1, w2, material)
     materials: list = field(default_factory=list)   # (polyflags, texture index)
     weights: list = field(default_factory=list)     # per point: [(bone, weight)]
+    textures: list = field(default_factory=list)    # by texture index: "Package.Group.Name" or None (skins set by code)
     scale: tuple = (1.0, 1.0, 1.0)
     origin: tuple = (0.0, 0.0, 0.0)
     rot: tuple = (0, 0, 0)
@@ -72,12 +74,17 @@ def read(pkg: Package, name: str) -> SkeletalMesh:
     _lazy_array(r, v, 8)                             # Connects
     r.p += 25 + 16
     _lazy_array(r, v, 4)                             # VertLinks
-    for _ in range(r.index()):                       # Textures
-        r.index()
+    own = Path(pkg.path).stem
+    textures = []
+    for _ in range(r.index()):                       # Textures (MESHMAP SETTEXTURE)
+        ref = r.index()
+        path = pkg.ref_path(ref)
+        textures.append(f'{own}.{path}' if path and ref > 0 else path)
     _array(r, 25)
     _array(r, 16)
     r.i32(); r.i32(); r.u32(); r.u32()               # FrameVerts, AnimFrames, AND / OR flags
     m = SkeletalMesh(name)
+    m.textures = textures
     m.scale, m.origin = r.vec(), r.vec()
     m.rot = (r.i32(), r.i32(), r.i32())
     r.i32(); r.i32()
@@ -137,29 +144,47 @@ def qnorm(q):
     return tuple(c / n for c in q)
 
 
-def _yaw_quat(yaw_units: int):
-    a = yaw_units * math.pi * 2 / 65536.0
-    return (0.0, 0.0, math.sin(a / 2), math.cos(a / 2))
+def rotator_quat(pitch: int, yaw: int, roll: int):
+    """UE1 / UE rotator (65536ths of a turn) -> quaternion, as FRotator::Quaternion."""
+    sp, cp = math.sin(pitch * math.pi / 65536.0), math.cos(pitch * math.pi / 65536.0)
+    sy, cy = math.sin(yaw * math.pi / 65536.0), math.cos(yaw * math.pi / 65536.0)
+    sr, cr = math.sin(roll * math.pi / 65536.0), math.cos(roll * math.pi / 65536.0)
+    return (cr * sp * sy - sr * cp * cy, -cr * sp * cy - sr * cp * sy, cr * cp * sy - sr * sp * cy, cr * cp * cy + sr * sp * sy)
 
 
 class _Space:
-    """MF mesh space -> UE actor space (cm), and UE -> glTF (Y up, metres)."""
+    """MF mesh space -> UE actor space (cm), and UE -> glTF (Y up, metres).
+
+    A non-uniform MESHMAP SCALE (the first-person weapons are squashed to half depth: 1, 0.5,
+    1) can't live in a skeleton: the glTF gets the X scale everywhere and `component_scale`
+    is the rest, in UE axes, for the mesh component (exact while RotOrigin turns about the
+    squashed axis only, which holds for every MF mesh)."""
 
     def __init__(self, mesh: SkeletalMesh):
-        if mesh.rot[0] or mesh.rot[2]:
-            raise ValueError(f'{mesh.name}: only a yaw RotOrigin is handled')
-        self.rot = _yaw_quat(mesh.rot[1])
+        if mesh.rot[2]:
+            raise ValueError(f'{mesh.name}: RotOrigin roll is not handled')
+        # UE1 turns skeletal meshes by the inverse of their RotOrigin, and they are mirrored
+        # (Y) against their .psk: only that way do the soldiers face along X with the weapon
+        # in the right hand, and the first-person arms reach forward
+        self.rot = qconj(rotator_quat(*mesh.rot))
         self.s = mesh.scale[0] * UU_TO_CM
         self.origin = mesh.origin
+        rest = (1.0, mesh.scale[1] / mesh.scale[0], mesh.scale[2] / mesh.scale[0])
+        quarter = round(mesh.rot[1] / 16384.0) % 2 == 1
+        self.component_scale = (rest[1], rest[0], rest[2]) if quarter else rest
 
     def point(self, p):
-        return qrot(self.rot, tuple((p[i] - self.origin[i]) * self.s for i in range(3)))
+        x, y, z = qrot(self.rot, tuple((p[i] - self.origin[i]) * self.s for i in range(3)))
+        return x, -y, z
 
     def bone(self, index, q, p):
-        """A bone's (rotation, translation) relative to its parent, in UE space."""
+        """A bone's (rotation, translation) relative to its parent, in UE space (mirrored in Y:
+        M R M for the rotation)."""
         if index == 0:
-            return qnorm(qmul(self.rot, q)), self.point(p)
-        return qnorm(qconj(q)), tuple(c * self.s for c in p)
+            r = qnorm(qmul(self.rot, q))
+            return (-r[0], r[1], -r[2], r[3]), self.point(p)
+        r = qnorm(qconj(q))
+        return (-r[0], r[1], -r[2], r[3]), (p[0] * self.s, -p[1] * self.s, p[2] * self.s)
 
 
 def gl_vec(v):
@@ -234,6 +259,16 @@ class _Gltf:
 FLOAT, USHORT, UINT = 5126, 5123, 5125
 
 
+def unique_bone_names(mesh: SkeletalMesh) -> list[str]:
+    """Bone names, repeats numbered (the weapon meshes have several "Dummy"s; UE needs them unique)."""
+    seen, out = {}, []
+    for b in mesh.bones:
+        n = b[0]
+        seen[n.lower()] = seen.get(n.lower(), 0) + 1
+        out.append(n if seen[n.lower()] == 1 else f'{n}_{seen[n.lower()]}')
+    return out
+
+
 def is_loop(seq_name: str) -> bool:
     return any(w in seq_name for w in LOOP_WORDS) and not any(w in seq_name for w in LOOP_EXCEPT)
 
@@ -247,14 +282,22 @@ def export(pkg: Package, mesh_name: str, anim_pkg: Package | None, anim_name: st
 
     # skeleton: node 0 is the root bone, bone i is node i; the mesh node comes last
     local = [sp.bone(i, q, p) for i, (_, _, q, p) in enumerate(mesh.bones)]
-    world = []
-    for i, (bname, parent, _, _) in enumerate(mesh.bones):
-        q, t = local[i]
-        if i:
-            pq, pt = world[parent]
-            q, t = qnorm(qmul(pq, q)), tuple(a + b for a, b in zip(pt, qrot(pq, t)))
-        world.append((q, t))
-        doc['nodes'].append({'name': bname, 'rotation': list(gl_quat(local[i][0])), 'translation': list(gl_vec(local[i][1]))})
+    world = [None] * len(mesh.bones)
+
+    def world_of(i):
+        # parents can come after their children in the bone list (SniperRiflePlayerMesh)
+        if world[i] is None:
+            q, t = local[i]
+            if i:
+                pq, pt = world_of(mesh.bones[i][1])
+                q, t = qnorm(qmul(pq, q)), tuple(a + b for a, b in zip(pt, qrot(pq, t)))
+            world[i] = (q, t)
+        return world[i]
+
+    names = unique_bone_names(mesh)
+    for i in range(len(mesh.bones)):
+        world_of(i)
+        doc['nodes'].append({'name': names[i], 'rotation': list(gl_quat(local[i][0])), 'translation': list(gl_vec(local[i][1]))})
     for i, (_, parent, _, _) in enumerate(mesh.bones):
         if i:
             doc['nodes'][parent].setdefault('children', []).append(i)
@@ -318,10 +361,12 @@ def export(pkg: Package, mesh_name: str, anim_pkg: Package | None, anim_name: st
     doc['nodes'].append({'name': mesh_name, 'mesh': 0, 'skin': 0})
     doc['scenes'][0]['nodes'] = [0, len(doc['nodes']) - 1]
 
-    info = {'mesh': mesh_name, 'bones': [b[0] for b in mesh.bones], 'skins': slots, 'sequences': {}}
+    info = {'mesh': mesh_name, 'bones': names, 'skins': slots, 'sequences': {},
+            'component_scale': list(sp.component_scale),
+            'textures': {str(slot): mesh.textures[slot] for slot in slots if slot < len(mesh.textures) and mesh.textures[slot]}}
     if anim_pkg and anim_name:
         anim = read_animation(anim_pkg, anim_name)
-        if [b[0] for b in anim.bones] != [b[0] for b in mesh.bones]:
+        if [b[0].lower() for b in anim.bones] != [b[0].lower() for b in mesh.bones]:
             raise ValueError(f'{anim_name}: bones differ from {mesh_name}')
         for seq, move in zip(anim.seqs, anim.moves):
             if only and seq.name not in only:
@@ -378,18 +423,56 @@ SOLDIERS = (('RagePlayer1Mesh', 'RagePlayerAAnim', 'RagePlayerGfx.MFTeamA'),
             ('RagePlayer2Mesh', 'RagePlayerBAnim', 'RagePlayerGfx.MFTeamB'))
 
 
-def convert(cfg) -> Path:
+def _view_meshes(cfg):
+    """First-person weapons: every '<X>PlayerMesh' skeletal mesh in the weapon packages, with
+    the package's '<X>PlayerAnim' (or its only animation)."""
+    from .props import PACKAGES
     from .textures import _package_path
-    pkg = Package(str(_package_path(cfg, 'RageGfx')))
-    out = cfg.out_dir / 'Soldiers'
-    meshes = []
+    for name in PACKAGES:
+        try:
+            pkg = Package(str(_package_path(cfg, name)))
+        except (FileNotFoundError, OSError):
+            continue
+        anims = [e.name for e in pkg.exports if pkg.class_of(e) == 'Animation']
+        for e in pkg.exports:
+            if pkg.class_of(e) != 'SkeletalMesh' or not e.name.lower().endswith('playermesh'):
+                continue
+            want = e.name[:-len('Mesh')] + 'Anim'
+            anim = next((a for a in anims if a.lower() == want.lower()), anims[0] if len(anims) == 1 else None)
+            yield name, pkg, e.name, anim
+
+
+def convert(cfg) -> Path:
+    """Soldiers and first-person weapons -> Skeletal/<package>/<mesh>.glb + skeletal.json."""
+    from .level import material_key
+    from .textures import _package_path
+    out = cfg.out_dir / 'Skeletal'
+    entries, usage = [], {}
+
+    def add(pkg_name, pkg, mesh, anim, folder, materials):
+        info = export(pkg, mesh, pkg, anim, out / pkg_name / f'{mesh}.glb')
+        print(f"  {pkg_name}.{mesh}: {len(info['bones'])} bones, {len(info['sequences'])} sequences")
+        for key in materials.values():
+            tex, mode = key.split('|')
+            usage.setdefault(tex.lower(), set()).add(mode.split('_')[0])
+        entries.append({'name': mesh, 'file': f'Skeletal/{pkg_name}/{mesh}.glb', 'package': pkg_name, 'folder': folder,
+                        'component_scale': info['component_scale'], 'materials': materials,
+                        'sequences': info['sequences']})
+
+    gfx = Package(str(_package_path(cfg, 'RageGfx')))
     for mesh, anim, skin in SOLDIERS:
-        info = export(pkg, mesh, pkg, anim, out / f'{mesh}.glb')
-        print(f"  {mesh}: {len(info['bones'])} bones, {len(info['sequences'])} sequences")
-        meshes.append({'name': mesh, 'file': f'Soldiers/{mesh}.glb', 'package': 'RageGfx', 'skin': skin,
-                       'sequences': info['sequences']})
-    path = out / 'soldiers.json'
-    path.write_text(json.dumps({'meshes': meshes}, indent=1))
+        # slot N = skin element N; the team / captain variants are made too (Pawn.SetMultiSkin)
+        add('RageGfx', gfx, mesh, anim, 'Soldiers', {str(i): f'{skin}{i:02d}|opaque' for i in range(4)})
+        for i in range(4, 10):
+            usage.setdefault(f'{skin}{i:02d}'.lower(), set()).add('opaque')
+        entries[-1]['extra_materials'] = [f'{skin}{i:02d}|opaque' for i in range(10)]
+    for pkg_name, pkg, mesh, anim in _view_meshes(cfg):
+        m = read(pkg, mesh)
+        flags = {tex: f for f, tex in m.materials}
+        materials = {str(i): material_key(t, flags.get(i, 0)) for i, t in enumerate(m.textures) if t}
+        add(pkg_name, pkg, mesh, anim, 'Weapons', materials)
+    path = out / 'skeletal.json'
+    path.write_text(json.dumps({'meshes': entries, 'texture_usage': {k: sorted(v) for k, v in usage.items()}}, indent=1))
     return path
 
 

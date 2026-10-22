@@ -41,8 +41,6 @@ UI_TEXTURES = {
         'desert.skins.desertimage', 'ultimax.skins.ultimaximage', 'm24.skins.m24image', 'wa2000.skins.wa2000image',
         'm87.skins.m87image', 'm18.skins.m18image')},
     'rageweapons.icons.scopemask': {'masked', 'ui'},
-    # soldier team skins (Pawn.SetMultiSkin: 00-03 blue, 04-07 red, 08 / 09 captains)
-    **{f'rageplayergfx.mfteam{m}{i:02d}': {'opaque'} for m in 'ab' for i in range(10)},
     # muzzle flashes (RageWeapon: FlashYellow, drawn additive)
     **{f'rageweapons.muzzleflash.flashyellow_a0{i}': {'translucent'} for i in range(1, 5)},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},
