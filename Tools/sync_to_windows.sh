@@ -4,7 +4,8 @@
 #
 # Copies/syncs only non-intermediate, platform-agnostic project files:
 #   Config/, Content/, Source/, Tools/, Plugins/, and DesktopForces.uproject
-# Excludes: Binaries/, Intermediate/, Saved/, DerivedDataCache/, .git/
+# Excludes: Build/ (Windows' packaged games: --delete must not touch them), Binaries/,
+#           Intermediate/, Saved/, DerivedDataCache/, .git/
 # =============================================================================
 set -euo pipefail
 
@@ -33,6 +34,7 @@ fi
 
 # Rsync non-intermediate folders and project file
 rsync -av $DRY --delete \
+    --exclude='/Build/' \
     --exclude='Binaries/' \
     --exclude='Intermediate/' \
     --exclude='Saved/' \
