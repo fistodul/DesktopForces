@@ -58,7 +58,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 
 ## Presentation
 - ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars, minimap (MF MiniMapInfo texture, team border, team-mates, objectives); ⬜ MF scoreboard (✅)
-- ✅ MF loadout behaviour: frozen soldier and view, one cursor through store and carried items (put back from the inventory), W/S/wheel/Fire/E, number rows + X, sounds, spawn protection
+- ✅ MF loadout behaviour: frozen soldier (the view still turns), visible to all, one cursor through store and carried items (put back from the inventory), W/S/wheel/Fire/E, number rows + X, sounds, spawn protection
 - ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Generated art of our own (`Tools/artgen`): loadout crates with team stencil
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px

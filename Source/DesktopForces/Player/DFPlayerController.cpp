@@ -412,9 +412,9 @@ void ADFPlayerController::OnMoveStop(const FInputActionValue& Value)
 
 void ADFPlayerController::OnLook(const FInputActionValue& Value)
 {
-	if (IsLoadoutOpen() || CommandMenuStage > 0)
+	if (CommandMenuStage > 0)
 	{
-		return;   // MF: the view is frozen in the loadout screen
+		return;   // the orders menu's cursor; the loadout screen leaves the mouse free: look around
 	}
 	const FVector2D V = Value.Get<FVector2D>();
 	// Slower look while zoomed, like MF (FOV-scaled mouse)

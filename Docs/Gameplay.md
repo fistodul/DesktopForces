@@ -130,6 +130,10 @@ scopes hide the arms (the scope mask covers the view).
   Trip Bombs, Rocket Launcher, Grenades, Adrenaline, Armour, Heavy Machine Gun.
 - Entering loadout at a crate / in a loadout zone refills ammo of everything carried.
   Loadout only while walking on the ground.
+- In loadout the soldier stands still and can't fire, but stays in the level for everyone
+  (seen, solid, hit). Only the spawn loadout protects him: no damage until 5 s after leaving
+  it (MF StartupInLoadout); one entered later doesn't. Unlike MF, the mouse still looks
+  around (the loadout screen only uses keys, the wheel and Fire).
 - **Away from crates and zones the loadout still opens** (MF only opened it there): it lists
   the weapons lying within 562 cm (MF `TryLoadoutDropped`, 250 uu); putting an item back
   drops it on the ground there. At a crate / zone a put-back item goes back into the store.

@@ -104,7 +104,7 @@ ADFCharacter* ADFBotController::FindEnemy(ADFCharacter* C) const
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)
 	{
 		ADFCharacter* O = *It;
-		if (O == C || !O->IsAlive() || O->IsInLoadout() || (bTeams && O->GetTeam() == C->GetTeam()))
+		if (O == C || !O->IsAlive() || O->IsSpawnProtected() || (bTeams && O->GetTeam() == C->GetTeam()))
 		{
 			continue;
 		}

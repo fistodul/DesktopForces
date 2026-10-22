@@ -403,7 +403,7 @@ int32 ADFCharacter::AbsorbWithArmour(int32 Damage, const UDFDamageType* Type)
 float ADFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	// CanBeDamaged: UE's `God` cheat; spawn protection: MF startup loadout + 5 s
-	if (!HasAuthority() || !IsAlive() || bInLoadout || Damage <= 0.f || !CanBeDamaged() || IsSpawnProtected())
+	if (!HasAuthority() || !IsAlive() || Damage <= 0.f || !CanBeDamaged() || IsSpawnProtected())
 	{
 		return 0.f;
 	}
@@ -1122,27 +1122,23 @@ void ADFCharacter::SetInLoadout(bool bNewInLoadout)
 		bStartupLoadout = false;
 		SpawnProtectedUntil = GetWorld()->GetTimeSeconds() + 5.f;   // RagePlayer.EndLoadout SetAltTimer(5.0)
 	}
-	ApplyLoadoutVisibility();
+	ApplyLoadoutState();
 }
 
 bool ADFCharacter::IsSpawnProtected() const
 {
-	return GetWorld()->GetTimeSeconds() < SpawnProtectedUntil;
+	return (bInLoadout && bStartupLoadout) || GetWorld()->GetTimeSeconds() < SpawnProtectedUntil;
 }
 
 void ADFCharacter::OnRep_InLoadout()
 {
-	ApplyLoadoutVisibility();
+	ApplyLoadoutState();
 }
 
-void ADFCharacter::ApplyLoadoutVisibility()
+void ADFCharacter::ApplyLoadoutState()
 {
-	// MF: "as far as other players are concerned, you aren't on the level until you come out of Loadout"
-	PlaceholderBody->SetHiddenInGame(bInLoadout);
-	GetMesh()->SetHiddenInGame(bInLoadout, true);   // the gun in the hand too
-	GetCapsuleComponent()->SetCollisionEnabled(bInLoadout ? ECollisionEnabled::QueryOnly : ECollisionEnabled::QueryAndPhysics);
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel2, bInLoadout ? ECR_Ignore : ECR_Block);
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, bInLoadout ? ECR_Ignore : ECR_Block);
+	// MF: the soldier stays where everyone sees him (only the spawn loadout protects him:
+	// IsSpawnProtected); he stands still and can't fire, the view still turns
 	if (IsLocallyControlled())
 	{
 		// MF StartLoadout / EndLoadout sounds

@@ -312,7 +312,7 @@ protected:
 	void ServerEquipWeapon(ADFWeapon* Weapon);
 
 	void SetCurrentWeapon(ADFWeapon* NewWeapon, ADFWeapon* OldWeapon);
-	void ApplyLoadoutVisibility();
+	void ApplyLoadoutState();
 
 
 	UFUNCTION(NetMulticast, Reliable)

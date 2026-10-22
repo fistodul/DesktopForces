@@ -863,7 +863,6 @@ void ADFWeapon::AttachToSoldier(USkeletalMeshComponent* Body)
 		Mesh3P->SetRelativeRotation(FRotator(-90.f, 90.f, 0.f));
 	}
 	Mesh3P->SetVisibility(true);
-	Mesh3P->SetHiddenInGame(Body->bHiddenInGame);   // taken in Loadout: hidden like its soldier
 }
 
 void ADFWeapon::UpdateDroppedLook()
