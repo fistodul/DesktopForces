@@ -8,7 +8,7 @@
 #   Tools/play.sh editor                       open the editor instead
 #   Tools/play.sh build                        compile the C++ modules first
 #
-# Modes: dm, tdm, holdout, sc (Safecracker), ctf, det (Detonation), cap (Captains), trailer, koh, tug, coop, zombie, arena, moball, br.
+# Modes: dm, tdm, holdout, sc (Safecracker), ctf, det (Detonation), cap (Captains), trailer, koh, tug, coop, zombie, arena, deball, br.
 # No arguments at all would start the main menu: run the editor binary with -game and no map. Extra arguments after the bot count go to the engine
 # (e.g. -windowed -ResX=1600 -ResY=900, -log; without them the saved video settings apply). Engine path: mfport.toml `ue_root` or $UE_ROOT.
 set -euo pipefail
@@ -37,24 +37,9 @@ case "$MAP" in
         if [ -f "$PROJECT_DIR/Content/Maps/$MAP.umap" ]; then MAP_PATH="/Game/Maps/$MAP"
         else MAP_PATH="/MobileForcesClassic/Maps/$MAP"; fi ;;
 esac
-case "$MODE" in
-  dm)      GAME="/Script/DesktopForces.MFGameMode_DM" ;;
-  tdm)     GAME="/Script/DesktopForces.MFGameMode_TDM" ;;
-  holdout) GAME="/Script/DesktopForces.MFGameMode_Holdout" ;;
-  sc)      GAME="/Script/DesktopForces.MFGameMode_Safecracker" ;;
-  ctf)     GAME="/Script/DesktopForces.MFGameMode_CTF" ;;
-  det)     GAME="/Script/DesktopForces.MFGameMode_Detonation" ;;
-  cap)     GAME="/Script/DesktopForces.MFGameMode_Captains" ;;
-  koh)     GAME="/Script/DesktopForces.MFGameMode_KOH" ;;
-  tug)     GAME="/Script/DesktopForces.MFGameMode_Tug" ;;
-  trailer) GAME="/Script/DesktopForces.MFGameMode_Trailer" ;;
-  coop)    GAME="/Script/DesktopForces.MFGameMode_Coop" ;;
-  zombie)  GAME="/Script/DesktopForces.MFGameMode_Zombie" ;;
-  arena)   GAME="/Script/DesktopForces.MFGameMode_Arena" ;;
-  moball)  GAME="/Script/DesktopForces.MFGameMode_MoBall" ;;
-  br)      GAME="/Script/DesktopForces.MFGameMode_BattleRoyale" ;;
-  *)       GAME="$MODE" ;;
-esac
+# MODE: a short name (Config/DefaultEngine.ini GameModeClassAliases: dm, tdm, holdout, ctf, sc, det,
+# trailer, cap, koh, arena, br, coop, deball, tug, zombie) or a class path
+GAME="$MODE"
 
-# MF_OPTS: extra URL options, e.g. MF_OPTS="?TimeLimit=5?Part=2"
-exec "$EDITOR" "$UPROJECT" "$MAP_PATH?game=$GAME?Bots=$BOTS${MF_OPTS:-}" -game "$@"
+# DF_OPTS: extra URL options, e.g. DF_OPTS="?TimeLimit=5?Part=2"
+exec "$EDITOR" "$UPROJECT" "$MAP_PATH?game=$GAME?Bots=$BOTS${DF_OPTS:-}" -game "$@"

@@ -12,7 +12,7 @@ Steps (run alone or chained with `all`):
   merge <preset...>    merge two aligned maps area by area (merge/<preset>.toml)
   packs                which pack each converted map is in (core / classic), and what core maps
                        still need from the original game (packs.toml)
-  import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=MFImport)
+  import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=DFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + effects + sounds + import + light
 

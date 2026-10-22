@@ -40,7 +40,7 @@ build uses mobile-class settings too.
   HLOD/level streaming by MF zone for the big outdoor maps.
 
 ## Code
-- Actors don't tick unless they must. `AMFCharacter` ticks only when locally controlled
+- Actors don't tick unless they must. `ADFCharacter` ticks only when locally controlled
   (camera FOV + recoil); weapons, projectiles, crates, map actors never tick — timers only.
 - Canvas HUD (no UMG widget tree to tick/layout); menus are plain Slate, only while open.
 - Skeletal meshes: `OnlyTickPoseWhenRendered`.

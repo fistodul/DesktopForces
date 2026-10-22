@@ -80,7 +80,7 @@ def main():
         lvl = json.loads((m / 'level.json').read_text())
         for s in lvl['spawns']:
             x, y = px(s['location'])
-            if s.get('class', '').endswith('MFPlayerStart'):
+            if s.get('class', '').endswith('DFPlayerStart'):
                 team = s['props'].get('TeamNumber')
                 c = {'0': (80, 140, 255), '1': (255, 70, 60)}.get(team, (200, 200, 200))
                 d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=c, outline=edge)

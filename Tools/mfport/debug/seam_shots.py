@@ -33,12 +33,12 @@ def main():
         cx, cy, cz = c['x'] - 600, c['y'] - 600, c['z'] + 500
         yaw = math.degrees(math.atan2(c['y'] - cy, c['x'] - cx))
         pitch = -math.degrees(math.atan2(500, math.hypot(600, 600)))
-        cmds += [f'@{t:.1f}:MFCam {cx:.0f} {cy:.0f} {cz:.0f} {yaw:.1f} {pitch:.1f}', f'@{t + 0.7:.1f}:MFShot seam_{n}']
+        cmds += [f'@{t:.1f}:DFCam {cx:.0f} {cy:.0f} {cz:.0f} {yaw:.1f} {pitch:.1f}', f'@{t + 0.7:.1f}:DFShot seam_{n}']
         t += 1.0
     exe = cfg.ue_root / 'Engine/Binaries/Linux/UnrealEditor'
-    subprocess.run([str(exe), str(cfg.uproject), f'/MobileForcesClassic/Maps/{a.map}?game=/Script/DesktopForces.MFGameMode_DM?Bots=0',
+    subprocess.run([str(exe), str(cfg.uproject), f'/MobileForcesClassic/Maps/{a.map}?game=/Script/DesktopForces.DeathMatch?Bots=0',
                     '-game', '-RenderOffscreen', '-ResX=800', '-ResY=500', '-nosplash',
-                    f'-MFExec={"|".join(cmds)}', f'-MFQuitAfter={t + 2:.0f}'],
+                    f'-DFExec={"|".join(cmds)}', f'-DFQuitAfter={t + 2:.0f}'],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
     shots = cfg.uproject.parent / 'Saved/Screenshots/LinuxEditor'
     tiles = []

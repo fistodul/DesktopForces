@@ -3,4 +3,4 @@
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, DesktopForcesEditor);
 
-DEFINE_LOG_CATEGORY(LogMFEditor);
+DEFINE_LOG_CATEGORY(LogDFEditor);

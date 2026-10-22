@@ -4,7 +4,7 @@ Converts the original game (your install) into UE assets. Two halves:
 
 1. **Python** (`Tools/mfport/mfport.py`, library in `mflib/`) reads/export the original
    data and writes neutral intermediate files to `Tools/mfport/work/` (git-ignored).
-2. **C++ commandlet** (`DesktopForcesEditor`, `-run=MFImport`) turns those into UE assets
+2. **C++ commandlet** (`DesktopForcesEditor`, `-run=DFImport`) turns those into UE assets
    and levels. `mfport.py import` runs it.
 
 ```
@@ -12,7 +12,7 @@ Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
         │                                    │
         └── mflib/upkg.py + bsp.py ──────────┴──► work/out  (PNG, WAV, .mfmesh, level.json)
                                                         │
-                              UnrealEditor-Cmd -run=MFImport
+                              UnrealEditor-Cmd -run=DFImport
                                                         ▼
       Plugins/MobileForcesClassic/Content/…   (original game: textures, sounds, stock maps …)
       Content/Maps/<map> + Content/MF/Community/…   (community maps cleared for the game)
@@ -60,7 +60,7 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   warehouse polygons: "holes that only work one way"). Triangulation fans from an unsplit
   corner, else from the centroid, so every welded vertex joins real triangles.
 - **Sky**: UE1 drew the sky zone (seen from the SkyZoneInfo with the player's rotation)
-  through fake-backdrop polygons. `AMFSkyCapture` (spawned at the SkyZoneInfo) captures a
+  through fake-backdrop polygons. `ADFSkyCapture` (spawned at the SkyZoneInfo) captures a
   256 px cube once at load (re-captured at 0.5/2/5/10 s while textures stream in); `M_MF_Sky`
   samples it by view direction.
 - **Static mesh actors**: UE1 draws a mesh at `Location + R·S·(v − PrePivot)`, so placement
@@ -77,8 +77,8 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   native data ends with what matters, so it's read from the back: vertex array (compact count,
   44 bytes each: position, pad, normal, UV, 8 runtime bytes), u16 index array, section table
   (material, first index, primitive count, list/strip, vertex range). Positions are in uu with
-  the mesh-import scale already applied. Converted to `/Game/MFImported/Props/<Package>/<Name>`;
-  game actors put them on with `MF::ApplyPropMesh` and keep their placeholder shapes without.
+  the mesh-import scale already applied. Converted to `/Game/DFImported/Props/<Package>/<Name>`;
+  game actors put them on with `DF::ApplyPropMesh` and keep their placeholder shapes without.
 - **LodMesh** (`mflib/lodmesh.py`): UE1 vertex-animated mesh (packed 11/11/10-bit vertices per
   frame, wedges with byte UVs, faces, materials, mesh origin/rotation/scale). The first frame
   becomes a static prop: weapon carry models (held in first person, dropped on the floor),
@@ -146,7 +146,7 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   `BaseColor × lerp(MPC_MF.Ambient, VertexColor.rgb × MPC_MF.AmbientScale, VertexColor.a)`.
   World geometry carries its zone's ambient in the vertex colour (alpha 1), props and actors
   (alpha 0) use the map's main ambient. `AmbientScale` = `AmbientFloor` (0.35, `DefaultGame.ini`)
-  × the player's Brightness, set by `AMFMapInfo`. Per-zone light this way costs nothing: no
+  × the player's Brightness, set by `ADFMapInfo`. Per-zone light this way costs nothing: no
   extra meshes or draw calls (earlier versions split chunks per zone). Lightmass ignores
   emissive (`EmissiveBoost 0`: UE1 unlit surfaces never lit anything).
 - **Sky windows** (fake backdrop) are their own chunks (`Sky_x_y`) that cast no shadow, so the
@@ -157,7 +157,7 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   functions do nothing on a registered Static component (`AreDynamicDataChangesAllowed`).
   That bug left every light at UE's default 5000 and made all earlier bakes white.
 - Check a map's lights in game: `getall PointLightComponent Intensity`; what the view looks
-  at (meshes, materials, lightmap coefficients): `MFTraceMat`.
+  at (meshes, materials, lightmap coefficients): `DFTraceMat`.
 
 ### Baking on Linux (UE 5.8.3)
 Only whoever bakes needs this; players get the baked result inside the map.
@@ -201,7 +201,7 @@ for the importer):
 | core | `/Game/Maps/<map>`, `/Game/MF/Community` | community maps whose authors agreed, their own texture packages |
 | replaced | `/Game/MF/Replacements` | textures with replacement art in `overrides/` |
 | unverified | `/MobileForcesUnverified` (plugin) | community mod packages whose authors / asset sources aren't confirmed yet (`[unverified]`: the servers' weapon mods ...); local only like classic, left out of `Tools/package.sh --public`; moved to `[core.packages]` once cleared |
-| ours | `/Game/MF` | generated art (`Tools/artgen`: crate, decals, MoBall goal net), materials, meshes made by the importer (`SM_MF_Ring`) |
+| ours | `/Game/MF` | generated art (`Tools/artgen`: crate, decals, DeBall goal net), materials, meshes made by the importer (`SM_MF_Ring`) |
 
 Core maps get their own material instances in `/Game/MF/Community/Materials`: they point at
 the original texture until replacement art exists, so adding an override later only re-points

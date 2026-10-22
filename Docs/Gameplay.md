@@ -104,7 +104,7 @@ are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's p
 - **Away from crates and zones the loadout still opens** (MF only opened it there): it lists
   the weapons lying within 562 cm (MF `TryLoadoutDropped`, 250 uu); putting an item back
   drops it on the ground there. At a crate / zone a put-back item goes back into the store.
-- Loadout areas don't need closed-off zones (an MF1 limit): place an `MFLoadoutZone` and
+- Loadout areas don't need closed-off zones (an MF1 limit): place an `LoadoutZone` and
   size its box (`Volume` component) like any trigger volume; set `Team` (255 = everyone).
 - Dropped weapons (throw key `;`, death with ammo left) keep their ammo and lie where MF put
   them (`Pawn.DropItem`: 4 collision radii out, random ±71° around the facing, then they fall,
@@ -136,7 +136,7 @@ are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's p
   is a team point (+7). New captain ~4 s later (at once after a captain's suicide). Captains
   spawn at their CaptainStart (unused as a normal start in every mode, like MF) and are sent
   back there from loadout zones and the start-room corridors (CaptainProhibitedZone →
-  `AMFZoneBox` tagged `CaptainProhibited`). 5 points / 12 min. "CAPTAIN" label over them.
+  `ADFZoneBox` tagged `CaptainProhibited`). 5 points / 12 min. "CAPTAIN" label over them.
 - Holdout (Domination), DM, TDM as before; Trailer waits for vehicles (its map actors are
   already in the converted maps).
 - **Tug of War** (`tug`, MF-mods TugGame, `Game/Tug`): killing an enemy converts them
@@ -147,7 +147,7 @@ are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's p
   The map's Holdout point is locked for 50 s ("Get ready" at 10, a countdown from 5); then a team
   that stands on it alone for 10 s takes the round; stepping off, or an enemy stepping on, starts
   the count over. Wiping out the other team takes the round too. 5 rounds, 10 min.
-- **MoBall** (`moball`, MF-mods MoBall, `Game/MoBall`): football with vehicles. A rubber ball
+- **DeBall** (`deball`, MF-mods MoBall renamed, `Game/DeBall`): football with vehicles. A rubber ball
   (MF `ball.COL`: 1 m radius) appears at the trailer generator; vehicles, soldiers and shots push
   it (by the square root of the damage, shotgun pellets 40 % of the time); into the other team's
   trailer park (192 + 128 uu, 64 up or down) scores, the ball goes 5 s later and a new one comes.
@@ -225,7 +225,7 @@ Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(r
 + MaxTraceDistance (10000)·X.
 
 ## Vehicles
-Physics box + raycast wheels (`AMFVehicle`), numbers from MF's own data: `Physics/handling.hnd2`
+Physics box + raycast wheels (`ADFVehicle`), numbers from MF's own data: `Physics/handling.hnd2`
 (mass, MaxSpeed in mph, steering lock), `Physics/<Vehicle>.COL` (wheel spheres in metres, x right /
 y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour; uu x 2.25).
 
@@ -247,7 +247,7 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   graph at each RoadPoint's MaxSpeed, steers round parked cars, backs out when stuck (after six
   tries the vehicle counts as stuck for 30 s) and gets out at the node nearest its goal, in water
   or on its roof. Seated bots fight from the seat (the gunner aims the turret); they get out once
-  the driver has gone and it stopped. Bots told to follow get in with you. In MoBall a bot at
+  the driver has gone and it stopped. Bots told to follow get in with you. In DeBall a bot at
   the wheel never gets out: it drives at the ball, straight when it can see it, else along the
   road graph towards it (MoBallGame.FindSpecialAttractionForX).
 - **Armed APC** (MF-mods ArmedAPC, `?ArmedAPC=1`, rockets `=2`, at the Armadillo generators): the
@@ -311,7 +311,7 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   is converted, and swaps a map's own (BR-thebigisland's truck is a heli, as the servers' heli
   mod made it). Server admins can still add or swap vehicles per map without converting again:
   `+AddedVehicles=(Map=...,VehicleClass=...,Location=(...),Yaw=...)` and
-  `+VehicleSwaps=(Map=...,From=...,To=...)` under `[/Script/DesktopForces.MFGameSettings]`
+  `+VehicleSwaps=(Map=...,From=...,To=...)` under `[/Script/DesktopForces.DFGameSettings]`
   (`?AddVehicles=0` turns the added ones off).
 - **Trailer** (`trailer`, TrailerGame): a neutral cab (Humvee) towing a bomb trailer (ball-joint
   hitch) starts at the TrailerGenerator. Drive it into the enemy's delivery bay (TrailerDelivery,

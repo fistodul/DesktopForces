@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"EngineAssociation": "5.8",
 	"Category": "Games",
-	"Description": "Desktop Forces: a team shooter for low-end PCs in the spirit of Mobile Forces (2002), Unreal Engine 5.",
+	"Description": "Desktop Forces: Revival - a team shooter for low-end PCs, Unreal Engine 5.",
 	"Modules": [
 		{
 			"Name": "DesktopForces",

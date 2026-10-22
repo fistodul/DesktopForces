@@ -49,7 +49,7 @@ def run_importer(cfg: Config, steps: str = 'art,textures,props,sounds,music,maps
         args.append(f'-work="{cfg.out_dir}"')
     if maps:
         args.append('-maps=' + ','.join(maps))
-    return run_commandlet(cfg, 'MFImport', *args)
+    return run_commandlet(cfg, 'DFImport', *args)
 
 
 def map_package(cfg: Config, name: str) -> tuple[str, Path]:

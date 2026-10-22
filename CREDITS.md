@@ -1,6 +1,6 @@
 # Credits
 
-Keep this in step with the in-game credits (`MakeCredits` in `Source/DesktopForces/UI/MFMenu.cpp`).
+Keep this in step with the in-game credits (`MakeCredits` in `Source/DesktopForces/UI/DFMenu.cpp`).
 
 ## Desktop Forces
 
@@ -13,7 +13,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | Mods (MF-mods, now part of the game) | fistodul: Totem of Undying, Trip Lasers, Seeker Mines, Sentry Gun, Tug of War, King of the Hill, Molotov |
 | Coop, Zombie modes | Animeman (for AKVARI) |
 | Grenade launcher | Gian, Peto, "Secret Dude" |
-| MoBall, TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
+| DeBall (MoBall), TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
 | Battle Royale, Arena | Edgaras "Gregaras" Ziaugra (design, models: item crate, metal tower, platform, safe zone; metal textures; all CC0) |
 
 ## Art and music in this repository

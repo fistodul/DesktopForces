@@ -11,7 +11,7 @@ firewall / router). Players join from the main menu (**Join Game**, `address[:po
 You play on it and are its admin. A packaged build can do the same from a command line:
 
 ```bash
-./DesktopForces.sh "mf-warehouse?game=/Script/DesktopForces.MFGameMode_TDM?listen?Bots=6"
+./DesktopForces.sh "mf-warehouse?game=tdm?listen?Bots=6"
 ```
 
 **Dedicated (no player), with the project and the engine installed.** The editor binary runs
@@ -19,9 +19,9 @@ a headless server; this works with the Launcher / binary engine:
 
 ```bash
 <UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/DesktopForces.uproject" \
-  "/Game/Maps/BR-thebigisland?game=/Script/DesktopForces.MFGameMode_BattleRoyale?Bots=8" \
+  "/Game/Maps/BR-thebigisland?game=br?Bots=8" \
   -server -log -nosound -port=7777 \
-  "-ini:Game:[/Script/DesktopForces.MFGameMode]:AdminPassword=change-me"
+  "-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=change-me"
 ```
 
 (Windows: `UnrealEditor.exe` / `UnrealEditor-Cmd.exe`.) Map paths: `/Game/Maps/<map>` for the
@@ -35,7 +35,7 @@ Add to the map: `map?option=value?option=value`.
 
 | Option | Does |
 |---|---|
-| `game=/Script/DesktopForces.MFGameMode_<Mode>` | the mode: `DM`, `TDM`, `Holdout`, `CTF`, `Safecracker`, `Detonation`, `Trailer`, `Captains`, `KOH`, `Arena`, `BattleRoyale`, `Coop`, `MoBall`, `Tug`, `Zombie` |
+| `game=<mode>` | the mode by its short name: `dm`, `tdm`, `holdout`, `ctf`, `sc` (Safecracker), `det` (Detonation), `trailer`, `cap` (Captains), `koh` (King of the Hill), `arena`, `br` (Battle Royale), `coop`, `deball`, `tug`, `zombie` (`GameModeClassAliases` in `Config/DefaultEngine.ini`; a class path works too) |
 | `Bots=N`, `BotSkill=0..1` | bots added at the start |
 | `TimeLimit=min`, `FragLimit=N`, `GoalTeamScore=N` | limits (0 = the mode's default) |
 | `Teams=N` | number of teams in team modes (MF: 2) |
@@ -50,17 +50,17 @@ Add to the map: `map?option=value?option=value`.
 `Saved/Config/<platform>/Game.ini` on the server (or `-ini:Game:[Section]:Key=Value`):
 
 ```ini
-[/Script/DesktopForces.MFGameMode]
+[/Script/DesktopForces.DFGameMode]
 AdminPassword=change-me      ; AdminLogin <password>; empty: nobody logs in remotely
 bAllowCheats=False
 
-[/Script/DesktopForces.MFGameSettings]
+[/Script/DesktopForces.DFGameSettings]
 ; extra vehicles and swaps for this server only (maps already carry the community's ones)
 +AddedVehicles=(Map="mf-warehouse",VehicleClass="heli.heli",Location=(X=0,Y=0,Z=200),Yaw=90)
 +VehicleSwaps=(Map="mf-Carpark",From="Rage.Truck",To="jeep.jeep")
 ```
 
-Each mode's own options are in its class (`[/Script/DesktopForces.MFGameMode_Zombie]`
+Each mode's own options are in its class (`[/Script/DesktopForces.ZombieGame]`
 `ZombieWeapons=2`, ...); [Gameplay.md](Gameplay.md) describes them.
 
 ## Running it

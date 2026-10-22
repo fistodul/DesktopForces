@@ -1,0 +1,333 @@
+#include "Vehicles/DFVehicleTurret.h"
+#include "Vehicles/DFVehicle.h"
+#include "Core/DFContent.h"
+#include "Core/DFGameSettings.h"
+#include "Core/DFProps.h"
+#include "Player/DFCharacter.h"
+#include "Weapons/DFProjectile.h"
+#include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/Canvas.h"
+#include "Engine/DamageEvents.h"
+#include "Engine/Engine.h"
+#include "Engine/Font.h"
+#include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
+
+#define LOCTEXT_NAMESPACE "DFVehicleTurret"
+
+namespace VehicleTurretLocal
+{
+	USoundBase* LoadMFSound(const FString& MFName)
+	{
+		FString Package, Name;
+		return MFName.Split(TEXT("."), &Package, &Name) ? DF::LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name)) : nullptr;
+	}
+}
+
+UDFVehicleTurret::UDFVehicleTurret()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+	SetIsReplicatedByDefault(true);
+}
+
+void UDFVehicleTurret::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UDFVehicleTurret, TurretRot);
+	DOREPLIFETIME(UDFVehicleTurret, ClipAmmo);
+}
+
+ADFVehicle* UDFVehicleTurret::GetVehicle() const
+{
+	return Cast<ADFVehicle>(GetOwner());
+}
+
+void UDFVehicleTurret::BeginPlay()
+{
+	Super::BeginPlay();
+	ClipAmmo = MaxClipAmmo;
+	TurretRot.Yaw = BaseYaw;
+	ADFVehicle* V = GetVehicle();
+	if (!V)
+	{
+		return;
+	}
+	TurretMesh = NewObject<UStaticMeshComponent>(V);
+	TurretMesh->SetupAttachment(V->GetBody());
+	TurretMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TurretMesh->RegisterComponent();
+	if (!DF::ApplyPropMesh(TurretMesh, *TurretMeshName, TurretDrawScale))
+	{
+		TurretMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+		TurretMesh->SetRelativeScale3D(FVector(1.2f, 0.15f, 0.15f));
+	}
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		FireSound = VehicleTurretLocal::LoadMFSound(ClassicFireSound);
+		ReloadSound = VehicleTurretLocal::LoadMFSound(ClassicReloadSound);
+	}
+}
+
+FVector UDFVehicleTurret::GunPos() const
+{
+	return TurretPivot + FRotator(0.f, TurretRot.Yaw, 0.f).RotateVector(GunOffset);
+}
+
+void UDFVehicleTurret::GetMuzzle(FVector& OutStart, FVector& OutDir) const
+{
+	const ADFVehicle* V = GetVehicle();
+	const FTransform T = V->GetBody()->GetComponentTransform();
+	OutStart = T.TransformPosition(GunPos() + TurretRot.RotateVector(MuzzleOffset) - V->GetBoxCenter());
+	OutDir = T.TransformVectorNoScale(TurretRot.Vector());
+}
+
+void UDFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	ADFVehicle* V = GetVehicle();
+	if (!V)
+	{
+		return;
+	}
+	const TArray<TObjectPtr<ADFCharacter>>& Passengers = V->GetPassengers();
+	ADFCharacter* Gunner = Passengers.IsValidIndex(GunnerSeat) ? Passengers[GunnerSeat].Get() : nullptr;
+	if (GetOwnerRole() == ROLE_Authority)
+	{
+		// aim: the gunner's view in the vehicle's frame, pitch limited, turning at TurnRate
+		if (Gunner && Gunner->GetController())
+		{
+			FRotator Want = V->GetBody()->GetComponentTransform().InverseTransformRotation(Gunner->GetController()->GetControlRotation().Quaternion()).Rotator();
+			Want.Pitch = FMath::Clamp(FRotator::NormalizeAxis(Want.Pitch), PitchMin, PitchMax);
+			Want.Yaw = BaseYaw + FMath::Clamp(FRotator::NormalizeAxis(Want.Yaw - BaseYaw), -YawLimit, YawLimit);
+			const float Step = TurnRate * DeltaTime;
+			const FRotator Delta = (Want - TurretRot).GetNormalized();
+			TurretRot = FRotator(TurretRot.Pitch + FMath::Clamp(Delta.Pitch, -Step, Step), FRotator::NormalizeAxis(TurretRot.Yaw + FMath::Clamp(Delta.Yaw, -Step, Step)), 0.f);
+		}
+		if (FireDelay > 0.f)
+		{
+			FireDelay -= DeltaTime;
+			if (FireDelay <= 0.f && ClipAmmo == 0)
+			{
+				ClipAmmo = MaxClipAmmo;
+			}
+		}
+		else if (Gunner && bGunnerFiring)
+		{
+			Fire(Gunner);
+		}
+	}
+	if (TurretMesh)
+	{
+		TurretMesh->SetRelativeLocationAndRotation(GunPos() - V->GetBoxCenter(), TurretRot);
+	}
+}
+
+void UDFVehicleTurret::Fire(ADFCharacter* Gunner)
+{
+	ADFVehicle* V = GetVehicle();
+	FVector Start, Dir;
+	GetMuzzle(Start, Dir);
+	const FRotationMatrix Axes(Dir.Rotation());
+	Dir = (Axes.GetUnitAxis(EAxis::X) + (FMath::FRand() - 0.5f) * Spread * Axes.GetUnitAxis(EAxis::Y)
+		+ (FMath::FRand() - 0.5f) * Spread * Axes.GetUnitAxis(EAxis::Z)).GetSafeNormal();
+	if (ProjectileClass)
+	{
+		FActorSpawnParameters SP;
+		SP.Owner = Gunner;
+		SP.Instigator = Gunner;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		if (ADFProjectile* P = GetWorld()->SpawnActor<ADFProjectile>(ProjectileClass, Start, Dir.Rotation(), SP))
+		{
+			P->Launch(Dir, 0.f, V->GetVelocity());
+		}
+	}
+	else
+	{
+		// TraceFire: through the vehicle itself and its riders
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFVehicleTurret), false, V);
+		Params.AddIgnoredActor(Gunner);
+		Params.AddIgnoredActor(V->GetDriver());
+		for (ADFCharacter* P : V->GetPassengers())
+		{
+			Params.AddIgnoredActor(P);
+		}
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * MaxRange, ECC_GameTraceChannel2, Params) && Hit.GetActor())
+		{
+			FPointDamageEvent Ev(Damage, Hit, Dir, UDFDamage_Bullet::StaticClass());
+			Hit.GetActor()->TakeDamage(Damage, Ev, Gunner->GetController(), V);
+		}
+	}
+	if (FireSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, FireSound, Start, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
+	}
+	V->MakeNoise(1.f, Gunner);
+	--ClipAmmo;
+	if (ClipAmmo > 0)
+	{
+		FireDelay = FireInterval;
+	}
+	else
+	{
+		Reload();
+	}
+}
+
+void UDFVehicleTurret::Reload()
+{
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		return;
+	}
+	ClipAmmo = 0;
+	FireDelay = ReloadTime;
+	if (ReloadSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetOwner()->GetActorLocation(), 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
+	}
+}
+
+void UDFVehicleTurret::SeatEntered(ADFCharacter* C, int32 Seat)
+{
+	if (Seat != GunnerSeat || GetOwnerRole() != ROLE_Authority)
+	{
+		return;
+	}
+	// TakeTurret: hands off their own weapon, onto the gun
+	GunnerLastWeapon = C->GetCurrentWeapon();
+	if (ADFVehicleTurretWeapon* Gun = Cast<ADFVehicleTurretWeapon>(C->GiveWeapon(ADFVehicleTurretWeapon::StaticClass(), false)))
+	{
+		Gun->Turret = this;
+		Gun->HUDIconRect = HUDIconRect;
+		GunnerWeapon = Gun;
+		C->EquipWeapon(Gun);
+	}
+}
+
+void UDFVehicleTurret::SeatLeft(ADFCharacter* C, int32 Seat)
+{
+	if (Seat != GunnerSeat || GetOwnerRole() != ROLE_Authority)
+	{
+		return;
+	}
+	bGunnerFiring = false;
+	if (ADFVehicleTurretWeapon* Gun = GunnerWeapon.Get())
+	{
+		C->RemoveWeapon(Gun);
+	}
+	GunnerWeapon = nullptr;
+	if (ADFWeapon* Last = GunnerLastWeapon.Get(); Last && C->GetInventory().Contains(Last))
+	{
+		C->EquipWeapon(Last);
+	}
+	else
+	{
+		C->SwitchToBestWeapon();
+	}
+	GunnerLastWeapon = nullptr;
+}
+
+// --- the gunner's "weapon" -------------------------------------------------------------------
+
+ADFVehicleTurretWeapon::ADFVehicleTurretWeapon()
+{
+	DisplayName = LOCTEXT("Turret", "Mounted gun");
+	InventoryGroup = 12;
+	CarrySize = 0;
+	bLoadoutSelectable = false;
+	bUndroppable = true;
+	bAddToLoadout = false;
+	MaxClipAmmo = 1;
+	MaxClips = 1;
+	EquipTime = 0.f;
+	PutDownTime = 0.f;
+	bHideAmmoCount = true;
+	AIRating = -1.f;
+	HUDIconRect = FIntRect(64, 64, 256, 128);   // the HMG's box on the weapon icon sheet
+	Mesh1P->SetVisibility(false);              // the gun is on the vehicle, nothing in the hands
+}
+
+void ADFVehicleTurretWeapon::StartFire(bool bAlt)
+{
+	bFireHeld = true;
+	if (!HasAuthority())
+	{
+		ServerStartFire(bAlt);
+	}
+	else if (UDFVehicleTurret* T = Turret.Get())
+	{
+		T->bGunnerFiring = true;
+	}
+}
+
+void ADFVehicleTurretWeapon::StopFire(bool bAlt)
+{
+	bFireHeld = false;
+	if (!HasAuthority())
+	{
+		ServerStopFire(bAlt);
+	}
+	else if (UDFVehicleTurret* T = Turret.Get())
+	{
+		T->bGunnerFiring = false;
+	}
+}
+
+void ADFVehicleTurretWeapon::StartReload()
+{
+	// ArmedAPCWeapon.Reload: a part-used belt can be swapped early
+	if (UDFVehicleTurret* T = Turret.Get(); T && HasAuthority() && T->GetClipAmmo() > 0)
+	{
+		T->Reload();
+	}
+	else if (!HasAuthority())
+	{
+		Super::StartReload();
+	}
+}
+
+bool ADFVehicleTurretWeapon::DrawHUD(UCanvas* Canvas)
+{
+	const ADFCharacter* Me = GetOwnerCharacter();
+	const ADFVehicle* V = Me ? Cast<ADFVehicle>(Me->GetAttachParentActor()) : nullptr;
+	const UDFVehicleTurret* T = nullptr;
+	if (V)
+	{
+		TInlineComponentArray<UDFVehicleTurret*> Turrets(V);
+		for (const UDFVehicleTurret* Each : Turrets)
+		{
+			if (V->GetSeatOf(Me) == Each->GunnerSeat)
+			{
+				T = Each;
+			}
+		}
+	}
+	if (!T || !Canvas)
+	{
+		return false;
+	}
+	// crosshair where the gun points (PostRender), the belt below it
+	FVector Start, Dir;
+	T->GetMuzzle(Start, Dir);
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFTurretAim), false, V);
+	Params.AddIgnoredActor(Me);
+	const FVector End = GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * T->GetMaxRange(), ECC_Visibility, Params) ? Hit.ImpactPoint : Start + Dir * T->GetMaxRange();
+	const FVector S = Canvas->Project(End);
+	if (S.Z <= 0.f)
+	{
+		return true;
+	}
+	const FLinearColor Col = UDFGameSettings::Get().GetTeamColor(Me->GetTeam());
+	Canvas->K2_DrawLine(FVector2D(S.X - 14.f, S.Y), FVector2D(S.X + 14.f, S.Y), 2.f, Col);
+	Canvas->K2_DrawLine(FVector2D(S.X, S.Y - 14.f), FVector2D(S.X, S.Y + 14.f), 2.f, Col);
+	Canvas->SetDrawColor(Col.ToFColor(true));
+	Canvas->DrawText(GEngine->GetMediumFont(), T->GetClipAmmo() > 0 ? FString::FromInt(T->GetClipAmmo()) : FString(TEXT("RELOADING")), S.X - 16.f, S.Y + 20.f);
+	return true;
+}
+
+#undef LOCTEXT_NAMESPACE

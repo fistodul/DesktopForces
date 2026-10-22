@@ -50,12 +50,12 @@ def main():
         cmds = ['@2:viewmode unlit', '@2.1:ShowHUD']
         t = 3.0
         for name, x, y, w, z in shots:
-            cmds.append(f'@{t:.1f}:MFTopView {x:.0f} {y:.0f} {w:.0f} {z:.0f}')
-            cmds.append(f'@{t + 0.7:.1f}:MFShot merge_{m}_{name}')
+            cmds.append(f'@{t:.1f}:DFTopView {x:.0f} {y:.0f} {w:.0f} {z:.0f}')
+            cmds.append(f'@{t + 0.7:.1f}:DFShot merge_{m}_{name}')
             t += 1.0
-        args = [str(exe), str(cfg.uproject), f'/MobileForcesClassic/Maps/{m}?game=/Script/DesktopForces.MFGameMode_DM?Bots=0',
+        args = [str(exe), str(cfg.uproject), f'/MobileForcesClassic/Maps/{m}?game=/Script/DesktopForces.DeathMatch?Bots=0',
                 '-game', '-RenderOffscreen', f'-ResX={a.res}', f'-ResY={a.res}', '-nosplash',
-                f'-MFExec={"|".join(cmds)}', f'-MFQuitAfter={t + 2:.0f}']
+                f'-DFExec={"|".join(cmds)}', f'-DFQuitAfter={t + 2:.0f}']
         print(f'[{m}] {len(shots)} shots ...')
         subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900)
 

@@ -217,7 +217,7 @@ class LevelConverter:
                 if mb is None:
                     mb = chunks[ck] = MeshBuilder((f'{"Sky" if sky else "World"}_{cell[0]}_{cell[1]}').replace('-', 'm'))
                     mb.collision = 'none'
-                # UE1 zone ambient -> vertex colour (alpha 1 = per-zone; see FMFImporter::AddAmbientFloor)
+                # UE1 zone ambient -> vertex colour (alpha 1 = per-zone; see FDFImporter::AddAmbientFloor)
                 amb = ambients[poly.zone] if 0 <= poly.zone < len(ambients) else self.map_ambient
                 self._emit_poly(mb, key, poly, verts, cell, amb)
                 areas[ck] = areas.get(ck, 0.0) + _area(poly.vertices)

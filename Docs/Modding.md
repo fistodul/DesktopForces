@@ -18,24 +18,24 @@ of how to extend the game:
 |---|---|---|
 | `Weapons/Molotov` | `Molotov` | a new weapon (subclass of Grenades), its projectiles, a burning area actor, a damage type, its own icon art |
 | `Game/KOH` | `KOH` | a new game mode (subclass of Holdout): several capture points chosen from the map's objectives, per-second scoring |
-| `Weapons/Totem` | `Totem` | a carried item that cheats death (`AbsorbDamage` + `GetAbsorbPriority`), fire / alt fire / reload actions, a heal-over-time **component** with a damage filter (`IMFDamageFilter`) |
+| `Weapons/Totem` | `Totem` | a carried item that cheats death (`AbsorbDamage` + `GetAbsorbPriority`), fire / alt fire / reload actions, a heal-over-time **component** with a damage filter (`IDFDamageFilter`) |
 | `Weapons/TripLasers` | `TripLasers` | a trip bomb variant through the trip bomb hooks (`BombClass`, `CanPlace`, `Arm`/`CheckBeam`, mine `ShouldTrigger`/`Trigger`) |
 | `Weapons/SeekerMines` | `SeekerMines` | a thrown drone: an `APawn` with `UFloatingPawnMovement` + `AAIController` navmesh moves, hunting / escorting / roaming on a 5 Hz timer |
 | `Weapons/SentryGun` | `SentryGun` | a deployable turret on timers (no Tick), the HMG model reused |
 | `Game/Tug` | `TugGame` | a round-based team mode: `PreventDeath` (kills convert instead), `RestartRound`, original teams per round |
 | `Weapons/Deagle`, `Weapons/GrenadeLauncher` | `deagle`, `grenLaunch` (Gian / Peto / "Secret Dude") | stock weapon subclasses; models from the mod packages when converted, stock fallbacks |
 | `Weapons/PredatorMissile` | `PredatorMissile` | a player-guided missile actor, view-target switching, a weapon HUD overlay (`DrawHUD`) |
-| `Vehicles/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat: a `UMFVehicleTurret` component configured in the constructor |
+| `Vehicles/ArmedAPC` | `ArmedAPC` | a vehicle subclass with a gunner seat: a `UDFVehicleTurret` component configured in the constructor |
 | `Vehicles/Jeep` | `jeep` (Marcin, Gregaras) | a new vehicle from its `.COL` / handling data, wheels with blown meshes, a turret seat |
 | `Vehicles/Boat` | `boat` (Gregaras) | a vehicle without wheels: `SimulateDrive` (thrust, rudder), buoyancy from `BuoyancyPercent` |
 | `Vehicles/Heli` | `heli` (Gregaras) | a flying vehicle: `SimulateDrive` hover forces, extra spinning parts, breakable glass in `TakeDamage`, two gunner turrets with yaw limits (`HeliHmg`) |
 | `Vehicles/Piper` | `piper` (Gregaras) | a plane: car on the ground, its own flight model once airborne, landing / crash in `NotifyHit`, a replicated random livery |
-| `Game/Vote` | `vote` (Gregaras) | console commands (`Exec` + server RPC) into the game mode, replicated state on `AMFGameState`, a HUD readout |
+| `Game/Vote` | `vote` (Gregaras) | console commands (`Exec` + server RPC) into the game mode, replicated state on `ADFGameState`, a HUD readout |
 | `Game/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
 | `Game/BattleRoyale` | `battleRoyale` (Gregaras) | no-respawn rounds, nav-mesh scatter spawning, shootable loot props, a placeable-platform weapon, a shrinking damage zone |
-| `Game/MoBall` | `MoBall` | a physics actor as the objective, goals from legacy actors, item limits (`AMFGameState::AllowedItemGroups`) |
-| `Game/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`AMFGameState::LoadoutAccess`, `LoadoutDenied`) |
-| `Game/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`AMFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
+| `Game/DeBall` | `MoBall` (renamed DeBall) | a physics actor as the objective, goals from legacy actors, item limits (`ADFGameState::AllowedItemGroups`) |
+| `Game/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`ADFGameState::LoadoutAccess`, `LoadoutDenied`) |
+| `Game/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`ADFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
 
 Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icons/` by
 `Tools/artgen` + `mfport.py import --steps art`.
@@ -44,21 +44,21 @@ Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icon
 
 | Hook | For |
 |---|---|
-| `UMFVehicleTurret` (component on an `AMFVehicle`) | a gun worked from a seat: aim, fire, belts, reload, the gunner's HUD |
-| `AMFVehicle::SimulateDrive`, `BuoyancyPercent`, `EngineSounds` / `Engine*Sound` | own propulsion (boats, aircraft), floating, engine sounds |
-| `AMFZoneVolume` | water / pain / current areas (placed from UE1 zones; usable by hand) |
-| `AMFWeapon::AbsorbDamage` / `GetAbsorbPriority` | armour-like items, run highest priority first (armour 10, Totem -1) |
-| `IMFDamageFilter` (any component on a character) | buffs, shields, grace periods: see damage before armour |
-| `AMFGameMode::PreventDeath` | keep a dying player alive (convert, revive, last stand) |
-| `AMFGameMode::RestartRound` | round modes: clock restart, clear planted / dropped items, respawn everyone |
-| `AMFGameMode::GetBotGoals` / `GetBotShootTarget` | where bots go / what they shoot in your mode |
-| `AMFGameMode::VehicleEntered`, `GetVehicleExclusions` | vehicle modes (Trailer) |
-| `AMFWeapon_TripBombs`: `BombClass`, `bNeedLaserTarget`, `CanPlace`, `GetThrowSpeed` | placed / thrown devices |
-| `AMFWeapon::bAddToLoadout` | the item appears in every loadout crate |
-| `AMFGameMode::ChooseTeam`, `GetWeaponClassFor`, `LoadoutDenied` | who plays where, a mode's own item variants, the "no loadout" answer |
-| `AMFGameState::LoadoutAccess`, `TeamLoadoutAccess`, `TeamNameOverrides`, `AllowedItemGroups` | where loadouts open (per team), mode team names, which items loadouts hand out |
-| `AMFCharacter::SetBodyScale` | replicated speed / jump / accel / step / fall multipliers (zombies, buffs) |
-| `AMFWeapon::IsMeleeWeapon` | bots run at the target instead of shooting from range |
+| `UDFVehicleTurret` (component on an `ADFVehicle`) | a gun worked from a seat: aim, fire, belts, reload, the gunner's HUD |
+| `ADFVehicle::SimulateDrive`, `BuoyancyPercent`, `EngineSounds` / `Engine*Sound` | own propulsion (boats, aircraft), floating, engine sounds |
+| `ADFZoneVolume` | water / pain / current areas (placed from UE1 zones; usable by hand) |
+| `ADFWeapon::AbsorbDamage` / `GetAbsorbPriority` | armour-like items, run highest priority first (armour 10, Totem -1) |
+| `IDFDamageFilter` (any component on a character) | buffs, shields, grace periods: see damage before armour |
+| `ADFGameMode::PreventDeath` | keep a dying player alive (convert, revive, last stand) |
+| `ADFGameMode::RestartRound` | round modes: clock restart, clear planted / dropped items, respawn everyone |
+| `ADFGameMode::GetBotGoals` / `GetBotShootTarget` | where bots go / what they shoot in your mode |
+| `ADFGameMode::VehicleEntered`, `GetVehicleExclusions` | vehicle modes (Trailer) |
+| `ATripBombs`: `BombClass`, `bNeedLaserTarget`, `CanPlace`, `GetThrowSpeed` | placed / thrown devices |
+| `ADFWeapon::bAddToLoadout` | the item appears in every loadout crate |
+| `ADFGameMode::ChooseTeam`, `GetWeaponClassFor`, `LoadoutDenied` | who plays where, a mode's own item variants, the "no loadout" answer |
+| `ADFGameState::LoadoutAccess`, `TeamLoadoutAccess`, `TeamNameOverrides`, `AllowedItemGroups` | where loadouts open (per team), mode team names, which items loadouts hand out |
+| `ADFCharacter::SetBodyScale` | replicated speed / jump / accel / step / fall multipliers (zombies, buffs) |
+| `ADFWeapon::IsMeleeWeapon` | bots run at the target instead of shooting from range |
 
 ## Adding things
 
@@ -66,7 +66,7 @@ Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icon
 |---|---|
 | New weapon / game mode / actor | C++ or Blueprint subclass (closest stock class, once: keep chains shallow) |
 | Tuning numbers | `EditDefaultsOnly` properties (Blueprint child or config) |
-| Lists (teams, loadout, bots, menu pictures) | `UMFGameSettings` (Project Settings > Game, saved in `Config/DefaultGame.ini`) |
+| Lists (teams, loadout, bots, menu pictures) | `UDFGameSettings` (Project Settings > Game, saved in `Config/DefaultGame.ini`) |
 | Tables of data (many rows) | DataTables (import/export **CSV or JSON** natively) |
 | Art and sound | `SourceArt/` (converted by `Tools/artgen`) or assets made in the editor |
 | Maps | the UE editor, with the game's actor classes (below) |
@@ -77,36 +77,36 @@ maps; they are thrown away after import and mods never see them.
 ### A weapon (Molotov)
 
 ```cpp
-AMFWeapon_Molotov::AMFWeapon_Molotov()
+AMolotov::AMolotov()
 {
 	DisplayName = LOCTEXT("Molotov", "Molotov Cocktail");
 	MaxClipAmmo = 2;
 	bAddToLoadout = true;   // appears in every loadout crate
-	ProjectileClass = AMFProjectile_Molotov::StaticClass();
+	ProjectileClass = AMolotovBottle::StaticClass();
 	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MF/Mods/Icons/MolotovIcon.MolotovIcon")));
 	HUDIconRect = FIntRect(0, 0, 64, 64);
 }
 ```
 
 `bAddToLoadout` registers it by itself; to choose its place, list it in `Config/DefaultGame.ini`
-(`+LoadoutItems=/Script/DesktopForces.MFWeapon_Molotov`).
+(`+LoadoutItems=/Script/DesktopForces.Molotov`).
 
 ### A game mode (KOH)
 
 Subclass the closest mode and override only what differs. KOH changes how points are picked
 (`SpawnPoints`), how they score (`UpdatePoints`) and the capture bonus (`PointCaptured`);
 spawning, teams, bots, HUD and match flow are inherited. Play it with
-`<map>?game=/Script/DesktopForces.MFGameMode_KOH?Bots=8`. Rules are `Config` properties, so
+`<map>?game=/Script/DesktopForces.KingOfTheHill?Bots=8`. Rules are `Config` properties, so
 servers tune them in `DefaultGame.ini` or per match with URL options (`?GoalTeamScore=500`).
-Bots get objectives from `AMFGameMode::GetBotGoals()` (best first).
+Bots get objectives from `ADFGameMode::GetBotGoals()` (best first).
 
 ### A map
 
 Make it in the UE editor like any UE level (BSP brushes or the modeling tools, static meshes,
-lights; bake with Build > Lighting). Place the game's actors: `MFPlayerStart` (team number),
-`MFLoadoutCrate` / `MFLoadoutZone`, `MFLadderVolume`, the mode objectives (`MFHoldoutPoint`,
-`MFSafe`, `MFFlagBase`, `MFDetonationLock`; trailer bays and vehicle generators are still the
-converted MF actors), `MFMapInfo` (title, author, music, minimap). Save it under `/Game/Maps/` and it shows up in the menu. Keep to the
+lights; bake with Build > Lighting). Place the game's actors: `DFPlayerStart` (team number),
+`LoadoutCrate` / `LoadoutZone`, `DFLadderVolume`, the mode objectives (`HoldoutPoint`,
+`Safe`, `FlagBase`, `DetonationLock`; trailer bays and vehicle generators are still the
+converted MF actors), `DFMapInfo` (title, author, music, minimap). Save it under `/Game/Maps/` and it shows up in the menu. Keep to the
 [performance rules](Performance.md): static lighting, textures up to 512 px.
 
 ## Plugins: what they cost and when they load
@@ -147,5 +147,5 @@ before).
 4. Prefer engine features over copies of MF code: timers not `Tick`, `UDeveloperSettings` for
    lists, navmesh for bots.
 5. Icons and sounds the mod author owns go in `SourceArt/Mods/`.
-6. Test: `-MFExec="@3:MFLoadoutPick 10|@20:MFShot test" -MFQuitAfter=25` runs a scripted match
-   and takes screenshots (see `UMFGameInstance`, [Commands](Commands.md)).
+6. Test: `-DFExec="@3:DFLoadoutPick 10|@20:DFShot test" -DFQuitAfter=25` runs a scripted match
+   and takes screenshots (see `UDFGameInstance`, [Commands](Commands.md)).

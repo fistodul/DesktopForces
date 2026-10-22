@@ -39,7 +39,7 @@ where the original had the command; case doesn't matter.
 | `Brightness [X]` | MF brightness: step 0.5 → 2, or set 0.25 - 3 (scales the map's ambient light; saved) |
 | `RenderScale X` | 3D resolution 0.25 - 2 × the window (HUD stays sharp; saved, also in Options) |
 
-Keys that run commands are a config table, like MF's User.ini: `[/Script/DesktopForces.MFPlayerController]`
+Keys that run commands are a config table, like MF's User.ini: `[/Script/DesktopForces.DFPlayerController]`
 `+CommandBindings=(Key=F9,Command="SShot")` in `Config/DefaultGame.ini` (or your user Game.ini).
 Built-in keys (MF DefUser.ini): WASD / arrows / `,` `.` move, Ctrl / C crouch (drivers: nitro),
 Delete / PageDown look up / down, Q / Backspace loadout, `;` throw, `[` `]` / wheel weapons.
@@ -53,20 +53,20 @@ options in tabs: **Video** resolution, display mode, graphics level, render scal
 field of view, bullet holes / scorch marks; **Audio** volume, music; **Controls** mouse, every
 key (click it, press the new one; a key already in use swaps); **Game** name, crosshair, HUD
 size; **Defaults** puts MF's options back, Apply keeps them). Options live in
-`Saved/Config/<platform>/GameUserSettings.ini` (`UMFUserSettings`).
+`Saved/Config/<platform>/GameUserSettings.ini` (`UDFUserSettings`).
 
 ## Admin
 
 Like MF's `bAdmin`: the listen server's host and single player are admins; others log in with
-the server's password (`[/Script/DesktopForces.MFGameMode] AdminPassword=...` in the server's
-Game.ini, or `-ini:Game:[/Script/DesktopForces.MFGameMode]:AdminPassword=...` on its command line).
+the server's password (`[/Script/DesktopForces.DFGameMode] AdminPassword=...` in the server's
+Game.ini, or `-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=...` on its command line).
 
 | Command | Does |
 |---|---|
 | `AdminLogin Password` / `AdminLogout` | become / stop being admin |
 | `Admin Command` | run a command on the server: any cheat, and for admins any console command (`Admin servertravel mf-warehouse?game=ctf`) |
 | `Kick Name` | throw a player out (admins) |
-| `SwitchMap URL` | change map, e.g. `SwitchMap mf-warehouse?game=/Script/DesktopForces.MFGameMode_CTF` (admins) |
+| `SwitchMap URL` | change map, e.g. `SwitchMap mf-warehouse?game=/Script/DesktopForces.CaptureTheFlag` (admins) |
 | `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame) |
 | `SetTo Name Property Value` / `GetTo Name Property` | set / read a property of a player's soldier (then player state, controller), e.g. `SetTo Bob MaxHealth 300` |
 | `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
@@ -76,7 +76,7 @@ Game.ini, or `-ini:Game:[/Script/DesktopForces.MFGameMode]:AdminPassword=...` on
 ## Cheats
 
 For admins, everyone on a server started with `?Cheats=1` (`bAllowCheats`), and single player.
-Typed on a client they run on the server, which checks you may (views like `MFCam` stay on
+Typed on a client they run on the server, which checks you may (views like `DFCam` stay on
 your machine and need cheats on too). The admin commands above work the same way.
 
 | Command | Does |
@@ -87,7 +87,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `SetTeam N` | join team N (0 blue, 1 red, …) and respawn there |
 | `KillEnemy` | kill every enemy (everyone else in deathmatch) |
 | `KillPawns` | kill every bot |
-| `KillAll Class` | kill / remove every actor of a class, e.g. `KillAll MFCharacter` |
+| `KillAll Class` | kill / remove every actor of a class, e.g. `KillAll DFCharacter` |
 | `AllAmmo` | full ammo |
 | `GiveWeapon Name` | give yourself a weapon, e.g. `GiveWeapon RocketLauncher`, `GiveWeapon Molotov` |
 | `SetWeapons Name` | give every bot that weapon |
@@ -103,27 +103,27 @@ your machine and need cheats on too). The admin commands above work the same way
 
 | Command | Does |
 |---|---|
-| `MFNavTest` | log navmesh reachability from you to every spawn, objective and ladder |
-| `MFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
-| `MFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
-| `MFTeleport X Y Z`, `MFHurt N`, `MFFire` | move your pawn (a driven vehicle takes its trailer along), take damage, press fire once (scripted tests) |
-| `MFAimAt X Y Z`, `MFFire 1` | turn to a point; alt fire |
-| `MFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
-| `MFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
-| `MFTopView X Y Width [Z]` | orthographic top view (`MFTopView 0 0 0` = back) |
-| `MFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
-| `MFLoadoutPick N`, `MFLoadout`, `MFSelect N`, `MFScores`, `MFShot Name` | for scripted runs: `-MFExec="@4:MFLoadoutPick 1\|@6:MFLoadout\|@20:MFShot test"` |
-| `MFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
-| `MFMenuPage N`, `MFMenuStart`, `MFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits; 10-13 the options tabs) / press Start / screenshot with the menu |
-| `MFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
-| `MFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |
-| `MFVehicles` | log every vehicle: position, mass, gravity, physics awake, height above ground, wheel compression |
-| `MFDecal 0\|1 [Size]` | a bullet hole / scorch mark where you look |
-| `MFNavRelevant` | log moving things that can dirty the navmesh ("NAVMESH NEEDS TO BE REBUILT" hunts) |
-| `MFApplyUserSettings` | re-read the player's options (field of view, keys) |
+| `DFNavTest` | log navmesh reachability from you to every spawn, objective and ladder |
+| `DFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
+| `DFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
+| `DFTeleport X Y Z`, `DFHurt N`, `DFFire` | move your pawn (a driven vehicle takes its trailer along), take damage, press fire once (scripted tests) |
+| `DFAimAt X Y Z`, `DFFire 1` | turn to a point; alt fire |
+| `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
+| `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
+| `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |
+| `DFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
+| `DFLoadoutPick N`, `DFLoadout`, `DFSelect N`, `DFScores`, `DFShot Name` | for scripted runs: `-DFExec="@4:DFLoadoutPick 1\|@6:DFLoadout\|@20:DFShot test"` |
+| `DFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
+| `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits; 10-13 the options tabs) / press Start / screenshot with the menu |
+| `DFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
+| `DFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |
+| `DFVehicles` | log every vehicle: position, mass, gravity, physics awake, height above ground, wheel compression |
+| `DFDecal 0\|1 [Size]` | a bullet hole / scorch mark where you look |
+| `DFNavRelevant` | log moving things that can dirty the navmesh ("NAVMESH NEEDS TO BE REBUILT" hunts) |
+| `DFApplyUserSettings` | re-read the player's options (field of view, keys) |
 
-Command line for automated runs: `-MFExec="…"` (commands, `@seconds:` delays), `-MFQuitAfter=N`,
-`-MFAutoShot=N -MFShotName=x [-MFShotUI]` (`-MFShotUI` includes Slate menus), `-abslog=<file>`
+Command line for automated runs: `-DFExec="…"` (commands, `@seconds:` delays), `-DFQuitAfter=N`,
+`-DFAutoShot=N -DFShotName=x [-DFShotUI]` (`-DFShotUI` includes Slate menus), `-abslog=<file>`
 to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/DesktopForces.log`).
 
 Not ported (no equivalent yet): `KillCars`, `ExpireCars`,
