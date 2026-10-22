@@ -51,6 +51,23 @@ heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigislan
 Gravity zones (bGravityZone, ZoneGravity) pull soldiers their own way: mf-warehouse's roof vents
 are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's push sideways.
 
+**Soldiers** (RageGfx): the helmet soldier (RagePlayerHelmet: `RagePlayer1Mesh`, team A
+animations, MFTeamA skins) and the balaclava one (RagePlayerBalaclava: `RagePlayer2Mesh`, team
+B set, MFTeamB). Every player is one of the two for now (by player id) until player setup
+offers the choice. Skins follow Pawn.SetMultiSkin: elements 0-3 are `<skin>00-03` (blue team,
+and everyone without a team) or `04-07` (red); a captain's TeamSkinCaptain element (balaclava 2,
+helmet 0) is `08` / `09`. `UDFSoldierAnimInstance` picks animations like Pawn.uc's Get*Anim: by
+the weapon's AnimNumber (`ADFWeapon::SoldierAnimSet`, else its InventoryGroup: 1 knife, 2
+pistol, 3 machine gun, 4 shotgun, 5 rifle, 6 HMG, 7 launcher, 8 grenades, 9 trip bombs, 10
+MG-alike), the Lg (shouldered) poses while zoomed (bRagePointing), Still / Walk (under half
+speed) / Run / Backrun / StrafeLeft / StrafeRight by where the soldier moves against where he
+faces (±0.75), DuckStill / DuckWalk crouched, Swim / Tread, the Jump pose in the air and Land
+on touching down, the knife's stab and grenade / trip bomb throws on firing (guns have no firing
+animation: they shoot from the pose they hold), one of Dead2/3/4/5/9B on dying. Changes tween
+over 0.1-0.25 s like UE1's TweenAnim. Drivers sit at the wheel (Drive, DriveLeft/Right by the
+turn, DriveStill); seats MF marks aSeatsSit get PassLgStill, the others stand. The weapon's
+carry mesh is in the right hand (Bone_weapon, MESH WEAPONPOSITION yaw 90 pitch -90).
+
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.
 - DM: frag limit 30, time limit 7 min. TDM: no frag limit, 12 min, team score per kill,
