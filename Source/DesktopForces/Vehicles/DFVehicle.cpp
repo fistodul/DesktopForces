@@ -1,4 +1,6 @@
 #include "Vehicles/DFVehicle.h"
+#include "Materials/MaterialInterface.h"
+#include "Game/DFGameState.h"
 #include "Vehicles/DFVehicles.h"
 #include "Vehicles/Boat/Boat.h"
 #include "Vehicles/Jeep/Jeep.h"
@@ -95,6 +97,10 @@ void ADFVehicle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 void ADFVehicle::BeginPlay()
 {
 	Super::BeginPlay();
+	if (!FlagPosition.IsZero() && GetNetMode() != NM_DedicatedServer)
+	{
+		GetWorldTimerManager().SetTimer(FlagTimer, this, &ADFVehicle::UpdateFlag, 0.5f, true, 0.1f);
+	}
 	Body->SetBoxExtent(BoxExtent);
 	CameraArm->TargetArmLength = CameraDistance;
 	// everything is laid out in MF body space (origin at the MF actor); the box is the root
@@ -1271,3 +1277,50 @@ FDFWheelSetup DF::RageWheel(const FVector& Pos, float Radius, bool bSteer, bool 
 }
 
 #undef LOCTEXT_NAMESPACE
+
+void ADFVehicle::UpdateFlag()
+{
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	const uint8 Team = Driver && GS && GS->IsTeamGame() ? Driver->GetTeam() : DF::NoTeam;
+	if (Team == FlagTeam)
+	{
+		return;
+	}
+	FlagTeam = Team;
+	if (!FlagPole)
+	{
+		// a pole and a pennant (MF's waving VehicleFlag is a skeletal mesh not converted yet)
+		UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+		UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+		auto Make = [this](UStaticMesh* Mesh)
+		{
+			UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+			C->SetStaticMesh(Mesh);
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->SetCastShadow(false);
+			C->SetCanEverAffectNavigation(false);
+			C->SetupAttachment(Body);
+			C->RegisterComponent();
+			return C;
+		};
+		FlagPole = Make(Cylinder);
+		FlagPole->SetRelativeLocation(FlagPosition - BoxCenter + FVector(0.f, 0.f, 60.f));
+		FlagPole->SetRelativeScale3D(FVector(0.025f, 0.025f, 1.2f));   // 2.5 cm thick, 120 cm tall
+		FlagCloth = Make(Plane);
+		FlagCloth->SetRelativeLocation(FlagPosition - BoxCenter + FVector(-25.f, 0.f, 100.f));
+		FlagCloth->SetRelativeRotation(FRotator(0.f, 0.f, 90.f));        // upright, along the car
+		FlagCloth->SetRelativeScale3D(FVector(0.5f, 0.32f, 1.f));        // 50 x 32 cm
+		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
+		{
+			FlagCloth->SetMaterial(0, M);
+		}
+	}
+	const bool bShow = Team != DF::NoTeam;
+	FlagPole->SetVisibility(bShow);
+	FlagCloth->SetVisibility(bShow);
+	if (bShow)
+	{
+		const FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
+		FlagCloth->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+	}
+}

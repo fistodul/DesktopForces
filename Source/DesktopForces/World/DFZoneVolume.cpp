@@ -1,4 +1,5 @@
 #include "World/DFZoneVolume.h"
+#include "Weapons/DFProjectile.h"
 #include "Core/DFContent.h"
 #include "Player/DFCharacter.h"
 #include "Components/BrushComponent.h"
@@ -50,6 +51,12 @@ void ADFZoneVolume::ActorEnteredVolume(AActor* Other)
 	if (bWaterVolume && Cast<APawn>(Other) && GetNetMode() != NM_DedicatedServer)
 	{
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/LSplash")), Other->GetActorLocation(), 0.8f, 1200.f);
+	}
+	// RageWaterImpact's rings (and the splash) where it went in, on the surface
+	if (bWaterVolume && GetNetMode() != NM_DedicatedServer && (Cast<APawn>(Other) || Other->IsA<ADFProjectile>()))
+	{
+		const FVector At(Other->GetActorLocation().X, Other->GetActorLocation().Y, GetSurfaceZ());
+		DF::SpawnEffect(this, TEXT("Splash"), At, Other->IsA<ADFProjectile>() ? 0.5f : 1.f);
 	}
 }
 

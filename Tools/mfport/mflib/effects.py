@@ -159,6 +159,9 @@ SYSTEMS = {
     # EffectsFix.SmokePuffVeh: a tyre blown out; SmokePuff: one puff
     'SmokePuffVeh': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.6, 0.6], life=0.8, anim_once=True, burst=8, loc_rand=[20, 20, 20])],
     'SmokePuff': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.6, 0.6], life=0.8, anim_once=True, burst=1)],
+    # RageBubble (RPlayer.PlayHit 'Drowned', PlayDeathHit under water): a few bubbles rising
+    'Bubbles': [dict(tex='rageeffects.tex_bubble1', draw='alpha', alpha=0.9, size=[0.06, 0.06], life=3.0, burst=3,
+                     loc_rand=[15, 15, 10], vel=[0, 0, 90], vel_rand=[15, 15, 30])],
     # mineGenerator.mineExplosionEffect (mf-Pobojowisko_VerII's minefield): a fountain of dirt
     # (dense smoke, falling back) and the mod's own blast flipbook
     'MineExplosion': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.15, 0.15], life=2.0, gravity=True, burst=120,

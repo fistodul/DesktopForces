@@ -511,6 +511,12 @@ void ADFCharacter::MulticastVoice_Implementation(FName Line)
 
 void ADFCharacter::MulticastBodySound_Implementation(uint8 Kind, float Volume, uint8 Variant)
 {
+	// RPlayer.PlayHit / PlayDeathHit: hurt or dying with the head under water, bubbles come up
+	if ((Kind == uint8(EBodySound::Pain) || Kind == uint8(EBodySound::Death)) && GetNetMode() != NM_DedicatedServer
+		&& ADFZoneVolume::FindWater(GetWorld(), FirstPersonCamera->GetComponentLocation()))
+	{
+		DF::SpawnEffect(this, TEXT("Bubbles"), FirstPersonCamera->GetComponentLocation() + GetActorForwardVector() * 20.f);
+	}
 	// the UT male set MF ships in RagePlayerSounds (HitSound1-4, Deaths[6], JumpSound, LandGrunt)
 	static const TCHAR* Pain[] = { TEXT("injurL2"), TEXT("injurL04"), TEXT("injurM04"), TEXT("injurH5") };
 	static const TCHAR* Deaths[] = { TEXT("deathc1"), TEXT("deathc51"), TEXT("deathc3"), TEXT("deathc4"), TEXT("deathc53"), TEXT("deathc53") };

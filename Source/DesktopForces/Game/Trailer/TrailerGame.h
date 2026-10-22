@@ -20,6 +20,12 @@ class DESKTOPFORCES_API ATrailerGame : public ADFGameMode
 	GENERATED_BODY()
 
 public:
+	/** trailerGameV2 (MF-mods): the cab starts at a random road point within this distance of
+	 *  the map's trailer generator, pointing along the road either way; 0 = always on the
+	 *  generator (the stock game, and what the servers ran). cm. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Trailer")
+	float TrailerScatterRadius = 0.f;
+
 	ATrailerGame();
 	virtual void HandleMatchHasStarted() override;
 	virtual void VehicleEntered(ADFVehicle* Vehicle, ADFCharacter* Driver) override;

@@ -99,6 +99,10 @@ public:
 	// --- seats -------------------------------------------------------------------------------
 	/** Server: put a soldier in (driver if the driver seat is free). False if full / too far. */
 	bool TryEnter(ADFCharacter* C);
+	/** Where the team flag stands (MF FlagPos, MF body space, cm); zero: no flag. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicle")
+	FVector FlagPosition = FVector::ZeroVector;
+
 	/** Server: let the driver out at the first free door (else on the roof; forced: even if
 	 *  boxed in). */
 	void Exit(bool bForce = false);
@@ -303,6 +307,15 @@ protected:
 	// --- state ---------------------------------------------------------------------------
 	UPROPERTY(Replicated)
 	TObjectPtr<ADFCharacter> Driver;
+
+	/** VehicleFlag: a team flag on a pole while a team member drives (Vehicle.SetTeam). */
+	void UpdateFlag();
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> FlagPole;
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> FlagCloth;
+	uint8 FlagTeam = 255;
+	FTimerHandle FlagTimer;
 
 	/** Occupants by seat (index = seat; 0 stays empty: that's Driver). */
 	UPROPERTY(Replicated)

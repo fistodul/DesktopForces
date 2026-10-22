@@ -1,4 +1,5 @@
 #include "Game/Trailer/TrailerGame.h"
+#include "World/DFRoadNetwork.h"
 #include "DesktopForces.h"
 #include "Core/DFGameSettings.h"
 #include "Game/DFGameState.h"
@@ -82,8 +83,37 @@ void ATrailerGame::SpawnTrailer()
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	// TrailerGenerator.CreateVehicle: cab 10 uu up, trailer (-244, 0, 10) uu behind it
-	const FRotator Rot(0.f, GeneratorSpot.Rotator().Yaw, 0.f);
-	const FVector At = GeneratorSpot.GetLocation();
+	FRotator Rot(0.f, GeneratorSpot.Rotator().Yaw, 0.f);
+	FVector At = GeneratorSpot.GetLocation();
+	if (const ADFRoadNetwork* Roads = TrailerScatterRadius > 0.f ? ADFRoadNetwork::Get(GetWorld()) : nullptr)
+	{
+		// trailerGameV2.moveTrailerGen: a road point near the generator (not on a bay), facing
+		// a neighbouring one, this way or that
+		TArray<int32> Near;
+		for (int32 i = 0; i < Roads->Nodes.Num(); ++i)
+		{
+			const FVector& N = Roads->Nodes[i];
+			if (FVector::Dist2D(N, At) < TrailerScatterRadius && !Bays.ContainsByPredicate([&N](const FBay& B) { return FVector::Dist2D(B.Location, N) < 1500.f; }))
+			{
+				Near.Add(i);
+			}
+		}
+		if (Near.Num())
+		{
+			const int32 Pick = Near[FMath::RandHelper(Near.Num())];
+			const FVector& P = Roads->Nodes[Pick];
+			int32 Toward = INDEX_NONE;
+			for (const FIntPoint& L : Roads->Links)
+			{
+				Toward = L.X == Pick ? L.Y : (L.Y == Pick ? L.X : Toward);
+			}
+			if (Toward != INDEX_NONE)
+			{
+				Rot = FRotator(0.f, (Roads->Nodes[Toward] - P).Rotation().Yaw + (FMath::RandBool() ? 180.f : 0.f), 0.f);
+			}
+			At = P;
+		}
+	}
 	Cab = GetWorld()->SpawnActor<ADFVehicle>(ATrailerCab::StaticClass(), At + FVector(0.f, 0.f, 150.f), Rot, SP);
 	TrailerVehicle = GetWorld()->SpawnActor<ADFVehicle>(ATrailer::StaticClass(), At + Rot.RotateVector(FVector(-244.f * Uu, 0.f, 0.f)) + FVector(0.f, 0.f, 150.f), Rot, SP);
 	if (!Cab || !TrailerVehicle)

@@ -29,6 +29,7 @@ ABuggy::ABuggy()
 	SeatPositions = { FVector(20.25f, 0.f, 85.5f), FVector(-157.5f, 0.f, 162.f) };          // aSeatsPos
 	DoorPositions = { FVector(0.f, 135.f, 56.f), FVector(-315.f, 0.f, 67.5f), FVector(0.f, -135.f, 67.5f) };   // aDoorsPos
 	CameraDistance = 562.5f;           // NearCamera 250
+	FlagPosition = FVector(47.7f, -45.f, 153.f);   // FlagPos x 2.25
 }
 
 #undef LOCTEXT_NAMESPACE
