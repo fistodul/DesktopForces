@@ -39,6 +39,10 @@ Tools/play.sh mf-warehouse tdm 8
 <UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/DesktopForces.uproject" -game
 ```
 
+On Windows: `Tools\build_windows.ps1` builds and packages, and the pipeline runs with `py -3`
+instead of Wine - [Docs/Building.md](Docs/Building.md#windows), also for dual boot (one
+checkout shared by Linux and Windows).
+
 Default controls are the original ones (WASD, mouse, Q loadout, R reload, 1-0 weapons,
 Ctrl / C crouch (nitro when driving), Shift walk, E get in / out of vehicles, G drop the flag,
 V orders (keys or mouse), F1 scores, Tab one-line console, `~` full console, Esc menu), plus X for armour/gadgets; in the loadout screen a number picks a row, a second

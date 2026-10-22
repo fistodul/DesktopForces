@@ -6,14 +6,24 @@ menu to try out or hand around.
 ## What you need
 
 - **Unreal Engine 5.8** - the Epic Games Launcher install (Windows) or Epic's Linux binary
-  build. No engine source needed.
-- **Python 3.11+** with Pillow and numpy, **ffmpeg**, and on Linux / macOS **Wine** (the
-  pipeline runs the original game's `UCC.exe` to export levels and sounds).
+  build. No engine source needed. Windows also needs Visual Studio 2022 (or its Build Tools)
+  with the "Game development with C++" workload, as for any C++ Unreal project.
+- **Python 3.11+** with Pillow and numpy (`pip install pillow numpy`), **ffmpeg** with
+  libopenmpt (sounds, tracker music; Windows: e.g. the gyan.dev "full" build), and on Linux /
+  macOS **Wine** (the pipeline runs the original game's `UCC.exe` to export levels and
+  sounds; Windows runs it directly).
 - **Your own Mobile Forces install** for the classic content (stock maps, textures, sounds,
   models). It is converted on your machine into `Plugins/MobileForcesClassic` and never
   committed or shared.
 
+A fresh clone holds the code, the team's own art (`SourceArt/`), the test range
+(`/Game/MF/Maps/MF_TestRange`) and the pipeline - no maps. Every map, community ones
+included, is converted from your install by `Tools/mfport` (they are big and re-creatable, so
+git ignores them: `Content/Maps`, `Content/MF/Community`, `Plugins/*/Content`).
+
 ## From source
+
+### Linux
 
 ```bash
 cp Tools/mfport/mfport.example.toml Tools/mfport/mfport.toml   # game path, engine path
@@ -24,9 +34,33 @@ Tools/play.sh mf-warehouse tdm 8                               # play from the e
 Tools/play.sh editor                                           # or open the editor
 ```
 
-Re-running a step after a pull: `mfport.py import --steps art` (generated art, decals, goal
-rings), `mfport.py map <maps>` then `import <maps> --steps patch` (map data: zones, generators,
-`Tools/mfport/map_edits.toml`) - [Pipeline.md](Pipeline.md) lists every step.
+### Windows
+
+```powershell
+copy Tools\mfport\mfport.example.toml Tools\mfport\mfport.toml   # set game_dir and ue_root (forward slashes are fine)
+powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Config Development -Package:$false   # editor + game modules
+py -3 Tools\mfport\mfport.py all mf-warehouse                    # classic content, one map
+```
+
+Then open `DesktopForces.uproject` (or right-click it > *Generate Visual Studio project files*
+to work in an IDE). `build_windows.ps1` finds the engine on its own (registry, the launcher's
+list, `<drive>:\Program Files\Epic Games\UE_<version>`); `-UePath` names it.
+
+The pipeline is written for both systems (`UCC.exe` started natively through its 8.3 short
+path, `UnrealEditor-Cmd.exe`), but so far it has only been run on Linux. If the game's folder
+has spaces and the drive keeps no 8.3 names, mfport stops and asks for a path without spaces -
+a junction does: `mklink /J C:\MobileForces "D:\Games\Mobile Forces"`. Report anything else
+that breaks.
+
+**Dual boot?** Convert on Linux and share the result: one checkout for both systems (below),
+so Windows only builds and packages.
+
+### After a pull
+
+Re-running a step: `mfport.py import --steps art` (generated art, decals, goal rings),
+`mfport.py map <maps>` then `import <maps> --steps patch` (map data: zones, generators,
+`Tools/mfport/map_edits.toml`), `mfport.py sounds` + `import --steps sounds` (a sound package
+newly used by code) - [Pipeline.md](Pipeline.md) lists every step.
 
 ## Packaged builds
 
@@ -73,6 +107,18 @@ you, or the last to log in) and the Windows spelling of a path; `WIN_ROOT`, `WIN
 Default place `C:\Users\<you>\DesktopForces`, not Documents: Windows builds fail on paths
 longer than 260 characters deep in `Intermediate`, and Documents carries Windows' read-only
 folder flag, which ntfs3 honours.
+
+A typical dual-boot round: convert and test on Linux, `Tools/share_with_windows.sh --apply`
+once, then on Windows `Tools\build_windows.ps1` - same content, nothing copied.
+
+## CI (`.github/workflows/build.yml`)
+
+Run by hand (*Actions > Run workflow*) on a self-hosted Windows runner: Win64 through
+`build_windows.ps1`, Linux cross-compiled with Epic's clang toolchain; the packages are
+uploaded as artifacts. A clean checkout has no maps, so the runner keeps what isn't in git
+(`clean: false`): convert the content once in the runner's work folder (or link a converted
+checkout's `Content/Maps`, `Content/MF/Community` and `Plugins/*/Content` there). Without it
+the build has only the test range.
 
 ## Checking a build
 

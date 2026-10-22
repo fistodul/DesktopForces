@@ -19,7 +19,7 @@ Full documentation: [../../Docs/Pipeline.md](../../Docs/Pipeline.md).
 | `upkg.py` | UE1/MF package reader: tables, tagged properties |
 | `bsp.py` | compiled level BSP → world polygons (+ poly flag constants) |
 | `t3d.py` | T3D parser (levels, static meshes) |
-| `ucc.py` | runs the game's `UCC.exe batchexport` (Wine on Linux) |
+| `ucc.py` | runs the game's `UCC.exe batchexport` (Wine on Linux / macOS, native on Windows) |
 | `level.py` | map conversion driver (geometry chunks, meshes, actors) |
 | `actors.py` | MF actor → UE spawn record mapping, UE1 light colours |
 | `mfmesh.py` | `.mfmesh` writer (+ OBJ debug dump) |

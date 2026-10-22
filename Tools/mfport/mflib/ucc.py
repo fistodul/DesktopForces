@@ -28,6 +28,10 @@ def _spaceless_game_dir(cfg: Config) -> Path:
         import ctypes
         buf = ctypes.create_unicode_buffer(1024)
         ctypes.windll.kernel32.GetShortPathNameW(str(cfg.game_dir), buf, 1024)
+        if not buf.value or ' ' in buf.value:
+            # the drive keeps no 8.3 names (often off on non-system drives)
+            raise RuntimeError(f'{cfg.game_dir} has spaces and no short name: point game_dir at a path '
+                               'without spaces, e.g. a junction: mklink /J C:\\MobileForces "<your install>"')
         return Path(buf.value)
     link = Path.home() / '.cache' / 'mfport' / 'game'
     if ' ' in str(link):

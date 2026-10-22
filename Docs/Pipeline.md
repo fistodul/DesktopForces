@@ -8,7 +8,7 @@ Converts the original game (your install) into UE assets. Two halves:
    and levels. `mfport.py import` runs it.
 
 ```
-Mobile Forces install ──UCC.exe (Wine)──► work/raw  (BMP, WAV, T3D)
+Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine on Linux / macOS)
         │                                    │
         └── mflib/upkg.py + bsp.py ──────────┴──► work/out  (PNG, WAV, .mfmesh, level.json)
                                                         │
@@ -42,9 +42,10 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
 
 - **Package format**: MF is UE1 build 436 with Rage changes; package version 83.
   `mflib/upkg.py` reads names/imports/exports and tagged properties.
-- **UCC under Wine** does every export it can (textures, sounds, static meshes, whole
-  levels as T3D). UCC splits its own command line at spaces, so it's started through a
-  space-free symlink (`~/.cache/mfport/game`), with `$PWD` set to it (Wine reads `$PWD`).
+- **UCC** (under Wine on Linux / macOS, directly on Windows) does every export it can
+  (textures, sounds, static meshes, whole levels as T3D). UCC splits its own command line at
+  spaces, so it's started through a space-free path: a symlink (`~/.cache/mfport/game`) with
+  `$PWD` set to it (Wine reads `$PWD`), on Windows the folder's 8.3 short name.
 - **World geometry** is *not* re-CSG'd from brushes: `mflib/bsp.py` reads the level's
   compiled BSP (`Model` export). Every BSP node with vertices is a final convex polygon;
   its surface gives texture, poly flags and texture vectors. The layout matches UT v69
