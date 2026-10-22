@@ -30,8 +30,8 @@ public:
 
 	/**
 	 * Damage to a vehicle's hull, times (1 - its Armour). MF: explosives x 1.5, nothing else;
-	 * the community servers' mutPack changeDamage let other hits through at 10 / 80 (the
-	 * Desktop Forces default; ?ChangeDamage=0 goes back to explosives only). Knives, fire
+	 * the community servers' mutPack changeDamage let other hits through at 10 / 80, as
+	 * Desktop Forces does. Knives, fire
 	 * and the like carry 0 or a small share; mods give their damage types their own value.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicles")

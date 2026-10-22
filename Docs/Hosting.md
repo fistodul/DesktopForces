@@ -40,8 +40,7 @@ Add to the map: `map?option=value?option=value`.
 | `TimeLimit=min`, `FragLimit=N`, `GoalTeamScore=N` | limits (0 = the mode's default) |
 | `Teams=N` | number of teams in team modes (MF: 2) |
 | `RespawnWait=s` | seconds before a respawn |
-| `Vehicles=0` | no vehicles; `Vehicles=Buggy` (any vehicle class: `Humvee`, `Jeep`, `Heli` ...) every road generator makes that one, `Vehicles=Random` one of the four stock cars each time; `Trucks=Jeep` / `Trucks=Heli` what the truck generators make; `TurboCars=0` no nitro; `ArmedAPC=1\|2` armed APCs; `AddVehicles=0` none of the server's added vehicles |
-| `ChangeDamage=0` | MF's own damage rules instead of the community servers' (mutPack) |
+| `Vehicles=0` | no vehicles; `Vehicles=Buggy` (any vehicle class: `Humvee`, `Jeep`, `Heli` ...) every road generator makes that one, `Vehicles=Random` one of the four stock cars each time; `Trucks=Jeep` / `Trucks=Heli` what the truck generators make; `APCs=ArmedAPC` / `APCs=ArmedAPCRocket` what the APC generators make; `TurboCars=0` no nitro; `AddVehicles=0` none of the server's added vehicles |
 | `OPWeapons=1` | Gregaras' overpowered weapons: clips never run dry (weapons with more than one use, as for zombie survivors), shots 4x as fast (`OPFireRate`) |
 | `NoWeapons=Grenades,RocketLauncher` | weapons loadouts don't hand out, by class name (their variants too: no rocket launchers of any kind) |
 | `Gravity=x` | world gravity times x (`0.2`: FNG's LowGrav) |
@@ -69,6 +68,7 @@ ServerMessageGroup=1
 ;NoWeapons=Grenades
 ;AllVehicles=Random     ; ?Vehicles=Random
 ;Trucks=Heli
+;APCs=ArmedAPC
 ;bOPWeapons=True
 
 [/Script/DesktopForces.DFGameSettings]

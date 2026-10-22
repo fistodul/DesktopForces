@@ -9,8 +9,8 @@ class UDFVehicleTurret;
 /**
  * Armed APC (MF-mods ArmedAPC): the Armadillo with a heavy machine gun on its roof hatch. The
  * passenger in the gunner seat aims it with their view and fires it with Fire (100 a belt,
- * 10 a second, 25 damage, 4 s to reload; R reloads early). ?ArmedAPC=1 puts it at the
- * map's Armadillo generators, ?ArmedAPC=2 the rocket version. The gun: UDFVehicleTurret.
+ * 10 a second, 25 damage, 4 s to reload; R reloads early). ?APCs=ArmedAPC puts it at the
+ * map's Armadillo generators, ?APCs=ArmedAPCRocket the rocket version. The gun: UDFVehicleTurret.
  */
 UCLASS()
 class DESKTOPFORCES_API AArmedAPC : public AArmadillo

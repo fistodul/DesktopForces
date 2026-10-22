@@ -878,14 +878,13 @@ int32 ADFVehicle::ScaleDamage(float Damage, const UDFDamageType* Type, AControll
 	// the damage type says how much reaches the hull (UDFDamageType::VehicleDamageScale: MF
 	// Vehicle.TakeDamage x 1.5 for explosives, the servers' changeDamage for the rest), then
 	// Physical's armour; bulletproof hulls ignore gunpowder; bots do a fifth (changeDamage)
-	const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
-	const bool bChange = !GM || GM->bChangeDamage;
-	if (!Type || (!Type->bExplosive && !bChange) || (Type->bBallistic && bBulletproof))
+	if (!Type || (Type->bBallistic && bBulletproof))
 	{
 		return 0;
 	}
+	const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
 	float D = Damage * Type->VehicleDamageScale * (1.f - Armour);
-	if (bChange && GM && By && !By->IsPlayerController())
+	if (GM && By && !By->IsPlayerController())
 	{
 		D *= GM->BotVehicleDamageScale;
 	}

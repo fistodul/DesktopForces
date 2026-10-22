@@ -313,7 +313,7 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   the driver has gone and it stopped. Bots told to follow get in with you. In DeBall a bot at
   the wheel never gets out: it drives at the ball, straight when it can see it, else along the
   road graph towards it (MoBallGame.FindSpecialAttractionForX).
-- **Armed APC** (MF-mods ArmedAPC, `?ArmedAPC=1`, rockets `=2`, at the Armadillo generators): the
+- **Armed APC** (MF-mods ArmedAPC, `?APCs=ArmedAPC`, rockets `?APCs=ArmedAPCRocket`, at the Armadillo generators): the
   gunner seat (the hatch) runs a heavy machine gun aimed with the gunner's view (pitch −11° … 49°,
   165°/s), Fire shoots: 100 a belt, 10/s, 25 damage, 13500 cm, 4 s reload (R swaps early). The
   rocket version: 4 rockets, 0.8 s apart, 110°/s.
@@ -337,8 +337,8 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   smoke (SmokePuffVeh). Tyres landing hard thump
   (Wheel.HitWall, HitWheel); bumping into things clunks (Bump1-4).
 - Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical); MF ignores bullets,
-  pellets and knives, but the community servers ran mutPack's **changeDamage**, the default
-  here (`?ChangeDamage=0` for MF's rules): bullets / pellets x 0.125 x (1 - Armour) (10 / 80
+  pellets and knives, but the community servers ran mutPack's **changeDamage**, the rules
+  here: bullets / pellets x 0.125 x (1 - Armour) (10 / 80
   against 8000 health), knives nothing, bots do a fifth to vehicles and to players riding in
   them, and players' rockets hit soldiers twice as hard. 100 health; at 0 it blows
   up (150, 900 cm) and kills everyone inside. Hitting someone at KillSpeed 8 m/s or more runs

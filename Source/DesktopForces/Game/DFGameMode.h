@@ -58,8 +58,8 @@ public:
 
 	/** Someone got into a vehicle (Trailer: "trailer has been captured!"). */
 	virtual void VehicleEntered(class ADFVehicle* Vehicle, ADFCharacter* Driver) {}
-	/** The vehicle a map generator makes for its stock class (URL ?ArmedAPC=1 / 2: the MF-mods
-	 *  Armed APC instead of the Armadillo). */
+	/** The vehicle a map generator makes for its stock class (?Vehicles=, ?Trucks=, ?APCs=, the
+	 *  map's VehicleSwaps). */
 	virtual UClass* GetVehicleClassFor(UClass* StockClass) const;
 
 	/** Places where the map's vehicle generators stay off in this mode (Trailer: the delivery bays). */
@@ -165,14 +165,12 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bVehicles = true;
 
-	/**
-	 * The community servers' damage rules (mutPack changeDamage by Gregaras), on by default:
+	/*
+	 * The community servers' damage rules (mutPack changeDamage by Gregaras) are the game's:
 	 * players' rockets hit soldiers twice as hard, non-explosive hits hurt vehicles (each damage
 	 * type's VehicleDamageScale; MF: never), bots hurt vehicles and the people in them a fifth
-	 * as much. ?ChangeDamage=0: MF's rules.
+	 * as much. 1 here: MF's numbers.
 	 */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Damage")
-	bool bChangeDamage = true;
 	/** rocketDamageMultToPlayersOnFoot 2 (rockets fired by players). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Damage")
 	float RocketDamageScaleOnFoot = 2.f;
@@ -251,9 +249,10 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bAddVehicles = true;
 
-	/** MF-mods Armed APC at the Armadillo generators: 0 off, 1 machine gun, 2 rockets (?ArmedAPC=N). */
+	/** What the APC (Armadillo) generators make instead, by class name (?APCs=ArmedAPC: MF-mods
+	 *  Armed APC with a roof machine gun; ArmedAPCRocket: rockets). Empty: Armadillos. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	int32 ArmedAPC = 0;
+	FString APCs;
 
 	/** Seconds on the end screen before the map restarts (MF RestartWait). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")

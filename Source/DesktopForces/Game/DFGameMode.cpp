@@ -59,8 +59,10 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 		bVehicles = V != TEXT("0");
 		AllVehicles = V.IsNumeric() ? FString() : V;   // 1: the map's own
 	}
-	ArmedAPC = UGameplayStatics::GetIntOption(Options, TEXT("ArmedAPC"), ArmedAPC);
-	bChangeDamage = UGameplayStatics::GetIntOption(Options, TEXT("ChangeDamage"), bChangeDamage ? 1 : 0) != 0;
+	if (UGameplayStatics::HasOption(Options, TEXT("APCs")))
+	{
+		APCs = UGameplayStatics::ParseOption(Options, TEXT("APCs"));
+	}
 	bAllowCheats = UGameplayStatics::GetIntOption(Options, TEXT("Cheats"), bAllowCheats ? 1 : 0) != 0;
 	bParachutes = UGameplayStatics::GetIntOption(Options, TEXT("Parachutes"), bParachutes ? 1 : 0) != 0;
 	if (UGameplayStatics::HasOption(Options, TEXT("Trucks")))
@@ -481,24 +483,17 @@ void ADFGameMode::SayServerMessages()
 
 UClass* ADFGameMode::GetVehicleClassFor(UClass* StockClass) const
 {
-	if (!AllVehicles.IsEmpty() && StockClass && (StockClass->IsChildOf<ABuggy>() || StockClass->IsChildOf<AHumvee>()
-		|| StockClass->IsChildOf<ATruck>() || StockClass->IsChildOf<AArmadillo>()))
+	auto VehicleNamed = [](const FString& Name) -> UClass*
 	{
-		UClass* const Road[] = { ABuggy::StaticClass(), AHumvee::StaticClass(), ATruck::StaticClass(), AArmadillo::StaticClass() };
-		UClass* To = AllVehicles.Equals(TEXT("Random"), ESearchCase::IgnoreCase)
-			? Road[FMath::RandRange(0, UE_ARRAY_COUNT(Road) - 1)] : UClass::TryFindTypeSlow<UClass>(AllVehicles);
-		if (To && To->IsChildOf<ADFVehicle>())
-		{
-			StockClass = To;
-		}
-	}
-	if (ArmedAPC > 0 && StockClass && StockClass->GetName() == TEXT("Armadillo"))
+		UClass* C = Name.IsEmpty() ? nullptr : UClass::TryFindTypeSlow<UClass>(Name);
+		return C && C->IsChildOf<ADFVehicle>() ? C : nullptr;
+	};
+	// ?Vehicles=Buggy / Random: every stock road car (exact classes: the trailer cab is a humvee)
+	UClass* const Road[] = { ABuggy::StaticClass(), AHumvee::StaticClass(), ATruck::StaticClass(), AArmadillo::StaticClass() };
+	if (!AllVehicles.IsEmpty() && TArrayView<UClass* const>(Road).Contains(StockClass))
 	{
-		const TCHAR* Path = ArmedAPC >= 2 ? TEXT("/Script/DesktopForces.ArmedAPCRocket") : TEXT("/Script/DesktopForces.ArmedAPC");
-		if (UClass* Replacement = LoadClass<AActor>(nullptr, Path))
-		{
-			return Replacement;
-		}
+		UClass* To = AllVehicles.Equals(TEXT("Random"), ESearchCase::IgnoreCase) ? Road[FMath::RandRange(0, UE_ARRAY_COUNT(Road) - 1)] : VehicleNamed(AllVehicles);
+		StockClass = To ? To : StockClass;
 	}
 	// this map's swaps (UDFGameSettings::VehicleSwaps)
 	const FString MapName = UWorld::RemovePIEPrefix(GetWorld()->GetMapName());
@@ -512,15 +507,9 @@ UClass* ADFGameMode::GetVehicleClassFor(UClass* StockClass) const
 			}
 		}
 	}
-	if (!Trucks.IsEmpty() && StockClass && StockClass->GetName() == TEXT("Truck"))
-	{
-		// mutPack addVehicles / replaceVehicles style swaps
-		if (UClass* To = UClass::TryFindTypeSlow<UClass>(Trucks); To && To->IsChildOf<ADFVehicle>())
-		{
-			return To;
-		}
-	}
-	return StockClass;
+	// ?Trucks=Heli, ?APCs=ArmedAPC: what those generators make (mutPack replaceVehicles)
+	UClass* To = StockClass == ATruck::StaticClass() ? VehicleNamed(Trucks) : StockClass == AArmadillo::StaticClass() ? VehicleNamed(APCs) : nullptr;
+	return To ? To : StockClass;
 }
 
 void ADFGameMode::LoadoutDenied(APlayerController* PC) const
@@ -617,7 +606,7 @@ float ADFGameMode::ModifyDamage(float Damage, ADFCharacter* Victim, AController*
 		Damage *= FriendlyFireScale;
 	}
 	// changeDamage.mutatorTakeDamage: players' rockets x2; bots / 5 on people in vehicles
-	if (bChangeDamage && Victim)
+	if (Victim)
 	{
 		if (Instigator->IsPlayerController() && DamageCauser && DamageCauser->IsA<ARocket>())
 		{
