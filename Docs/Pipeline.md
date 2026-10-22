@@ -264,6 +264,20 @@ Masked textures get their see-through texels' colour bled in from the opaque nei
 (`bleed_alpha` in `textures.py`): UE1 kept palette index 0 (white, magenta) there, which
 filtering and mips smeared into white fringes (tyres, fences).
 
+## Reading a mod's code
+
+Mod packages (`System/<mod>.u`) keep their UnrealScript source; UCC writes it out:
+
+```python
+# from Tools/mfport
+from pathlib import Path
+from mflib import config, ucc
+ucc.batch_export(config.load(), 'System/improvedRL.u', 'Class', 'uc', Path('work/uc/improvedRL'))
+```
+
+That is how the servers' mods (improvedRL, OPWeapons, BoxPhysics, FNG ...) were read for porting;
+code is ported only with its author's agreement (`packs.toml`, [CREDITS.md](../CREDITS.md)).
+
 ## Debugging a conversion
 
 `work/out/Maps/<map>/` holds everything the importer reads. To eyeball geometry without
