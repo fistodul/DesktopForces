@@ -269,9 +269,21 @@ void UDFCheatManager::DFCam(float X, float Y, float Z, float Yaw, float Pitch)
 	GetPlayerController()->SetViewTarget(Cam);
 }
 
-void UDFCheatManager::DFOrbit(float Yaw, float Dist)
+void UDFCheatManager::DFOrbit(float Yaw, float Dist, int32 Other)
 {
 	APawn* P = GetPlayerController()->GetPawn();
+	if (Other && P)
+	{
+		APawn* Me = P;
+		P = nullptr;
+		for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)
+		{
+			if (*It != Me && It->IsAlive() && (!P || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(P->GetActorLocation(), Me->GetActorLocation())))
+			{
+				P = *It;
+			}
+		}
+	}
 	if (!P)
 	{
 		return;

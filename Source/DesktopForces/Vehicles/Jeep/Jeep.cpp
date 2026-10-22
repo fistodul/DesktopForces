@@ -35,6 +35,7 @@ AJeep::AJeep()
 		Wheel(FVector(-135.f, 81.5f, 31.1f), false), Wheel(FVector(-135.f, -82.4f, 31.1f), false) };
 	// aSeatsPos (DriverSeat 1 first, the gunner standing at the back last), aDoorsPos
 	SeatPositions = { FVector(9.f, -56.25f, 112.5f), FVector(9.f, 56.25f, 112.5f), FVector(-67.5f, -11.25f, 180.f) };
+	SeatSits = { true, true };   // aSeatsSit
 	DoorPositions = { FVector(22.5f, 148.5f, 57.4f), FVector(22.5f, -148.5f, 57.4f), FVector(-299.25f, 0.f, 57.4f) };
 	PetrolCapPosition = FVector(-60.75f, -105.75f, 29.25f);   // PetrolCapPos (-27, -47, 13)
 	PetrolCapRadius = 9.f;                                       // PetrolCapRadius 4

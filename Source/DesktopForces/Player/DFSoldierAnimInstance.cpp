@@ -3,6 +3,8 @@
 #include "AnimationRuntime.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/DFCharacter.h"
+#include "Components/BoxComponent.h"
+#include "Vehicles/DFVehicle.h"
 #include "Weapons/DFWeapon.h"
 
 namespace
@@ -160,6 +162,23 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 	const float Speed = V.Size2D();
 	bOutLoop = true;
 	OutTween = 0.15f;
+	if (const ADFVehicle* Veh = Cast<ADFVehicle>(C->GetAttachParentActor()))
+	{
+		// Pawn.PlayVehicleDriving(Left / Right), GetStillAnim's sitting passengers; standing
+		// riders (gunners, the truck bed) fall through to the plain still pose
+		const int32 Seat = Veh->GetSeatOf(C);
+		if (Seat == 0)
+		{
+			const float Turn = Veh->GetBody() ? Veh->GetBody()->GetPhysicsAngularVelocityInDegrees().Z : 0.f;
+			OutTween = 0.5f;
+			return Veh->GetVelocity().Size() < 50.f ? TEXT("DriveStill") : Turn > 20.f ? TEXT("DriveRight") : Turn < -20.f ? TEXT("DriveLeft") : TEXT("Drive");
+		}
+		if (Seat > 0 && Veh->IsSeatSitting(Seat))
+		{
+			OutTween = 0.2f;
+			return TEXT("PassLgStill");
+		}
+	}
 	if (M->IsSwimming())
 	{
 		const bool bSmall = Set < 0 || Set == 0 || Set == 1 || Set >= 7;

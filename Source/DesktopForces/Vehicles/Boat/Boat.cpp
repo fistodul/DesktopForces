@@ -22,6 +22,7 @@ ABoat::ABoat()
 	EngineStopSound = TEXT("Sounds/HumveeSFX/EngineStop");
 	// aSeatsPos (DriverSeat 1 first), aDoorsPos
 	SeatPositions = { FVector(79.9f, 2.25f, 158.7f), FVector(-57.4f, -29.25f, 158.7f), FVector(-57.4f, 36.f, 158.7f) };
+	SeatSits = { true, true, true };   // aSeatsSit
 	DoorPositions = { FVector(-78.75f, 148.5f, 57.4f), FVector(67.5f, -148.5f, 57.4f), FVector(-78.75f, -148.5f, 57.4f), FVector(67.5f, 148.5f, 57.4f) };
 	CameraDistance = 562.5f;
 	NitroAccel = 0.f;

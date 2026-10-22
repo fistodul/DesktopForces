@@ -30,6 +30,7 @@ ATruck::ATruck()
 		DF::RageWheel(FVector(-286.f, -114.f, -119.1f), 68.1f, false, true, TEXT("Rage/TruckWheelL")),
 	};
 	SeatPositions = { FVector(182.8f, -70.3f, 68.f), FVector(182.8f, 70.3f, 68.f), FVector(0.f, 0.f, 123.75f), FVector(-154.7f, 0.f, 123.75f), FVector(-337.5f, 0.f, 123.75f) };
+	SeatSits = { true, true };   // aSeatsSit
 	DoorPositions = { FVector(196.9f, -270.f, 0.f), FVector(196.9f, 270.f, 0.f), FVector(-506.f, 0.f, 0.f) };
 	CameraDistance = 742.5f;           // NearCamera 330
 }

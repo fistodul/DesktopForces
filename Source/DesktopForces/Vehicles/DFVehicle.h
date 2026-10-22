@@ -118,6 +118,8 @@ public:
 	void PassengerDied(ADFCharacter* C);
 	/** Seat of this soldier: 0 driver, 1.. passengers, INDEX_NONE not inside. */
 	int32 GetSeatOf(const ADFCharacter* C) const;
+	/** MF aSeatsSit: that seat's rider sits (passenger / driving animations). */
+	bool IsSeatSitting(int32 Seat) const { return SeatSits.IsValidIndex(Seat) ? SeatSits[Seat] : Seat == 0; }
 	const TArray<TObjectPtr<ADFCharacter>>& GetPassengers() const { return Passengers; }
 	ADFCharacter* GetDriver() const { return Driver; }
 	/** Whoever drove it last (still set after they got out; Trailer scoring). */
@@ -299,6 +301,10 @@ protected:
 	TArray<FVector> SeatPositions;
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<FVector> DoorPositions;
+	/** MF aSeatsSit: who rides that seat sits (the passenger animations); the others stand.
+	 *  Seats past the end sit if they are the driver's. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	TArray<bool> SeatSits;
 
 	/** Camera distance (MF NearCamera, uu x 2.25). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")

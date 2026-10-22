@@ -644,8 +644,7 @@ bool ADFVehicle::TryEnter(ADFCharacter* C)
 		W->ForceInactive();
 	}
 	C->SetActorEnableCollision(false);
-	C->SetActorHiddenInGame(true);
-	C->GetCharacterMovement()->DisableMovement();
+	C->GetCharacterMovement()->DisableMovement();   // stays in sight at the wheel (Drive animations)
 	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	C->SetActorRelativeLocation((SeatPositions.Num() ? SeatPositions[0] : FVector::ZeroVector) - BoxCenter);
 	LastDriver = C;

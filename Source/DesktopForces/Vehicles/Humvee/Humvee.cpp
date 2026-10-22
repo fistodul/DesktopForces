@@ -29,6 +29,7 @@ AHumvee::AHumvee()
 		DF::RageWheel(FVector(-161.8f, -82.4f, 19.1f), 45.8f, false, true, TEXT("Rage/humwheelL")),
 	};
 	SeatPositions = { FVector(34.9f, 72.f, 125.f), FVector(34.9f, -72.f, 125.f), FVector(-112.5f, -54.f, 248.6f), FVector(-112.5f, 54.f, 248.6f) };
+	SeatSits = { true, true };   // aSeatsSit
 	DoorPositions = { FVector(22.5f, 148.5f, 57.4f), FVector(22.5f, -148.5f, 57.4f), FVector(-299.f, 0.f, 57.4f) };
 	CameraDistance = 562.5f;
 	FlagPosition = FVector(-236.25f, -85.5f, 214.9f);   // FlagPos x 2.25
