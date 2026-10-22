@@ -7,7 +7,9 @@ menu to try out or hand around.
 
 - **Unreal Engine 5.8** - the Epic Games Launcher install (Windows) or Epic's Linux binary
   build. No engine source needed. Windows also needs Visual Studio 2022 (or its Build Tools)
-  with the "Game development with C++" workload, as for any C++ Unreal project.
+  with the "Game development with C++" workload **and** the individual component "Windows 11
+  SDK (10.0.22621.0)" (the workload doesn't always tick it; `build_windows.ps1` checks both
+  and says what's missing before it starts).
 - **Python 3.11+** with Pillow and numpy (`pip install pillow numpy`), **ffmpeg** with
   libopenmpt (sounds, tracker music; Windows: e.g. the gyan.dev "full" build), and on Linux /
   macOS **Wine** (the pipeline runs the original game's `UCC.exe` to export levels and
@@ -70,7 +72,7 @@ there, Options are saved per user.
 | Where | Command | Output |
 |---|---|---|
 | Linux | `Tools/package.sh` (Shipping) / `Tools/package.sh Linux Development` (console, logs) | `Saved/Packages/Linux-<Config>/Linux/DesktopForces.sh` |
-| Windows | `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1` (`-Config Development`, `-Public`, `-Package:$false` compiles only, `-DryRun` prints the commands, also with `pwsh` on Linux) | `Build\Windows[-public]\Windows\DesktopForces.exe` |
+| Windows | `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1` (`-Config Development`, `-Public`, `-Zip` one file to hand around, `-Package:$false` compiles only, `-DryRun` prints the commands, also with `pwsh` on Linux) | `Build\Windows[-public]\Windows\DesktopForces.exe`, `Build\DesktopForces-Win64-<config>-<date>.zip` |
 
 Both cook every map (core and, if converted, classic), everything under `/Game/MF` and
 `/MobileForcesClassic` (effects, decals, sounds and props are loaded by name at run time), and
@@ -109,7 +111,21 @@ longer than 260 characters deep in `Intermediate`, and Documents carries Windows
 folder flag, which ntfs3 honours.
 
 A typical dual-boot round: convert and test on Linux, `Tools/share_with_windows.sh --apply`
-once, then on Windows `Tools\build_windows.ps1` - same content, nothing copied.
+once (or `Tools/sync_to_windows.sh` each time), then on Windows `Tools\build_windows.ps1` - same
+content, nothing converted twice.
+
+### The first Windows build, step by step
+
+1. Linux: `Tools/package.sh Linux Development` - a cook that works on Linux works on Windows
+   (same content); Windows' own cook then only adds its shaders.
+2. Linux: `Tools/sync_to_windows.sh` (or `share_with_windows.sh --apply`).
+3. Windows, once: Visual Studio Installer - Modify - "Game development with C++" + "Windows 11
+   SDK (10.0.22621.0)"; UE 5.8 from the launcher (or `download_ue_windows.py` from Linux).
+4. Windows: PowerShell in `C:\Users\<you>\DesktopForces`:
+   `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Config Development -Zip`.
+   The first run compiles the editor and every shader: count on an hour or two.
+5. Start `Build\Windows\Windows\DesktopForces.exe`, then hand the zip to the team (classic
+   content inside: team only).
 
 ## CI (`.github/workflows/build.yml`)
 
