@@ -177,7 +177,7 @@ void ADFGameMode::RunVote(const FString& Command)
 	{
 		GetWorld()->ServerTravel(VoteMapURL(A[1], A.Num() > 2 ? A[2] : FString()));
 	}
-	else if (What == TEXT("nextmap"))
+	else if (What == TEXT("nextmap") && !TravelToNextMap())
 	{
 		const TArray<FString> Maps = DF::FindMaps();
 		const int32 Here = Maps.IndexOfByPredicate([this](const FString& P) { return FPackageName::GetShortName(P) == UWorld::RemovePIEPrefix(GetWorld()->GetMapName()); });

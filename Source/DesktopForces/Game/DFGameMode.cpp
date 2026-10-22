@@ -2,6 +2,11 @@
 #include "World/MineGenerator.h"
 #include "AI/DFNavigationSystem.h"
 #include "Vehicles/DFVehicle.h"
+#include "Vehicles/Armadillo/Armadillo.h"
+#include "Vehicles/Buggy/Buggy.h"
+#include "Vehicles/Humvee/Humvee.h"
+#include "Vehicles/Truck/Truck.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/DFWeapon.h"
@@ -69,6 +74,29 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 		FireRate = FCString::Atof(*Rate);
 	}
 	FireRate = FMath::Clamp(FireRate, 0.1f, 20.f);
+	if (const FString Banned = UGameplayStatics::ParseOption(Options, TEXT("NoWeapons")); !Banned.IsEmpty())
+	{
+		Banned.ParseIntoArray(NoWeapons, TEXT(","));
+	}
+	if (UGameplayStatics::HasOption(Options, TEXT("AllVehicles")))
+	{
+		AllVehicles = UGameplayStatics::ParseOption(Options, TEXT("AllVehicles"));
+	}
+	if (UGameplayStatics::GetIntOption(Options, TEXT("LowGrav"), 0) != 0)
+	{
+		Gravity = 200.f / 950.f;
+	}
+	if (const FString G = UGameplayStatics::ParseOption(Options, TEXT("Gravity")); !G.IsEmpty())
+	{
+		Gravity = FCString::Atof(*G);
+	}
+	if (Gravity != 1.f)
+	{
+		// AWorldSettings::WorldGravityZ is replicated: clients fall the same
+		AWorldSettings* WS = GetWorldSettings();
+		WS->WorldGravityZ = UPhysicsSettings::Get()->DefaultGravityZ * FMath::Clamp(Gravity, 0.f, 10.f);
+		WS->bWorldGravitySet = true;
+	}
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 	{
@@ -87,6 +115,14 @@ void ADFGameMode::InitGameState()
 		GS->bParachutes = bParachutes;
 		GS->FireRate = FireRate;
 		GS->bInfiniteAmmo = bInfiniteAmmo;
+		for (const FString& Name : NoWeapons)
+		{
+			UClass* C = UClass::TryFindTypeSlow<UClass>(Name.TrimStartAndEnd());
+			if (C && C->IsChildOf<ADFWeapon>())
+			{
+				GS->BannedItems.Add(C);
+			}
+		}
 		GS->FragLimit = FragLimit;
 		GS->TimeLimit = TimeLimit;
 		GS->TimeLimitSeconds = TimeLimitSeconds;
@@ -132,6 +168,11 @@ void ADFGameMode::PostLogin(APlayerController* NewPlayer)
 void ADFGameMode::HandleMatchHasStarted()
 {
 	Super::HandleMatchHasStarted();
+	if (ServerMessages.Num() && ServerMessageInterval > 0.f)
+	{
+		FTimerHandle T;
+		GetWorldTimerManager().SetTimer(T, this, &ADFGameMode::SayServerMessages, ServerMessageInterval, true);
+	}
 	AddBots(BotCount);
 	AMineGenerator::SpawnAll(GetWorld());   // mapped minefields / river splashes (mineGenerator.u)
 	SpawnPlacedBots();
@@ -394,8 +435,75 @@ bool ADFGameMode::CanUseLoadout(ADFCharacter* Character) const
 	return UDFLoadoutLibrary::FindLoadoutSourceFor(Character) != nullptr;
 }
 
+void ADFGameMode::RestartGame()
+{
+	if (!TravelToNextMap())
+	{
+		Super::RestartGame();
+	}
+}
+
+bool ADFGameMode::TravelToNextMap()
+{
+	// the position travels in the URL (?Rotation=i); a server started on any map begins at the top
+	const int32 Here = UGameplayStatics::GetIntOption(OptionsString, TEXT("Rotation"), INDEX_NONE);
+	for (int32 Step = 1; Step <= MapRotation.Num(); ++Step)
+	{
+		const int32 Index = (Here + Step) % MapRotation.Num();
+		TArray<FString> Parts;
+		MapRotation[Index].ParseIntoArray(Parts, TEXT("?"));
+		if (Parts.IsEmpty())
+		{
+			continue;
+		}
+		const FString Entry = TEXT("?") + FString::Join(TArrayView<FString>(Parts).RightChop(1), TEXT("?"));
+		FString URL = VoteMapURL(Parts[0], UGameplayStatics::ParseOption(Entry, TEXT("game")));
+		if (URL.IsEmpty())
+		{
+			UE_LOG(LogDF, Warning, TEXT("MapRotation: %s isn't here, skipped"), *MapRotation[Index]);
+			continue;
+		}
+		TArray<FString> Options;
+		(Entry + OptionsString).ParseIntoArray(Options, TEXT("?"));
+		TSet<FString> Keys = { TEXT("game"), TEXT("Rotation"), TEXT("Part"), TEXT("FirstCaptureTime") };
+		for (const FString& Option : Options)
+		{
+			FString Key = Option;
+			Option.Split(TEXT("="), &Key, nullptr);
+			if (!Keys.Contains(Key))   // the entry's own options first, then the server's
+			{
+				Keys.Add(Key);
+				URL += TEXT("?") + Option;
+			}
+		}
+		GetWorld()->ServerTravel(FString::Printf(TEXT("%s?Rotation=%d"), *URL, Index), false);
+		return true;
+	}
+	return false;
+}
+
+void ADFGameMode::SayServerMessages()
+{
+	for (int32 I = 0; I < FMath::Max(1, ServerMessageGroup); ++I)
+	{
+		Broadcast(this, ServerMessages[NextServerMessage % ServerMessages.Num()]);
+		NextServerMessage = (NextServerMessage + 1) % ServerMessages.Num();
+	}
+}
+
 UClass* ADFGameMode::GetVehicleClassFor(UClass* StockClass) const
 {
+	if (!AllVehicles.IsEmpty() && StockClass && (StockClass->IsChildOf<ABuggy>() || StockClass->IsChildOf<AHumvee>()
+		|| StockClass->IsChildOf<ATruck>() || StockClass->IsChildOf<AArmadillo>()))
+	{
+		UClass* const Road[] = { ABuggy::StaticClass(), AHumvee::StaticClass(), ATruck::StaticClass(), AArmadillo::StaticClass() };
+		UClass* To = AllVehicles.Equals(TEXT("Random"), ESearchCase::IgnoreCase)
+			? Road[FMath::RandRange(0, UE_ARRAY_COUNT(Road) - 1)] : UClass::TryFindTypeSlow<UClass>(AllVehicles);
+		if (To && To->IsChildOf<ADFVehicle>())
+		{
+			StockClass = To;
+		}
+	}
 	if (ArmedAPC > 0 && StockClass && StockClass->GetName() == TEXT("Armadillo"))
 	{
 		const TCHAR* Path = ArmedAPC >= 2 ? TEXT("/Script/DesktopForces.ArmedAPCRocket") : TEXT("/Script/DesktopForces.ArmedAPC");

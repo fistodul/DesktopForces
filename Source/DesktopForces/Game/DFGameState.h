@@ -80,6 +80,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	TArray<int32> AllowedItemGroups;
 
+	/** Kept out of loadouts, subclasses too (ADFGameMode::NoWeapons). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	TArray<TSubclassOf<class ADFWeapon>> BannedItems;
+
 	bool IsItemAllowed(TSubclassOf<class ADFWeapon> Item) const;
 
 	/** Parachutes for everyone (the servers' mutPack: hold Jump while falling). */

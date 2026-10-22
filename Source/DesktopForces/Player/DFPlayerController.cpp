@@ -1414,6 +1414,7 @@ void ADFPlayerController::ClientTeamMessage_Implementation(APlayerState* SenderP
 	if (ADFHUD* HUD = GetHUD<ADFHUD>())
 	{
 		const FString Line = SenderPlayerState ? FString::Printf(TEXT("%s: %s"), *SenderPlayerState->GetPlayerName(), *S) : S;
+		UE_LOG(LogDF, Log, TEXT("Message: %s"), *Line);
 		// MF: team chat in the team colour, everything else white
 		const ADFPlayerState* PS = Cast<ADFPlayerState>(SenderPlayerState);
 		FLinearColor Col = Type == TEXT("TeamSay") && PS && PS->HasTeam() ? UDFGameSettings::Get().GetTeamColor(PS->GetTeam()) : FLinearColor::White;

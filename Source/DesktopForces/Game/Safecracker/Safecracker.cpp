@@ -358,7 +358,10 @@ void ASafecracker::RestartGame()
 		GetWorld()->ServerTravel(FString::Printf(TEXT("%s%s?Part=2?FirstCaptureTime=%d"), *Map, *Opts, FirstCaptureTime), false);
 		return;
 	}
-	GetWorld()->ServerTravel(Map + Opts, false);
+	if (!TravelToNextMap())
+	{
+		GetWorld()->ServerTravel(Map + Opts, false);
+	}
 }
 
 FString ASafecracker::GetOrderString(int32 Order) const

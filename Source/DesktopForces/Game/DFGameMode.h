@@ -46,6 +46,8 @@ public:
 	/** The mapper's placed RageBots (ADFBotSpot) come alive. */
 	void SpawnPlacedBots();
 	virtual void HandleMatchHasEnded() override;
+	/** The next map of MapRotation, else the same one again. */
+	virtual void RestartGame() override;
 
 	/** Damage modifiers (hardcore x1.5, friendly fire). */
 	virtual float ModifyDamage(float Damage, ADFCharacter* Victim, AController* Instigator, AActor* DamageCauser = nullptr) const;
@@ -219,6 +221,28 @@ public:
 	bool bInfiniteAmmo = false;
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	float OPFireRate = 4.f;
+	/** Weapons loadouts don't hand out, by class name, their subclasses too
+	 *  (?NoWeapons=Grenades,RocketLauncher; the FNG mutators NoGrenades, NoRocketLauncher ...). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	TArray<FString> NoWeapons;
+
+	/** Every road vehicle generator (buggy, humvee, truck, APC) makes this vehicle instead, by
+	 *  class name; Random: one of the four each time (?AllVehicles=Buggy; FNG AllBuggys ...
+	 *  AllRandom). The trailer cab stays. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
+	FString AllVehicles;
+	/** World gravity times this (?Gravity=0.5; ?LowGrav=1: FNG LowGrav, 200 of MF's 950 uu/s^2). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
+	float Gravity = 1.f;
+
+	/** What the server tells everyone every ServerMessageInterval seconds, ServerMessageGroup
+	 *  lines at a time in turn (FNG ServerAds; Game.ini +ServerMessages=...). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Server")
+	TArray<FString> ServerMessages;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Server")
+	float ServerMessageInterval = 600.f;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Server")
+	int32 ServerMessageGroup = 1;
 
 	/** MF-mods jeeps (gunner seat) from the truck generators instead of trucks (?Jeeps=1). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
@@ -239,6 +263,15 @@ public:
 	/** Seconds on the end screen before the map restarts (MF RestartWait). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	int32 RestartWait = 15;
+
+	/** Maps played in turn after a match, each a travel URL ("mf-Sawmill?game=det?TimeLimit=10");
+	 *  empty: the map restarts. MF's MapList (the community servers turn it on with FNG
+	 *  EnableRotation). Maps not converted here are skipped. Game.ini +MapRotation=... */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Server")
+	TArray<FString> MapRotation;
+	/** Travel to the map after this one in MapRotation (this server's own options, e.g. listen
+	 *  and Bots, carried along); false if there is none. */
+	bool TravelToNextMap();
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	float FriendlyFireScale = 0.f;
@@ -278,6 +311,8 @@ protected:
 	TMap<TWeakObjectPtr<APlayerController>, bool> VoteBallots;
 	FTimerHandle VoteTimer;
 	float VoteRecentlyEndedUntil = 0.f;
+	void SayServerMessages();
+	int32 NextServerMessage = 0;
 	void CountVotes();
 	void EndVote(bool bPassed);
 	void RunVote(const FString& Command);

@@ -21,6 +21,7 @@ void ADFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ADFGameState, bParachutes);
 	DOREPLIFETIME(ADFGameState, FireRate);
 	DOREPLIFETIME(ADFGameState, bInfiniteAmmo);
+	DOREPLIFETIME(ADFGameState, BannedItems);
 	DOREPLIFETIME(ADFGameState, AllowedItemGroups);
 	DOREPLIFETIME(ADFGameState, FragLimit);
 	DOREPLIFETIME(ADFGameState, TimeLimit);
@@ -61,7 +62,11 @@ FText ADFGameState::GetTeamName(uint8 Team) const
 
 bool ADFGameState::IsItemAllowed(TSubclassOf<ADFWeapon> Item) const
 {
-	return AllowedItemGroups.Num() == 0 || (Item && AllowedItemGroups.Contains(Item->GetDefaultObject<ADFWeapon>()->InventoryGroup));
+	if (!Item || BannedItems.ContainsByPredicate([Item](const TSubclassOf<ADFWeapon>& B) { return B && Item->IsChildOf(B); }))
+	{
+		return false;
+	}
+	return AllowedItemGroups.Num() == 0 || AllowedItemGroups.Contains(Item->GetDefaultObject<ADFWeapon>()->InventoryGroup);
 }
 
 void ADFGameState::OnRep_CheatsAllowed()
