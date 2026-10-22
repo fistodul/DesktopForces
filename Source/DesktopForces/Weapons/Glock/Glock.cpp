@@ -13,7 +13,7 @@ AGlock::AGlock()
 	ArmsOffset = FVector(0.2f, -0.8f, -2.2f);
 	RequiredContent = TEXT("Props/glock/glockPickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/glock/Skins/glockimage.glockimage"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/glock/Skins/glockimage");
 	HUDIconRect = FIntRect(0, 193, 120, 271);   // WeaponIcon X=0 Y=193 W=120 H=78
 	DisplayName = LOCTEXT("Glock", "Glock 18");
 	InventoryGroup = 2;

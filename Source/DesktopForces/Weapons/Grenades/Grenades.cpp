@@ -95,7 +95,7 @@ void AGrenades::Throw(bool bAlt, float Power)
 	{
 		return;
 	}
-	ClipAmmo -= 1;
+	UseAmmo();
 	SetState(EDFWeaponState::Firing, FireTime);
 	if (HasAuthority())
 	{

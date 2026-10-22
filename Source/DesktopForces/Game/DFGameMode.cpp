@@ -58,6 +58,17 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	bHelis = UGameplayStatics::GetIntOption(Options, TEXT("Helis"), bHelis ? 1 : 0) != 0;
 	bAddVehicles = UGameplayStatics::GetIntOption(Options, TEXT("AddVehicles"), bAddVehicles ? 1 : 0) != 0;
 	bTurboCars = UGameplayStatics::GetIntOption(Options, TEXT("TurboCars"), bTurboCars ? 1 : 0) != 0;
+	if (UGameplayStatics::GetIntOption(Options, TEXT("OPWeapons"), 0) != 0)
+	{
+		FireRate = OPFireRate;
+		bInfiniteAmmo = true;
+	}
+	bInfiniteAmmo = UGameplayStatics::GetIntOption(Options, TEXT("InfiniteAmmo"), bInfiniteAmmo ? 1 : 0) != 0;
+	if (const FString Rate = UGameplayStatics::ParseOption(Options, TEXT("FireRate")); !Rate.IsEmpty())
+	{
+		FireRate = FCString::Atof(*Rate);
+	}
+	FireRate = FMath::Clamp(FireRate, 0.1f, 20.f);
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 	{
@@ -74,6 +85,8 @@ void ADFGameMode::InitGameState()
 		GS->TeamScores.Init(0, NumTeams);
 		GS->bCheatsAllowed = bAllowCheats;
 		GS->bParachutes = bParachutes;
+		GS->FireRate = FireRate;
+		GS->bInfiniteAmmo = bInfiniteAmmo;
 		GS->FragLimit = FragLimit;
 		GS->TimeLimit = TimeLimit;
 		GS->TimeLimitSeconds = TimeLimitSeconds;

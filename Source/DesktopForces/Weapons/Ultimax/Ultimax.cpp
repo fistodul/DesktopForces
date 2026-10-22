@@ -13,7 +13,7 @@ AUltimax::AUltimax()
 	ArmsOffset = FVector(3.2f, -1.7f, -2.7f);
 	RequiredContent = TEXT("Props/ultimax/UltimaxPickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/ultimax/Skins/Ultimaximage.Ultimaximage"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/ultimax/Skins/Ultimaximage");
 	HUDIconRect = FIntRect(0, 165, 250, 235);   // WeaponIcon X=0 Y=165 W=250 H=70
 	DisplayName = LOCTEXT("Ultimax", "Ultimax 100");
 	InventoryGroup = 6;

@@ -17,7 +17,7 @@ AM18::AM18()
 	ArmsOffset = FVector(-1.6f, -2.9f, -3.5f);
 	RequiredContent = TEXT("Props/M18/M18PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/M18/Skins/M18image.M18image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/M18/Skins/M18image");
 	HUDIconRect = FIntRect(0, 168, 126, 232);   // WeaponIcon X=0 Y=168 W=126 H=64
 	DisplayName = LOCTEXT("M18", "M18 Smoke");
 	ProjectileClass = ASmokeGrenade::StaticClass();

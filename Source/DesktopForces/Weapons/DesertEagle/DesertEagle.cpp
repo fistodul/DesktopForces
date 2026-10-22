@@ -13,7 +13,7 @@ ADesertEagle::ADesertEagle()
 	ArmsOffset = FVector(1.f, -1.4f, -2.4f);
 	RequiredContent = TEXT("Props/desert/DesertPickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/desert/Skins/Desertimage.Desertimage"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/desert/Skins/Desertimage");
 	HUDIconRect = FIntRect(0, 178, 120, 256);   // WeaponIcon X=0 Y=178 W=120 H=78
 	DisplayName = LOCTEXT("DesertEagle", "Desert Eagle");
 	InventoryGroup = 2;

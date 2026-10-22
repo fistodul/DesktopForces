@@ -13,7 +13,7 @@ AFamas::AFamas()
 	ArmsOffset = FVector(3.f, -1.25f, -2.5f);
 	RequiredContent = TEXT("Props/famas/FamasPickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/famas/Skins/Famasimage.Famasimage"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/famas/Skins/Famasimage");
 	HUDIconRect = FIntRect(0, 194, 120, 272);   // WeaponIcon X=0 Y=194 W=120 H=78
 	DisplayName = LOCTEXT("Famas", "FAMAS");
 	InventoryGroup = 3;

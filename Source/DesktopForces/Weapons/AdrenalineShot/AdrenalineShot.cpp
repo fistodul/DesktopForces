@@ -55,7 +55,7 @@ bool AAdrenalineShot::TryFire(bool bAlt)
 		return false;
 	}
 	SetState(EDFWeaponState::Firing, FireTime);
-	ClipAmmo -= 1;
+	UseAmmo();
 	if (HasAuthority())
 	{
 		Target->Heal(Target->MaxHealth);

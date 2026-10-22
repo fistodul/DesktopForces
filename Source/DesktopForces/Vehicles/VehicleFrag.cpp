@@ -42,11 +42,27 @@ void AVehicleFrag::BeginPlay()
 {
 	Super::BeginPlay();
 	// PreBeginPlay: a random mesh, RandSpin(125000), LifeSpan 10 + FRand() * 7
-	DF::ApplyPropMesh(Mesh, *FString::Printf(TEXT("RageEffects/carfrag%02d"), FMath::RandRange(1, 9)));
+	PickMesh();
 	const float Rate = 687.f;   // 125000 UE1 units / s in degrees
 	Spin->RotationRate = FRotator(FMath::FRandRange(-Rate, Rate), FMath::FRandRange(-Rate, Rate), FMath::FRandRange(-Rate, Rate));
 	SetLifeSpan(10.f + FMath::FRand() * 7.f);
 	Movement->OnProjectileBounce.AddDynamic(this, &AVehicleFrag::OnBounce);
+}
+
+void AVehicleFrag::PickMesh()
+{
+	DF::ApplyPropMesh(Mesh, *FString::Printf(TEXT("RageEffects/carfrag%02d"), FMath::RandRange(1, 9)));
+}
+
+void AVehicleFrag::PlayHitSound(float Speed)
+{
+	if (Speed > 60.f)
+	{
+		static const TCHAR* Hits[] = { TEXT("Sounds/VehicleFragSFX/FragHit1"), TEXT("Sounds/VehicleFragSFX/FragHit2"), TEXT("Sounds/VehicleFragSFX/FragHit3") };
+		const float S = FMath::Min(Speed, 260.f) - 60.f;
+		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(Hits[FMath::RandRange(0, 2)]), GetActorLocation(),
+			0.3f * S / 200.f + 0.2f + FMath::FRand() * 0.2f, 1000.f, 1.f + FMath::FRand() * 0.1f);
+	}
 }
 
 void AVehicleFrag::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity)
@@ -61,14 +77,7 @@ void AVehicleFrag::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity
 		SetActorRotation(FRotator(0.f, FMath::FRand() * 360.f, 0.f));
 		return;
 	}
-	const float Speed = V.Size() / 2.25f;   // uu / s
-	if (Speed > 60.f)
-	{
-		static const TCHAR* Hits[] = { TEXT("Sounds/VehicleFragSFX/FragHit1"), TEXT("Sounds/VehicleFragSFX/FragHit2"), TEXT("Sounds/VehicleFragSFX/FragHit3") };
-		const float S = FMath::Min(Speed, 260.f) - 60.f;
-		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(Hits[FMath::RandRange(0, 2)]), GetActorLocation(),
-			0.3f * S / 200.f + 0.2f + FMath::FRand() * 0.2f, 1000.f, 1.f + FMath::FRand() * 0.1f);
-	}
+	PlayHitSound(V.Size() / 2.25f);   // uu / s
 }
 
 void AVehicleFrag::Burst(UWorld* World, const FVector& Location)

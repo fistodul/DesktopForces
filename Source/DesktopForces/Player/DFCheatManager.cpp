@@ -146,7 +146,7 @@ void UDFCheatManager::DFHurtEnemies(int32 N)
 	}
 }
 
-void UDFCheatManager::DFFire(int32 Alt)
+void UDFCheatManager::DFFire(int32 Alt, float Seconds)
 {
 	if (ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn()))
 	{
@@ -160,7 +160,7 @@ void UDFCheatManager::DFFire(int32 Alt)
 			{
 				Weak->StopFire(bAlt);
 			}
-		}), 0.1f, false);
+		}), FMath::Max(Seconds, 0.05f), false);
 	}
 }
 
@@ -554,6 +554,29 @@ void UDFCheatManager::DFAimAt(float X, float Y, float Z)
 	}
 	PC->SetControlRotation((FVector(X, Y, Z) - From).Rotation());
 	UE_LOG(LogDF, Display, TEXT("DFAimAt %s from %s"), *PC->GetControlRotation().ToCompactString(), *From.ToCompactString());
+}
+
+void UDFCheatManager::DFAimAtNearest(const FString& ClassName)
+{
+	const APawn* P = GetPlayerController()->GetPawn();
+	const AActor* Best = nullptr;
+	for (TActorIterator<AActor> It(GetWorld()); P && It; ++It)
+	{
+		bool bMatch = false;
+		for (const UClass* C = It->GetClass(); C && !bMatch; C = C->GetSuperClass())
+		{
+			bMatch = C->GetName() == ClassName;
+		}
+		if (bMatch && *It != P && (!Best || FVector::DistSquared(It->GetActorLocation(), P->GetActorLocation()) < FVector::DistSquared(Best->GetActorLocation(), P->GetActorLocation())))
+		{
+			Best = *It;
+		}
+	}
+	if (Best)
+	{
+		const FVector At = Best->GetActorLocation();
+		DFAimAt(At.X, At.Y, At.Z);
+	}
 }
 
 void UDFCheatManager::DFOrder(int32 Order)

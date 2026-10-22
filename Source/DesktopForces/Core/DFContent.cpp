@@ -14,11 +14,6 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWave.h"
 
-FString DF::ClassicPath(const FString& Rel)
-{
-	return FString::Printf(TEXT("%s/%s.%s"), ClassicRoot, *Rel, *FPaths::GetBaseFilename(Rel));
-}
-
 UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel)
 {
 	// which root has it is worked out once: asking for a package that isn't there costs a
@@ -29,10 +24,21 @@ UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel)
 	{
 		return Path->IsEmpty() ? nullptr : StaticLoadObject(Class, nullptr, **Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	}
-	const FString Name = FPaths::GetBaseFilename(Rel);
-	for (const TCHAR* Root : ContentRoots)
+	TArray<FString, TInlineAllocator<UE_ARRAY_COUNT(ContentRoots)>> Packages;
+	if (Rel.StartsWith(TEXT("/")))
 	{
-		const FString Package = FString::Printf(TEXT("%s/%s"), Root, *Rel);
+		Packages.Add(Rel);   // a package path
+	}
+	else
+	{
+		for (const TCHAR* Root : ContentRoots)
+		{
+			Packages.Add(FString(Root) / Rel);
+		}
+	}
+	const FString Name = FPaths::GetBaseFilename(Rel);
+	for (const FString& Package : Packages)
+	{
 		if (!FPackageName::DoesPackageExist(Package))
 		{
 			continue;

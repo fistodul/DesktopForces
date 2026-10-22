@@ -13,7 +13,7 @@ AM87::AM87()
 	ArmsOffset = FVector(-5.3f, -2.f, -4.2f);
 	RequiredContent = TEXT("Props/m87/M87PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/m87/Skins/M87image.M87image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/m87/Skins/M87image");
 	HUDIconRect = FIntRect(0, 196, 128, 266);   // WeaponIcon X=0 Y=196 W=128 H=70
 	DisplayName = LOCTEXT("M87", "M1887");
 	InventoryGroup = 4;

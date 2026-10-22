@@ -115,7 +115,7 @@ void AHeavyMachineGun::SpinTick()
 		while (ShotAccumulator >= 1.f && HasAmmoInClip())
 		{
 			ShotAccumulator -= 1.f;
-			ClipAmmo -= 1;
+			UseAmmo();
 			if (HasAuthority())
 			{
 				++BurstCounter;

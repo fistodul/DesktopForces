@@ -13,7 +13,7 @@ AM24::AM24()
 	ArmsOffset = FVector(-7.3f, -0.9f, -2.3f);
 	RequiredContent = TEXT("Props/M24/M24PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/M24/Skins/M24image.M24image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/M24/Skins/M24image");
 	HUDIconRect = FIntRect(0, 196, 128, 266);   // WeaponIcon X=0 Y=196 W=128 H=70
 	DisplayName = LOCTEXT("M24", "M24");
 	InventoryGroup = 5;

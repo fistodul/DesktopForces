@@ -13,7 +13,7 @@ AWA2000::AWA2000()
 	ArmsOffset = FVector(1.f, 0.5f, -3.5f);
 	RequiredContent = TEXT("Props/wa2000/wa2000PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/wa2000/Skins/wa2000image.wa2000image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/wa2000/Skins/wa2000image");
 	HUDIconRect = FIntRect(0, 6, 128, 75);   // WeaponIcon X=0 Y=6 W=128 H=69
 	DisplayName = LOCTEXT("WA2000", "WA 2000");
 	InventoryGroup = 5;

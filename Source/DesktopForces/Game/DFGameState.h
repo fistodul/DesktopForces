@@ -86,6 +86,12 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	bool bParachutes = true;
 
+	/** ADFGameMode::FireRate / bInfiniteAmmo (?FireRate, ?InfiniteAmmo, ?OPWeapons). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	float FireRate = 1.f;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	bool bInfiniteAmmo = false;
+
 	/** Cheats for everyone on this server (?Cheats=1, ADFGameMode::bAllowCheats). */
 	UPROPERTY(ReplicatedUsing = OnRep_CheatsAllowed, BlueprintReadOnly, Category = "DF")
 	bool bCheatsAllowed = false;

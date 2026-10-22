@@ -13,7 +13,7 @@ AMAC10::AMAC10()
 	ArmsOffset = FVector(-3.f, 0.5f, -5.5f);
 	RequiredContent = TEXT("Props/MAC10/MAC10PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/MAC10/Skins/MAC10image.MAC10image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/MAC10/Skins/MAC10image");
 	HUDIconRect = FIntRect(0, 162, 120, 240);   // WeaponIcon X=0 Y=162 W=120 H=78
 	DisplayName = LOCTEXT("MAC10", "MAC-10");
 	InventoryGroup = 2;

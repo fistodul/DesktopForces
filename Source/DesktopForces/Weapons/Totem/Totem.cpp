@@ -101,7 +101,7 @@ ATotem::ATotem()
 	PutDownTime = 0.f;
 	RecoilPower = 0.f;
 	// Icon converted from the mod's own art (SourceArt/Mods/Icons/TotemIcon.bmp)
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MF/Mods/Icons/TotemIcon.TotemIcon")));
+	HUDIcon = TEXT("/Game/MF/Mods/Icons/TotemIcon");
 	HUDIconRect = FIntRect(0, 0, 64, 64);
 }
 
@@ -126,7 +126,7 @@ void ATotem::Message(const FString& Text) const
 
 void ATotem::UseCharge()
 {
-	ClipAmmo = FMath::Max(0, ClipAmmo - 1);
+	UseAmmo();
 	// Finish() hands the empty item back (bDestroyWhenEmpty -> OnDepleted)
 }
 

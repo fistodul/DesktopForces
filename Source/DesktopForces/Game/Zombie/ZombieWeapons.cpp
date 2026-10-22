@@ -76,7 +76,7 @@ bool AZombieShot::TryFire(bool bAlt)
 				if (GM->Inject(Me, Target))
 				{
 					SetState(EDFWeaponState::Firing, FireTime);
-					ClipAmmo -= 1;
+					UseAmmo();
 				}
 				return true;
 			}

@@ -132,6 +132,8 @@ public:
 	int32 GetTotalAmmo() const { return TotalAmmo; }
 	int32 GetAmmoCount() const { return ClipAmmo + TotalAmmo; }
 	bool HasAmmoInClip() const { return ClipAmmo > 0; }
+	/** Take Count from the clip (nothing with ?InfiniteAmmo). */
+	void UseAmmo(int32 Count = 1);
 	bool CanReload() const { return TotalAmmo > 0 && ClipAmmo < MaxClipAmmo; }
 	bool HasAnyAmmo() const { return GetAmmoCount() > 0; }
 	/** Uses ammo and has none left (ammo-less items - armour, the knife in hand - never are). */
@@ -265,9 +267,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicSelectSound;
 
-	/** HUD / loadout icon: texture + pixel rect inside it (MF RageWeapon.WeaponIcon TexRect). */
+	/** HUD / loadout icon: texture + pixel rect inside it (MF RageWeapon.WeaponIcon TexRect). The
+	 *  texture as DF::LoadClassic takes it: "Textures/<Package>/<Group>/<Name>" from whichever pack
+	 *  has it, or a package path ("/Game/MF/Mods/Icons/MolotovIcon"). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
-	TSoftObjectPtr<UTexture2D> HUDIcon;
+	FString HUDIcon;
 
 	/** X, Y, W, H in texture pixels. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")

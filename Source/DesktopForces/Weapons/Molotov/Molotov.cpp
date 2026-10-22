@@ -117,7 +117,7 @@ AMolotov::AMolotov()
 	ProjectileClass = AMolotovBottle::StaticClass();
 	AltProjectileClass = AMolotovImpact::StaticClass();
 	// Icon converted from the mod's own art (SourceArt/Mods/Icons/MolotovIcon.bmp)
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MF/Mods/Icons/MolotovIcon.MolotovIcon")));
+	HUDIcon = TEXT("/Game/MF/Mods/Icons/MolotovIcon");
 	HUDIconRect = FIntRect(0, 0, 64, 64);
 }
 

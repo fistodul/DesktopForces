@@ -13,7 +13,7 @@ AAK74::AAK74()
 	ArmsOffset = FVector(-3.4f, -0.7f, -2.f);
 	RequiredContent = TEXT("Props/AK74/AK74PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/AK74/Skins/AK74image.AK74image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/AK74/Skins/AK74image");
 	HUDIconRect = FIntRect(0, 194, 120, 272);   // WeaponIcon X=0 Y=194 W=120 H=78
 	DisplayName = LOCTEXT("AK74", "AK-74");
 	InventoryGroup = 3;

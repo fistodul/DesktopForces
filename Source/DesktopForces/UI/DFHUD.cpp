@@ -1,4 +1,5 @@
 #include "UI/DFHUD.h"
+#include "Core/DFContent.h"
 #include "Core/DFUserSettings.h"
 #include "World/DFMapActors.h"
 #include "Game/CTF/Flag.h"
@@ -139,9 +140,9 @@ float ADFHUD::DrawWeaponIcon(const ADFWeapon* Weapon, float X, float Y, float He
 		return 0.f;
 	}
 	TObjectPtr<UTexture2D>& Tex = IconCache.FindOrAdd(Weapon->GetClass());
-	if (!Tex && !Weapon->HUDIcon.IsNull())
+	if (!Tex && !Weapon->HUDIcon.IsEmpty())
 	{
-		Tex = Weapon->HUDIcon.LoadSynchronous();
+		Tex = DF::LoadClassic<UTexture2D>(Weapon->HUDIcon);
 	}
 	if (!Tex)
 	{
@@ -1095,9 +1096,9 @@ void ADFHUD::DrawWeapIconMF(const ADFWeapon* W, float X, float Y, int32 Set, con
 	}
 	// weapon picture: native width x RenderScale, block high, centred (grey when no room)
 	TObjectPtr<UTexture2D>& Icon = IconCache.FindOrAdd(W->GetClass());
-	if (!Icon && !W->HUDIcon.IsNull())
+	if (!Icon && !W->HUDIcon.IsEmpty())
 	{
-		Icon = W->HUDIcon.LoadSynchronous();
+		Icon = DF::LoadClassic<UTexture2D>(W->HUDIcon);
 	}
 	if (Icon)
 	{

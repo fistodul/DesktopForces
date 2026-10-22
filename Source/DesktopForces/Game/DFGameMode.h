@@ -210,6 +210,16 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bTurboCars = true;
 
+	/** Shots come this many times as fast (?FireRate=4). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	float FireRate = 1.f;
+	/** Clips never run dry (?InfiniteAmmo=1). Gregaras' OPWeapons, simplified: ?OPWeapons=1 is
+	 *  both, at OPFireRate (MF: clips of hundreds, fire animations played 10-50 times as fast). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	bool bInfiniteAmmo = false;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	float OPFireRate = 4.f;
+
 	/** MF-mods jeeps (gunner seat) from the truck generators instead of trucks (?Jeeps=1). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bJeeps = false;

@@ -13,7 +13,7 @@ AM4A1::AM4A1()
 	ArmsOffset = FVector(-4.8f, -1.8f, -2.8f);
 	RequiredContent = TEXT("Props/m4a1/M4A1PickupCarryMesh");
 	bAddToLoadout = true;
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(FString::Printf(TEXT("%s/Textures/m4a1/Skins/M4A1image.M4A1image"), DF::UnverifiedRoot)));
+	HUDIcon = TEXT("Textures/m4a1/Skins/M4A1image");
 	HUDIconRect = FIntRect(0, 203, 120, 263);   // WeaponIcon X=0 Y=203 W=120 H=60
 	DisplayName = LOCTEXT("M4A1", "M4A1");
 	InventoryGroup = 3;

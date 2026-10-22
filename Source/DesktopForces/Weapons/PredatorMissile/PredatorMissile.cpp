@@ -226,7 +226,7 @@ APredatorMissile::APredatorMissile()
 	DisplayName = LOCTEXT("Predator", "Predator Missile");
 	ViewMesh = TEXT("RageWeapons/TripBombsPickupCarryMesh");   // PickupViewMesh
 	ArmsMesh.Reset();   // no arms of its own: the carry model stays in hand
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(DF::ClassicPath(TEXT("Textures/PredatorMissile/Icons/PredatorIcon"))));
+	HUDIcon = TEXT("Textures/PredatorMissile/Icons/PredatorIcon");
 	HUDIconRect = FIntRect(0, 0, 128, 64);   // WeaponIcon W=128 H=64
 	bAddToLoadout = true;
 	InventoryGroup = 11;

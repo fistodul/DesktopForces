@@ -270,7 +270,7 @@ ASeekerMines::ASeekerMines()
 	AltProjectileClass = ASeekerMineThrown::StaticClass();
 	bAddToLoadout = true;
 	// Icon converted from the mod's own art (SourceArt/Mods/Icons/SeekerMineIcon.bmp)
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MF/Mods/Icons/SeekerMineIcon.SeekerMineIcon")));
+	HUDIcon = TEXT("/Game/MF/Mods/Icons/SeekerMineIcon");
 	HUDIconRect = FIntRect(0, 0, 64, 64);
 }
 

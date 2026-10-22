@@ -36,6 +36,10 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	/** The chunk's look: one of the carfrag meshes (other debris overrides it). */
+	virtual void PickMesh();
+	/** The knock on a bounce at Speed (uu/s): metal clanks. */
+	virtual void PlayHitSound(float Speed);
 
 	UFUNCTION()
 	void OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity);

@@ -143,7 +143,7 @@ ATripLasers::ATripLasers()
 	AltProjectileClass = ATripLaserMine::StaticClass();
 	bAddToLoadout = true;
 	// Icon converted from the mod's own art (SourceArt/Mods/Icons/TripLaserIcon.bmp)
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MF/Mods/Icons/TripLaserIcon.TripLaserIcon")));
+	HUDIcon = TEXT("/Game/MF/Mods/Icons/TripLaserIcon");
 	HUDIconRect = FIntRect(0, 0, 64, 64);
 }
 

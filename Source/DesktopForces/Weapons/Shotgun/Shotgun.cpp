@@ -84,7 +84,7 @@ void AShotgun::FireAfterWindow()
 void AShotgun::FireShot(bool bAlt)
 {
 	const int32 Barrels = bTwin ? 2 : 1;
-	ClipAmmo = FMath::Max(0, ClipAmmo - Barrels);
+	UseAmmo(Barrels);
 	bLastShotAlt = bAlt;
 	if (HasAuthority())
 	{

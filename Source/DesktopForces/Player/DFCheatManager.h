@@ -71,9 +71,9 @@ public:
 	/** Developer: N damage from you to every enemy (mode rules apply: Tug converts, Totem saves). */
 	UFUNCTION(Exec)
 	void DFHurtEnemies(int32 N);
-	/** Developer: press and release fire once (scripted tests); DFFire 1 = alt fire. */
+	/** Developer: hold fire for Seconds (scripted tests); DFFire 1 = alt fire. */
 	UFUNCTION(Exec)
-	void DFFire(int32 Alt = 0);
+	void DFFire(int32 Alt = 0, float Seconds = 0.1f);
 
 	/**
 	 * Developer: hold movement input for Seconds facing Yaw (Forward/Right -1..1), logging the
@@ -92,6 +92,9 @@ public:
 	void DFOrder(int32 Order);
 	UFUNCTION(Exec)
 	void DFAimAt(float X, float Y, float Z);
+	/** Turn to the nearest actor whose class is called ClassName (or derives from it). */
+	UFUNCTION(Exec)
+	void DFAimAtNearest(const FString& ClassName);
 
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)

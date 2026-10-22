@@ -1,4 +1,5 @@
 #include "Weapons/DFWeapon.h"
+#include "Game/DFGameState.h"
 #include "Player/DFSoldierAnimInstance.h"
 #include "Core/DFMeshScaleData.h"
 #include "Engine/SkeletalMesh.h"
@@ -63,7 +64,7 @@ ADFWeapon::ADFWeapon()
 	DamageType = UDFDamage_Bullet::StaticClass();
 	HeadshotDamageType = UDFDamage_Headshot::StaticClass();
 	// MF's shared icon sheet (converted by Tools/mfport); each weapon sets its rect
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/MobileForcesClassic/Textures/RageWeapons/WeaponIcons.WeaponIcons")));
+	HUDIcon = TEXT("Textures/RageWeapons/WeaponIcons");
 	SetActorHiddenInGame(true);
 }
 
@@ -241,8 +242,24 @@ void ADFWeapon::PlaySoundLocal(USoundBase* Sound) const
 
 // --- state machine -------------------------------------------------------------------
 
+void ADFWeapon::UseAmmo(int32 Count)
+{
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	if (!GS || !GS->bInfiniteAmmo)
+	{
+		ClipAmmo = FMath::Max(0, ClipAmmo - Count);
+	}
+}
+
 void ADFWeapon::SetState(EDFWeaponState NewState, float Duration)
 {
+	if (NewState == EDFWeaponState::Firing)
+	{
+		if (const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>())
+		{
+			Duration /= GS->FireRate;   // ?FireRate
+		}
+	}
 	State = NewState;
 	if (Arms && NewState != EDFWeaponState::Firing && NewState != EDFWeaponState::Inactive && IsLocallyControlled())
 	{
@@ -470,7 +487,7 @@ void ADFWeapon::OnRep_ZoomLevel(uint8 OldZoom)
 
 void ADFWeapon::FireShot(bool bAlt)
 {
-	ClipAmmo = FMath::Max(0, ClipAmmo - 1);
+	UseAmmo();
 	bLastShotAlt = bAlt;
 
 	if (HasAuthority())

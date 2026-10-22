@@ -19,14 +19,12 @@ namespace DF
 	 *  content, the classic plugin, the unverified plugin (packs.toml decides which). */
 	inline const TCHAR* ContentRoots[] = { TEXT("/Game/MF/Community"), ClassicRoot, UnverifiedRoot };
 
-	/** "Sounds/MiscSFX/Explode" -> "/MobileForcesClassic/Sounds/MiscSFX/Explode.Explode" */
-	DESKTOPFORCES_API FString ClassicPath(const FString& Rel);
-
 	/** Every playable map's package, by name: the game's own, the cleared community maps (core), the
 	 *  classic and unverified packs' when installed (the folders Tools/package.sh cooks). */
 	DESKTOPFORCES_API TArray<FString> FindMaps();
 
-	/** Rel ("Sounds/AK74/AK74Fire") from the first content root that has it. */
+	/** Rel ("Sounds/AK74/AK74Fire") from the first content root that has it; a package path
+	 *  ("/Game/MF/Mods/Icons/TotemIcon") as it is. */
 	DESKTOPFORCES_API UObject* LoadClassicObject(UClass* Class, const FString& Rel);
 
 	template <typename T>

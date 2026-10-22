@@ -95,7 +95,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `SetSpeed X` | walk speed multiplier |
 | `SetJumpZ V` | jump velocity, cm/s (default 731 = MF 325) |
 | `Slomo X` | game speed (UE) |
-| `Summon Class` | spawn an actor in front of you (UE) |
+| `Summon Class` | spawn an actor in front of you by its class name (UE), e.g. `summon Buggy`, `summon WoodenBox` |
 | `Teleport` | to where you aim (UE) |
 | `ViewMe` / `ViewSelf` | camera back to yourself |
 
@@ -106,8 +106,8 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFNavTest` | log navmesh reachability from you to every spawn, objective and ladder |
 | `DFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
 | `DFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
-| `DFTeleport X Y Z`, `DFHurt N`, `DFFire` | move your pawn (a driven vehicle takes its trailer along), take damage, press fire once (scripted tests) |
-| `DFAimAt X Y Z`, `DFFire 1` | turn to a point; alt fire |
+| `DFTeleport X Y Z`, `DFHurt N`, `DFFire [Alt] [Seconds]` | move your pawn (a driven vehicle takes its trailer along), take damage, hold fire (scripted tests; default 0.1 s; `DFFire 1` alt fire) |
+| `DFAimAt X Y Z`, `DFAimAtNearest Class` | turn to a point; to the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
 | `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
 | `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |

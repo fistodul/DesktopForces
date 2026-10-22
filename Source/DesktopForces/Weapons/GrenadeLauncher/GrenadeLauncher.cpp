@@ -84,7 +84,7 @@ AGrenadeLauncher::AGrenadeLauncher()
 	ArmsMesh = TEXT("grenLaunchPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(0.f, 0.25f, -3.5f);
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(DF::ClassicPath(TEXT("Textures/grenLaunch/Skins/grenLaunchimage"))));
+	HUDIcon = TEXT("Textures/grenLaunch/Skins/grenLaunchimage");
 	HUDIconRect = FIntRect(0, 196, 128, 266);   // WeaponIcon Y=196 W=128 H=70
 	bAddToLoadout = true;
 	InventoryGroup = 7;

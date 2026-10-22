@@ -288,7 +288,7 @@ bool ABRBuilder::TryFire(bool bAlt)
 	{
 		return false;
 	}
-	ClipAmmo -= 1;
+	UseAmmo();
 	if (HasAuthority())
 	{
 		FActorSpawnParameters SP;

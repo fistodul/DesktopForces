@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import devmesh, lodmesh
 from .config import Config
-from .level import PF_MASKED, PF_TRANSLUCENT, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
+from .level import PF_MASKED, PF_TRANSLUCENT, PF_TWOSIDED, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
 from .mfmesh import MeshBuilder
 from .textures import _package_path, texture_index
 from .upkg import Package
@@ -71,8 +71,9 @@ def convert(cfg: Config) -> Path:
                 info = tex_info.get(tex.lower(), {})
                 # UE1 alpha-tests a mesh face only when its own flags (LodMesh Materials) or the
                 # texture's PolyFlags say PF_Masked; bMasked alone just means the palette has a
-                # see-through index 0 (tyres, car frags: MF drew them solid, their S3TC copy too)
-                flags = face_flags & (PF_MASKED | PF_TRANSLUCENT)
+                # see-through index 0 (tyres, car frags: MF drew them solid, their S3TC copy too).
+                # PF_TwoSided faces aren't culled from behind (parachute canopy, flag cloth)
+                flags = face_flags & (PF_MASKED | PF_TRANSLUCENT | PF_TWOSIDED)
                 if exp.name.lower().startswith('heliglass'):
                     flags |= PF_TRANSLUCENT   # heliGlass Style=STY_Translucent
                 key = material_key(tex, flags | info.get('polyflags', 0))

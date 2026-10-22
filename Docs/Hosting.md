@@ -42,6 +42,7 @@ Add to the map: `map?option=value?option=value`.
 | `RespawnWait=s` | seconds before a respawn |
 | `Vehicles=0` | no vehicles; `TurboCars=0` no nitro; `Jeeps=1` / `Helis=1` jeeps or helis at the truck generators; `ArmedAPC=1\|2` armed APCs; `AddVehicles=0` none of the server's added vehicles |
 | `ChangeDamage=0` | MF's own damage rules instead of the community servers' (mutPack) |
+| `OPWeapons=1` | Gregaras' overpowered weapons: clips never run dry, shots 4x as fast (`OPFireRate`); or each on its own: `InfiniteAmmo=1`, `FireRate=x` |
 | `Cheats=1` | cheats for everyone (else admins only) |
 | `listen` | (listen servers) accept players |
 

@@ -320,7 +320,7 @@ ASentryGun::ASentryGun()
 	RecoilPower = 0.f;
 	bAddToLoadout = true;
 	// Icon converted from the mod's own art (SourceArt/Mods/Icons/SentryIcon.bmp, 128 x 64)
-	HUDIcon = TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/MF/Mods/Icons/SentryIcon.SentryIcon")));
+	HUDIcon = TEXT("/Game/MF/Mods/Icons/SentryIcon");
 	HUDIconRect = FIntRect(0, 0, 128, 64);
 }
 
