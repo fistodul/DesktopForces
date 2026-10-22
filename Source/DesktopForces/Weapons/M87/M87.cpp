@@ -14,6 +14,7 @@ AM87::AM87()
 	HUDIconRect = FIntRect(0, 196, 128, 266);   // WeaponIcon X=0 Y=196 W=128 H=70
 	DisplayName = LOCTEXT("M87", "M1887");
 	InventoryGroup = 4;
+	SoldierAnimSet = 5;   // the mod's AnimNumber
 	CarrySize = 3;
 	MaxClipAmmo = 8;
 	MaxClips = 8;

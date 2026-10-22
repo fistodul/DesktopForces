@@ -1,4 +1,6 @@
 #include "Weapons/DFWeapon.h"
+#include "Player/DFSoldierAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Weapons/DFTracer.h"
 #include "Weapons/DFShellCase.h"
@@ -90,6 +92,22 @@ void ADFWeapon::PostInitializeComponents()
 		const FVector Loc = ViewOffset + FVector(-B.Min.X, -B.GetCenter().Y, -B.Max.Z) * ViewScale;
 		HandTransform = FTransform(ViewRotation, Loc, FVector(ViewScale));
 		bHasViewMesh = true;
+		if (GetNetMode() != NM_DedicatedServer)
+		{
+			Mesh3P = NewObject<UStaticMeshComponent>(this, TEXT("Mesh3P"));
+			Mesh3P->SetStaticMesh(Mesh1P->GetStaticMesh());
+			for (int32 i = 0; i < Mesh1P->GetNumMaterials(); ++i)
+			{
+				Mesh3P->SetMaterial(i, Mesh1P->GetMaterial(i));
+			}
+			Mesh3P->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Mesh3P->SetOwnerNoSee(true);
+			Mesh3P->bCastDynamicShadow = false;
+			Mesh3P->SetGenerateOverlapEvents(false);
+			Mesh3P->SetVisibility(false);   // until it is in a soldier's hand
+			Mesh3P->SetupAttachment(RootComponent);
+			Mesh3P->RegisterComponent();
+		}
 		UpdateDroppedLook();
 	}
 }
@@ -604,6 +622,10 @@ void ADFWeapon::PlayFireEffects(bool bAlt)
 	{
 		ShowMuzzleFlash();
 	}
+	if (UDFSoldierAnimInstance* Anim = C ? C->GetSoldierAnim() : nullptr)
+	{
+		Anim->OnFire(bAlt);   // knife stab, grenade / trip bomb throw
+	}
 	if (C && !CasingMesh.IsEmpty())
 	{
 		// EjectBrass, from where the shooter looks
@@ -674,6 +696,10 @@ void ADFWeapon::OnEquip()
 {
 	SetActorHiddenInGame(false);
 	SetState(EDFWeaponState::Equipping, EquipTime);
+	if (ADFCharacter* C = GetOwnerCharacter(); C && C->GetSoldierAnim())
+	{
+		AttachToSoldier(C->GetMesh());
+	}
 	if (IsLocallyControlled())
 	{
 		PlaySoundLocal(SelectSound);
@@ -795,8 +821,28 @@ void ADFWeapon::OnRep_Dropped()
 	UpdateDroppedLook();
 }
 
+void ADFWeapon::AttachToSoldier(USkeletalMeshComponent* Body)
+{
+	if (!Mesh3P || !Body || bDropped)
+	{
+		return;
+	}
+	if (Mesh3P->GetAttachParent() != Body)
+	{
+		// MESH WEAPONATTACH BONE="Bone_Weapon", WEAPONPOSITION YAW=64 PITCH=-64 (256ths of a turn)
+		Mesh3P->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Bone_weapon"));
+		Mesh3P->SetRelativeRotation(FRotator(-90.f, 90.f, 0.f));
+	}
+	Mesh3P->SetVisibility(true);
+}
+
 void ADFWeapon::UpdateDroppedLook()
 {
+	if (Mesh3P && bDropped)
+	{
+		Mesh3P->SetVisibility(false);
+		Mesh3P->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
 	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
 	if (bHasViewMesh)

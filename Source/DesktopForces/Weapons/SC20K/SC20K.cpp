@@ -14,6 +14,7 @@ ASC20K::ASC20K()
 	HUDIconRect = FIntRect(0, 3, 128, 72);   // WeaponIcon X=0 Y=3 W=128 H=69
 	DisplayName = LOCTEXT("SC20K", "SC-20K");
 	InventoryGroup = 6;
+	SoldierAnimSet = 3;   // the mod's AnimNumber
 	CarrySize = 3;
 	MaxClipAmmo = 35;
 	MaxClips = 8;

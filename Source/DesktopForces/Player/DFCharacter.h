@@ -109,6 +109,9 @@ public:
 
 	const TArray<TObjectPtr<ADFWeapon>>& GetInventory() const { return Inventory; }
 	ADFWeapon* GetCurrentWeapon() const { return CurrentWeapon; }
+
+	/** The soldier's animation (null until the MF model is on, and on dedicated servers). */
+	class UDFSoldierAnimInstance* GetSoldierAnim() const;
 	int32 GetCurrentCarry() const;
 	int32 CountOfClass(TSubclassOf<ADFWeapon> WeaponClass) const;
 	ADFWeapon* FindWeaponOfClass(TSubclassOf<ADFWeapon> WeaponClass) const;
@@ -206,6 +209,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "DF")
 	float DefaultFOV = 100.f;
 
+	/** The soldier model's height against the capsule centre (MF draws it at the collision
+	 *  cylinder's centre; cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF")
+	float SoldierZOffset = 0.f;
+
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -224,6 +232,13 @@ protected:
 	float HeadUnderFor = 0.f;
 	FTimerHandle BreathTimer;
 	void BreathTick();
+
+	/** MF's soldier (RageGfx RagePlayer1Mesh / 2Mesh) on GetMesh(), wearing the team skins
+	 *  (Pawn.SetMultiSkin); checked twice a second on machines that draw it. */
+	void UpdateSoldier();
+	FTimerHandle SoldierTimer;
+	int32 SoldierModel = -1;
+	int32 SoldierSkin = -1;
 
 	/** Simple body shown to other players until the MF soldier meshes are converted. */
 	UPROPERTY(VisibleAnywhere, Category = "DF")

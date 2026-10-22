@@ -8,6 +8,9 @@
 #include "Vehicles/DFVehicle.h"
 #include "Core/DFUserSettings.h"
 #include "Player/DFCharacterMovement.h"
+#include "Player/DFSoldierAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Weapons/DFWeapon.h"
 #include "Weapons/DFWeapons.h"
 #include "Game/DFGameMode.h"
@@ -113,6 +116,78 @@ void ADFCharacter::BeginPlay()
 	{
 		SetActorTickEnabled(false);   // only the local player needs per-frame camera work
 	}
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		GetWorldTimerManager().SetTimer(SoldierTimer, this, &ADFCharacter::UpdateSoldier, 0.5f, true, 0.f);
+	}
+}
+
+UDFSoldierAnimInstance* ADFCharacter::GetSoldierAnim() const
+{
+	return SoldierModel >= 0 ? Cast<UDFSoldierAnimInstance>(GetMesh()->GetAnimInstance()) : nullptr;
+}
+
+void ADFCharacter::UpdateSoldier()
+{
+	const ADFPlayerState* PS = GetPlayerState<ADFPlayerState>();
+	if (!PS || !IsAlive())
+	{
+		return;
+	}
+	// MF: the helmet soldier (RagePlayerHelmet: RagePlayer1Mesh, MFTeamA skins) or the
+	// balaclava one (RagePlayerBalaclava: RagePlayer2Mesh, MFTeamB); every player gets one of
+	// the two until player setup offers the choice
+	const int32 Model = PS->GetPlayerId() & 1;
+	USkeletalMeshComponent* Body = GetMesh();
+	if (Model != SoldierModel)
+	{
+		const FString Name = FString::Printf(TEXT("RagePlayer%dMesh"), Model + 1);
+		USkeletalMesh* Mesh = DF::LoadClassic<USkeletalMesh>(FString::Printf(TEXT("Soldiers/%s/%s/SkeletalMeshes/%s"), *Name, *Name, *Name));
+		if (!Mesh)
+		{
+			GetWorldTimerManager().ClearTimer(SoldierTimer);   // content without the soldiers: the placeholder stays
+			return;
+		}
+		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);   // hits stay on the capsule
+		Body->bCastDynamicShadow = false;
+		Body->bEnableUpdateRateOptimizations = true;
+		Body->SetAnimInstanceClass(UDFSoldierAnimInstance::StaticClass());
+		Body->SetSkeletalMesh(Mesh);
+		Body->SetRelativeLocationAndRotation(FVector(0.f, 0.f, SoldierZOffset), FRotator::ZeroRotator);
+		if (UDFSoldierAnimInstance* Anim = Cast<UDFSoldierAnimInstance>(Body->GetAnimInstance()))
+		{
+			// the importer names every sequence after the mesh: RagePlayer1MeshKnifeStillSm
+			Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
+		}
+		Body->SetVisibility(true);
+		PlaceholderBody->SetVisibility(false);
+		SoldierModel = Model;
+		SoldierSkin = -1;
+	}
+	// Pawn.SetMultiSkin: skin elements 0-3 are <skin>00-03 (blue, and everyone without a
+	// team) or 04-07 (red); a captain's TeamSkinCaptain element is <skin>08 / 09
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	const uint8 Team = GS && GS->IsTeamGame() ? GetTeam() : DF::NoTeam;
+	const bool bCaptain = PS->bCaptain && Team <= 1;
+	const int32 Skin = (Team <= 1 ? Team : 0) * 2 + (bCaptain ? 1 : 0);
+	if (Skin != SoldierSkin)
+	{
+		const TCHAR Set = Model ? TEXT('B') : TEXT('A');
+		const int32 CaptainElement = Model ? 2 : 0;   // TeamSkinCaptain: balaclava 2, helmet default 0
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const int32 Tex = bCaptain && i == CaptainElement ? 8 + Team : (Team == 1 ? 4 : 0) + i;
+			if (UMaterialInterface* M = DF::LoadClassic<UMaterialInterface>(FString::Printf(TEXT("Materials/RagePlayerGfx/MI_MFTeam%c%02d_opaque"), Set, Tex)))
+			{
+				Body->SetMaterial(i, M);
+			}
+		}
+		SoldierSkin = Skin;
+	}
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->AttachToSoldier(Body);
+	}
 }
 
 void ADFCharacter::PossessedBy(AController* NewController)
@@ -194,6 +269,10 @@ void ADFCharacter::Tick(float DeltaSeconds)
 		if (CurrentWeapon && CurrentWeapon->Mesh1P)
 		{
 			CurrentWeapon->Mesh1P->SetVisibility(!bBehind);
+			if (CurrentWeapon->Mesh3P)
+			{
+				CurrentWeapon->Mesh3P->SetOwnerNoSee(!bBehind);
+			}
 		}
 	}
 	if (GetNetMode() != NM_DedicatedServer)
@@ -567,9 +646,17 @@ void ADFCharacter::MulticastOnDeath_Implementation(FVector_NetQuantizeNormal Dir
 {
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	// Placeholder "corpse": tip the body over. Replace with ragdoll once MF meshes exist.
-	PlaceholderBody->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
-	PlaceholderBody->SetRelativeLocation(FVector(0.f, 0.f, -60.f));
+	if (UDFSoldierAnimInstance* Anim = GetSoldierAnim())
+	{
+		Anim->OnDeath();   // RPlayer.PlayDying: one of MF's death animations, held at the end
+	}
+	else
+	{
+		// placeholder "corpse": tip the body over
+		PlaceholderBody->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
+		PlaceholderBody->SetRelativeLocation(FVector(0.f, 0.f, -60.f));
+	}
+	GetWorldTimerManager().ClearTimer(SoldierTimer);
 	SetActorTickEnabled(false);
 }
 
@@ -1012,6 +1099,7 @@ void ADFCharacter::ApplyLoadoutVisibility()
 {
 	// MF: "as far as other players are concerned, you aren't on the level until you come out of Loadout"
 	PlaceholderBody->SetHiddenInGame(bInLoadout);
+	GetMesh()->SetHiddenInGame(bInLoadout);
 	GetCapsuleComponent()->SetCollisionEnabled(bInLoadout ? ECollisionEnabled::QueryOnly : ECollisionEnabled::QueryAndPhysics);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel2, bInLoadout ? ECR_Ignore : ECR_Block);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, bInLoadout ? ECR_Ignore : ECR_Block);

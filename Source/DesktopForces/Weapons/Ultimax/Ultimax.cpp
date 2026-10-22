@@ -14,6 +14,7 @@ AUltimax::AUltimax()
 	HUDIconRect = FIntRect(0, 165, 250, 235);   // WeaponIcon X=0 Y=165 W=250 H=70
 	DisplayName = LOCTEXT("Ultimax", "Ultimax 100");
 	InventoryGroup = 6;
+	SoldierAnimSet = 3;   // the mod's AnimNumber
 	CarrySize = 4;
 	MaxClipAmmo = 100;
 	MaxClips = 4;

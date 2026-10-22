@@ -269,6 +269,22 @@ void UDFCheatManager::DFCam(float X, float Y, float Z, float Yaw, float Pitch)
 	GetPlayerController()->SetViewTarget(Cam);
 }
 
+void UDFCheatManager::DFOrbit(float Yaw, float Dist)
+{
+	APawn* P = GetPlayerController()->GetPawn();
+	if (!P)
+	{
+		return;
+	}
+	const FRotator Facing(0.f, P->GetActorRotation().Yaw + Yaw, 0.f);
+	const FVector At = P->GetActorLocation() + Facing.Vector() * Dist + FVector(0.f, 0.f, 20.f);
+	DFCam(At.X, At.Y, At.Z, (P->GetActorLocation() - At).Rotation().Yaw, -5.f);
+	if (AActor* Cam = GetPlayerController()->GetViewTarget())
+	{
+		Cam->AttachToActor(P, FAttachmentTransformRules::KeepWorldTransform);
+	}
+}
+
 void UDFCheatManager::DFEnterSeat(int32 Seat)
 {
 	ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn());

@@ -176,8 +176,12 @@ SYSTEMS = {
     # M18 smokeGrenEffect (servers' weapon mod): dense smoke, 15 a second for smokeDuration 15 s,
     # rising 60 uu/s, drifting 100 uu/s, 8 s each, size 2 (MF drew it additive: a bright fog; a
     # translucent one here, so it actually screens)
-    'SmokeGrenade': [dict(tex=DENSE, draw='alpha', alpha=0.85, size=[2.0, 2.0], life=8.0, anim_once=True, fade=True,
-                          vel=[0, 0, 60], vel_rand=[100, 100, 0], rate_keys=[[0, 15], [15, 15], [15.05, 0]])],
+    # (the mod drew DenseSmoke additive, a glowing orange cloud; subtractive like MF's own
+    # explosion smoke reads as smoke and actually screens)
+    'SmokeGrenade': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[2.0, 2.0], life=8.0, anim_once=True, fade=True,
+                          vel=[0, 0, 60], vel_rand=[100, 100, 0], rate_keys=[[0, 15], [15, 15], [15.05, 0]]),
+                     dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.4, 0.4], life=1.0, anim_once=True, fade=True,
+                          vel=[0, 0, 20], vel_rand=[0, 0, 20], rate_keys=[[0, 15], [15, 15], [15.05, 0]])],
     # RageEffect.AddWallHit: a puff of windy smoke, 0-5 specks of smoke flying off the wall (+X)
     'WallHit': [dict(tex=WINDY_SMOKE, draw='add', alpha=1.0, size=[0.2, 0.2], life=0.5, anim_once=True, fade=True, burst=1,
                      loc=[10, 0, 0], vel=[0, 0, 100]),

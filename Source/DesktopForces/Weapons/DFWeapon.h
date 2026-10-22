@@ -66,6 +66,13 @@ public:
 	 * (armour, mod gadgets). MF had 11 groups but no key for the 11th.
 	 */
 	int32 GetSlotKey() const { return FMath::Clamp(InventoryGroup, 1, 11); }
+
+	/** MF Weapon.AnimNumber: the soldier animations that carry it (1 knife, 2 pistol, 3 machine
+	 *  gun, 4 shotgun, 5 rifle, 6 heavy machine gun, 7 launcher, 8 grenades, 9 trip bombs, 10
+	 *  MG-alike); 0 = the InventoryGroup's (what the stock weapons have). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Weapon")
+	uint8 SoldierAnimSet = 0;
+	int32 GetSoldierAnimSet() const { return SoldierAnimSet ? SoldierAnimSet : (InventoryGroup <= 10 ? InventoryGroup : 0); }
 	static FString SlotKeyName(int32 Key) { return Key >= 11 ? TEXT("X") : FString::FromInt(Key % 10); }
 
 	/** Inventory blocks used (MF CarrySize); a soldier carries 6. */
@@ -292,6 +299,13 @@ public:
 	/** First-person model (placeholder until the MF weapon meshes are converted). */
 	UPROPERTY(VisibleAnywhere, Category = "DF|FX")
 	TObjectPtr<UStaticMeshComponent> Mesh1P;
+
+	/** The model in the soldier's hand as others see it (MF ThirdPersonMesh, the same carry
+	 *  mesh), on the soldier's Bone_weapon. */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> Mesh3P;
+	/** Put Mesh3P in the owner's soldier hand (once the soldier model is on). */
+	void AttachToSoldier(class USkeletalMeshComponent* Body);
 
 	// --- interface used by ADFCharacter / HUD -------------------------------------------
 	ADFCharacter* GetOwnerCharacter() const;

@@ -4,7 +4,7 @@ Layout (verified on RageWeapons.u, consumes every byte of each export):
   RefBones:  array of (FName Name, DWORD Flags, INT ParentIndex)
   Moves:     array of MotionChunk (RootSpeed3D, TrackTime, StartBone, Flags,
              BoneIndices[], AnimTracks[] (Flags, KeyQuat[], KeyPos[], KeyTime[]), RootTrack)
-  AnimSeqs:  array of (FName Name, FName Groups[], INT StartFrame, INT NumFrames,
+  AnimSeqs:  array of (FName Name, FName Group, INT StartFrame, INT NumFrames,
              Notifys[] (float Time, FName Function), float Rate)
 
 UE1/MF animation timing: PlayAnim(Seq, Rate, TweenTime) lasts
@@ -73,7 +73,7 @@ def read_animation(pkg: Package, name: str) -> MeshAnimation:
     seqs = []
     for _ in range(r.index()):
         sname = pkg.names[r.index()]
-        groups = [pkg.names[r.index()] for _ in range(r.index())]
+        groups = [pkg.names[r.index()]]                # one Group name (UE2 later made it an array)
         start, frames = r.i32(), r.i32()
         notifies = [(r.f32(), pkg.names[r.index()]) for _ in range(r.index())]
         rate = r.f32()

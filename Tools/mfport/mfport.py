@@ -8,6 +8,7 @@ Steps (run alone or chained with `all`):
   sounds [pkg...]      export + convert sounds (default: gameplay packages + map ambience)
   music [pkg...]       extract tracker music (.umx) and render to WAV (default: maps' songs)
   effects              sprite particle effects: flipbook textures + emitter data (built-in + maps')
+  soldiers             the soldiers: skeletal meshes + animations as glTF (RageGfx)
   vmf <name...>        convert a Source (Hammer) map listed in vmf_maps.toml, aligned to its MF map
   merge <preset...>    merge two aligned maps area by area (merge/<preset>.toml)
   packs                which pack each converted map is in (core / classic), and what core maps
@@ -112,9 +113,9 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all'])
     ap.add_argument('names', nargs='*')
-    ap.add_argument('--steps', default='art,textures,props,effects,sounds,music,maps', help='importer steps for `import`')
+    ap.add_argument('--steps', default='art,textures,props,effects,soldiers,sounds,music,maps', help='importer steps for `import`')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -135,6 +136,9 @@ def main():
     if a.step in ('effects', 'all'):
         from mflib import effects
         print(f'  -> {effects.convert(cfg)}')
+    if a.step in ('soldiers', 'all'):
+        from mflib import skelmesh
+        print(f'  -> {skelmesh.convert(cfg)}')
     if a.step == 'sounds':
         cmd_sounds(cfg, a.names)
     if a.step == 'music':
