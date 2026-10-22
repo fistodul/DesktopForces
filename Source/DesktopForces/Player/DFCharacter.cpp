@@ -155,8 +155,8 @@ void ADFCharacter::UpdateSoldier()
 	if (Model != SoldierModel)
 	{
 		const FString Name = FString::Printf(TEXT("RagePlayer%dMesh"), Model + 1);
-		USkeletalMesh* Mesh = DF::LoadClassic<USkeletalMesh>(FString::Printf(TEXT("Soldiers/%s/%s/SkeletalMeshes/%s"), *Name, *Name, *Name));
-		if (!Mesh)
+		USkeletalMesh* SoldierMesh = DF::LoadClassic<USkeletalMesh>(FString::Printf(TEXT("Soldiers/%s/%s/SkeletalMeshes/%s"), *Name, *Name, *Name));
+		if (!SoldierMesh)
 		{
 			GetWorldTimerManager().ClearTimer(SoldierTimer);   // content without the soldiers: the placeholder stays
 			return;
@@ -165,12 +165,12 @@ void ADFCharacter::UpdateSoldier()
 		Body->bCastDynamicShadow = false;
 		Body->bEnableUpdateRateOptimizations = true;
 		Body->SetAnimInstanceClass(UDFSoldierAnimInstance::StaticClass());
-		Body->SetSkeletalMesh(Mesh);
+		Body->SetSkeletalMesh(SoldierMesh);
 		Body->SetRelativeLocationAndRotation(FVector(0.f, 0.f, SoldierZOffset), FRotator::ZeroRotator);
 		if (UDFSoldierAnimInstance* Anim = Cast<UDFSoldierAnimInstance>(Body->GetAnimInstance()))
 		{
 			// the importer names every sequence after the mesh: RagePlayer1MeshKnifeStillSm
-			Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
+			Anim->SetSequencePrefix(SoldierMesh->GetOutermost()->GetName());
 		}
 		Body->SetVisibility(true);
 		PlaceholderBody->SetVisibility(false);

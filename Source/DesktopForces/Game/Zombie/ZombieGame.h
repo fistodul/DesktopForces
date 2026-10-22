@@ -47,7 +47,7 @@ public:
 	virtual TSubclassOf<ADFWeapon> GetWeaponClassFor(const ADFCharacter* Character, TSubclassOf<ADFWeapon> WeaponClass) const override;
 	virtual void LoadoutDenied(APlayerController* PC) const override;
 
-	bool IsNemesis(const ADFCharacter* C) const { return C && Nemeses.Contains(C); }
+	bool IsNemesis(const ADFCharacter* C) const;
 	/** A zombie's / human's stats on this soldier (bSpecial: a nemesis / survivor whatever the
 	 *  team sizes; ZombiePlayer.BecomeZombie ... admin commands). Not a team change. */
 	void BecomeZombie(ADFCharacter* C, bool bSpecial = false);

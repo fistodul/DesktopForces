@@ -208,6 +208,12 @@ void AZombieGame::TransformItems(ADFCharacter* C)
 	}
 }
 
+// out of line: the weak pointer needs ADFCharacter complete (MSVC checks where the header is)
+bool AZombieGame::IsNemesis(const ADFCharacter* C) const
+{
+	return C && Nemeses.Contains(C);
+}
+
 void AZombieGame::BecomeZombie(ADFCharacter* C, bool bSpecial)
 {
 	const float Ratio = float(TeamSize(ZombieLocal::Humans)) / FMath::Max(TeamSize(ZombieLocal::Zombies), 1);

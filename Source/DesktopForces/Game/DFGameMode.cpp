@@ -604,9 +604,9 @@ void ADFGameMode::SpawnPlacedBots()
 
 // --- damage & kills ----------------------------------------------------------------
 
-float ADFGameMode::ModifyDamage(float Damage, ADFCharacter* Victim, AController* Instigator, AActor* DamageCauser) const
+float ADFGameMode::ModifyDamage(float Damage, ADFCharacter* Victim, AController* InstigatedBy, AActor* DamageCauser) const
 {
-	if (!Instigator)
+	if (!InstigatedBy)
 	{
 		return Damage;
 	}
@@ -614,19 +614,19 @@ float ADFGameMode::ModifyDamage(float Damage, ADFCharacter* Victim, AController*
 	{
 		Damage *= 1.5f;
 	}
-	const ADFPlayerState* InstPS = Instigator->GetPlayerState<ADFPlayerState>();
-	if (IsTeamGame() && InstPS && Victim && Victim->GetController() != Instigator && InstPS->GetTeam() == Victim->GetTeam())
+	const ADFPlayerState* InstPS = InstigatedBy->GetPlayerState<ADFPlayerState>();
+	if (IsTeamGame() && InstPS && Victim && Victim->GetController() != InstigatedBy && InstPS->GetTeam() == Victim->GetTeam())
 	{
 		Damage *= FriendlyFireScale;
 	}
 	// changeDamage.mutatorTakeDamage: players' rockets x2; bots / 5 on people in vehicles
 	if (Victim)
 	{
-		if (Instigator->IsPlayerController() && DamageCauser && DamageCauser->IsA<ARocket>())
+		if (InstigatedBy->IsPlayerController() && DamageCauser && DamageCauser->IsA<ARocket>())
 		{
 			Damage *= RocketDamageScaleOnFoot;
 		}
-		else if (!Instigator->IsPlayerController() && Victim->IsPlayerControlled() && Cast<ADFVehicle>(Victim->GetAttachParentActor()))
+		else if (!InstigatedBy->IsPlayerController() && Victim->IsPlayerControlled() && Cast<ADFVehicle>(Victim->GetAttachParentActor()))
 		{
 			Damage *= BotOccupantDamageScale;
 		}

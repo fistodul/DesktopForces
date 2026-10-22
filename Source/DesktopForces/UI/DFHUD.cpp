@@ -50,7 +50,7 @@ void ADFHUD::AddKillMessage(const FString& Killer, const FString& Victim, const 
 
 void ADFHUD::AddMessage(const FString& Line, const FLinearColor& Color)
 {
-	Messages.Add({ Line, Color, GetWorld()->GetTimeSeconds() });
+	Messages.Add({ Line, Color, float(GetWorld()->GetTimeSeconds()) });
 	if (Messages.Num() > 6)   // RageHUD.DrawSmallMessages: 6 lines
 	{
 		Messages.RemoveAt(0);

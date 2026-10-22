@@ -152,13 +152,13 @@ void ASeekerMine::Think()
 		return;
 	}
 	// state Escorting: stay 250-450 uu from the owner while they're near
-	const ADFCharacter* Owner = Cast<ADFCharacter>(GetInstigator());
-	const float OwnerDist = Owner ? FVector::Dist(Owner->GetActorLocation(), GetActorLocation()) : 1e9f;
-	if (Owner && Owner->IsAlive() && OwnerDist < 5625.f)
+	const ADFCharacter* Placer = Cast<ADFCharacter>(GetInstigator());
+	const float PlacerDist = Placer ? FVector::Dist(Placer->GetActorLocation(), GetActorLocation()) : 1e9f;
+	if (Placer && Placer->IsAlive() && PlacerDist < 5625.f)
 	{
-		if (OwnerDist > 1012.f)
+		if (PlacerDist > 1012.f)
 		{
-			MoveTo(const_cast<ADFCharacter*>(Owner), 600.f, 0.85f);
+			MoveTo(const_cast<ADFCharacter*>(Placer), 600.f, 0.85f);
 		}
 		else if (AI)
 		{

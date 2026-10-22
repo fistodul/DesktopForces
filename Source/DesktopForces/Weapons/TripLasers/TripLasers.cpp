@@ -122,13 +122,13 @@ void ATripLaserMine::Trigger(ADFCharacter* Who)
 	Destroy();
 }
 
-float ATripLaserMine::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+float ATripLaserMine::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (HasAuthority() && Damage > 0.f)
+	if (HasAuthority() && DamageAmount > 0.f)
 	{
 		Destroy();
 	}
-	return Damage;
+	return DamageAmount;
 }
 
 // --- the weapon -------------------------------------------------------------------------------

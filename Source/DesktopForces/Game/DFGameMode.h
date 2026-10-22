@@ -51,7 +51,7 @@ public:
 	virtual void TravelAfterMatch();
 
 	/** Damage modifiers (hardcore x1.5, friendly fire). */
-	virtual float ModifyDamage(float Damage, ADFCharacter* Victim, AController* Instigator, AActor* DamageCauser = nullptr) const;
+	virtual float ModifyDamage(float Damage, ADFCharacter* Victim, AController* InstigatedBy, AActor* DamageCauser = nullptr) const;
 	/** A pawn died. */
 	virtual void Killed(AController* Killer, AController* Victim, ADFCharacter* VictimPawn, TSubclassOf<UDamageType> DamageType);
 	/** A blow would kill Victim: return true to keep them alive (mods: Tug of War converts instead). */
