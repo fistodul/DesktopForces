@@ -1,4 +1,7 @@
 #include "Weapons/HeavyMachineGun/HeavyMachineGun.h"
+#include "Components/StaticMeshComponent.h"
+#include "Core/DFProps.h"
+#include "Player/DFSoldierAnimInstance.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
@@ -59,12 +62,15 @@ void AHeavyMachineGun::ToggleZoom()
 	{
 		// PlayAimUpAnim / PlayReloadingAnim / PlayPullbackAnim: tripod, magazine, step back
 		PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.SetupTripod"));
+		PlayArms(TEXT("ActivateGun01"), 1.3f);
 		GetWorldTimerManager().SetTimer(DeploySoundTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
 			PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.SetupMagazine"));
+			PlayArms(TEXT("ActivateGun02"), 1.f);
 			GetWorldTimerManager().SetTimer(DeploySoundTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 			{
 				PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.SetupStepBack"));
+				PlayArms(TEXT("ActivateGun03"), 2.f);
 			}), 1.f, false);
 		}), 1.026f, false);
 	}
@@ -145,6 +151,72 @@ void AHeavyMachineGun::ForceInactive()
 	GetWorldTimerManager().ClearTimer(SpinTimer);
 	SpinRate = 0.f;
 	Super::ForceInactive();
+}
+
+void AHeavyMachineGun::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	Tripod3P = NewObject<UStaticMeshComponent>(this, TEXT("Tripod3P"));
+	Tripod3P->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Tripod3P->SetOwnerNoSee(true);   // the owner sees the first-person gun on its tripod
+	Tripod3P->bCastDynamicShadow = false;
+	Tripod3P->SetUsingAbsoluteLocation(true);
+	Tripod3P->SetUsingAbsoluteRotation(true);
+	Tripod3P->SetVisibility(false);
+	Tripod3P->SetupAttachment(RootComponent);
+	Tripod3P->RegisterComponent();
+	if (!DF::ApplyPropMesh(Tripod3P, TEXT("RageWeapons/TripodMeshTemp")))
+	{
+		Tripod3P->DestroyComponent();
+		Tripod3P = nullptr;
+	}
+}
+
+void AHeavyMachineGun::OnZoomChanged()
+{
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (!Tripod3P)
+	{
+		return;
+	}
+	if (!C || !IsDeployed())
+	{
+		Tripod3P->SetVisibility(false);
+		return;
+	}
+	// HeavyMachineGun.ZoomedIn: the tripod 28 uu under the gun's pivot, on the ground in front
+	// of the kneeling soldier, turned his way
+	const float Feet = C->GetActorLocation().Z - C->GetSimpleCollisionHalfHeight();
+	const FVector Gun = C->GetActorLocation() + C->GetActorForwardVector() * 45.f;
+	Tripod3P->SetWorldLocationAndRotation(FVector(Gun.X, Gun.Y, Feet), FRotator(0.f, C->GetActorRotation().Yaw, 0.f));
+	Tripod3P->SetVisibility(true);
+}
+
+void AHeavyMachineGun::PlayArms(FName Name, float Rate)
+{
+	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr)
+	{
+		Anim->SetIdle(IsDeployed() ? TEXT("ActivateStill") : TEXT("Still"));
+		Anim->Play(Name, Rate, 0.05f, false);
+	}
+}
+
+FName AHeavyMachineGun::GetArmsAnimName(EDFWeaponState ForState, bool bAlt)
+{
+	// HeavyMachineGun: ActivateGun01-03 setting up (played with the deploy's sounds), PickUpGun
+	// packing up, ActivateStill on the tripod; the firing animation runs at rate 0.01 in MF:
+	// the gun just shakes with the shots
+	switch (ForState)
+	{
+	case EDFWeaponState::Zooming: return IsDeployed() ? NAME_None : FName(TEXT("PickupGun"));
+	case EDFWeaponState::Firing:  return NAME_None;
+	case EDFWeaponState::Idle:    return IsDeployed() ? FName(TEXT("ActivateStill")) : FName(TEXT("Still"));
+	default:                      return Super::GetArmsAnimName(ForState, bAlt);
+	}
 }
 
 FString AHeavyMachineGun::GetHUDStatus() const

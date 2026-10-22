@@ -241,6 +241,13 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 			return TEXT("PassLgStill");
 		}
 	}
+	if (W && W->IsDeployed())
+	{
+		// HeavyMachineGun: down behind the gun on its tripod (TweenAnim HmachGStill, held)
+		bOutLoop = false;
+		OutTween = 0.5f;
+		return TEXT("HmachGStill");
+	}
 	if (M->IsSwimming())
 	{
 		const bool bSmall = Set < 0 || Set == 0 || Set == 1 || Set >= 7;

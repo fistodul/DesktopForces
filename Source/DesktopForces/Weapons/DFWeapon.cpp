@@ -458,6 +458,7 @@ bool ADFWeapon::TryFire(bool bAlt)
 void ADFWeapon::ToggleZoom()
 {
 	ZoomLevel = (ZoomLevel + 1) % (MaxZoomLevel + 1);
+	OnZoomChanged();
 	SetState(EDFWeaponState::Zooming, ZoomTime);
 	if (ADFCharacter* C = GetOwnerCharacter())
 	{
@@ -475,6 +476,7 @@ void ADFWeapon::OnRep_ZoomLevel(uint8 OldZoom)
 	{
 		C->UpdateCarrySpeed();
 	}
+	OnZoomChanged();
 }
 
 // --- firing --------------------------------------------------------------------------

@@ -361,6 +361,8 @@ public:
 	virtual bool IsMeleeWeapon() const { return false; }
 	/** Set up on the spot (deployed HMG, MF PHYS_Gunnery): no walking, jumping or loadout. */
 	virtual bool IsDeployed() const { return false; }
+	/** ZoomLevel changed (the owner's toggle, or replicated to everyone else). */
+	virtual void OnZoomChanged() {}
 	virtual void StopFire(bool bAlt);
 	virtual void StartReload();
 

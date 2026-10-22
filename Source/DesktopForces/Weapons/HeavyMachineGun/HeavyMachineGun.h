@@ -20,8 +20,15 @@ public:
 	virtual void StopFire(bool bAlt) override;
 	virtual void ForceInactive() override;
 	virtual FString GetHUDStatus() const override;
+	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt) override;
 protected:
+	virtual void PostInitializeComponents() override;
 	virtual void ToggleZoom() override;
+	/** HeavyMachineGunTripod: deployed, the tripod stands under the gun (for the others). */
+	virtual void OnZoomChanged() override;
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> Tripod3P;
+	void PlayArms(FName Name, float Rate);
 	void SpinTick();
 	FTimerHandle SpinTimer;
 	FTimerHandle DeploySoundTimer;
