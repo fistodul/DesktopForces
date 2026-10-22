@@ -201,7 +201,7 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 | Shotgun | 4 | 2 | 2 × 20 | 10 pellets × 12 per barrel | 0.8 / 1.0 | 0.472 s | 0.867 s | fire = left, alt = right, both within 0.1 s = both; range 5000 |
 | Sniper rifle | 5 | 3 | 4 × 4 | 20 × power (1–10), head ×3 | 0.3 / 0 | 0.55 s | 1.383 s | power +2/s; scope 3×–30× (wheel); range 20000 |
 | HMG | 6 | 4 | 900 × 1 | 45 | 0.6 / 1.2 | — | — | must deploy (alt, standing on the ground): then no walking, jumping or loadout until packed up (MF PHYS_Gunnery) |
-| Rocket launcher | 7 | 4 | 1 × 11 | 135, radius 400 | — | 0.79 s | 3.38 s | rocket 1200 uu/s; alt: scope 4× + lock-on (TODO) |
+| Rocket launcher | 7 | 4 | 1 × 11 | 135, radius 400 | — | 0.79 s | 3.38 s | rocket 1200 uu/s; alt: scope 4×; scoped, the same enemy (soldier or manned vehicle) within ~22° on two 1.25 s checks locks on (beep; another beep when it's lost) and the next rocket steers at it while it's ahead (SmartRocket) |
 | Grenades | 8 | 1 (max 3) | 3 | 160 r400 (timed 3 s) / 120 impact | — | 0.333 s | — | throw power 1.5–10 (+8/s), speed power × 150 uu/s, +210 up |
 | Trip bombs | 9 | 1 (max 3) | 2 | — | — | — | — | laser 1024 uu; alt: proximity mine (TODO) |
 | Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90) |
@@ -221,8 +221,41 @@ least 400 uu) and you fly it from its nose: the view steers (dive 5°–89°), F
 2.5× (turns slower); 1000 damage in 1400 uu; you stand still while guiding; bots aim it at the
 nearest enemy).
 
+**Tracers** (RageWeapon.FireTracer): a streak flies from the gun to where the shot went at
+3000 uu/s, every shot for pistols, every 2nd pellet for shotguns, every 5th round for machine
+guns (not under 128 uu). **Cases** (EjectBrass): spent cases fly out right and up, bounce up
+to three times with a tink and lie there a few seconds.
+
+**The servers' weapon mods** (their authors / model sources still being checked: models, icons
+and sounds come from the *Mobile Forces Unverified* pack and the guns are only offered where
+it's installed; `Weapons/<Name>/`):
+
+| Weapon | Group | Carry | Clip × clips | Damage (head) | Spread (Acc / zoomed) | Fire / zoomed | Reload | Notes |
+|---|---|---|---|---|---|---|---|---|
+| AK-74 | 3 | 2 | 30 × 8 | 25 (50) | 0.6 / 0.078 | 0.127 / 0.167 s | 1.75 s | aim 2× |
+| M4A1 | 3 | 2 | 30 × 8 | 22 (44) | 0.58 / 0.07 | 0.107 / 0.143 s | 2.54 s | aim 2× |
+| FAMAS | 3 | 2 | 25 × 10 | 28 (56) | 0.58 / 0.07 | 0.11 / 0.167 s | 3.15 s | aim 2× |
+| G36 | 3 | 2 | 30 × 8 | 24 (48) | 0.6 / 0.07 | 0.114 / 0.167 s | 3.05 s | aim 2× |
+| SC-20K (F2000) | 6 | 3 | 35 × 8 | 28 (70) | 0.545 / 0.056 | 0.103 / 0.133 s | 3.25 s | aim 2× |
+| Ultimax 100 | 6 | 4 | 100 × 4 | 30 (60) | 0.65 / 0.07 | 0.112 / 0.45 s | 3.63 s | the "assault HMG" |
+| MAC-10 | 2 | 1 | 30 × 8 | 22 (44) | 0.76 / 0.1 | 0.086 / 0.125 s | 1.38 s | |
+| Glock 18 | 2 | 1 | 30 × 4 | 28 (40) | 0.05 / 0.5 | 0.283 / 0.097 s | 2.79 s | aiming (no zoom) turns it into a wild full-auto |
+| Desert Eagle | 2 | 1 | 12 × 5 | 25 (70) | 0.22 / 0.05 | 0.3 / 0.231 s | 2.68 s | aim 1.5× |
+| M24 | 5 | 3 | 8 × 6 | 80 (180) | 0.1 / 0.05 | 1.65 / 1.86 s | 3.18 s | bolt action, aim 2× |
+| WA 2000 | 5 | 3 | 6 × 5 | 60 (head: dead) | 0.3 / 0 | 0.61 / 0.56 s | 3.68 s | scope 6× (MF 3×–30×) |
+| M1887 | 4 | 3 | 8 × 8 | 12 pellets × 14 (28) | 1.3 / 0.7 | 1.19 s | 2.25 s | lever-action "long shotgun" |
+| M18 smoke | 8 | 1 | 3 | — | — | 0.333 s | — | a grenade that pours dense smoke for 15 s where its fuse runs out |
+
 Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(rand−0.5)×1000·Z
 + MaxTraceDistance (10000)·X.
+
+**Parachutes** (Gregaras, the community servers' mutPack bCanUseParachutes): hold Jump while
+falling faster than 150 uu/s and a canopy opens over you; the fall slows to 200 uu/s and you
+glide the way you look. Let go of Jump and it folds. `?Parachutes=0` turns them off.
+
+**Minefields** (mineGenerator.u, mf-Pobojowisko_VerII): the map's mines sit on the ground,
+nobody's; a soldier within 64 uu or a vehicle within 96 uu sets one off (120 damage in 200 uu,
+a fountain of dirt) and a new one is laid 5 s later. The river's splashMakers just splash.
 
 ## Vehicles
 Physics box + raycast wheels (`ADFVehicle`), numbers from MF's own data: `Physics/handling.hnd2`

@@ -33,6 +33,7 @@ AWA2000::AWA2000()
 	MaxTraceDistance = 45000.f;
 	ZoomedMoveScale = 0.f;
 	CasingMesh = TEXT("RageWeapons/RifleBullet");   // RageRifle_BulletCase
+	MuzzleFlashSize = 40.f;
 	ClassicFireSound = TEXT("wa2000.wa2000_Fire");
 	ClassicReloadSound = TEXT("wa2000.wa2000_reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");

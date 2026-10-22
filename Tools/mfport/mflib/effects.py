@@ -159,6 +159,22 @@ SYSTEMS = {
     # EffectsFix.SmokePuffVeh: a tyre blown out; SmokePuff: one puff
     'SmokePuffVeh': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.6, 0.6], life=0.8, anim_once=True, burst=8, loc_rand=[20, 20, 20])],
     'SmokePuff': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.6, 0.6], life=0.8, anim_once=True, burst=1)],
+    # mineGenerator.mineExplosionEffect (mf-Pobojowisko_VerII's minefield): a fountain of dirt
+    # (dense smoke, falling back) and the mod's own blast flipbook
+    'MineExplosion': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.15, 0.15], life=2.0, gravity=True, burst=120,
+                           loc_rand=[50, 50, 20], vel=[0, 0, 600], vel_rand=[500, 500, 500]),
+                      dict(tex='minegenerator.tripmines_a00', draw='add', alpha=0.4, size=[4.0, 4.0], life=1.4, gravity=True,
+                           fade=True, burst=20, loc_rand=[0, 0, 50], vel=[0, 0, 600], vel_rand=[150, 150, 0])],
+    # mineGenerator.splashEffect: the river's splashes (splashMaker)
+    'Splash': [dict(tex=DENSE, draw='add', alpha=0.6, size=[0.05, 0.05], life=0.5, fade=True, burst=20,
+                    loc_rand=[10, 10, 0], vel=[0, 0, 20], vel_rand=[0, 0, 200]),
+               dict(tex=WINDY_SMOKE, draw='add', alpha=0.2, size=[0.8, 0.8], life=1.4, gravity=True, fade=True, burst=20,
+                    loc=[0, 0, 30], vel=[0, 0, 150], vel_rand=[200, 200, 0])],
+    # M18 smokeGrenEffect (servers' weapon mod): dense smoke, 15 a second for smokeDuration 15 s,
+    # rising 60 uu/s, drifting 100 uu/s, 8 s each, size 2 (MF drew it additive: a bright fog; a
+    # translucent one here, so it actually screens)
+    'SmokeGrenade': [dict(tex=DENSE, draw='alpha', alpha=0.85, size=[2.0, 2.0], life=8.0, anim_once=True, fade=True,
+                          vel=[0, 0, 60], vel_rand=[100, 100, 0], rate_keys=[[0, 15], [15, 15], [15.05, 0]])],
     # RageEffect.AddWallHit: a puff of windy smoke, 0-5 specks of smoke flying off the wall (+X)
     'WallHit': [dict(tex=WINDY_SMOKE, draw='add', alpha=1.0, size=[0.2, 0.2], life=0.5, anim_once=True, fade=True, burst=1,
                      loc=[10, 0, 0], vel=[0, 0, 100]),

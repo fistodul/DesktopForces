@@ -32,6 +32,7 @@ AM24::AM24()
 	RecoilPower = 4.0f;
 	MaxTraceDistance = 45000.f;   // like the sniper rifle
 	CasingMesh = TEXT("RageWeapons/RifleBullet");   // RageRifle_BulletCase
+	MuzzleFlashSize = 40.f;
 	ClassicFireSound = TEXT("M24.M24Fire");
 	ClassicReloadSound = TEXT("M24.M24Reload");
 	ClassicSelectSound = TEXT("M24.M24Select");

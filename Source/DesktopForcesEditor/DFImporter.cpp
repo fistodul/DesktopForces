@@ -528,6 +528,7 @@ bool FDFImporter::ImportArt()
 	EnsureDecalMaterials();
 	EnsureGoalAssets();
 	EnsureTracerMaterial();
+	EnsureMuzzleFlashMaterial();
 	return true;
 }
 
@@ -637,6 +638,35 @@ void FDFImporter::EnsureTracerMaterial()
 	M->PostEditChange();
 	SaveAsset(M);
 	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_Tracer"));
+}
+
+void FDFImporter::EnsureMuzzleFlashMaterial()
+{
+	// RageWeapon muzzle flash: FlashYellow (classic) drawn additive on a quad at the muzzle
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_MuzzleFlash"), bCreated);
+	if (!bCreated)
+	{
+		return;
+	}
+	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+	UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+	T->ParameterName = TEXT("Texture");
+	UTexture2D* Flash = LoadObject<UTexture2D>(nullptr, *(Packs.ClassicRoot / TEXT("Textures/RageWeapons/MuzzleFlash/FlashYellow_A01.FlashYellow_A01")), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	T->Texture = Flash ? Flash : LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+	M->GetExpressionCollection().AddExpression(T);
+	UMaterialExpressionMultiply* Bright = NewObject<UMaterialExpressionMultiply>(M);
+	Bright->A.Connect(0, T);
+	Bright->ConstB = 2.f;
+	M->GetExpressionCollection().AddExpression(Bright);
+	E->EmissiveColor.Connect(0, Bright);
+	M->SetShadingModel(MSM_Unlit);
+	M->BlendMode = BLEND_Additive;
+	M->TwoSided = true;
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_MuzzleFlash (%s)"), Flash ? TEXT("FlashYellow") : TEXT("no classic texture yet"));
 }
 
 void FDFImporter::EnsureGoalAssets()

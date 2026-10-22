@@ -15,6 +15,8 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | Grenade launcher | Gian, Peto, "Secret Dude" |
 | DeBall (MoBall), TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
 | Battle Royale, Arena | Edgaras "Gregaras" Ziaugra (design, models: item crate, metal tower, platform, safe zone; metal textures; all CC0) |
+| Parachutes | Edgaras "Gregaras" Ziaugra (code from VehicleFlag; model, `Strings.pcx`: CC0; `Top.pcx` edited from a CC0 photo, pickupimage.com/free-photos/jumping-out-of-a-C130-Hercules/2335355; the sound layered with EugeneEverett's CC0 freesound.org/s/596522: all CC0) |
+| The servers' weapon mods (Unverified pack: not in this repository, not shipped) | being checked - so far: assault rifles (AK-74, M4A1, FAMAS, G36, SC-20K) and the grenade launcher mostly Gian, the Deagle, the long shotgun (M1887) and maybe the assault HMG (Ultimax) Gregaras; models self-made or free Sketchfab assets whose authors still need crediting |
 
 ## Art and music in this repository
 
@@ -24,7 +26,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | `SourceArt/UI/T_MenuBackground2.png` | Edgaras "Gregaras" Ziaugra | Mobile Forces Source menu background (`background01.vtf`), the same. A screenshot of an MFS map: some of its textures may come from the Source SDK - replace it if that matters |
 | `SourceArt/Music/GameStartup.mp3` | Dawid Edward Kmita | Mobile Forces Source start-up theme (`gamestartup1.mp3`) |
 | `SourceArt/Mods/Icons/*.bmp` | fistodul | MF-mods HUD icons |
-| `Tools/artgen` output (crate) | generated | procedural, made for this project |
+| `Tools/artgen` output (crate, decals, goal net) | generated | procedural, made for this project |
 
 ## fistodul (formerly World Gamers, the Mobile Forces Source team)
 

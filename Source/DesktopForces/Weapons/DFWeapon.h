@@ -184,6 +184,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
 	int32 Pellets = 1;
 
+	/** Muzzle flash size (RageWeapon bMuzzleFlash: FlashYellow at the muzzle), cm; 0: none. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float MuzzleFlashSize = 0.f;
+
 	/** Spent case thrown out on each shot (a converted prop: "RageWeapons/MachineGunBullet";
 	 *  empty: none). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
@@ -279,6 +283,11 @@ public:
 	float ViewScale = 0.5f;
 	bool bHasViewMesh = false;
 	FTransform HandTransform;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> MuzzleFlash;
+	FTimerHandle MuzzleFlashTimer;
+	void ShowMuzzleFlash();
 
 	/** First-person model (placeholder until the MF weapon meshes are converted). */
 	UPROPERTY(VisibleAnywhere, Category = "DF|FX")

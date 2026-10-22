@@ -39,8 +39,10 @@ UI_TEXTURES = {
     **{k: {'masked', 'ui'} for k in ('ak74.skins.ak74image', 'm4a1.skins.m4a1image', 'f2000.skins.sc20kimage',
         'mac10.skins.mac10image', 'famas.skins.famasimage', 'g36.skins.g36image', 'glock.skins.glockimage',
         'desert.skins.desertimage', 'ultimax.skins.ultimaximage', 'm24.skins.m24image', 'wa2000.skins.wa2000image',
-        'm87.skins.m87image')},
+        'm87.skins.m87image', 'm18.skins.m18image')},
     'rageweapons.icons.scopemask': {'masked', 'ui'},
+    # muzzle flashes (RageWeapon: FlashYellow, drawn additive)
+    **{f'rageweapons.muzzleflash.flashyellow_a0{i}': {'translucent'} for i in range(1, 5)},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},
     'rageweapons.icons.rocketlauncheraim': {'masked', 'ui'},
     # RageHUD atlases (TexRects in RageHUD defaultproperties): item boxes per colour set,

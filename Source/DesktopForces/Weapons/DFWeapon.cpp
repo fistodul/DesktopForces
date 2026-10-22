@@ -1,4 +1,5 @@
 #include "Weapons/DFWeapon.h"
+#include "Materials/MaterialInterface.h"
 #include "Weapons/DFTracer.h"
 #include "Weapons/DFShellCase.h"
 #include "World/DFDecals.h"
@@ -599,6 +600,10 @@ void ADFWeapon::PlayFireEffects(bool bAlt)
 	{
 		C->AddRecoil(RecoilPower * 6.f);
 	}
+	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f && GetNetMode() != NM_DedicatedServer)
+	{
+		ShowMuzzleFlash();
+	}
 	if (C && !CasingMesh.IsEmpty())
 	{
 		// EjectBrass, from where the shooter looks
@@ -607,6 +612,35 @@ void ADFWeapon::PlayFireEffects(bool bAlt)
 		C->GetActorEyesViewPoint(Eye, View);
 		ADFShellCase::Eject(GetWorld(), CasingMesh, CasingScale, Eye, View, C->GetVelocity());
 	}
+}
+
+void ADFWeapon::ShowMuzzleFlash()
+{
+	if (!bHasViewMesh || !Mesh1P->GetStaticMesh())
+	{
+		return;
+	}
+	if (!MuzzleFlash)
+	{
+		MuzzleFlash = NewObject<UStaticMeshComponent>(this);
+		MuzzleFlash->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
+		MuzzleFlash->SetMaterial(0, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_MuzzleFlash.M_MF_MuzzleFlash"), nullptr, LOAD_NoWarn | LOAD_Quiet));
+		MuzzleFlash->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MuzzleFlash->SetCastShadow(false);
+		MuzzleFlash->SetOnlyOwnerSee(true);
+		MuzzleFlash->SetupAttachment(Mesh1P);
+		MuzzleFlash->RegisterComponent();
+		// at the front of the model, a little below its top (where barrels are), facing back at the eye
+		const FBox B = Mesh1P->GetStaticMesh()->GetBoundingBox();
+		MuzzleFlash->SetRelativeLocation(FVector(B.Max.X + 2.f, B.GetCenter().Y, B.Max.Z - B.GetSize().Z * 0.2f));
+	}
+	// a random turn and frame-ish size each shot (FlashYellow A01-A04 in MF)
+	MuzzleFlash->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));   // the plane's face towards the eye
+	MuzzleFlash->AddLocalRotation(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f));
+	const float Size = MuzzleFlashSize * FMath::FRandRange(0.8f, 1.2f) / FMath::Max(Mesh1P->GetRelativeScale3D().X, 0.01f) / 100.f;
+	MuzzleFlash->SetRelativeScale3D(FVector(Size));
+	MuzzleFlash->SetVisibility(true);
+	GetWorldTimerManager().SetTimer(MuzzleFlashTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { if (MuzzleFlash) { MuzzleFlash->SetVisibility(false); } }), 0.05f, false);
 }
 
 void ADFWeapon::OnRep_BurstCounter()

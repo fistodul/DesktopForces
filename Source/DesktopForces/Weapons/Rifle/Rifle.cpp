@@ -35,6 +35,7 @@ ARifle::ARifle()
 	ZoomScale = 3.f;
 	ZoomedMoveScale = 0.f;     // can't walk while scoped (MF: "no use to players on the move")
 	RecoilPower = 1.f;
+	MuzzleFlashSize = 40.f;
 	CasingMesh = TEXT("RageWeapons/RifleBullet");   // EjectBrass
 	CasingScale = 1.f;
 	ClassicFireSound = TEXT("WeaponSFX_SniperRifle.Fire");

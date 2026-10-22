@@ -33,6 +33,7 @@ AM87::AM87()
 	MaxTraceDistance = 11250.f; // the shotgun's
 	MaxZoomLevel = 0;
 	DamageType = UDFDamage_Shotgun::StaticClass();
+	MuzzleFlashSize = 50.f;
 	ClassicFireSound = TEXT("m871.m87fire");
 	ClassicReloadSound = TEXT("m871.m87reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");

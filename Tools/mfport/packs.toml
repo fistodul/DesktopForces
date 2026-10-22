@@ -9,7 +9,6 @@
 #   - everything from the retail game is classic, whatever this file says
 #   - a converted map is classic unless it is listed under [core.maps]
 #   - a texture / sound / music package is classic unless it is listed under [core.packages]
-"parachute" = "Gregaras (model, textures, sound: CC0, sources listed in parachute.uc)"
 #     or it is a core map's own package (textures saved inside the map file)
 #   - replacement art (overrides/textures/...) is core: /Game/MF/Replacements; core maps use it,
 #     classic maps keep the original texture unless remaster_classic = true
@@ -54,6 +53,7 @@ remaster_classic = false              # true: classic maps use replacement art t
 "mf-Worlds_Peak" = "Marcin"
 
 [core.packages]
+"parachute" = "Gregaras (model, textures, sound: CC0, sources listed in parachute.uc)"
 # texture packages made for those maps (names differ from every retail texture; the art
 # itself has not been checked texture by texture)
 "GregarasTwo_texpack" = "Gregaras"

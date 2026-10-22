@@ -1,4 +1,5 @@
 #include "Game/DFGameMode.h"
+#include "World/MineGenerator.h"
 #include "AI/DFNavigationSystem.h"
 #include "Vehicles/DFVehicle.h"
 #include "Weapons/TripBombs/TripBomb.h"
@@ -119,6 +120,7 @@ void ADFGameMode::HandleMatchHasStarted()
 {
 	Super::HandleMatchHasStarted();
 	AddBots(BotCount);
+	AMineGenerator::SpawnAll(GetWorld());   // mapped minefields / river splashes (mineGenerator.u)
 	SpawnPlacedBots();
 	if (bVehicles)
 	{

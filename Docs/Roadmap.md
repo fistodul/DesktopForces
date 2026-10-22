@@ -37,7 +37,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Player movement (MF constants), crouch/walk, fall damage, carry-weight speed, recoil
 - ✅ Weapons: knife, pistol, machine gun, shotgun (twin barrels), sniper (charge + variable scope), rocket launcher, grenades (timed/impact), adrenaline, armour
 - ✅ Heavy machine gun (deploy, spin-up), trip bombs (laser + proximity mine)
-- ⬜ Rocket lock-on (SmartRocket)
+- ✅ Rocket lock-on (SmartRocket), tracers, shell cases
 - ✅ Loadout crates/zones, carry blocks, refill on entering
 - ✅ Weapon drops (throw / death) as ground items taken through the loadout (MF Loadout_Ground); loadout opens anywhere
 - ✅ Deathmatch, Team Deathmatch
@@ -53,17 +53,17 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, DeBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
 - ✅ More MF-mods: heli + heliHmg, piper / piperTs (plane), vote, mutPack replaceVehicles / addVehicles; jeep gun model (UE1 vertex Mesh reader)
-- ⬜ FNG (not decompiled yet), other mutPack commands, server weapon mods (authors unknown)
+- ✅ server weapon mods (AK-74, M4A1, FAMAS, G36, SC-20K, Ultimax, MAC-10, Glock, Desert Eagle, M24, WA 2000, M1887, M18 smoke; Unverified pack), parachutes, minefields (mineGenerator); ⬜ FNG (not decompiled yet), improvedRL, OPWeapons, BoxPhysics, player skins (Serious, SwatSkin: need soldier models)
 - ✅ Water (swimming, drowning, pain / heal zones, currents, floating vehicles)
 
 ## Presentation
-- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars, minimap (MF MiniMapInfo texture, team border, team-mates, objectives); ⬜ MF scoreboard
+- ✅ MF HUD with the original RageHUD art (blue / red team sets, box segments per carry block, ammo bars, health/armour silhouettes, loadout icon, loadout emblem backdrop, HUD sizes 0-4); plain fallback without the art; MF bitmap fonts, pain flash, translucent crosshair, team score panels, Safecracker bars, minimap (MF MiniMapInfo texture, team border, team-mates, objectives); ⬜ MF scoreboard (✅)
 - ✅ MF loadout behaviour: frozen soldier and view, one cursor through store and carried items (put back from the inventory), W/S/wheel/Fire/E, number rows + X, sounds, spawn protection
 - ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Generated art of our own (`Tools/artgen`): loadout crates with team stencil
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px
 - 🟡 First-person weapons: MF carry models held in view (no arms / animations yet: those are SkeletalMeshes); ⬜ third-person soldiers, team skins
-- 🟡 Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, wall hits, blood, map emitters; ⬜ muzzle flashes, tracers, scorch marks / bullet holes (decals), water splashes, bubbles
+- 🟡 Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, wall hits, blood, map emitters; ✅ tracers, shell cases, bullet holes and scorch marks (decals), smoke grenades; ⬜ muzzle flashes, water rings, bubbles
 - 🟡 Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ⬜ server browser (333networks master server protocol)
 - ⬜ Touch controls (mobile)
 

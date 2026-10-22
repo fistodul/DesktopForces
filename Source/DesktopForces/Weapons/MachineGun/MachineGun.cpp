@@ -34,6 +34,7 @@ AMachineGun::AMachineGun()
 	ZoomScale = 2.f;
 	RecoilPower = 0.8f;
 	TracerEvery = 5;
+	MuzzleFlashSize = 40.f;
 	CasingMesh = TEXT("RageWeapons/MachineGunBullet");   // EjectBrass
 	CasingScale = 0.7f;              // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_MachineGun.Fire");

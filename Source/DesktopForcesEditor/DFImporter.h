@@ -93,6 +93,8 @@ public:
 	void EnsureGoalAssets();
 	/** M_MF_Tracer: bullet tracers (ADFTracer). */
 	void EnsureTracerMaterial();
+	/** M_MF_MuzzleFlash: the guns' flash quad (classic FlashYellow). */
+	void EnsureMuzzleFlashMaterial();
 
 	/**
 	 * MF sprite particles (DFEffectsImport.cpp, work/out/Effects from mfport.py effects):

@@ -7,9 +7,9 @@
 
 namespace
 {
-	constexpr float Speed = 6750.f;        // 3000 uu/s
-	constexpr float MinLength = 288.f;     // 128 uu: closer, no tracer
-	constexpr float StartOffset = 144.f;   // 64 uu out from the gun
+	constexpr float TracerSpeed = 6750.f;        // 3000 uu/s
+	constexpr float TracerMinLength = 288.f;     // 128 uu: closer, no tracer
+	constexpr float TracerStartOffset = 144.f;   // 64 uu out from the gun
 }
 
 ADFTracer::ADFTracer()
@@ -36,9 +36,9 @@ void ADFTracer::Fire(UWorld* World, const FVector& Start, const FVector& End)
 		return;
 	}
 	const FVector Dir = (End - Start).GetSafeNormal();
-	const FVector From = Start + Dir * StartOffset;
+	const FVector From = Start + Dir * TracerStartOffset;
 	const float Len = FVector::Dist(From, End);
-	if (FVector::Dist(Start, End) < MinLength || Dir.IsNearlyZero())
+	if (FVector::Dist(Start, End) < TracerMinLength || Dir.IsNearlyZero())
 	{
 		return;
 	}
@@ -51,8 +51,8 @@ void ADFTracer::Fire(UWorld* World, const FVector& Start, const FVector& End)
 		{
 			T->Streak->SetMaterial(0, Material);
 		}
-		T->Velocity = Dir * Speed;
-		T->SetLifeSpan(FMath::Min(2.f, Len / Speed));   // FMin(2, Len / 3000)
+		T->Velocity = Dir * TracerSpeed;
+		T->SetLifeSpan(FMath::Min(2.f, Len / TracerSpeed));   // FMin(2, Len / 3000)
 	}
 }
 
