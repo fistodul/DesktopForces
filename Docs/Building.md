@@ -7,9 +7,10 @@ menu to try out or hand around.
 
 - **Unreal Engine 5.8** - the Epic Games Launcher install (Windows) or Epic's Linux binary
   build. No engine source needed. Windows also needs Visual Studio 2022 (or its Build Tools)
-  with the "Game development with C++" workload **and** the individual component "Windows 11
-  SDK (10.0.22621.0)" (the workload doesn't always tick it; `build_windows.ps1` checks both
-  and says what's missing before it starts).
+  with the "Game development with C++" workload, the individual component "Windows 11 SDK
+  (10.0.22621.0)" and, from the ".NET desktop development" workload, ".NET Framework 4.8 SDK"
+  (the workloads don't always tick them; `build_windows.ps1` checks all three and says what's
+  missing before it starts).
 - **Python 3.11+** with Pillow and numpy (`pip install pillow numpy`), **ffmpeg** with
   libopenmpt (sounds, tracker music; Windows: e.g. the gyan.dev "full" build), and on Linux /
   macOS **Wine** (the pipeline runs the original game's `UCC.exe` to export levels and
@@ -120,7 +121,8 @@ content, nothing converted twice.
    (same content); Windows' own cook then only adds its shaders.
 2. Linux: `Tools/sync_to_windows.sh` (or `share_with_windows.sh --apply`).
 3. Windows, once: Visual Studio Installer - Modify - "Game development with C++" + "Windows 11
-   SDK (10.0.22621.0)"; UE 5.8 from the launcher (or `download_ue_windows.py` from Linux).
+   SDK (10.0.22621.0)" + ".NET Framework 4.8 SDK" (".NET desktop development"); UE 5.8 from the
+   launcher (or `download_ue_windows.py` from Linux).
 4. Windows: PowerShell in `C:\Users\<you>\DesktopForces`:
    `powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Config Development -Zip`.
    The first run compiles the editor and every shader: count on an hour or two.

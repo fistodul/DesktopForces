@@ -1,4 +1,5 @@
 #include "Core/DFUserSettings.h"
+#include "Engine/Console.h"
 #include "Core/DFContent.h"
 #include "AudioDevice.h"
 #include "World/DFMapActors.h"
@@ -31,6 +32,22 @@ void UDFUserSettings::ApplyNonResolutionSettings() {
 			if (Context.World() && Context.World()->IsGameWorld())
 				ADFMapInfo::ApplyAmbient(Context.World());
 	}
+	ApplyConsole();
+}
+
+void UDFUserSettings::ApplyConsole() const {
+#if UE_BUILD_SHIPPING
+	UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+	if (!VC || !GEngine->ConsoleClass)
+		return;
+	if (bConsole && !VC->ViewportConsole) {
+		VC->ViewportConsole = NewObject<UConsole>(VC, GEngine->ConsoleClass);
+		GLog->AddOutputDevice(VC->ViewportConsole);
+	} else if (!bConsole && VC->ViewportConsole) {
+		GLog->RemoveOutputDevice(VC->ViewportConsole);
+		VC->ViewportConsole = nullptr;
+	}
+#endif
 }
 
 void UDFUserSettings::UpdateScreenPercentage() {
@@ -58,5 +75,7 @@ void UDFUserSettings::SetToDefaults() {
 	MusicVolume = 1.f;
 	Crosshair = 13;
 	HUDSize = 2;
+	WeaponHand = EDFWeaponHand::Right;
+	bConsole = false;
 	KeyBindings.Reset();
 }

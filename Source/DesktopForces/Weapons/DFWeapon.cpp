@@ -1,4 +1,5 @@
 #include "Weapons/DFWeapon.h"
+#include "Core/DFUserSettings.h"
 #include "Game/DFGameState.h"
 #include "Player/DFSoldierAnimInstance.h"
 #include "Core/DFMeshScaleData.h"
@@ -673,8 +674,10 @@ void ADFWeapon::UpdateDroppedLook() {
 	}
 	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
-	if (bHasViewMesh)
-		Mesh1P->SetRelativeTransform(bDropped ? FTransform::Identity : HandTransform);
+	if (bDropped && bHasViewMesh)
+		Mesh1P->SetRelativeTransform(FTransform::Identity);
+	else
+		ApplyHand();
 	if (bDropped)
 		SetActorHiddenInGame(false);
 	else if (State == EDFWeaponState::Inactive)
@@ -729,9 +732,9 @@ void ADFWeapon::SetupArms() {
 	Arms->SetupAttachment(RootComponent);
 	// at the eye, MF's draw scale times what the mesh's own (non-uniform) MESHMAP SCALE left
 	const UDFMeshScaleData* Rest = Mesh->GetAssetUserData<UDFMeshScaleData>();
-	Arms->SetRelativeLocation(ArmsOffset * 2.25f);
-	Arms->SetRelativeScale3D((Rest ? Rest->ComponentScale : FVector::OneVector) * ArmsScale);
+	ArmsScale3D = (Rest ? Rest->ComponentScale : FVector::OneVector) * ArmsScale;
 	Arms->RegisterComponent();
+	ApplyHand();
 	if (UDFTweenAnimInstance* Anim = GetArmsAnim()) {
 		Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
 		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));
@@ -795,6 +798,33 @@ void ADFWeapon::PlayArmsAnim(EDFWeaponState ForState, float Duration, bool bAlt)
 		Anim->PlayFitted(Name, Duration, ForState == EDFWeaponState::Reloading ? 0.2f : 0.05f);
 }
 
+void ADFWeapon::ApplyHand() {
+	// MF Weapon.setHand: right-handed (-1) turns PlayerViewOffset.Y round, centred pulls the model
+	// in (X x 0.88, Y x -0.2, Z x 1.12); left keeps the offset as authored and, unlike MF (which
+	// only moved the right hand's model over), mirrors the model
+	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
+	const FVector Mirror(1.f, Hand == EDFWeaponHand::Left ? -1.f : 1.f, 1.f);
+	FVector Offset = ArmsOffset;
+	if (Hand == EDFWeaponHand::Center)
+		Offset = FVector(Offset.X * 0.88f, -0.2f * Offset.Y, Offset.Z * 1.12f);
+	else if (Hand != EDFWeaponHand::Left)
+		Offset.Y = -Offset.Y;
+	if (Arms) {
+		Arms->SetRelativeLocation(Offset * 2.25f);
+		Arms->SetRelativeScale3D(ArmsScale3D * Mirror);
+	}
+	if (bHasViewMesh && !bDropped) {
+		// the carry model held in view (no arms): HandTransform is right-handed already
+		FTransform T = HandTransform;
+		FVector Loc = T.GetLocation();
+		Loc.Y = Hand == EDFWeaponHand::Left ? -Loc.Y : Hand == EDFWeaponHand::Center ? Loc.Y * 0.2f
+																					 : Loc.Y;
+		T.SetLocation(Loc);
+		T.SetScale3D(T.GetScale3D() * Mirror);
+		Mesh1P->SetRelativeTransform(T);
+	}
+}
+
 void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 	if (Mesh3P)
 		Mesh3P->SetOwnerNoSee(!bBehindView);
@@ -802,10 +832,11 @@ void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 		return;
 	// MF draws nothing in hand behind a raised scope (the HUD's scope mask covers the view)
 	const bool bScoped = IsZoomed() && ZoomScale >= 3.f && State != EDFWeaponState::Zooming;
+	const bool bHidden = UDFUserSettings::Get().WeaponHand == EDFWeaponHand::Hidden; // MF Handedness 2
 	if (Arms)
-		Arms->SetVisibility(!bBehindView && !bScoped);
+		Arms->SetVisibility(!bBehindView && !bScoped && !bHidden);
 	else if (Mesh1P && bHasViewMesh)
-		Mesh1P->SetVisibility(!bBehindView);
+		Mesh1P->SetVisibility(!bBehindView && !bHidden);
 }
 
 void ADFWeapon::MulticastReload_Implementation() {

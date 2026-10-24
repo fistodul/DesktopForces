@@ -1,4 +1,5 @@
 #include "Core/DFGameInstance.h"
+#include "Core/DFUserSettings.h"
 #include "DesktopForces.h"
 #include "Core/DFGameSettings.h"
 #include "UI/DFMenu.h"
@@ -20,6 +21,7 @@ void UDFGameInstance::Init() {
 
 void UDFGameInstance::OnStart() {
 	Super::OnStart();
+	UDFUserSettings::Get().ApplyConsole(); // the viewport is up now
 	ScheduleAutoTest();
 }
 

@@ -136,6 +136,11 @@ if ($OnWindows) {
             ForEach-Object { try { [version]$_.Name } catch { } } | Where-Object { $_ -ge $SdkMin }
     })
     if ($Sdks.Count -eq 0) { $Missing += "a Windows SDK $SdkMin or newer: individual component 'Windows 11 SDK ($SdkMain)'" }
+    # the engine's C# tools build against the .NET Framework SDK (NETFXSDK\4.x)
+    $NetFx = "${env:ProgramFiles(x86)}\Windows Kits\NETFXSDK"
+    if (-not (Test-Path $NetFx) -or -not (Get-ChildItem $NetFx -Directory -Filter "4.*" -ErrorAction SilentlyContinue)) {
+        $Missing += "the .NET Framework SDK: workload '.NET desktop development', component '.NET Framework 4.8 SDK'"
+    }
     if ($Missing.Count -gt 0) {
         Write-Host ""
         Write-Host "[!] Missing for building C++:" -ForegroundColor Red

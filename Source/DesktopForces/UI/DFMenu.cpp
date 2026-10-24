@@ -253,6 +253,9 @@ private:
 	float FOV = 100.f;
 	float RenderScale = 1.f;
 	bool bInvert = false;
+	bool bConsole = false;
+	TArray<TSharedPtr<FString>> Hands; // EDFWeaponHand order
+	TSharedPtr<FString> SelectedHand;
 	TArray<TSharedPtr<FString>> DecalModes;
 	TSharedPtr<FString> SelectedDecals;
 	float MasterVolume = 1.f;
@@ -528,6 +531,10 @@ private:
 		Game->AddSlot(1, 3).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
 		Game->AddSlot(0, 4)[Label(LOCTEXT("Invert", "Invert mouse"))];
 		Game->AddSlot(1, 4).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
+		Game->AddSlot(0, 5)[Label(LOCTEXT("Hand", "Weapon hand"))];
+		Game->AddSlot(1, 5).Padding(2.f)[Combo(Hands, SelectedHand)];
+		Game->AddSlot(0, 6)[Label(LOCTEXT("Console", "Console (~, Tab)"))];
+		Game->AddSlot(1, 6).Padding(2.f).HAlign(HAlign_Left)[Check(bConsole)];
 
 		auto Tab = [this](const FText& Text, int32 Index)
 		{
@@ -594,6 +601,8 @@ private:
 		Brightness = D->Brightness;
 		Sensitivity = D->MouseSensitivity;
 		bInvert = D->bInvertMouse;
+		SelectedHand = Hands[int32(D->WeaponHand)];
+		bConsole = D->bConsole;
 		FOV = D->FieldOfView;
 		RenderScale = D->RenderScale;
 		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
@@ -719,6 +728,9 @@ private:
 		Brightness = S.Brightness;
 		Sensitivity = S.MouseSensitivity;
 		bInvert = S.bInvertMouse;
+		Hands = { MakeShared<FString>(TEXT("Right")), MakeShared<FString>(TEXT("Left")), MakeShared<FString>(TEXT("Center")), MakeShared<FString>(TEXT("Hidden")) };
+		SelectedHand = Hands[FMath::Clamp(int32(S.WeaponHand), 0, Hands.Num() - 1)];
+		bConsole = S.bConsole;
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
 		DecalModes = { MakeShared<FString>(TEXT("Off")), MakeShared<FString>(TEXT("Simple")), MakeShared<FString>(TEXT("Full")) };
@@ -772,6 +784,8 @@ private:
 		S.Brightness = Brightness;
 		S.MouseSensitivity = Sensitivity;
 		S.bInvertMouse = bInvert;
+		S.WeaponHand = EDFWeaponHand(FMath::Max(0, IndexOf(Hands, SelectedHand)));
+		S.bConsole = bConsole;
 		S.FieldOfView = FOV;
 		S.RenderScale = RenderScale;
 		S.DecalQuality = FMath::Max(0, IndexOf(DecalModes, SelectedDecals));

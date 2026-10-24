@@ -312,6 +312,8 @@ public:
 	FVector ArmsOffset = FVector::ZeroVector;
 	UPROPERTY(Transient)
 	TObjectPtr<class USkeletalMeshComponent> Arms;
+	/** The arms' component scale before the hand (MF draw scale x the mesh's own). */
+	FVector ArmsScale3D = FVector::OneVector;
 	class UDFTweenAnimInstance* GetArmsAnim() const;
 	/** The arms' animation for entering ForState (lasting Duration) or for a shot. */
 	virtual void PlayArmsAnim(EDFWeaponState ForState, float Duration, bool bAlt = false);
@@ -338,6 +340,8 @@ public:
 	/** Owner's view each frame: the held model or arms (not in behind view; arms hide behind a
 	 *  scope once it is up, like MF), the third-person one in behind view. */
 	void UpdateFirstPersonView(bool bBehindView);
+	/** The held model in the hand the player chose (Options > Game, MF Weapon.setHand). */
+	void ApplyHand();
 
 	// --- interface used by ADFCharacter / HUD -------------------------------------------
 	ADFCharacter* GetOwnerCharacter() const;

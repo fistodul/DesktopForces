@@ -5,6 +5,15 @@
 #include "InputCoreTypes.h"
 #include "DFUserSettings.generated.h"
 
+/** MF Handedness: the hand the first-person weapon is held in. */
+UENUM()
+enum class EDFWeaponHand : uint8 {
+	Right,
+	Left,
+	Center,
+	Hidden
+};
+
 /**
  * Per-player settings (Saved/Config/<platform>/GameUserSettings.ini): UE's resolution and
  * scalability plus the MF options (name, brightness, mouse). Set as the engine's
@@ -65,12 +74,24 @@ public:
 	UPROPERTY(Config)
 	int32 HUDSize = 2;
 
+	/** MF Handedness (PlayerPawn.SetHand): Right, Left (the model mirrored), Center, Hidden. */
+	UPROPERTY(Config)
+	EDFWeaponHand WeaponHand = EDFWeaponHand::Right;
+
+	/** The console keys (~ the console, Tab one line) in the shipped game too; development
+	 *  builds always have them. */
+	UPROPERTY(Config)
+	bool bConsole = false;
+
 	/** Keys changed in Options > Controls: action -> key (ADFPlayerController::GetBindings;
 	 *  the rest keep MF's defaults). NAME_None key: unbound. */
 	UPROPERTY(Config)
 	TMap<FName, FKey> KeyBindings;
 
 	virtual void ApplyNonResolutionSettings() override;
+	/** Shipping builds: create or drop the game viewport's console (bConsole). UE leaves the
+	 *  console out of shipping builds (ALLOW_CONSOLE) but keeps its code. */
+	void ApplyConsole() const;
 	virtual void SetToDefaults() override;
 
 protected:
