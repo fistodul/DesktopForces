@@ -16,7 +16,24 @@ its maps, but it is its own game: code, tools, docs and art in this repository a
   textures at most 512 px (256 on low), 4 GB VRAM is plenty ([Docs/Performance.md](Docs/Performance.md)).
 - Gameplay numbers carry the original value in a comment ([Docs/Gameplay.md](Docs/Gameplay.md)).
 
-## Quick start
+## Quick start (new teammates)
+
+Cloned the repo and only see a grey test range with a ball? That's `MF_TestRange` — the
+built-in physics sandbox. The actual game content (maps, weapons, vehicles, textures) needs
+to be imported from your Mobile Forces installation.
+
+**Easiest way:**
+```bash
+python3 Tools/setup.py            # interactive: checks prereqs, sets up config, picks maps
+```
+
+Or list/import maps directly:
+```bash
+python3 Tools/setup.py --list-maps      # show the 22 core maps with authors
+python3 Tools/setup.py --import-all     # import everything (takes a while first time)
+```
+
+## Quick start (manual)
 
 Requirements: Unreal Engine 5.8, Python 3.11+ with Pillow and numpy, Wine (Linux/macOS only;
 runs the original `UCC.exe` exporter for levels and sounds), ffmpeg (sounds, music), a Mobile
@@ -63,8 +80,10 @@ number the item in it. Map URL options: `?game=/Script/DesktopForces.TeamDeathMa
 | `Tools/mfport/packs.toml` | Which converted content is part of the game and which stays classic |
 | `Tools/mfport/overrides/` | Replacement textures (committed; take precedence over the originals) |
 | `Content/MF/` | Our own assets (master materials, menu art, crate, test map) - committed |
-| `Content/Maps/`, `Content/MF/Community/` | Converted community maps cleared for the game - generated |
-| `Plugins/MobileForcesClassic/` | Content converted from the original game - generated, **never committed** |
+| `Content/Maps/`, `Content/MF/Community/` | Converted community maps cleared for the game (tracked on Azure, generated on GitHub) |
+| `Plugins/MobileForcesClassic/` | Content converted from the original game - generated locally, **never committed** |
+| `Tools/setup.py` | Interactive first-time setup and map import helper |
+| `Tools/sync_github.sh` | Sync source-only code from `main` → GitHub (strips content) |
 | `Docs/` | How everything works |
 
 ## Docs
