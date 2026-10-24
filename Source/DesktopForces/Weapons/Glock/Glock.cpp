@@ -4,17 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AGlock::AGlock()
-{
+AGlock::AGlock() {
 	// Fire 8 @30 + 0.05; aiming (no magnification) fires AccurateAimFire 5 @85: full auto, wild
 	ViewMesh = TEXT("glock/glockPickupCarryMesh");
-	ArmsMesh = TEXT("glockPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("glockPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(0.2f, -0.8f, -2.2f);
 	RequiredContent = TEXT("Props/glock/glockPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/glock/Skins/glockimage");
-	HUDIconRect = FIntRect(0, 193, 120, 271);   // WeaponIcon X=0 Y=193 W=120 H=78
+	HUDIconRect = FIntRect(0, 193, 120, 271); // WeaponIcon X=0 Y=193 W=120 H=78
 	DisplayName = LOCTEXT("Glock", "Glock 18");
 	InventoryGroup = 2;
 	CarrySize = 1;

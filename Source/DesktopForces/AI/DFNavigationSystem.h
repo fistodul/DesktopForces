@@ -15,8 +15,7 @@
  * The warning here is for real changes after the start (something that should be baked).
  */
 UCLASS()
-class DESKTOPFORCES_API UDFNavigationSystem : public UNavigationSystemV1
-{
+class DESKTOPFORCES_API UDFNavigationSystem : public UNavigationSystemV1 {
 	GENERATED_BODY()
 
 public:

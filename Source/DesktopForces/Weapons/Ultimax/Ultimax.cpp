@@ -4,20 +4,19 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AUltimax::AUltimax()
-{
+AUltimax::AUltimax() {
 	// NormalFire sleeps 0.112 s (0.45 aimed); Reload 28 @8 + 0.25
 	ViewMesh = TEXT("ultimax/UltimaxPickupCarryMesh");
-	ArmsMesh = TEXT("UltimaxPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("UltimaxPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(3.2f, -1.7f, -2.7f);
 	RequiredContent = TEXT("Props/ultimax/UltimaxPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/ultimax/Skins/Ultimaximage");
-	HUDIconRect = FIntRect(0, 165, 250, 235);   // WeaponIcon X=0 Y=165 W=250 H=70
+	HUDIconRect = FIntRect(0, 165, 250, 235); // WeaponIcon X=0 Y=165 W=250 H=70
 	DisplayName = LOCTEXT("Ultimax", "Ultimax 100");
 	InventoryGroup = 6;
-	SoldierAnimSet = 3;   // the mod's AnimNumber
+	SoldierAnimSet = 3; // the mod's AnimNumber
 	CarrySize = 4;
 	MaxClipAmmo = 100;
 	MaxClips = 4;

@@ -13,15 +13,14 @@ class UStaticMeshComponent;
 class UTexture2D;
 
 UENUM(BlueprintType)
-enum class EDFWeaponState : uint8
-{
-	Inactive,     // holstered (in inventory, not held)
-	Equipping,    // SelectUp animation
+enum class EDFWeaponState : uint8 {
+	Inactive, // holstered (in inventory, not held)
+	Equipping, // SelectUp animation
 	Idle,
-	Firing,       // a shot's animation is playing; MF Finish() runs when it ends
+	Firing, // a shot's animation is playing; MF Finish() runs when it ends
 	Reloading,
-	PuttingDown,  // SelectDown animation
-	Zooming,      // AccurateAimUp / BringScopeUp
+	PuttingDown, // SelectDown animation
+	Zooming, // AccurateAimUp / BringScopeUp
 };
 
 /**
@@ -41,8 +40,7 @@ enum class EDFWeaponState : uint8
  * Performance: weapons never tick; all timing uses timers.
  */
 UCLASS(Abstract, Config = Game)
-class DESKTOPFORCES_API ADFWeapon : public AActor
-{
+class DESKTOPFORCES_API ADFWeapon : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -51,7 +49,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PostInitializeComponents() override;
 	virtual void Destroyed() override;
-	virtual void Tick(float DeltaSeconds) override;   // only while a dropped weapon falls
+	virtual void Tick(float DeltaSeconds) override; // only while a dropped weapon falls
 
 	// --- identity / loadout ---------------------------------------------------------
 	UPROPERTY(EditDefaultsOnly, Category = "DF")

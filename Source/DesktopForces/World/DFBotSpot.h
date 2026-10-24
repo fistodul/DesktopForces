@@ -13,8 +13,7 @@ class ADFWeapon;
  * GroundSpeed 0 it holds its spot and only shoots. Placed pawns don't come back once killed.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFBotSpot : public AActor
-{
+class DESKTOPFORCES_API ADFBotSpot : public AActor {
 	GENERATED_BODY()
 
 public:

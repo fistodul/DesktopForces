@@ -17,8 +17,7 @@ class UStaticMeshComponent;
  * Placed by `mfport.py import --steps patch`.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFBlocker : public AActor
-{
+class DESKTOPFORCES_API ADFBlocker : public AActor {
 	GENERATED_BODY()
 
 public:

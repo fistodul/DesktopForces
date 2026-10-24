@@ -11,9 +11,8 @@
 
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
-AAdrenalineShot::AAdrenalineShot()
-{
-	HUDIconRect = FIntRect(144, 0, 192, 64);   // WeaponIcon X=144 Y=0 W=48 H=64
+AAdrenalineShot::AAdrenalineShot() {
+	HUDIconRect = FIntRect(144, 0, 192, 64); // WeaponIcon X=144 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Adrenaline", "Adrenaline Shot");
 	InventoryGroup = 10;
 	CarrySize = 1;
@@ -29,37 +28,27 @@ AAdrenalineShot::AAdrenalineShot()
 	RecoilPower = 0.f;
 }
 
-bool AAdrenalineShot::TryFire(bool bAlt)
-{
+bool AAdrenalineShot::TryFire(bool bAlt) {
 	ADFCharacter* Me = GetOwnerCharacter();
 	if (!Me || !HasAmmoInClip())
-	{
 		return false;
-	}
 	ADFCharacter* Target = Me;
-	if (bAlt)
-	{
+	if (bAlt) {
 		// MF TryToInject: trace Range along the view
 		Target = nullptr;
 		FHitResult Hit;
 		const FVector Start = GetFireStart();
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFInject), false, Me);
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + GetAimRotation().Vector() * InjectRange, ECC_GameTraceChannel2, Params))
-		{
 			Target = Cast<ADFCharacter>(Hit.GetActor());
-		}
 	}
 	// MF InjectDrug: only used when the target is hurt
 	if (!Target || Target->GetHealth() >= Target->MaxHealth)
-	{
 		return false;
-	}
 	SetState(EDFWeaponState::Firing, FireTime);
 	UseAmmo();
 	if (HasAuthority())
-	{
 		Target->Heal(Target->MaxHealth);
-	}
 	return true;
 }
 

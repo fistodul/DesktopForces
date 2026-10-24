@@ -11,8 +11,7 @@
  * bots, skill, time limit, LAN host), join an address, options (name, resolution, window
  * mode, quality, render scale, brightness, mouse, field of view), credits, quit.
  */
-namespace DFMenu
-{
+namespace DFMenu {
 	/** Show the menu for a local player (bInGame: Resume / Leave instead of the title screen). */
 	DESKTOPFORCES_API void Open(APlayerController* PC, bool bInGame);
 	DESKTOPFORCES_API void Close(APlayerController* PC);
@@ -22,7 +21,7 @@ namespace DFMenu
 	/** Scripted tests: show page N (0 main, 1 play, 2 join, 3 options, 4 credits) / press Start. */
 	DESKTOPFORCES_API void DebugPage(int32 Page);
 	DESKTOPFORCES_API void DebugStart();
-}
+} // namespace DFMenu
 
 /**
  * Title screen game mode: no pawns, the menu over a picture (UDFGameSettings::MenuBackgrounds),
@@ -30,8 +29,7 @@ namespace DFMenu
  * LocalMapOptions).
  */
 UCLASS()
-class DESKTOPFORCES_API ADFMenuGameMode : public AGameModeBase
-{
+class DESKTOPFORCES_API ADFMenuGameMode : public AGameModeBase {
 	GENERATED_BODY()
 
 public:
@@ -39,8 +37,7 @@ public:
 };
 
 UCLASS()
-class DESKTOPFORCES_API ADFMenuPlayerController : public APlayerController
-{
+class DESKTOPFORCES_API ADFMenuPlayerController : public APlayerController {
 	GENERATED_BODY()
 
 public:

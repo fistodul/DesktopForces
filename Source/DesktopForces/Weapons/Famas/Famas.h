@@ -10,8 +10,7 @@
  * only offered where that pack is installed). 28 damage, 56 to the head; 25 x 10.
  */
 UCLASS()
-class DESKTOPFORCES_API AFamas : public AMachineGun
-{
+class DESKTOPFORCES_API AFamas : public AMachineGun {
 	GENERATED_BODY()
 public:
 	AFamas();

@@ -10,8 +10,7 @@ class ADFCharacter;
 
 /** On zombies: cars hardly hurt them ("Zombies fear no car": run-over damage / 10). */
 UCLASS()
-class DESKTOPFORCES_API UZombieHide : public UActorComponent, public IDFDamageFilter
-{
+class DESKTOPFORCES_API UZombieHide : public UActorComponent, public IDFDamageFilter {
 	GENERATED_BODY()
 public:
 	virtual int32 FilterDamage(int32 Damage, const UDFDamageType* Type) override;
@@ -31,8 +30,7 @@ public:
  * ?Infect=0 (plain team deathmatch with zombie bodies, FragLimit 30).
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API AZombieGame : public ATugOfWar
-{
+class DESKTOPFORCES_API AZombieGame : public ATugOfWar {
 	GENERATED_BODY()
 
 public:
@@ -101,5 +99,5 @@ protected:
 	FTimerHandle RegenTimer;
 	TSet<TWeakObjectPtr<const ADFPlayerStart>> ZombieStarts;
 
-	static constexpr float MeleeDistance = 1350.f;   // MF MeleeDistance 600 uu
+	static constexpr float MeleeDistance = 1350.f; // MF MeleeDistance 600 uu
 };

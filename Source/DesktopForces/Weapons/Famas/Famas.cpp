@@ -4,17 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AFamas::AFamas()
-{
+AFamas::AFamas() {
 	// Fire01-04 4 @50 + 0.05; Reload 30 @10 + 0.25
 	ViewMesh = TEXT("famas/FamasPickupCarryMesh");
-	ArmsMesh = TEXT("FamasPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("FamasPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(3.f, -1.25f, -2.5f);
 	RequiredContent = TEXT("Props/famas/FamasPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/famas/Skins/Famasimage");
-	HUDIconRect = FIntRect(0, 194, 120, 272);   // WeaponIcon X=0 Y=194 W=120 H=78
+	HUDIconRect = FIntRect(0, 194, 120, 272); // WeaponIcon X=0 Y=194 W=120 H=78
 	DisplayName = LOCTEXT("Famas", "FAMAS");
 	InventoryGroup = 3;
 	CarrySize = 2;

@@ -14,8 +14,7 @@ class UStaticMeshComponent;
 
 /** 'RunDown' - "%k ran over %o." */
 UCLASS()
-class DESKTOPFORCES_API UDFDamage_RunOver : public UDFDamageType
-{
+class DESKTOPFORCES_API UDFDamage_RunOver : public UDFDamageType {
 	GENERATED_BODY()
 public:
 	UDFDamage_RunOver();
@@ -23,8 +22,7 @@ public:
 
 /** One wheel: where it sits on the body at rest (cm, body space) and how big it is. */
 USTRUCT()
-struct FDFWheelSetup
-{
+struct FDFWheelSetup {
 	GENERATED_BODY()
 
 	UPROPERTY(EditDefaultsOnly, Category = "Wheel")
@@ -50,16 +48,14 @@ struct FDFWheelSetup
 
 /** The seats a door leads to, best first (MF aSeatsDoor / aDoorsSeat / aSeatNearDrivers). */
 USTRUCT()
-struct FDFDoorSeats
-{
+struct FDFDoorSeats {
 	GENERATED_BODY()
 
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<int32> Seats;
 };
 
-namespace DF
-{
+namespace DF {
 	/** Door -> seats lists for a vehicle constructor: { {0, 1}, {3, 2, 0, 1} }. */
 	DESKTOPFORCES_API TArray<FDFDoorSeats> DoorSeats(std::initializer_list<std::initializer_list<int32>> PerDoor);
 
@@ -68,7 +64,7 @@ namespace DF
 	DESKTOPFORCES_API FDFWheelSetup RageWheel(const FVector& Pos, float Radius, bool bSteer, bool bDrive, const TCHAR* Mesh);
 	/** handling.hnd2 MaxSpeed is in mph. */
 	constexpr float Mph = 1.609344f;
-}
+} // namespace DF
 
 /**
  * Mobile Forces vehicle (MF Vehicle / Car): a physics box with raycast wheels - suspension
@@ -83,8 +79,7 @@ namespace DF
  * over. Blows up at 0 health, taking whoever is inside.
  */
 UCLASS(Abstract, Config = Game)
-class DESKTOPFORCES_API ADFVehicle : public APawn
-{
+class DESKTOPFORCES_API ADFVehicle : public APawn {
 	GENERATED_BODY()
 
 public:
@@ -451,8 +446,7 @@ protected:
  * from the map's legacy generator actors.
  */
 UCLASS()
-class DESKTOPFORCES_API AVehicleGenerator : public AActor
-{
+class DESKTOPFORCES_API AVehicleGenerator : public AActor {
 	GENERATED_BODY()
 
 public:

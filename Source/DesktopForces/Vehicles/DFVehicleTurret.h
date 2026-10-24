@@ -19,8 +19,7 @@ class UStaticMeshComponent;
  * GunnerSeat: the vehicle hands its seat changes over.
  */
 UCLASS(ClassGroup = MF, meta = (BlueprintSpawnableComponent))
-class DESKTOPFORCES_API UDFVehicleTurret : public UActorComponent
-{
+class DESKTOPFORCES_API UDFVehicleTurret : public UActorComponent {
 	GENERATED_BODY()
 
 public:
@@ -43,33 +42,54 @@ public:
 	bool bGunnerFiring = false;
 
 	// tuning (vehicle constructors; MF values in comments)
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") int32 GunnerSeat = 1;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	int32 GunnerSeat = 1;
 	/** Where it turns (vehicle body space, cm), the gun's offset from there and the muzzle's. */
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FVector TurretPivot = FVector::ZeroVector;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FVector GunOffset = FVector::ZeroVector;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FVector MuzzleOffset = FVector(90.f, 0.f, 0.f);
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float PitchMin = -11.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float PitchMax = 49.4f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FVector TurretPivot = FVector::ZeroVector;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FVector GunOffset = FVector::ZeroVector;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FVector MuzzleOffset = FVector(90.f, 0.f, 0.f);
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float PitchMin = -11.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float PitchMax = 49.4f;
 	/** Degrees per second. */
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float TurnRate = 164.8f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float TurnRate = 164.8f;
 	/** Where it faces at rest and how far it turns from there (aSeatsRot / aSeatsRotLimit .Yaw; 180 = all round). */
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float BaseYaw = 0.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float YawLimit = 180.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FString TurretMeshName = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float TurretDrawScale = 1.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float FireInterval = 0.1f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") int32 MaxClipAmmo = 100;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float ReloadTime = 4.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float BaseYaw = 0.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float YawLimit = 180.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FString TurretMeshName = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float TurretDrawScale = 1.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float FireInterval = 0.1f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	int32 MaxClipAmmo = 100;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float ReloadTime = 4.f;
 	/** Spread: MF Accuracy x 1000 / MaxTraceDistance. */
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float Spread = 0.03f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float Spread = 0.03f;
 	/** None: instant hit traces. */
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") TSubclassOf<ADFProjectile> ProjectileClass;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float Damage = 25.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") float MaxRange = 13500.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FString ClassicFireSound = TEXT("WeaponSFX_HeavyMachineGun.Fire");
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FString ClassicReloadSound = TEXT("WeaponSFX_MachineGun.Reload");
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	TSubclassOf<ADFProjectile> ProjectileClass;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float Damage = 25.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	float MaxRange = 13500.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FString ClassicFireSound = TEXT("WeaponSFX_HeavyMachineGun.Fire");
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FString ClassicReloadSound = TEXT("WeaponSFX_MachineGun.Reload");
 	/** The gunner's HUD icon (box on the weapon icon sheet). */
-	UPROPERTY(EditDefaultsOnly, Category = "Turret") FIntRect HUDIconRect = FIntRect(64, 64, 256, 128);
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	FIntRect HUDIconRect = FIntRect(64, 64, 256, 128);
 
 protected:
 	void Fire(ADFCharacter* Gunner);
@@ -93,8 +113,7 @@ protected:
 
 /** What a turret's gunner holds (ArmedAPCWeapon, jeep vehWeap): Fire runs the turret. */
 UCLASS(NotPlaceable)
-class DESKTOPFORCES_API ADFVehicleTurretWeapon : public ADFWeapon
-{
+class DESKTOPFORCES_API ADFVehicleTurretWeapon : public ADFWeapon {
 	GENERATED_BODY()
 
 public:

@@ -11,8 +11,7 @@
  * wins it. First to GoalTeamScore rounds (3) wins; every round starts with the original teams.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ATugOfWar : public ADFGameMode
-{
+class DESKTOPFORCES_API ATugOfWar : public ADFGameMode {
 	GENERATED_BODY()
 
 public:

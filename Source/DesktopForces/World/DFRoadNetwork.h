@@ -10,8 +10,7 @@
  * path node along these; RoadPoint.MaxSpeed (0..255) capped the speed on the way.
  */
 UCLASS(NotBlueprintable)
-class DESKTOPFORCES_API ADFRoadNetwork : public AActor
-{
+class DESKTOPFORCES_API ADFRoadNetwork : public AActor {
 	GENERATED_BODY()
 
 public:

@@ -2,21 +2,20 @@
 
 #define LOCTEXT_NAMESPACE "DFVehicles"
 
-ABuggy::ABuggy()
-{
-	EngineSounds = TEXT("BuggySFX");   // EngineSound / EngineStartSound / EngineStopSound
-	PetrolCapPosition = FVector(-63.f, 1.7f, 61.4f);   // PetrolCapPos (-28, 0.75, 27.3), PetrolCapRadius 7
+ABuggy::ABuggy() {
+	EngineSounds = TEXT("BuggySFX"); // EngineSound / EngineStartSound / EngineStopSound
+	PetrolCapPosition = FVector(-63.f, 1.7f, 61.4f); // PetrolCapPos (-28, 0.75, 27.3), PetrolCapRadius 7
 	PetrolCapRadius = 15.75f;
-	NitroAccel = 930.f;              // TurboCars nitroScale (x 60 Hz, m -> cm)
-	NitroMaxSpeed = 5000.f;           // TurboCars MaxSpeed 50 m/s
+	NitroAccel = 930.f; // TurboCars nitroScale (x 60 Hz, m -> cm)
+	NitroMaxSpeed = 5000.f; // TurboCars MaxSpeed 50 m/s
 	DisplayName = LOCTEXT("Buggy", "Buggy");
 	BodyMeshName = TEXT("Rage/BuggyMesh");
 	BoxCenter = FVector(9.f, 0.f, 60.f);
 	BoxExtent = FVector(200.f, 75.f, 40.f);
-	MassKg = 800.f;                    // handling Mass 800
-	TopSpeedKmh = 70.f * DF::Mph;          // MaxSpeed 70
+	MassKg = 800.f; // handling Mass 800
+	TopSpeedKmh = 70.f * DF::Mph; // MaxSpeed 70
 	AccelTime = 5.f;
-	SteerLock = 40.f;                  // Lock 40
+	SteerLock = 40.f; // Lock 40
 	Armour = 0.367f;
 	SuspensionTravel = 30.f;
 	// Buggy.COL wheel spheres; rear-wheel drive (DriveType 1)
@@ -26,15 +25,15 @@ ABuggy::ABuggy()
 		DF::RageWheel(FVector(-85.f, 91.5f, 27.1f), 52.f, false, true, TEXT("Rage/BuggyWheelBR")),
 		DF::RageWheel(FVector(-85.f, -92.4f, 27.1f), 52.f, false, true, TEXT("Rage/BuggyWheelBL")),
 	};
-	SeatPositions = { FVector(20.25f, 0.f, 85.5f), FVector(-157.5f, 0.f, 162.f) };          // aSeatsPos
-	DoorPositions = { FVector(0.f, 135.f, 56.f), FVector(-315.f, 0.f, 67.5f), FVector(0.f, -135.f, 67.5f) };   // aDoorsPos
+	SeatPositions = { FVector(20.25f, 0.f, 85.5f), FVector(-157.5f, 0.f, 162.f) }; // aSeatsPos
+	DoorPositions = { FVector(0.f, 135.f, 56.f), FVector(-315.f, 0.f, 67.5f), FVector(0.f, -135.f, 67.5f) }; // aDoorsPos
 	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
 	SetHandling({ 500.f, 500.f, 250.f, 250.f, 250.f, 250.f, 250.f, 250.f, 140.f, 0.f },
 		{ 1000.f, 2000.f, 2800.f, 3500.f, 4200.f, 5000.f, 5700.f, 6200.f, 6700.f, 7000.f },
 		{ 3.f, 2.4f, 2.f, 1.6f, 1.f }, 3.f, 8.f);
-	DoorSeats = DF::DoorSeats({ { 0 }, { 1, 0 }, { 0 } });   // aSeatsDoor(1)=1, aDoorsSeat(2)=0
-	CameraDistance = 562.5f;           // NearCamera 250
-	FlagPosition = FVector(47.7f, -45.f, 153.f);   // FlagPos x 2.25
+	DoorSeats = DF::DoorSeats({ { 0 }, { 1, 0 }, { 0 } }); // aSeatsDoor(1)=1, aDoorsSeat(2)=0
+	CameraDistance = 562.5f; // NearCamera 250
+	FlagPosition = FVector(47.7f, -45.f, 153.f); // FlagPos x 2.25
 }
 
 #undef LOCTEXT_NAMESPACE

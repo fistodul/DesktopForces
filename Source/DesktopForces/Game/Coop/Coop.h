@@ -10,8 +10,7 @@
  * COOP-*. Play: ?game=/Script/DesktopForces.Coop?Bots=12
  */
 UCLASS()
-class DESKTOPFORCES_API ACoop : public ACaptureTheFlag
-{
+class DESKTOPFORCES_API ACoop : public ACaptureTheFlag {
 	GENERATED_BODY()
 
 public:

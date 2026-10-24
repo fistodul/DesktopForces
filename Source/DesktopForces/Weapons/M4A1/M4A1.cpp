@@ -4,17 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AM4A1::AM4A1()
-{
+AM4A1::AM4A1() {
 	// Fire01-04 3 @35 + 0.05; Reload 33 @14 + 0.25
 	ViewMesh = TEXT("m4a1/M4A1PickupCarryMesh");
-	ArmsMesh = TEXT("M4A1PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("M4A1PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-4.8f, -1.8f, -2.8f);
 	RequiredContent = TEXT("Props/m4a1/M4A1PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/m4a1/Skins/M4A1image");
-	HUDIconRect = FIntRect(0, 203, 120, 263);   // WeaponIcon X=0 Y=203 W=120 H=60
+	HUDIconRect = FIntRect(0, 203, 120, 263); // WeaponIcon X=0 Y=203 W=120 H=60
 	DisplayName = LOCTEXT("M4A1", "M4A1");
 	InventoryGroup = 3;
 	CarrySize = 2;

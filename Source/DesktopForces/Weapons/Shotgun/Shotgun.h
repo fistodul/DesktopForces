@@ -9,12 +9,12 @@
  * both buttons within 0.1 s = both barrels (MF WaitingFire/WaitingAltFire states).
  */
 UCLASS()
-class DESKTOPFORCES_API AShotgun : public ADFWeapon
-{
+class DESKTOPFORCES_API AShotgun : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AShotgun();
 	virtual void StartFire(bool bAlt) override;
+
 protected:
 	virtual bool TryFire(bool bAlt) override;
 	virtual void FireShot(bool bAlt) override;

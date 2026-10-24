@@ -12,15 +12,13 @@ class UStaticMeshComponent;
 
 /** Outside the Battle Royale safe zone ('safeZoneDamage'). */
 UCLASS()
-class DESKTOPFORCES_API UDFDamage_SafeZone : public UDFDamageType
-{
+class DESKTOPFORCES_API UDFDamage_SafeZone : public UDFDamageType {
 	GENERATED_BODY()
 };
 
 /** itemBox: a crate that gives out five random weapons the first time someone touches it. */
 UCLASS()
-class DESKTOPFORCES_API ABRItemBox : public AActor
-{
+class DESKTOPFORCES_API ABRItemBox : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -48,8 +46,7 @@ protected:
 
 /** metalTower: in the way, shootable; every 50 damage drops builder ammo. */
 UCLASS()
-class DESKTOPFORCES_API ABRTower : public AActor
-{
+class DESKTOPFORCES_API ABRTower : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -74,8 +71,7 @@ protected:
 
 /** platform: what the builder puts up (a tower without ammo inside). */
 UCLASS()
-class DESKTOPFORCES_API ABRPlatform : public ABRTower
-{
+class DESKTOPFORCES_API ABRPlatform : public ABRTower {
 	GENERATED_BODY()
 
 public:
@@ -87,8 +83,7 @@ protected:
 
 /** builderAmmo: gives the builder, or 5 more platforms for it. */
 UCLASS()
-class DESKTOPFORCES_API ABRBuilderAmmo : public AActor
-{
+class DESKTOPFORCES_API ABRBuilderAmmo : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -107,8 +102,7 @@ protected:
 
 /** builder: fire puts up a platform 300 uu along the view; alt fire turns it flat / ramp / wall. */
 UCLASS()
-class DESKTOPFORCES_API ABRBuilder : public AAdrenalineShot
-{
+class DESKTOPFORCES_API ABRBuilder : public AAdrenalineShot {
 	GENERATED_BODY()
 
 public:
@@ -135,8 +129,7 @@ protected:
 
 /** safeZone: a shrinking sphere; soldiers outside lose health every second. */
 UCLASS()
-class DESKTOPFORCES_API ABRSafeZone : public AActor
-{
+class DESKTOPFORCES_API ABRSafeZone : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -151,8 +144,8 @@ public:
 	float Radius = 45000.f;
 	float StartRadius = 45000.f;
 	float MinRadius = 1125.f;
-	float ShrinkRate = 67.5f;     // cm/s
-	int32 OutsideDamage = 5;      // per second
+	float ShrinkRate = 67.5f; // cm/s
+	int32 OutsideDamage = 5; // per second
 	bool bShrinking = false;
 
 protected:

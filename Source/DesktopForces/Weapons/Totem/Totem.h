@@ -14,8 +14,7 @@ class ADFCharacter;
  * driven, never ticks. Several stack.
  */
 UCLASS()
-class DESKTOPFORCES_API UTotemHealComponent : public UActorComponent, public IDFDamageFilter
-{
+class DESKTOPFORCES_API UTotemHealComponent : public UActorComponent, public IDFDamageFilter {
 	GENERATED_BODY()
 
 public:
@@ -44,14 +43,13 @@ protected:
  * look at. Reload: the same on yourself. One charge; used up by any of them.
  */
 UCLASS()
-class DESKTOPFORCES_API ATotem : public ADFWeapon
-{
+class DESKTOPFORCES_API ATotem : public ADFWeapon {
 	GENERATED_BODY()
 
 public:
 	ATotem();
 	virtual int32 AbsorbDamage(int32 Damage, const UDFDamageType* Type) override;
-	virtual int32 GetAbsorbPriority() const override { return -1; }   // after armour (MF AbsorptionPriority 1)
+	virtual int32 GetAbsorbPriority() const override { return -1; } // after armour (MF AbsorptionPriority 1)
 	virtual void StartReload() override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
@@ -59,11 +57,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
 	int32 PulseHeal = 56;
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
-	float PulseRadius = 900.f;            // MF 400 uu
+	float PulseRadius = 900.f; // MF 400 uu
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
-	float SelfHealPerTick = 6.f;          // x 20 ticks, 0.5 s apart = 120 over 10 s
+	float SelfHealPerTick = 6.f; // x 20 ticks, 0.5 s apart = 120 over 10 s
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
-	float AllyHealPerTick = 5.9f;         // 118 over 10 s
+	float AllyHealPerTick = 5.9f; // 118 over 10 s
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
 	int32 HealTicks = 20;
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
@@ -75,7 +73,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
 	float ReviveGrace = 1.5f;
 	UPROPERTY(EditDefaultsOnly, Category = "Totem")
-	float TargetRange = 360.f;            // MF TraceRange 160 uu
+	float TargetRange = 360.f; // MF TraceRange 160 uu
 
 protected:
 	virtual bool TryFire(bool bAlt) override;

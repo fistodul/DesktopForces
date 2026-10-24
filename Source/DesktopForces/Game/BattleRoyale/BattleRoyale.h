@@ -16,8 +16,7 @@ class ADFWeapon;
  * bScoreLastedRounds) up to FragLimit 30 within 12 minutes. Maps: BR-*.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ABattleRoyale : public ADFGameMode
-{
+class DESKTOPFORCES_API ABattleRoyale : public ADFGameMode {
 	GENERATED_BODY()
 
 public:

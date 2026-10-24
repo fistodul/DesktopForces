@@ -15,8 +15,7 @@ class ADFVehicle;
  * respawn 5 s. The map's other vehicle generators stay on, except at the bays.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ATrailerGame : public ADFGameMode
-{
+class DESKTOPFORCES_API ATrailerGame : public ADFGameMode {
 	GENERATED_BODY()
 
 public:
@@ -35,7 +34,12 @@ public:
 	virtual FName GetOrderSound(int32 Order) const override;
 
 	/** Delivery bays: centre and team (HUD minimap). */
-	struct FBay { FVector Location; uint8 Team; float Radius; float Height; };
+	struct FBay {
+		FVector Location;
+		uint8 Team;
+		float Radius;
+		float Height;
+	};
 
 protected:
 	virtual void CheckEndConditions(ADFPlayerState* LastKiller) override {}
@@ -53,7 +57,7 @@ protected:
 	TArray<FBay> Bays;
 	FTransform GeneratorSpot;
 	bool bHaveGenerator = false;
-	int32 DeliveredTo = -1;        // bay team while the countdown runs
+	int32 DeliveredTo = -1; // bay team while the countdown runs
 	int32 Count = 0;
 	TWeakObjectPtr<AController> Scorer;
 	FTimerHandle CheckTimer;

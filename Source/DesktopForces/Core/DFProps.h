@@ -4,8 +4,7 @@
 
 class UStaticMeshComponent;
 
-namespace DF
-{
+namespace DF {
 	/**
 	 * Put a converted game mesh (`mfport.py props` -> /MobileForcesClassic/Props/<Package>/<Name>,
 	 * e.g. "RageGame/RageSafeMeshBlue") on a component: at Offset from the actor with the MF
@@ -13,4 +12,4 @@ namespace DF
 	 * (the placeholder shape stays) when this install has no converted props.
 	 */
 	DESKTOPFORCES_API bool ApplyPropMesh(UStaticMeshComponent* C, const TCHAR* PackageAndName, float DrawScale = 1.f, const FVector& Offset = FVector::ZeroVector);
-}
+} // namespace DF

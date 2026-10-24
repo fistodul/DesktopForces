@@ -11,8 +11,7 @@
  * of the river when something wades through. Placed from the map's legacy actors at the start.
  */
 UCLASS(NotPlaceable)
-class DESKTOPFORCES_API AMineGenerator : public AActor
-{
+class DESKTOPFORCES_API AMineGenerator : public AActor {
 	GENERATED_BODY()
 
 public:

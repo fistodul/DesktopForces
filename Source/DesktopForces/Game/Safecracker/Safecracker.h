@@ -17,8 +17,7 @@ class UStaticMeshComponent;
  * safe takes the gold; touching your own safe with the enemy gold scores.
  */
 UCLASS()
-class DESKTOPFORCES_API ASafe : public AActor
-{
+class DESKTOPFORCES_API ASafe : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -80,8 +79,7 @@ protected:
  * sides swap and the new attackers must beat part 1's time. Carrier kill +4, steal +7.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ASafecracker : public AFlagGame
-{
+class DESKTOPFORCES_API ASafecracker : public AFlagGame {
 	GENERATED_BODY()
 
 public:

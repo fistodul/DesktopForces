@@ -47,31 +47,30 @@
 
 #define LOCTEXT_NAMESPACE "DFMenu"
 
-namespace
-{
+namespace {
 	// MF menu look: dark blue panels with a light border, white text
 	const FLinearColor PanelColor(0.02f, 0.05f, 0.25f, 0.82f);
 	const FLinearColor TitleColor(0.55f, 0.75f, 1.f);
 	const TCHAR* MenuGameOption = TEXT("game=/Script/DesktopForces.DFMenuGameMode");
 
-	FSlateFontInfo Font(int32 Size, const TCHAR* Style = TEXT("Regular"))
-	{
+	FSlateFontInfo Font(int32 Size, const TCHAR* Style = TEXT("Regular")) {
 		return FCoreStyle::GetDefaultFontStyle(Style, Size);
 	}
 
 	// the viewport owns the widget; a strong global would outlive Slate at exit (crash on Quit)
 	TWeakPtr<SWidget> GMenu;
 	TWeakObjectPtr<APlayerController> GOwner;
-}
+} // namespace
 
-class SMFMenu : public SCompoundWidget
-{
+class SMFMenu : public SCompoundWidget {
 public:
-	SLATE_BEGIN_ARGS(SMFMenu) : _bInGame(false) {}
-		SLATE_ARGUMENT(bool, bInGame)
-		SLATE_ARGUMENT(TWeakObjectPtr<APlayerController>, Owner)
+	SLATE_BEGIN_ARGS(SMFMenu)
+		: _bInGame(false) {}
+	SLATE_ARGUMENT(bool, bInGame)
+	SLATE_ARGUMENT(TWeakObjectPtr<APlayerController>, Owner)
 	SLATE_END_ARGS()
 
+	// clang-format off: Slate's declarative layout keeps its own line breaks
 	void Construct(const FArguments& Args)
 	{
 		bInGame = Args._bInGame;
@@ -151,16 +150,15 @@ public:
 			]
 		];
 	}
+	// clang-format on
 
-	static FString ProjectVersion()
-	{
+	static FString ProjectVersion() {
 		FString Version = TEXT("0.1");
 		GConfig->GetString(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("ProjectVersion"), Version, GGameIni);
 		return Version;
 	}
 
-	void MakeStyles()
-	{
+	void MakeStyles() {
 		// MF-like flat blue boxes, white bold text
 		PanelBrush = FSlateRoundedBoxBrush(FLinearColor(0.01f, 0.03f, 0.14f, 0.82f), 6.f, FLinearColor(0.35f, 0.55f, 1.f, 0.55f), 1.f);
 		ButtonStyle = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
@@ -177,46 +175,32 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
 	/** 0-4 pages; 10-13: the Options tabs. */
-	void ShowPage(int32 Page)
-	{
+	void ShowPage(int32 Page) {
 		Switcher->SetActiveWidgetIndex(Page >= 10 ? 3 : FMath::Clamp(Page, 0, 4));
 		if (Page >= 10 && OptionTabs.IsValid())
-		{
 			OptionTabs->SetActiveWidgetIndex(FMath::Clamp(Page - 10, 0, 3));
-		}
 	}
 	void PressStart() { StartGame(); }
 
-	virtual FReply OnKeyDown(const FGeometry& Geometry, const FKeyEvent& Key) override
-	{
-		if (!Capturing.IsNone())
-		{
+	virtual FReply OnKeyDown(const FGeometry& Geometry, const FKeyEvent& Key) override {
+		if (!Capturing.IsNone()) {
 			if (Key.GetKey() != EKeys::Escape)
-			{
 				SetKey(Capturing, Key.GetKey());
-			}
 			Capturing = NAME_None;
 			return FReply::Handled();
 		}
-		if (Key.GetKey() == EKeys::Escape)
-		{
+		if (Key.GetKey() == EKeys::Escape) {
 			if (Switcher->GetActiveWidgetIndex() != 0)
-			{
 				Switcher->SetActiveWidgetIndex(0);
-			}
 			else if (bInGame)
-			{
 				DFMenu::Close(Owner.Get());
-			}
 			return FReply::Handled();
 		}
 		return FReply::Unhandled();
 	}
 
-	virtual FReply OnMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& Mouse) override
-	{
-		if (!Capturing.IsNone())
-		{
+	virtual FReply OnMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& Mouse) override {
+		if (!Capturing.IsNone()) {
 			SetKey(Capturing, Mouse.GetEffectingButton());
 			Capturing = NAME_None;
 			return FReply::Handled();
@@ -224,10 +208,8 @@ public:
 		return FReply::Unhandled();
 	}
 
-	virtual FReply OnMouseWheel(const FGeometry& Geometry, const FPointerEvent& Mouse) override
-	{
-		if (!Capturing.IsNone() && Mouse.GetWheelDelta() != 0.f)
-		{
+	virtual FReply OnMouseWheel(const FGeometry& Geometry, const FPointerEvent& Mouse) override {
+		if (!Capturing.IsNone() && Mouse.GetWheelDelta() != 0.f) {
 			SetKey(Capturing, Mouse.GetWheelDelta() > 0.f ? EKeys::MouseScrollUp : EKeys::MouseScrollDown);
 			Capturing = NAME_None;
 			return FReply::Handled();
@@ -260,7 +242,7 @@ private:
 	// options
 	FString PlayerName;
 	TArray<TSharedPtr<FString>> Resolutions;
-	TArray<FIntPoint> ResolutionSizes;   // what each Resolutions entry says
+	TArray<FIntPoint> ResolutionSizes; // what each Resolutions entry says
 	TSharedPtr<FString> SelectedResolution;
 	TArray<TSharedPtr<FString>> WindowModes;
 	TSharedPtr<FString> SelectedWindowMode;
@@ -285,6 +267,7 @@ private:
 	TArray<TStrongObjectPtr<UTexture2D>> CrosshairTextures;
 	FSlateBrush CrosshairBrush;
 
+	// clang-format off: Slate's declarative layout keeps its own line breaks
 	// --- helpers ----------------------------------------------------------------------
 	static TSharedRef<SWidget> Heading(const FText& Text)
 	{
@@ -584,20 +567,17 @@ private:
 				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Apply", "Apply"), [this]() { ApplyOptions(); })]
 			];
 	}
+	// clang-format on
 
-	void StepCrosshair(int32 Delta)
-	{
+	void StepCrosshair(int32 Delta) {
 		Crosshair = (Crosshair + Delta + 24) % 24;
 		UpdateCrosshairBrush();
 	}
 
-	void UpdateCrosshairBrush()
-	{
-		if (CrosshairTextures.Num() == 0)
-		{
+	void UpdateCrosshairBrush() {
+		if (CrosshairTextures.Num() == 0) {
 			// MF CrossHairA..X (the classic pack; nothing shows without it)
-			for (int32 i = 0; i < 24; ++i)
-			{
+			for (int32 i = 0; i < 24; ++i) {
 				const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));
 				CrosshairTextures.Emplace(DF::LoadClassic<UTexture2D>(TEXT("Textures/Rage/") + Name));
 			}
@@ -609,8 +589,7 @@ private:
 	}
 
 	/** Defaults: MF's options back as they ship (the window, resolution and graphics stay); Apply keeps them. */
-	void ResetOptions()
-	{
+	void ResetOptions() {
 		const UDFUserSettings* D = GetDefault<UDFUserSettings>();
 		Brightness = D->Brightness;
 		Sensitivity = D->MouseSensitivity;
@@ -626,43 +605,35 @@ private:
 		Capturing = NAME_None;
 		const int32 Tab = OptionTabs.IsValid() ? OptionTabs->GetActiveWidgetIndex() : 0;
 		UpdateCrosshairBrush();
-		OptionsHost->SetContent(MakeOptions());   // the widgets show the values they were made with
+		OptionsHost->SetContent(MakeOptions()); // the widgets show the values they were made with
 		OptionTabs->SetActiveWidgetIndex(Tab);
 	}
 
 	/** Give Action this key; whoever had it gets Action's old key (no key does two things). */
 	/** Every key slot (each action's key and second key) with its default. */
-	static TArray<TPair<FName, FKey>> KeySlots()
-	{
+	static TArray<TPair<FName, FKey>> KeySlots() {
 		TArray<TPair<FName, FKey>> Out;
-		for (const FDFBinding& B : ADFPlayerController::GetBindings())
-		{
+		for (const FDFBinding& B : ADFPlayerController::GetBindings()) {
 			Out.Add({ B.Action, B.Default });
 			Out.Add({ ADFPlayerController::AltSlot(B.Action), B.AltDefault });
 		}
 		return Out;
 	}
 
-	void SetKey(FName Slot, const FKey& Key)
-	{
+	void SetKey(FName Slot, const FKey& Key) {
 		const TArray<TPair<FName, FKey>> Slots = KeySlots();
 		auto Current = [this](const TPair<FName, FKey>& S) { const FKey* K = PendingKeys.Find(S.Key); return K ? *K : S.Value; };
 		const TPair<FName, FKey>* Mine = Slots.FindByPredicate([Slot](const TPair<FName, FKey>& S) { return S.Key == Slot; });
 		if (!Mine)
-		{
 			return;
-		}
 		const FKey Old = Current(*Mine);
 		for (const TPair<FName, FKey>& S : Slots)
-		{
 			if (S.Key != Slot && Current(S) == Key)
-			{
-				PendingKeys.Add(S.Key, Old);   // a key in use swaps over
-			}
-		}
+				PendingKeys.Add(S.Key, Old); // a key in use swaps over
 		PendingKeys.Add(Slot, Key);
 	}
 
+	// clang-format off: Slate's declarative layout keeps its own line breaks
 	TSharedRef<SWidget> MakeCredits()
 	{
 		// keep in step with CREDITS.md
@@ -702,12 +673,11 @@ private:
 				Button(LOCTEXT("Back4", "Back"), [this]() { Switcher->SetActiveWidgetIndex(0); })
 			];
 	}
+	// clang-format on
 
 	// --- data ---------------------------------------------------------------------------
-	void FindMaps()
-	{
-		for (const FString& Path : DF::FindMaps())
-		{
+	void FindMaps() {
+		for (const FString& Path : DF::FindMaps()) {
 			MapPaths.Add(Path);
 			MapNames.Add(MakeShared<FString>(FPackageName::GetShortName(Path)));
 		}
@@ -716,42 +686,34 @@ private:
 		SelectedMap = MapNames.IsValidIndex(Ware) ? MapNames[Ware] : (MapNames.Num() ? MapNames[0] : nullptr);
 	}
 
-	void FindModes()
-	{
-		struct FMode { FString Name; FString Path; };
+	void FindModes() {
+		struct FMode {
+			FString Name;
+			FString Path;
+		};
 		TArray<FMode> Modes;
 		for (TObjectIterator<UClass> It; It; ++It)
-		{
-			if (It->IsChildOf(ADFGameMode::StaticClass()) && *It != ADFGameMode::StaticClass()
-				&& !It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists)
-				&& !It->GetName().StartsWith(TEXT("SKEL_")) && !It->GetName().StartsWith(TEXT("REINST_")))
-			{
+			if (It->IsChildOf(ADFGameMode::StaticClass()) && *It != ADFGameMode::StaticClass() && !It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists) && !It->GetName().StartsWith(TEXT("SKEL_")) && !It->GetName().StartsWith(TEXT("REINST_")))
 				Modes.Add({ It->GetDefaultObject<ADFGameMode>()->GameName, It->GetPathName() });
-			}
-		}
 		// MF's own game types in its order, then the community's (MF-mods) alphabetically
 		static const TCHAR* DFOrder[] = { TEXT("DeathMatch"), TEXT("Team DM"), TEXT("Holdout"), TEXT("CTF"), TEXT("SafeCracker"),
 			TEXT("Detonation"), TEXT("Trailer"), TEXT("Captains") };
-		auto Rank = [](const FMode& M)
-		{
+		auto Rank = [](const FMode& M) {
 			const int32 I = Algo::IndexOfByPredicate(DFOrder, [&M](const TCHAR* N) { return M.Name == N; });
 			return I == INDEX_NONE ? int32(UE_ARRAY_COUNT(DFOrder)) : I;
 		};
-		Modes.Sort([&Rank](const FMode& A, const FMode& B)
-		{
+		Modes.Sort([&Rank](const FMode& A, const FMode& B) {
 			const int32 RA = Rank(A), RB = Rank(B);
 			return RA != RB ? RA < RB : A.Name < B.Name;
 		});
-		for (const FMode& M : Modes)
-		{
+		for (const FMode& M : Modes) {
 			ModeNames.Add(MakeShared<FString>(M.Name));
 			ModePaths.Add(M.Path);
 		}
 		SelectedMode = ModeNames.Num() ? ModeNames[0] : nullptr;
 	}
 
-	void LoadOptions()
-	{
+	void LoadOptions() {
 		const UDFUserSettings& S = UDFUserSettings::Get();
 		PlayerName = S.PlayerName.IsEmpty() ? FString(TEXT("Player")) : S.PlayerName;
 		Brightness = S.Brightness;
@@ -776,20 +738,15 @@ private:
 		UKismetSystemLibrary::GetConvenientWindowedResolutions(Windowed);
 		const FIntPoint Current = S.GetScreenResolution();
 		for (const FIntPoint& P : Windowed)
-		{
 			Supported.AddUnique(P);
-		}
 		Supported.AddUnique(S.GetDesktopResolution());
 		Supported.AddUnique(Current);
 		Supported.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X * A.Y < B.X * B.Y; });
-		for (const FIntPoint& P : Supported)
-		{
+		for (const FIntPoint& P : Supported) {
 			Resolutions.Add(MakeShared<FString>(FString::Printf(TEXT("%d x %d"), P.X, P.Y)));
 			ResolutionSizes.Add(P);
 			if (P == Current)
-			{
 				SelectedResolution = Resolutions.Last();
-			}
 		}
 		WindowModes = { MakeShared<FString>(TEXT("Fullscreen")), MakeShared<FString>(TEXT("Borderless window")), MakeShared<FString>(TEXT("Window")) };
 		SelectedWindowMode = WindowModes[FMath::Clamp(int32(S.GetFullscreenMode()), 0, 2)];
@@ -799,20 +756,17 @@ private:
 		SelectedQuality = Qualities[FMath::Clamp(Q < 0 ? 0 : Q, 0, 3)];
 	}
 
-	FString NameOption() const
-	{
+	FString NameOption() const {
 		return TEXT("?Name=") + PlayerName.Replace(TEXT("?"), TEXT("")).Replace(TEXT(" "), TEXT("_"));
 	}
 
-	void SaveName()
-	{
+	void SaveName() {
 		UDFUserSettings& S = UDFUserSettings::Get();
 		S.PlayerName = PlayerName;
 		S.SaveSettings();
 	}
 
-	void ApplyOptions()
-	{
+	void ApplyOptions() {
 		UDFUserSettings& S = UDFUserSettings::Get();
 		S.PlayerName = PlayerName;
 		S.Brightness = Brightness;
@@ -828,50 +782,34 @@ private:
 		// only what differs from MF's defaults is kept
 		S.KeyBindings.Reset();
 		for (const TPair<FName, FKey>& Slot : KeySlots())
-		{
 			if (const FKey* K = PendingKeys.Find(Slot.Key); K && *K != Slot.Value)
-			{
 				S.KeyBindings.Add(Slot.Key, *K);
-			}
-		}
 		Capturing = NAME_None;
 		if (const int32 R = IndexOf(Resolutions, SelectedResolution); ResolutionSizes.IsValidIndex(R))
-		{
 			S.SetScreenResolution(ResolutionSizes[R]);
-		}
 		S.SetFullscreenMode(EWindowMode::ConvertIntToWindowMode(FMath::Max(0, IndexOf(WindowModes, SelectedWindowMode))));
 		S.SetOverallScalabilityLevel(FMath::Max(0, IndexOf(Qualities, SelectedQuality)));
 		S.ApplySettings(false);
 		S.SaveSettings();
-		if (APlayerController* PC = Owner.Get())
-		{
+		if (APlayerController* PC = Owner.Get()) {
 			PC->ConsoleCommand(TEXT("DFApplyUserSettings"));
 			if (PC->PlayerState && !PlayerName.IsEmpty() && PC->PlayerState->GetPlayerName() != PlayerName)
-			{
-				PC->SetName(PlayerName.Replace(TEXT("?"), TEXT("")).Left(20));   // in a game: rename now
-			}
+				PC->SetName(PlayerName.Replace(TEXT("?"), TEXT("")).Left(20)); // in a game: rename now
 		}
 		Switcher->SetActiveWidgetIndex(0);
 	}
 
-	void StartGame()
-	{
+	void StartGame() {
 		APlayerController* PC = Owner.Get();
 		const int32 Map = IndexOf(MapNames, SelectedMap), Mode = IndexOf(ModeNames, SelectedMode);
 		if (!PC || !MapPaths.IsValidIndex(Map) || !ModePaths.IsValidIndex(Mode))
-		{
 			return;
-		}
 		SaveName();
 		FString Options = FString::Printf(TEXT("game=%s?Bots=%d?BotSkill=%.2f"), *ModePaths[Mode], Bots, Skill) + NameOption();
 		if (TimeLimit > 0)
-		{
 			Options += FString::Printf(TEXT("?TimeLimit=%d"), TimeLimit);
-		}
 		if (bListen)
-		{
 			Options += TEXT("?listen");
-		}
 		UE_LOG(LogDF, Display, TEXT("Menu: open %s?%s"), *MapPaths[Map], *Options);
 		DFMenu::Close(PC);
 		UGameplayStatics::OpenLevel(PC, FName(*MapPaths[Map]), true, Options);
@@ -880,12 +818,9 @@ private:
 
 // --- open / close ---------------------------------------------------------------------------
 
-void DFMenu::Open(APlayerController* PC, bool bInGame)
-{
+void DFMenu::Open(APlayerController* PC, bool bInGame) {
 	if (!PC || !PC->IsLocalController() || !GEngine || !GEngine->GameViewport)
-	{
 		return;
-	}
 	Close(PC);
 	TSharedRef<SMFMenu> Menu = SNew(SMFMenu).bInGame(bInGame).Owner(PC);
 	GMenu = Menu;
@@ -898,47 +833,33 @@ void DFMenu::Open(APlayerController* PC, bool bInGame)
 	PC->SetShowMouseCursor(true);
 }
 
-void DFMenu::Close(APlayerController* PC)
-{
+void DFMenu::Close(APlayerController* PC) {
 	if (TSharedPtr<SWidget> Menu = GMenu.Pin(); Menu && GEngine && GEngine->GameViewport)
-	{
 		GEngine->GameViewport->RemoveViewportWidgetContent(Menu.ToSharedRef());
-	}
 	GMenu.Reset();
-	if (PC && PC->IsLocalController() && !PC->IsA<ADFMenuPlayerController>())
-	{
+	if (PC && PC->IsLocalController() && !PC->IsA<ADFMenuPlayerController>()) {
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->SetShowMouseCursor(false);
 	}
 }
 
-bool DFMenu::IsOpen()
-{
+bool DFMenu::IsOpen() {
 	return GMenu.IsValid();
 }
 
-void DFMenu::DebugPage(int32 Page)
-{
+void DFMenu::DebugPage(int32 Page) {
 	if (TSharedPtr<SWidget> Menu = GMenu.Pin())
-	{
 		StaticCastSharedPtr<SMFMenu>(Menu)->ShowPage(Page);
-	}
 }
 
-void DFMenu::DebugStart()
-{
+void DFMenu::DebugStart() {
 	if (TSharedPtr<SWidget> Menu = GMenu.Pin())
-	{
 		StaticCastSharedPtr<SMFMenu>(Menu)->PressStart();
-	}
 }
 
-void DFMenu::ReturnToMainMenu(APlayerController* PC)
-{
+void DFMenu::ReturnToMainMenu(APlayerController* PC) {
 	if (!PC)
-	{
 		return;
-	}
 	Close(PC);
 	const FString Map = GetDefault<UGameMapsSettings>()->GetGameDefaultMap();
 	UGameplayStatics::OpenLevel(PC, FName(*FPackageName::ObjectPathToPackageName(Map)), true, MenuGameOption);
@@ -946,42 +867,34 @@ void DFMenu::ReturnToMainMenu(APlayerController* PC)
 
 // --- title screen -------------------------------------------------------------------------
 
-ADFMenuGameMode::ADFMenuGameMode()
-{
+ADFMenuGameMode::ADFMenuGameMode() {
 	DefaultPawnClass = nullptr;
 	PlayerControllerClass = ADFMenuPlayerController::StaticClass();
 	HUDClass = nullptr;
 	SpectatorClass = nullptr;
 }
 
-ADFMenuPlayerController::ADFMenuPlayerController()
-{
+ADFMenuPlayerController::ADFMenuPlayerController() {
 	PrimaryActorTick.bCanEverTick = true;
 	bAutoManageActiveCameraTarget = false;
 }
 
-void ADFMenuPlayerController::BeginPlay()
-{
+void ADFMenuPlayerController::BeginPlay() {
 	Super::BeginPlay();
 	if (!IsLocalController())
-	{
 		return;
-	}
 	DFMenu::Open(this, false);
 	// the start-up theme, once per run (not again when coming back from a match)
 	static bool bPlayedMusic = false;
-	if (!bPlayedMusic && !FParse::Param(FCommandLine::Get(), TEXT("nosound")))
-	{
-		if (USoundBase* Music = UDFGameSettings::Get().MenuMusic.LoadSynchronous())
-		{
+	if (!bPlayedMusic && !FParse::Param(FCommandLine::Get(), TEXT("nosound"))) {
+		if (USoundBase* Music = UDFGameSettings::Get().MenuMusic.LoadSynchronous()) {
 			bPlayedMusic = true;
 			DF::PlayMusic(this, Music, 0.8f);
 		}
 	}
 }
 
-void ADFMenuPlayerController::EndPlay(const EEndPlayReason::Type Reason)
-{
+void ADFMenuPlayerController::EndPlay(const EEndPlayReason::Type Reason) {
 	DFMenu::Close(this);
 	Super::EndPlay(Reason);
 }

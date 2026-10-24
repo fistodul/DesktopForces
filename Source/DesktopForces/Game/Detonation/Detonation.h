@@ -15,8 +15,7 @@ class UStaticMeshComponent;
  * apart) until nobody of it is alive; that scores and the key restarts somewhere else.
  */
 UCLASS()
-class DESKTOPFORCES_API ADetonationLock : public AActor
-{
+class DESKTOPFORCES_API ADetonationLock : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -57,8 +56,7 @@ protected:
  * detonation +7. An untouched key moves to another spot after 25 s.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADetonation : public AFlagGame
-{
+class DESKTOPFORCES_API ADetonation : public AFlagGame {
 	GENERATED_BODY()
 
 public:

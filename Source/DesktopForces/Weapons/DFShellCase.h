@@ -10,8 +10,7 @@
  * Local only.
  */
 UCLASS(NotPlaceable, Transient)
-class DESKTOPFORCES_API ADFShellCase : public AActor
-{
+class DESKTOPFORCES_API ADFShellCase : public AActor {
 	GENERATED_BODY()
 
 public:

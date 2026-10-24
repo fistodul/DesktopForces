@@ -12,8 +12,7 @@
  * GoalTeamScore rounds (5) wins. Maps: ARENA-*.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API AArena : public AHoldout
-{
+class DESKTOPFORCES_API AArena : public AHoldout {
 	GENERATED_BODY()
 
 public:

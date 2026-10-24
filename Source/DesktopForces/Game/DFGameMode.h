@@ -26,8 +26,7 @@ class ADFWeapon;
  * URL options: ?FragLimit=10?TimeLimit=5?GoalTeamScore=3?Teams=4?Bots=8?BotSkill=0.7?Vehicles=0
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADFGameMode : public AGameMode
-{
+class DESKTOPFORCES_API ADFGameMode : public AGameMode {
 	GENERATED_BODY()
 
 public:
@@ -111,8 +110,7 @@ public:
 	void Event(const FString& Text, uint8 ColourTeam, FName Voice = NAME_None);
 	/** The announcer's order to a player who just joined (InstructionSound): "Kill_them_all",
 	 *  "Destroy_the_enemy", "Get_the_flag" ... */
-	virtual FName GetInstructionSound(const AController* C) const
-	{
+	virtual FName GetInstructionSound(const AController* C) const {
 		return !InstructionSound.IsNone() ? InstructionSound : FName(IsTeamGame() ? TEXT("Destroy_the_enemy") : TEXT("Kill_them_all"));
 	}
 	/** The MF game class this mode stands for ("RageDeathMatch", "RageCTF", a mod's own ...):
@@ -325,15 +323,13 @@ protected:
 
 /** Deathmatch: the base rules. */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADeathMatch : public ADFGameMode
-{
+class DESKTOPFORCES_API ADeathMatch : public ADFGameMode {
 	GENERATED_BODY()
 };
 
 /** Team deathmatch (MF RageTeamGame): 2 teams by default (?Teams=N), 12 min, no friendly fire. */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ATeamDeathMatch : public ADFGameMode
-{
+class DESKTOPFORCES_API ATeamDeathMatch : public ADFGameMode {
 	GENERATED_BODY()
 public:
 	ATeamDeathMatch();

@@ -6,11 +6,10 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
-ADFMover::ADFMover()
-{
+ADFMover::ADFMover() {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;
-	bReplicates = true;   // the server drops movers a game type doesn't use; doors open for all
+	bReplicates = true; // the server drops movers a game type doesn't use; doors open for all
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetMobility(EComponentMobility::Movable);
 	Mesh->SetCollisionProfileName(TEXT("BlockAll"));
@@ -19,65 +18,51 @@ ADFMover::ADFMover()
 	Spin->RotationRate = FRotator::ZeroRotator;
 }
 
-void ADFMover::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void ADFMover::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFMover, Moving);
 	DOREPLIFETIME(ADFMover, Alpha);
 }
 
-void ADFMover::BeginPlay()
-{
+void ADFMover::BeginPlay() {
 	Super::BeginPlay();
 	BasePos = GetActorLocation();
 	BaseRot = GetActorRotation();
 	Spin->SetActive(!Spin->RotationRate.IsZero());
-	if (HasAuthority())
-	{
+	if (HasAuthority()) {
 		// GameInfo.IsRelevant
 		const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
 		const bool bTeam = GM && GM->IsTeamGame();
 		if (GM && ((!bTeamPlay && bTeam) || (!bNonTeamPlay && !bTeam) || (!CondGameType.IsNone() && CondGameType != GM->MFGameClass)))
-		{
 			Destroy();
-		}
 	}
 }
 
 void ADFMover::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation,
-	FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
-{
+	FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) {
 	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
 	// BumpOpenTimed: a soldier walking into it; StandOpenTimed: one standing on it
 	const bool bStand = InitialState == TEXT("StandOpenTimed");
-	if (HasAuthority() && KeyPos.Num() > 1 && Cast<ACharacter>(Other) && (InitialState == TEXT("BumpOpenTimed") || bStand)
-		&& (!bStand || HitNormal.Z < -0.7f))
-	{
+	if (HasAuthority() && KeyPos.Num() > 1 && Cast<ACharacter>(Other) && (InitialState == TEXT("BumpOpenTimed") || bStand) && (!bStand || HitNormal.Z < -0.7f))
 		Open();
-	}
 }
 
-void ADFMover::Open()
-{
-	if (Moving <= 0 && Alpha < 1.f)
-	{
+void ADFMover::Open() {
+	if (Moving <= 0 && Alpha < 1.f) {
 		Moving = 1;
 		SetActorTickEnabled(true);
 	}
 	GetWorldTimerManager().ClearTimer(CloseTimer);
 }
 
-void ADFMover::Close()
-{
+void ADFMover::Close() {
 	Moving = -1;
 	SetActorTickEnabled(true);
 }
 
-void ADFMover::Tick(float DeltaSeconds)
-{
+void ADFMover::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
-	if (Moving == 0 || KeyPos.Num() < 2)
-	{
+	if (Moving == 0 || KeyPos.Num() < 2) {
 		SetActorTickEnabled(false);
 		return;
 	}
@@ -87,14 +72,11 @@ void ADFMover::Tick(float DeltaSeconds)
 	const FVector Pos = BasePos + FMath::Lerp(KeyPos[0], KeyPos[1], S);
 	const FRotator Rot = BaseRot + FMath::Lerp(KeyRot.IsValidIndex(0) ? KeyRot[0] : FRotator::ZeroRotator, KeyRot.IsValidIndex(1) ? KeyRot[1] : FRotator::ZeroRotator, S);
 	SetActorLocationAndRotation(Pos, Rot, true);
-	if ((Moving > 0 && Alpha >= 1.f) || (Moving < 0 && Alpha <= 0.f))
-	{
+	if ((Moving > 0 && Alpha >= 1.f) || (Moving < 0 && Alpha <= 0.f)) {
 		const bool bOpened = Moving > 0;
 		Moving = 0;
 		SetActorTickEnabled(false);
 		if (bOpened && HasAuthority())
-		{
 			GetWorldTimerManager().SetTimer(CloseTimer, this, &ADFMover::Close, StayOpenTime, false);
-		}
 	}
 }

@@ -16,8 +16,7 @@ class URotatingMovementComponent;
  * (bTeamPlay, bNonTeamPlay, CondGameType). Placed by `mfport.py import --steps patch`.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFMover : public AActor
-{
+class DESKTOPFORCES_API ADFMover : public AActor {
 	GENERATED_BODY()
 
 public:

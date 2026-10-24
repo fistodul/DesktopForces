@@ -4,17 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AM24::AM24()
-{
+AM24::AM24() {
 	// bolt action: Fire 17 @10 + 0.05; Reload 45 @15 + 0.25
 	ViewMesh = TEXT("M24/M24PickupCarryMesh");
-	ArmsMesh = TEXT("M24PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("M24PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-7.3f, -0.9f, -2.3f);
 	RequiredContent = TEXT("Props/M24/M24PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/M24/Skins/M24image");
-	HUDIconRect = FIntRect(0, 196, 128, 266);   // WeaponIcon X=0 Y=196 W=128 H=70
+	HUDIconRect = FIntRect(0, 196, 128, 266); // WeaponIcon X=0 Y=196 W=128 H=70
 	DisplayName = LOCTEXT("M24", "M24");
 	InventoryGroup = 5;
 	CarrySize = 3;
@@ -33,8 +32,8 @@ AM24::AM24()
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
 	RecoilPower = 4.0f;
-	MaxTraceDistance = 45000.f;   // like the sniper rifle
-	CasingMesh = TEXT("RageWeapons/RifleBullet");   // RageRifle_BulletCase
+	MaxTraceDistance = 45000.f; // like the sniper rifle
+	CasingMesh = TEXT("RageWeapons/RifleBullet"); // RageRifle_BulletCase
 	MuzzleFlashSize = 40.f;
 	ClassicFireSound = TEXT("M24.M24Fire");
 	ClassicReloadSound = TEXT("M24.M24Reload");

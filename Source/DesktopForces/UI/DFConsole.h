@@ -10,8 +10,7 @@
  * goes line -> full -> closed on the console key.
  */
 UCLASS()
-class DESKTOPFORCES_API UDFConsole : public UConsole
-{
+class DESKTOPFORCES_API UDFConsole : public UConsole {
 	GENERATED_BODY()
 
 public:

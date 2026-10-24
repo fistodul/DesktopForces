@@ -12,8 +12,7 @@
  * Maps: VehicleGenerator VehicleClass=boat.boat (BR-thebigisland).
  */
 UCLASS()
-class DESKTOPFORCES_API ABoat : public ADFVehicle
-{
+class DESKTOPFORCES_API ABoat : public ADFVehicle {
 	GENERATED_BODY()
 
 public:
@@ -23,11 +22,11 @@ protected:
 	virtual void SimulateDrive(float Dt) override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Boat")
-	float MaxSpeedForward = 1020.f;     // maxSpeedForward 0.85 x 12 (m/s -> cm/s)
+	float MaxSpeedForward = 1020.f; // maxSpeedForward 0.85 x 12 (m/s -> cm/s)
 	UPROPERTY(EditDefaultsOnly, Category = "Boat")
-	float MaxSpeedBackward = 240.f;     // maxSpeedBackward 0.2 x 12
+	float MaxSpeedBackward = 240.f; // maxSpeedBackward 0.2 x 12
 	UPROPERTY(EditDefaultsOnly, Category = "Boat")
-	float TurnRate = 3.f;               // turnVelocityMultiplier 0.05 rad/s a tick at 60 Hz
+	float TurnRate = 3.f; // turnVelocityMultiplier 0.05 rad/s a tick at 60 Hz
 
-	float AccelMultiplier = 0.f;        // accelerationVelocityMultiplier
+	float AccelMultiplier = 0.f; // accelerationVelocityMultiplier
 };

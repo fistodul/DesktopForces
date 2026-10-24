@@ -11,25 +11,24 @@
 
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
-APistol::APistol()
-{
+APistol::APistol() {
 	ViewMesh = TEXT("RageWeapons/PistolPickupCarryMesh");
-	ArmsMesh = TEXT("PistolPlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("PistolPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(3.f, -1.f, 0.f);
-	HUDIconRect = FIntRect(0, 0, 48, 64);   // WeaponIcon X=0 Y=0 W=48 H=64
+	HUDIconRect = FIntRect(0, 0, 48, 64); // WeaponIcon X=0 Y=0 W=48 H=64
 	DisplayName = LOCTEXT("Pistol", "Pistol");
 	InventoryGroup = 2;
 	CarrySize = 1;
 	AIRating = 0.45f;
 	MaxClipAmmo = 8;
 	MaxClips = 6;
-	FireTime = 0.342f;         // Fire 15 frames @48 + 0.05 tween
-	ZoomedFireTime = 0.5f;     // AccurateAimFire 16 @30
-	ReloadTime = 1.55f;        // Reload 40 @30 + 0.25 tween
-	EquipTime = 0.667f;        // SelectUp 21 @30
-	PutDownTime = 0.7f;        // SelectDown 22 @30
-	ZoomTime = 0.333f;         // AccurateAimUp 11 @30
+	FireTime = 0.342f; // Fire 15 frames @48 + 0.05 tween
+	ZoomedFireTime = 0.5f; // AccurateAimFire 16 @30
+	ReloadTime = 1.55f; // Reload 40 @30 + 0.25 tween
+	EquipTime = 0.667f; // SelectUp 21 @30
+	PutDownTime = 0.7f; // SelectDown 22 @30
+	ZoomTime = 0.333f; // AccurateAimUp 11 @30
 	HitDamage = 26.f;
 	HeadshotDamage = 40.f;
 	Accuracy = 0.4f;
@@ -39,8 +38,8 @@ APistol::APistol()
 	RecoilPower = 1.f;
 	TracerEvery = 1;
 	MuzzleFlashSize = 30.f;
-	CasingMesh = TEXT("RageWeapons/PistolBullet");   // EjectBrass
-	CasingScale = 1.f;              // RageWeapons TracerEvery
+	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass
+	CasingScale = 1.f; // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_Pistol.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Pistol.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Pistol.Select");

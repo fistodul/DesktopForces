@@ -10,8 +10,7 @@
  * only offered where that pack is installed). 28 damage, 40 to the head; 30 x 4.
  */
 UCLASS()
-class DESKTOPFORCES_API AGlock : public APistol
-{
+class DESKTOPFORCES_API AGlock : public APistol {
 	GENERATED_BODY()
 public:
 	AGlock();

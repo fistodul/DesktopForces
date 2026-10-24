@@ -11,8 +11,7 @@
  * GameUserSettingsClassName in DefaultEngine.ini; the main menu edits it.
  */
 UCLASS()
-class DESKTOPFORCES_API UDFUserSettings : public UGameUserSettings
-{
+class DESKTOPFORCES_API UDFUserSettings : public UGameUserSettings {
 	GENERATED_BODY()
 
 public:

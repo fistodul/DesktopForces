@@ -10,8 +10,7 @@
  * spread widening 0.6 -> 1.2 with the spin. 45 damage, 900 rounds. Only fires deployed.
  */
 UCLASS()
-class DESKTOPFORCES_API AHeavyMachineGun : public ADFWeapon
-{
+class DESKTOPFORCES_API AHeavyMachineGun : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AHeavyMachineGun();
@@ -21,6 +20,7 @@ public:
 	virtual void ForceInactive() override;
 	virtual FString GetHUDStatus() const override;
 	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt) override;
+
 protected:
 	virtual void PostInitializeComponents() override;
 	virtual void ToggleZoom() override;
@@ -32,14 +32,14 @@ protected:
 	void SpinTick();
 	FTimerHandle SpinTimer;
 	FTimerHandle DeploySoundTimer;
-	float SpinRate = 0.f;       // MF FireAnimRate
+	float SpinRate = 0.f; // MF FireAnimRate
 	float ShotAccumulator = 0.f;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float SpinAccel = 1.f;      // MF AnimAccelRate
+	float SpinAccel = 1.f; // MF AnimAccelRate
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float MaxSpin = 3.f;        // MF MaxFireAnimRate
+	float MaxSpin = 3.f; // MF MaxFireAnimRate
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float MinSpin = 0.4f;       // MF MinFireAnimRate
+	float MinSpin = 0.4f; // MF MinFireAnimRate
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float RoundsPerCycle = 8.f;
 };

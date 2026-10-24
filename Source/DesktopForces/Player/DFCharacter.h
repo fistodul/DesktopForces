@@ -25,21 +25,25 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDFOnInventoryChanged, ADFCharacter*
  */
 /** Multipliers on a soldier's body (class defaults x these). */
 USTRUCT(BlueprintType)
-struct FDFBodyScale
-{
+struct FDFBodyScale {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF") float Speed = 1.f;        // MaxWalkSpeed
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF") float Jump = 1.f;         // JumpZVelocity
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF") float Accel = 1.f;        // MaxAcceleration
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF") float Step = 1.f;         // MaxStepHeight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF") float FallDamage = 1.f;   // MF FallDamageThreshold
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF") float FallDeath = 1.f;    // MF FallDeathThreshold
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF")
+	float Speed = 1.f; // MaxWalkSpeed
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF")
+	float Jump = 1.f; // JumpZVelocity
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF")
+	float Accel = 1.f; // MaxAcceleration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF")
+	float Step = 1.f; // MaxStepHeight
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF")
+	float FallDamage = 1.f; // MF FallDamageThreshold
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DF")
+	float FallDeath = 1.f; // MF FallDeathThreshold
 };
 
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADFCharacter : public ACharacter, public IGenericTeamAgentInterface
-{
+class DESKTOPFORCES_API ADFCharacter : public ACharacter, public IGenericTeamAgentInterface {
 	GENERATED_BODY()
 
 public:
@@ -71,7 +75,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DF")
 	int32 GetHealth() const { return Health; }
 	/** Server: health and its cap (a mapper's placed bot with Health 300 ...). */
-	void SetHealthAndMax(int32 NewHealth) { MaxHealth = FMath::Max(1, NewHealth); Health = MaxHealth; }
+	void SetHealthAndMax(int32 NewHealth) {
+		MaxHealth = FMath::Max(1, NewHealth);
+		Health = MaxHealth;
+	}
 
 	UFUNCTION(BlueprintPure, Category = "DF")
 	bool IsAlive() const { return Health > 0 && !bDying; }
@@ -201,7 +208,12 @@ public:
 	virtual void OnJumped_Implementation() override;
 
 	/** RPlayer sounds (RagePlayerSounds, MiscSFX), heard by everyone around. */
-	enum class EBodySound : uint8 { Pain, Death, Jump, Land, LandGrunt, Gasp };
+	enum class EBodySound : uint8 { Pain,
+		Death,
+		Jump,
+		Land,
+		LandGrunt,
+		Gasp };
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastBodySound(uint8 Kind, float Volume, uint8 Variant);
 	/** Says a RagePlayerVoice line (orders, acknowledgements), heard nearby (RageVoicePack:
@@ -313,7 +325,6 @@ protected:
 
 	void SetCurrentWeapon(ADFWeapon* NewWeapon, ADFWeapon* OldWeapon);
 	void ApplyLoadoutState();
-
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastOnDeath(FVector_NetQuantizeNormal Direction);

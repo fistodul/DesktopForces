@@ -19,8 +19,7 @@
  * after 20 s. Bots only ride along when a player flies it.
  */
 UCLASS()
-class DESKTOPFORCES_API AHeli : public ADFVehicle
-{
+class DESKTOPFORCES_API AHeli : public ADFVehicle {
 	GENERATED_BODY()
 
 public:
@@ -52,7 +51,7 @@ protected:
 	TArray<int32> GlassHealth;
 	TArray<FTimerHandle> GlassTimers;
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastGlass(uint8 Pane, uint8 State);   // 0 hit, 1 cracked, 2 shattered, 3 back
+	void MulticastGlass(uint8 Pane, uint8 State); // 0 hit, 1 cracked, 2 shattered, 3 back
 	void SetGlassIntact(int32 Pane, bool bIntact);
 };
 
@@ -61,8 +60,7 @@ protected:
  * vehicleWeapRot +-90, a 90 degree arc each way); its gunners stand at seats 2 and 3.
  */
 UCLASS()
-class DESKTOPFORCES_API AHeliHmg : public AHeli
-{
+class DESKTOPFORCES_API AHeliHmg : public AHeli {
 	GENERATED_BODY()
 
 public:

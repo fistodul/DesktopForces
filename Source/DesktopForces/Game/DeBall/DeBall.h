@@ -10,8 +10,7 @@ class UStaticMeshComponent;
 
 /** The DeBall ball (MF-mods MoBall's TestMoBallProp): a big rubber ball, pushed by vehicles, soldiers and shots. */
 UCLASS()
-class DESKTOPFORCES_API ADeBall : public AActor
-{
+class DESKTOPFORCES_API ADeBall : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -39,8 +38,7 @@ protected:
  * M_MF_GoalField; Tools/artgen goalfield).
  */
 UCLASS(NotPlaceable)
-class DESKTOPFORCES_API ADeBallGoal : public AActor
-{
+class DESKTOPFORCES_API ADeBallGoal : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -76,8 +74,7 @@ protected:
  * of the 15 minutes goes to sudden death. Maps: MB-*, or any map with a trailer generator.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADeBallGame : public ADFGameMode
-{
+class DESKTOPFORCES_API ADeBallGame : public ADFGameMode {
 	GENERATED_BODY()
 
 public:

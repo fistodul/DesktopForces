@@ -14,34 +14,30 @@
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
-namespace
-{
+namespace {
 	constexpr float Uu = 2.25f;
-	const TCHAR* TrailerSquad(uint8 Team) { return Team == 1 ? TEXT("Red Squad") : TEXT("Blue Squad"); }
-}
+	const TCHAR* TrailerSquad(uint8 Team) {
+		return Team == 1 ? TEXT("Red Squad") : TEXT("Blue Squad");
+	}
+} // namespace
 
-ATrailerGame::ATrailerGame()
-{
+ATrailerGame::ATrailerGame() {
 	GameName = TEXT("Trailer");
 	MFGameClass = TEXT("TrailerGame");
 	InstructionSound = TEXT("Get_the_trailer");
 	NumTeams = 2;
-	GoalTeamScore = 4;      // TrailerGame.GoalTeamScore
+	GoalTeamScore = 4; // TrailerGame.GoalTeamScore
 	TimeLimit = 10;
 	RespawnWait = 5;
 	FragLimit = 0;
 	bScoreTeamKills = false;
-	bVehicles = true;       // bAlwaysUseVehciles
+	bVehicles = true; // bAlwaysUseVehciles
 }
 
-void ATrailerGame::FindMapData()
-{
+void ATrailerGame::FindMapData() {
 	if (bHaveGenerator || Bays.Num())
-	{
 		return;
-	}
-	for (ADFLegacyActor* L : ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerDelivery")))
-	{
+	for (ADFLegacyActor* L : ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerDelivery"))) {
 		const FString* R = L->Properties.Find(TEXT("CollisionRadius"));
 		const FString* H = L->Properties.Find(TEXT("CollisionHeight"));
 		// TrailerDelivery defaults: radius 256, height 64 uu; TestOverlap allows 128 uu more
@@ -49,28 +45,22 @@ void ATrailerGame::FindMapData()
 			(H ? FCString::Atof(**H) : 64.f) * Uu });
 	}
 	const TArray<ADFLegacyActor*> Gens = ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerGenerator"));
-	if (Gens.Num())
-	{
+	if (Gens.Num()) {
 		GeneratorSpot = Gens[0]->GetActorTransform();
 		bHaveGenerator = true;
 	}
 }
 
-void ATrailerGame::GetVehicleExclusions(TArray<FVector>& OutPoints) const
-{
+void ATrailerGame::GetVehicleExclusions(TArray<FVector>& OutPoints) const {
 	const_cast<ATrailerGame*>(this)->FindMapData();
 	for (const FBay& B : Bays)
-	{
 		OutPoints.Add(B.Location);
-	}
 }
 
-void ATrailerGame::HandleMatchHasStarted()
-{
+void ATrailerGame::HandleMatchHasStarted() {
 	Super::HandleMatchHasStarted();
 	FindMapData();
-	if (!bHaveGenerator || Bays.Num() < 2)
-	{
+	if (!bHaveGenerator || Bays.Num() < 2) {
 		UE_LOG(LogDF, Warning, TEXT("Trailer: map has %s generator and %d delivery bays"), bHaveGenerator ? TEXT("a") : TEXT("no"), Bays.Num());
 		return;
 	}
@@ -78,47 +68,36 @@ void ATrailerGame::HandleMatchHasStarted()
 	GetWorldTimerManager().SetTimer(CheckTimer, this, &ATrailerGame::CheckDelivery, 0.25f, true);
 }
 
-void ATrailerGame::SpawnTrailer()
-{
+void ATrailerGame::SpawnTrailer() {
 	DeliveredTo = -1;
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	// TrailerGenerator.CreateVehicle: cab 10 uu up, trailer (-244, 0, 10) uu behind it
 	FRotator Rot(0.f, GeneratorSpot.Rotator().Yaw, 0.f);
 	FVector At = GeneratorSpot.GetLocation();
-	if (const ADFRoadNetwork* Roads = TrailerScatterRadius > 0.f ? ADFRoadNetwork::Get(GetWorld()) : nullptr)
-	{
+	if (const ADFRoadNetwork* Roads = TrailerScatterRadius > 0.f ? ADFRoadNetwork::Get(GetWorld()) : nullptr) {
 		// trailerGameV2.moveTrailerGen: a road point near the generator (not on a bay), facing
 		// a neighbouring one, this way or that
 		TArray<int32> Near;
-		for (int32 i = 0; i < Roads->Nodes.Num(); ++i)
-		{
+		for (int32 i = 0; i < Roads->Nodes.Num(); ++i) {
 			const FVector& N = Roads->Nodes[i];
 			if (FVector::Dist2D(N, At) < TrailerScatterRadius && !Bays.ContainsByPredicate([&N](const FBay& B) { return FVector::Dist2D(B.Location, N) < 1500.f; }))
-			{
 				Near.Add(i);
-			}
 		}
-		if (Near.Num())
-		{
+		if (Near.Num()) {
 			const int32 Pick = Near[FMath::RandHelper(Near.Num())];
 			const FVector& P = Roads->Nodes[Pick];
 			int32 Toward = INDEX_NONE;
 			for (const FIntPoint& L : Roads->Links)
-			{
 				Toward = L.X == Pick ? L.Y : (L.Y == Pick ? L.X : Toward);
-			}
 			if (Toward != INDEX_NONE)
-			{
 				Rot = FRotator(0.f, (Roads->Nodes[Toward] - P).Rotation().Yaw + (FMath::RandBool() ? 180.f : 0.f), 0.f);
-			}
 			At = P;
 		}
 	}
 	Cab = GetWorld()->SpawnActor<ADFVehicle>(ATrailerCab::StaticClass(), At + FVector(0.f, 0.f, 150.f), Rot, SP);
 	TrailerVehicle = GetWorld()->SpawnActor<ADFVehicle>(ATrailer::StaticClass(), At + Rot.RotateVector(FVector(-244.f * Uu, 0.f, 0.f)) + FVector(0.f, 0.f, 150.f), Rot, SP);
-	if (!Cab || !TrailerVehicle)
-	{
+	if (!Cab || !TrailerVehicle) {
 		UE_LOG(LogDF, Warning, TEXT("Trailer: could not place the cab / trailer"));
 		return;
 	}
@@ -126,28 +105,23 @@ void ATrailerGame::SpawnTrailer()
 	Event(TEXT("Trailer has restarted"), DF::NoTeam);
 }
 
-void ATrailerGame::VehicleEntered(ADFVehicle* Vehicle, ADFCharacter* Driver)
-{
+void ATrailerGame::VehicleEntered(ADFVehicle* Vehicle, ADFCharacter* Driver) {
 	if (Vehicle == Cab && Driver)
-	{
 		Event(FString::Printf(TEXT("%s: trailer has been captured! Driving to enemy base!"),
-			Driver->GetPlayerState() ? *Driver->GetPlayerState()->GetPlayerName() : TEXT("Someone")), Driver->GetTeam(), TEXT("Trailer_capture"));   // RageTrailerMessage 4
-	}
+				  Driver->GetPlayerState() ? *Driver->GetPlayerState()->GetPlayerName() : TEXT("Someone")),
+			Driver->GetTeam(), TEXT("Trailer_capture")); // RageTrailerMessage 4
 }
 
-void ATrailerGame::CheckDelivery()
-{
+void ATrailerGame::CheckDelivery() {
 	if (!IsMatchInProgress() || DeliveredTo >= 0)
-	{
 		return;
-	}
-	if (!IsValid(Cab) || !IsValid(TrailerVehicle))
-	{
+	if (!IsValid(Cab) || !IsValid(TrailerVehicle)) {
 		// blown up on the way: a fresh one 5 s later
-		if (!GetWorldTimerManager().IsTimerActive(RespawnTimer))
-		{
-			if (IsValid(Cab)) { Cab->Destroy(); }
-			if (IsValid(TrailerVehicle)) { TrailerVehicle->Destroy(); }
+		if (!GetWorldTimerManager().IsTimerActive(RespawnTimer)) {
+			if (IsValid(Cab))
+				Cab->Destroy();
+			if (IsValid(TrailerVehicle))
+				TrailerVehicle->Destroy();
 			Cab = nullptr;
 			TrailerVehicle = nullptr;
 			GetWorldTimerManager().SetTimer(RespawnTimer, this, &ATrailerGame::SpawnTrailer, 5.f, false);
@@ -156,21 +130,14 @@ void ATrailerGame::CheckDelivery()
 	}
 	ADFCharacter* By = Cab->GetDriver() ? Cab->GetDriver() : Cab->GetLastDriver();
 	if (!By || By->GetTeam() > 1)
-	{
 		return;
-	}
 	// TrailerDelivery.TestOverlap: within radius + 128 uu flat, within the height
-	for (const FBay& Bay : Bays)
-	{
+	for (const FBay& Bay : Bays) {
 		if (Bay.Team == By->GetTeam())
-		{
 			continue;
-		}
-		for (const ADFVehicle* V : { Cab.Get(), TrailerVehicle.Get() })
-		{
+		for (const ADFVehicle* V : { Cab.Get(), TrailerVehicle.Get() }) {
 			const FVector D = V->GetActorLocation() - Bay.Location;
-			if (FMath::Abs(D.Z) < Bay.Height + 150.f && D.Size2D() - 128.f * Uu < Bay.Radius)
-			{
+			if (FMath::Abs(D.Z) < Bay.Height + 150.f && D.Size2D() - 128.f * Uu < Bay.Radius) {
 				DeliveredTo = Bay.Team;
 				// the driver's controller sits on the cab while they drive
 				Scorer = Cab->GetDriver() ? Cab->GetController() : By->GetController();
@@ -185,10 +152,8 @@ void ATrailerGame::CheckDelivery()
 	}
 }
 
-void ATrailerGame::CountDown()
-{
-	if (Count <= 0)
-	{
+void ATrailerGame::CountDown() {
+	if (Count <= 0) {
 		Detonate();
 		return;
 	}
@@ -198,13 +163,11 @@ void ATrailerGame::CountDown()
 	GetWorldTimerManager().SetTimer(CountTimer, this, &ATrailerGame::CountDown, 1.f, false);
 }
 
-void ATrailerGame::Detonate()
-{
+void ATrailerGame::Detonate() {
 	const uint8 Bay = uint8(DeliveredTo);
 	const uint8 ScoreTeam = 1 - Bay;
 	AController* By = Scorer.Get();
-	if (IsValid(TrailerVehicle))
-	{
+	if (IsValid(TrailerVehicle)) {
 		// BombTrailer: ExplosionDamage 600, ExplosionRadius 1200 uu
 		TArray<AActor*> Ignore;
 		UGameplayStatics::ApplyRadialDamageWithFalloff(this, 600.f, 0.f, TrailerVehicle->GetActorLocation(), 0.f, 1200.f * Uu, 1.f,
@@ -215,57 +178,43 @@ void ATrailerGame::Detonate()
 	// TrailerGame.ScoreDelivery: team point, +7 for the driver (-7 if they had switched sides)
 	ADFGameState* GS = GetGameState<ADFGameState>();
 	if (GS && GS->TeamScores.IsValidIndex(ScoreTeam))
-	{
 		GS->TeamScores[ScoreTeam] += 1;
-	}
 	ADFPlayerState* PS = By ? By->GetPlayerState<ADFPlayerState>() : nullptr;
 	if (PS)
-	{
 		PS->SetScore(PS->GetScore() + (PS->GetTeam() == ScoreTeam ? 7.f : -7.f));
-	}
 	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s BASE DESTROYED!!!"), PS ? *PS->GetPlayerName() : TrailerSquad(ScoreTeam),
-		ScoreTeam == 0 ? TEXT("BLUE") : TEXT("RED"), Bay == 0 ? TEXT("BLUE") : TEXT("RED")), ScoreTeam);
+			  ScoreTeam == 0 ? TEXT("BLUE") : TEXT("RED"), Bay == 0 ? TEXT("BLUE") : TEXT("RED")),
+		ScoreTeam);
 	if (IsValid(Cab))
-	{
-		Cab->Destroy();   // takes the trailer along
-	}
+		Cab->Destroy(); // takes the trailer along
 	Cab = nullptr;
 	TrailerVehicle = nullptr;
-	if (GS && GoalTeamScore > 0 && GS->GetTeamScore(ScoreTeam) >= GoalTeamScore)
-	{
+	if (GS && GoalTeamScore > 0 && GS->GetTeamScore(ScoreTeam) >= GoalTeamScore) {
 		FinishMatch(FString::Printf(TEXT("%s wins!"), TrailerSquad(ScoreTeam)));
 		return;
 	}
 	GetWorldTimerManager().SetTimer(RespawnTimer, this, &ATrailerGame::SpawnTrailer, 5.f, false);
 }
 
-FString ATrailerGame::GetOrderString(int32 Order) const
-{
+FString ATrailerGame::GetOrderString(int32 Order) const {
 	// Rage.int OrderString 13 / 14
 	if (Order == 0)
-	{
 		return TEXT("Defend the command post.");
-	}
 	if (Order == 2)
-	{
 		return TEXT("Take the trailer.");
-	}
 	return Super::GetOrderString(Order);
 }
 
-void ATrailerGame::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const
-{
+void ATrailerGame::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const {
 	// bots don't drive yet: they go for the cab (to stop an enemy driver or escort their own)
 	const ADFPlayerState* PS = Bot ? Bot->GetPlayerState<ADFPlayerState>() : nullptr;
 	if (!PS || !IsValid(Cab))
-	{
 		return;
-	}
 	OutGoals.Add(Cab);
 }
 
-FName ATrailerGame::GetOrderSound(int32 Order) const
-{
+FName ATrailerGame::GetOrderSound(int32 Order) const {
 	// RageVoicePack.SetOrderMessage: OrderSound 13 / 14
-	return Order == 0 ? FName(TEXT("Defend_the_command_post")) : Order == 2 ? FName(TEXT("Take_The_Trailer")) : Super::GetOrderSound(Order);
+	return Order == 0 ? FName(TEXT("Defend_the_command_post")) : Order == 2 ? FName(TEXT("Take_The_Trailer"))
+																			: Super::GetOrderSound(Order);
 }

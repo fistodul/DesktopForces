@@ -9,8 +9,7 @@ class UMaterialInterface;
 
 /** A team (any number can be defined; game modes use the first NumTeams). */
 USTRUCT(BlueprintType)
-struct FDFTeamDef
-{
+struct FDFTeamDef {
 	GENERATED_BODY()
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Team")
@@ -22,8 +21,7 @@ struct FDFTeamDef
 
 /** An extra vehicle on a map (mutPack addVehicles: its per-map spots, 16 a map). */
 USTRUCT(BlueprintType)
-struct FDFAddedVehicle
-{
+struct FDFAddedVehicle {
 	GENERATED_BODY()
 
 	/** Map file name, any case ("mf-treasure_finders"). */
@@ -44,8 +42,7 @@ struct FDFAddedVehicle
 /** One map's vehicle generators of one kind make another vehicle (BR-thebigisland's trucks
  *  were placed for mutPack replaceVehicles to turn into helis). */
 USTRUCT()
-struct FDFVehicleSwap
-{
+struct FDFVehicleSwap {
 	GENERATED_BODY()
 
 	/** Map file name, any case. */
@@ -63,8 +60,7 @@ struct FDFVehicleSwap
 
 /** A named bot: who it is and what it takes from the loadout (MF RageBotA-P, BonusBotA-P). */
 USTRUCT(BlueprintType)
-struct FDFBotDef
-{
+struct FDFBotDef {
 	GENERATED_BODY()
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Bot")
@@ -88,8 +84,7 @@ struct FDFBotDef
  *   +LoadoutItems=/Script/DesktopForces.Molotov
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Mobile Forces"))
-class DESKTOPFORCES_API UDFGameSettings : public UDeveloperSettings
-{
+class DESKTOPFORCES_API UDFGameSettings : public UDeveloperSettings {
 	GENERATED_BODY()
 
 public:

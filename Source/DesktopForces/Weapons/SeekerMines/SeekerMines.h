@@ -14,8 +14,7 @@ class UStaticMeshComponent;
 
 /** 'SeekerMinesDOTSeekerMines' - "%k's %w hunted down %o." */
 UCLASS()
-class DESKTOPFORCES_API UDFDamage_SeekerMine : public UDFDamageType
-{
+class DESKTOPFORCES_API UDFDamage_SeekerMine : public UDFDamageType {
 	GENERATED_BODY()
 public:
 	UDFDamage_SeekerMine();
@@ -28,8 +27,7 @@ public:
  * on a timer, never ticks; movement is UFloatingPawnMovement driven by an AIController.
  */
 UCLASS()
-class DESKTOPFORCES_API ASeekerMine : public APawn
-{
+class DESKTOPFORCES_API ASeekerMine : public APawn {
 	GENERATED_BODY()
 
 public:
@@ -40,13 +38,13 @@ public:
 	void InitPlacer(ADFCharacter* Placer);
 
 	UPROPERTY(EditDefaultsOnly, Category = "SeekerMine")
-	float SeekRadius = 4275.f;        // MF 1900 uu
+	float SeekRadius = 4275.f; // MF 1900 uu
 	UPROPERTY(EditDefaultsOnly, Category = "SeekerMine")
 	float Damage = 320.f;
 	UPROPERTY(EditDefaultsOnly, Category = "SeekerMine")
-	float DamageRadius = 990.f;       // MF 440 uu
+	float DamageRadius = 990.f; // MF 440 uu
 	UPROPERTY(EditDefaultsOnly, Category = "SeekerMine")
-	float DetonateRange = 292.5f;     // MF 130 uu
+	float DetonateRange = 292.5f; // MF 130 uu
 	UPROPERTY(EditDefaultsOnly, Category = "SeekerMine")
 	int32 Health = 15;
 
@@ -80,19 +78,18 @@ protected:
 
 /** Thrown seeker mine (SeekerMineThrown): turns into the drone half a second later or on touching anything. */
 UCLASS()
-class DESKTOPFORCES_API ASeekerMineThrown : public ADFProjectile
-{
+class DESKTOPFORCES_API ASeekerMineThrown : public ADFProjectile {
 	GENERATED_BODY()
 public:
 	ASeekerMineThrown();
+
 protected:
 	virtual void Explode(const FVector& Location, const FVector& Normal) override;
 };
 
 /** Seeker Mines (SeekerMines extends TripBombs): fire or alt fire winds up the throw; 1 per pick, 3 out per player. */
 UCLASS()
-class DESKTOPFORCES_API ASeekerMines : public ATripBombs
-{
+class DESKTOPFORCES_API ASeekerMines : public ATripBombs {
 	GENERATED_BODY()
 public:
 	ASeekerMines();
@@ -100,7 +97,8 @@ public:
 	virtual void StopFire(bool bAlt) override;
 	UPROPERTY(EditDefaultsOnly, Category = "SeekerMines")
 	int32 MaxActiveMines = 3;
+
 protected:
 	virtual bool CanPlace() const override;
-	virtual float GetThrowSpeed(float Power) const override { return 1800.f + Power * 405.f; }   // MF 800 + ThrowPower * 180 uu/s
+	virtual float GetThrowSpeed(float Power) const override { return 1800.f + Power * 405.f; } // MF 800 + ThrowPower * 180 uu/s
 };

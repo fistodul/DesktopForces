@@ -17,8 +17,7 @@ class ADFCharacter;
  * The beam is checked at 20 Hz by a timer (MF checked every tick).
  */
 UCLASS()
-class DESKTOPFORCES_API ATripBomb : public AActor
-{
+class DESKTOPFORCES_API ATripBomb : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -64,11 +63,11 @@ protected:
 
 /** Thrown trip bomb (MF TripBombThrown): flies, then becomes a proximity mine where it lands. */
 UCLASS()
-class DESKTOPFORCES_API ATripMine : public ADFProjectile
-{
+class DESKTOPFORCES_API ATripMine : public ADFProjectile {
 	GENERATED_BODY()
 public:
 	ATripMine();
+
 protected:
 	virtual void BeginPlay() override;
 	void CheckProximity();

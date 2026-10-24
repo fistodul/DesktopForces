@@ -95,6 +95,16 @@ examples.
 - One file per class where classes are big enough to have their own behaviour (weapons,
   modes, vehicles); tiny data-only subclasses may share a file.
 
+### Code style
+`.clang-format` at the root (clang-format 18): braces on the same line (`) {`, `} else {`), no
+braces around a single statement, tabs, one space before a trailing `//` comment, lines as long
+as written. `Tools/format.sh` formats `Source/` (`--check` lists what isn't); Visual Studio,
+Rider and VS Code use the file by themselves. Slate's declarative widget code sits between
+`// clang-format off` / `on` (see `UI/DFMenu.cpp`). Don't name locals or parameters like an
+inherited member (`Owner`, `Instigator`, `Mesh` ...): MSVC refuses that even for private ones.
+`git blame --ignore-revs-file .git-blame-ignore-revs` (or `git config blame.ignoreRevsFile
+.git-blame-ignore-revs`) skips the formatting commit.
+
 ## `DesktopForcesEditor` (editor module)
 - `UDFImportCommandlet` (`-run=DFImport`): runs the steps below.
 - `FDFImporter`: textures (AssetTools import + mobile settings), sounds, master materials

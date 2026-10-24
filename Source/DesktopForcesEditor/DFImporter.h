@@ -29,17 +29,16 @@ class UWorld;
  */
 
 /** Where converted assets go: Tools/mfport/mflib/packs.py (work/out/packs.json). */
-struct FDFPacks
-{
+struct FDFPacks {
 	FString ClassicRoot = TEXT("/MobileForcesClassic");
 	FString CoreRoot = TEXT("/Game/MF/Community");
 	FString CoreMapsRoot = TEXT("/Game/Maps");
 	FString ReplacedRoot = TEXT("/Game/MF/Replacements");
 	FString UnverifiedRoot = TEXT("/MobileForcesUnverified");
-	TSet<FString> CoreMaps;        // lower case
-	TSet<FString> CorePackages;    // lower case
-	TSet<FString> UnverifiedPackages;   // lower case: community mods not vouched for yet
-	TSet<FString> Replaced;        // lower case texture keys with replacement art
+	TSet<FString> CoreMaps; // lower case
+	TSet<FString> CorePackages; // lower case
+	TSet<FString> UnverifiedPackages; // lower case: community mods not vouched for yet
+	TSet<FString> Replaced; // lower case texture keys with replacement art
 	bool bRemasterClassic = false; // classic maps use replacement art too
 
 	void Load(const FString& File);
@@ -51,8 +50,7 @@ struct FDFPacks
 	FString MapDataRoot(const FString& Map) const { return MapPackage(Map) + TEXT("_Data"); }
 	bool IsCoreMap(const FString& Map) const { return CoreMaps.Contains(Map.ToLower()); }
 };
-class FDFImporter
-{
+class FDFImporter {
 public:
 	explicit FDFImporter(const FString& InWorkDir);
 
@@ -77,7 +75,6 @@ public:
 	/** HUD art / fonts (Rage, RageWeapons, MobileForceFonts packages). */
 	static bool IsUITexture(const FString& Key);
 	void ImportFonts();
-
 
 	/**
 	 * Our own generated art (PNGs in Tools/artgen/out, committed) -> /Game/MF/Art/<name>, plus

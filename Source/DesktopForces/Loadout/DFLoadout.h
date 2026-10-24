@@ -17,8 +17,7 @@ class UStaticMeshComponent;
  * Holds the list of items on offer (MF aWeaponsInStore) and who may use it.
  */
 UCLASS(Abstract)
-class DESKTOPFORCES_API ADFLoadoutSource : public AActor
-{
+class DESKTOPFORCES_API ADFLoadoutSource : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -60,8 +59,7 @@ protected:
  * spawn on maps without walled loadout rooms (map-content 10G).
  */
 UCLASS()
-class DESKTOPFORCES_API ALoadoutCrate : public ADFLoadoutSource
-{
+class DESKTOPFORCES_API ALoadoutCrate : public ADFLoadoutSource {
 	GENERATED_BODY()
 
 public:
@@ -93,8 +91,7 @@ protected:
 
 /** Loadout zone (MF LoadoutZone: the team spawn room). Represented by a box around the zone. */
 UCLASS()
-class DESKTOPFORCES_API ALoadoutZone : public ADFLoadoutSource
-{
+class DESKTOPFORCES_API ALoadoutZone : public ADFLoadoutSource {
 	GENERATED_BODY()
 
 public:
@@ -107,8 +104,7 @@ public:
 };
 
 UCLASS()
-class DESKTOPFORCES_API UDFLoadoutLibrary : public UBlueprintFunctionLibrary
-{
+class DESKTOPFORCES_API UDFLoadoutLibrary : public UBlueprintFunctionLibrary {
 	GENERATED_BODY()
 
 public:

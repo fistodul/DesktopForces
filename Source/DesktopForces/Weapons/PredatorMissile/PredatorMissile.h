@@ -16,8 +16,7 @@ class APredatorMissile;
  * held boosts (2.5x, turns slower). 1000 damage in 1400 uu. Bots aim it at the nearest enemy.
  */
 UCLASS()
-class DESKTOPFORCES_API APredatorRocket : public AActor
-{
+class DESKTOPFORCES_API APredatorRocket : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -53,11 +52,11 @@ protected:
 	float InitialSpeedFactor = 0.5f;
 	float MinDiveAngle = 5.f;
 	float MaxDiveAngle = 89.f;
-	float TurnRateNormal = 120.f;     // deg/s
+	float TurnRateNormal = 120.f; // deg/s
 	float TurnRateBoost = 75.f;
 	float TargetFlightTime = 4.5f;
 	float BoostMultiplier = 2.5f;
-	float BlastRadius = 3150.f;       // 1400 uu
+	float BlastRadius = 3150.f; // 1400 uu
 	float Damage = 1000.f;
 
 	AActor* FindBotTarget() const;
@@ -72,8 +71,7 @@ public:
  * Fire: launch and guide it (you stand still meanwhile); it's used up when the missile is.
  */
 UCLASS()
-class DESKTOPFORCES_API APredatorMissile : public ADFWeapon
-{
+class DESKTOPFORCES_API APredatorMissile : public ADFWeapon {
 	GENERATED_BODY()
 
 public:

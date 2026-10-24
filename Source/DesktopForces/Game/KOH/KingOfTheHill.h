@@ -15,8 +15,7 @@ class UStaticMeshComponent;
  * mode's 1 Hz timer does the counting, the point itself never ticks.
  */
 UCLASS()
-class DESKTOPFORCES_API AHoldoutPoint : public AActor
-{
+class DESKTOPFORCES_API AHoldoutPoint : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -60,8 +59,7 @@ protected:
  * on it.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API AKingOfTheHill : public ADFGameMode
-{
+class DESKTOPFORCES_API AKingOfTheHill : public ADFGameMode {
 	GENERATED_BODY()
 
 public:
@@ -104,7 +102,10 @@ protected:
 
 	AHoldoutPoint* SpawnPointAt(const FTransform& Where, const FString& Name);
 
-	struct FCandidate { FTransform Where; int32 Type; };   // 0 central, 1 base-side, 2 other
+	struct FCandidate {
+		FTransform Where;
+		int32 Type;
+	}; // 0 central, 1 base-side, 2 other
 	bool PickPoint(TArray<FCandidate>& Pool, TArray<FTransform>& Chosen, const FVector* Ref, int32 PreferredType, float MinDist) const;
 
 	UPROPERTY(Transient)

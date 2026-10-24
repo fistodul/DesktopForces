@@ -10,8 +10,7 @@
  * otherwise it borrows the pistol's model.
  */
 UCLASS()
-class DESKTOPFORCES_API ADeagle : public APistol
-{
+class DESKTOPFORCES_API ADeagle : public APistol {
 	GENERATED_BODY()
 public:
 	ADeagle();

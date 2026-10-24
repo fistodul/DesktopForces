@@ -11,8 +11,7 @@
  * out it pours dense smoke for 15 s (smokeGrenEffect), no damage.
  */
 UCLASS()
-class DESKTOPFORCES_API AM18 : public AGrenades
-{
+class DESKTOPFORCES_API AM18 : public AGrenades {
 	GENERATED_BODY()
 public:
 	AM18();
@@ -20,8 +19,7 @@ public:
 
 /** smokeGrenProj: Grenade1's throw and bounces; the fuse starts the smoke instead of a blast. */
 UCLASS()
-class DESKTOPFORCES_API ASmokeGrenade : public AGrenade
-{
+class DESKTOPFORCES_API ASmokeGrenade : public AGrenade {
 	GENERATED_BODY()
 public:
 	ASmokeGrenade();

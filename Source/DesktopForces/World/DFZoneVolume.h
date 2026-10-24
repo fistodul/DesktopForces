@@ -7,8 +7,7 @@
 
 /** 'Burned', 'Corroded' ... : MF pain zones (lava, acid, death water, space). */
 UCLASS()
-class DESKTOPFORCES_API UDFDamage_Zone : public UDFDamageType
-{
+class DESKTOPFORCES_API UDFDamage_Zone : public UDFDamageType {
 	GENERATED_BODY()
 public:
 	UDFDamage_Zone() { bBypassArmour = true; }
@@ -21,8 +20,7 @@ public:
  * Placed by the level builder over the zone's bounds.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFZoneVolume : public APhysicsVolume
-{
+class DESKTOPFORCES_API ADFZoneVolume : public APhysicsVolume {
 	GENERATED_BODY()
 
 public:

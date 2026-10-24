@@ -10,8 +10,7 @@
  * time limit (20 min). No capture bonus.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API AHoldout : public AKingOfTheHill
-{
+class DESKTOPFORCES_API AHoldout : public AKingOfTheHill {
 	GENERATED_BODY()
 
 public:
@@ -19,5 +18,5 @@ public:
 
 protected:
 	virtual void SpawnPoints() override;
-	virtual int32 GetGoalScore() const override { return GoalTeamScore * 60; }   // minutes
+	virtual int32 GetGoalScore() const override { return GoalTeamScore * 60; } // minutes
 };

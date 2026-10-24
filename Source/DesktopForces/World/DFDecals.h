@@ -17,19 +17,18 @@ class UInstancedStaticMeshComponent;
  * TODO: the projected scorch draws nothing under the forward renderer + MSAA with r.DBuffer=1
  * (found 2026-10-21), so r.DBuffer stays off and scorch marks are quads too for now.
  */
-namespace DF
-{
-	enum class EDecal : uint8 { BulletHole, Scorch };
+namespace DF {
+	enum class EDecal : uint8 { BulletHole,
+		Scorch };
 	/** Size: across, cm. Normal: the surface's, pointing out. */
 	DESKTOPFORCES_API void SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At, const FVector& Normal, float Size);
 	/** A scorch mark on whatever is below Location within Range (explosions in the air leave none). */
 	DESKTOPFORCES_API void SpawnScorchBelow(const UObject* WorldContext, const FVector& Location, float Size, float Range = 300.f);
-}
+} // namespace DF
 
 /** The quad marks of a world: one instanced mesh per texture, a ring of slots reused oldest first. */
 UCLASS(NotPlaceable, Transient)
-class DESKTOPFORCES_API ADFDecalQuads : public AActor
-{
+class DESKTOPFORCES_API ADFDecalQuads : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -45,8 +44,7 @@ protected:
 	virtual void BeginPlay() override;
 	void Expire();
 
-	struct FRing
-	{
+	struct FRing {
 		TObjectPtr<UInstancedStaticMeshComponent> Mesh;
 		TArray<float> Born;
 		int32 Next = 0;

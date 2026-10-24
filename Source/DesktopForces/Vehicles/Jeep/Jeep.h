@@ -14,8 +14,7 @@ class UDFVehicleTurret;
  * VehicleGenerator with VehicleClass=jeep.jeep.
  */
 UCLASS()
-class DESKTOPFORCES_API AJeep : public ADFVehicle
-{
+class DESKTOPFORCES_API AJeep : public ADFVehicle {
 	GENERATED_BODY()
 
 public:

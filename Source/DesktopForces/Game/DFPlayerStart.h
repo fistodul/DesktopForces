@@ -11,8 +11,7 @@
  * (RageDeathMatch.FindPlayerStart, map-content 10G).
  */
 UCLASS()
-class DESKTOPFORCES_API ADFPlayerStart : public APlayerStart
-{
+class DESKTOPFORCES_API ADFPlayerStart : public APlayerStart {
 	GENERATED_BODY()
 
 public:

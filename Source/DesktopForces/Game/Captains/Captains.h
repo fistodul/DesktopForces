@@ -15,8 +15,7 @@ class ADFPlayerState;
  * 5 points.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ACaptains : public ADFGameMode
-{
+class DESKTOPFORCES_API ACaptains : public ADFGameMode {
 	GENERATED_BODY()
 
 public:

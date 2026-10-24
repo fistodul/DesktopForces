@@ -10,8 +10,7 @@
  * only offered where that pack is installed). 60 damage, 10000 to the head; 6 x 5.
  */
 UCLASS()
-class DESKTOPFORCES_API AWA2000 : public ADFWeapon
-{
+class DESKTOPFORCES_API AWA2000 : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AWA2000();

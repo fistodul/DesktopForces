@@ -11,8 +11,7 @@
  */
 /** The APC. */
 UCLASS()
-class DESKTOPFORCES_API AArmadillo : public ADFVehicle
-{
+class DESKTOPFORCES_API AArmadillo : public ADFVehicle {
 	GENERATED_BODY()
 public:
 	AArmadillo();

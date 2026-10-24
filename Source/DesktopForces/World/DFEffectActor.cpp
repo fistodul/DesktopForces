@@ -6,18 +6,16 @@
 #include "Sound/SoundBase.h"
 #include "Vehicles/VehicleFrag.h"
 
-ADFEffectActor::ADFEffectActor()
-{
+ADFEffectActor::ADFEffectActor() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	SetReplicatingMovement(false);
-	bAlwaysRelevant = true;            // like MF's RageSprites: everyone sees a blast
-	InitialLifeSpan = 2.f;             // long enough to reach the clients
+	bAlwaysRelevant = true; // like MF's RageSprites: everyone sees a blast
+	InitialLifeSpan = 2.f; // long enough to reach the clients
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
-void ADFEffectActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void ADFEffectActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ADFEffectActor, Effect, COND_InitialOnly);
 	DOREPLIFETIME_CONDITION(ADFEffectActor, Scale, COND_InitialOnly);
@@ -28,17 +26,13 @@ void ADFEffectActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 }
 
 void ADFEffectActor::Spawn(UWorld* World, FName InEffect, const FVector& At, float InScale, bool bInVehicleExplosion,
-	const FString& InSound, float InSoundRadiusUU, float InSoundVolume)
-{
+	const FString& InSound, float InSoundRadiusUU, float InSoundVolume) {
 	if (!World || World->GetNetMode() == NM_Client)
-	{
 		return;
-	}
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SP.bDeferConstruction = true;
-	if (ADFEffectActor* A = World->SpawnActor<ADFEffectActor>(At, FRotator::ZeroRotator, SP))
-	{
+	if (ADFEffectActor* A = World->SpawnActor<ADFEffectActor>(At, FRotator::ZeroRotator, SP)) {
 		A->Effect = InEffect;
 		A->Scale = InScale;
 		A->bVehicleExplosion = bInVehicleExplosion;
@@ -49,24 +43,16 @@ void ADFEffectActor::Spawn(UWorld* World, FName InEffect, const FVector& At, flo
 	}
 }
 
-void ADFEffectActor::BeginPlay()
-{
+void ADFEffectActor::BeginPlay() {
 	Super::BeginPlay();
 	if (GetNetMode() == NM_DedicatedServer)
-	{
 		return;
-	}
 	const FVector At = GetActorLocation();
 	if (!Sound.IsEmpty())
-	{
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(Sound), At, SoundVolume, SoundRadiusUU);
-	}
-	if (bVehicleExplosion)
-	{
+	if (bVehicleExplosion) {
 		AVehicleFrag::Explosion(GetWorld(), At, Scale);
-	}
-	else if (!Effect.IsNone())
-	{
+	} else if (!Effect.IsNone()) {
 		DF::SpawnEffect(this, *Effect.ToString(), At, Scale);
 		DF::SpawnScorchBelow(this, At, 450.f * Scale);
 	}

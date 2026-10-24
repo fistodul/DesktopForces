@@ -13,8 +13,7 @@ class ADFWeapon;
  * MaxClips carry over. Modes that limit the items (ADFGameState::IsItemAllowed) leave it empty.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFPickupSpot : public AActor
-{
+class DESKTOPFORCES_API ADFPickupSpot : public AActor {
 	GENERATED_BODY()
 
 public:

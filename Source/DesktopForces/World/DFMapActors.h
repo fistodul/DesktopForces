@@ -11,8 +11,7 @@ class UAudioComponent;
 
 /** Per-map settings (MF LevelInfo + LevelSummary). One per map. */
 UCLASS()
-class DESKTOPFORCES_API ADFMapInfo : public AInfo
-{
+class DESKTOPFORCES_API ADFMapInfo : public AInfo {
 	GENERATED_BODY()
 
 public:
@@ -68,8 +67,7 @@ protected:
  * Costs nothing at runtime (no tick, no collision, hidden).
  */
 UCLASS()
-class DESKTOPFORCES_API ADFLegacyActor : public AActor
-{
+class DESKTOPFORCES_API ADFLegacyActor : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -103,8 +101,7 @@ public:
  * "CaptainProhibited" = MF CaptainProhibitedZone). No collision; game modes test IsInside.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFZoneBox : public AActor
-{
+class DESKTOPFORCES_API ADFZoneBox : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -122,8 +119,7 @@ public:
  * polygons samples it by view direction. One capture at load, nothing per frame.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFSkyCapture : public AActor
-{
+class DESKTOPFORCES_API ADFSkyCapture : public AActor {
 	GENERATED_BODY()
 
 public:

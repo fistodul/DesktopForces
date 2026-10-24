@@ -30,9 +30,8 @@
 // Trace channel "Weapon" (Config/DefaultEngine.ini, ECC_GameTraceChannel2)
 static constexpr ECollisionChannel ECC_MFWeapon = ECC_GameTraceChannel2;
 
-ADFWeapon::ADFWeapon()
-{
-	PrimaryActorTick.bCanEverTick = true;           // falls when dropped, nothing else
+ADFWeapon::ADFWeapon() {
+	PrimaryActorTick.bCanEverTick = true; // falls when dropped, nothing else
 	PrimaryActorTick.bStartWithTickEnabled = false;
 	bReplicates = true;
 	SetReplicatingMovement(false);
@@ -54,8 +53,7 @@ ADFWeapon::ADFWeapon()
 
 	// Placeholder gun: a stretched cube in front of the camera.
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (Cube.Succeeded())
-	{
+	if (Cube.Succeeded()) {
 		Mesh1P->SetStaticMesh(Cube.Object);
 		Mesh1P->SetRelativeScale3D(FVector(0.35f, 0.06f, 0.08f));
 		Mesh1P->SetRelativeLocation(FVector(30.f, 14.f, -16.f));
@@ -68,8 +66,7 @@ ADFWeapon::ADFWeapon()
 	SetActorHiddenInGame(true);
 }
 
-void ADFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void ADFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(ADFWeapon, ClipAmmo, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ADFWeapon, TotalAmmo, COND_OwnerOnly);
@@ -78,16 +75,12 @@ void ADFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 	DOREPLIFETIME_CONDITION(ADFWeapon, BurstCounter, COND_SkipOwner);
 }
 
-void ADFWeapon::PostInitializeComponents()
-{
+void ADFWeapon::PostInitializeComponents() {
 	Super::PostInitializeComponents();
 	if (HasAuthority())
-	{
-		GiveFullAmmo();   // RageWeapon.PostBeginPlay
-	}
+		GiveFullAmmo(); // RageWeapon.PostBeginPlay
 	ResolveSounds();
-	if (!ViewMesh.IsEmpty() && DF::ApplyPropMesh(Mesh1P, *ViewMesh))
-	{
+	if (!ViewMesh.IsEmpty() && DF::ApplyPropMesh(Mesh1P, *ViewMesh)) {
 		// view-model placement from the mesh's bounds: rear ViewOffset.X in front of the eye,
 		// centred ViewOffset.Y to the right, top ViewOffset.Z below, at ViewScale
 		// (the bounds as turned by ViewRotation: some mods' models face the other way)
@@ -95,19 +88,16 @@ void ADFWeapon::PostInitializeComponents()
 		const FVector Loc = ViewOffset + FVector(-B.Min.X, -B.GetCenter().Y, -B.Max.Z) * ViewScale;
 		HandTransform = FTransform(ViewRotation, Loc, FVector(ViewScale));
 		bHasViewMesh = true;
-		if (GetNetMode() != NM_DedicatedServer)
-		{
+		if (GetNetMode() != NM_DedicatedServer) {
 			Mesh3P = NewObject<UStaticMeshComponent>(this, TEXT("Mesh3P"));
 			Mesh3P->SetStaticMesh(Mesh1P->GetStaticMesh());
 			for (int32 i = 0; i < Mesh1P->GetNumMaterials(); ++i)
-			{
 				Mesh3P->SetMaterial(i, Mesh1P->GetMaterial(i));
-			}
 			Mesh3P->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			Mesh3P->SetOwnerNoSee(true);
 			Mesh3P->bCastDynamicShadow = false;
 			Mesh3P->SetGenerateOverlapEvents(false);
-			Mesh3P->SetVisibility(false);   // until it is in a soldier's hand
+			Mesh3P->SetVisibility(false); // until it is in a soldier's hand
 			Mesh3P->SetupAttachment(RootComponent);
 			Mesh3P->RegisterComponent();
 		}
@@ -116,31 +106,23 @@ void ADFWeapon::PostInitializeComponents()
 	}
 }
 
-void ADFWeapon::Destroyed()
-{
+void ADFWeapon::Destroyed() {
 	ClearStateTimer();
 	SetAmbientMFSound(nullptr);
 	Super::Destroyed();
 }
 
-bool ADFWeapon::IsContentAvailable() const
-{
+bool ADFWeapon::IsContentAvailable() const {
 	return RequiredContent.IsEmpty() || DF::LoadClassicObject(UObject::StaticClass(), RequiredContent) != nullptr;
 }
 
-void ADFWeapon::ResolveSounds()
-{
+void ADFWeapon::ResolveSounds() {
 	if (GetNetMode() == NM_DedicatedServer)
-	{
 		return;
-	}
 	// converted sounds: <content root>/Sounds/<Package>/<Name> (Tools/mfport; DF::ContentRoots)
-	auto Load = [](TObjectPtr<USoundBase>& Slot, const FString& ClassicName)
-	{
+	auto Load = [](TObjectPtr<USoundBase>& Slot, const FString& ClassicName) {
 		if (!Slot)
-		{
 			Slot = DF::LoadSound(ClassicName);
-		}
 	};
 	Load(FireSound, ClassicFireSound);
 	Load(ReloadSound, ClassicReloadSound);
@@ -149,17 +131,14 @@ void ADFWeapon::ResolveSounds()
 
 // --- ammo ----------------------------------------------------------------------------
 
-void ADFWeapon::GiveFullAmmo()
-{
+void ADFWeapon::GiveFullAmmo() {
 	ClipAmmo = MaxClipAmmo;
 	TotalAmmo = MaxClips * MaxClipAmmo - MaxClipAmmo;
 }
 
-void ADFWeapon::ReloadAmmo()
-{
+void ADFWeapon::ReloadAmmo() {
 	const int32 ToFill = FMath::Min(MaxClipAmmo - ClipAmmo, TotalAmmo);
-	if (ToFill > 0)
-	{
+	if (ToFill > 0) {
 		TotalAmmo -= ToFill;
 		ClipAmmo += ToFill;
 	}
@@ -167,138 +146,100 @@ void ADFWeapon::ReloadAmmo()
 
 // --- helpers -------------------------------------------------------------------------
 
-ADFCharacter* ADFWeapon::GetOwnerCharacter() const
-{
+ADFCharacter* ADFWeapon::GetOwnerCharacter() const {
 	return Cast<ADFCharacter>(GetOwner());
 }
 
-bool ADFWeapon::IsLocallyControlled() const
-{
+bool ADFWeapon::IsLocallyControlled() const {
 	const APawn* P = Cast<APawn>(GetOwner());
 	return P && P->IsLocallyControlled();
 }
 
-bool ADFWeapon::IsSimulatingLocally() const
-{
+bool ADFWeapon::IsSimulatingLocally() const {
 	return HasAuthority() || IsLocallyControlled();
 }
 
-FVector ADFWeapon::GetFireStart() const
-{
+FVector ADFWeapon::GetFireStart() const {
 	const ADFCharacter* C = GetOwnerCharacter();
 	return C ? C->GetPawnViewLocation() : GetActorLocation();
 }
 
-FRotator ADFWeapon::GetAimRotation() const
-{
+FRotator ADFWeapon::GetAimRotation() const {
 	const ADFCharacter* C = GetOwnerCharacter();
 	return C ? C->GetBaseAimRotation() : GetActorRotation();
 }
 
-float ADFWeapon::GetFOVScale() const
-{
+float ADFWeapon::GetFOVScale() const {
 	return ZoomLevel > 0 ? 1.f / FMath::Max(ZoomScale, 1.f) : 1.f;
 }
 
-float ADFWeapon::GetMoveSpeedScale() const
-{
+float ADFWeapon::GetMoveSpeedScale() const {
 	return ZoomLevel > 0 ? ZoomedMoveScale : 1.f;
 }
 
-FString ADFWeapon::GetHUDStatus() const
-{
+FString ADFWeapon::GetHUDStatus() const {
 	return FString();
 }
 
-void ADFWeapon::PlayMFSound(const TCHAR* MFName) const
-{
+void ADFWeapon::PlayMFSound(const TCHAR* MFName) const {
 	if (GetNetMode() != NM_DedicatedServer)
-	{
 		PlaySoundLocal(DF::LoadSound(MFName));
-	}
 }
 
-void ADFWeapon::SetAmbientMFSound(const TCHAR* MFName)
-{
-	if (AmbientAudio)
-	{
+void ADFWeapon::SetAmbientMFSound(const TCHAR* MFName) {
+	if (AmbientAudio) {
 		AmbientAudio->Stop();
 		AmbientAudio = nullptr;
 	}
 	const ADFCharacter* C = GetOwnerCharacter();
 	if (MFName && C)
-	{
-		AmbientAudio = DF::PlayLoop(C->GetRootComponent(), MFName);   // UE1 AmbientSound loops while it's set
-	}
+		AmbientAudio = DF::PlayLoop(C->GetRootComponent(), MFName); // UE1 AmbientSound loops while it's set
 }
 
-void ADFWeapon::PlaySoundLocal(USoundBase* Sound) const
-{
+void ADFWeapon::PlaySoundLocal(USoundBase* Sound) const {
 	if (Sound && GetNetMode() != NM_DedicatedServer)
-	{
 		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetFireStart());
-	}
 }
 
 // --- state machine -------------------------------------------------------------------
 
-void ADFWeapon::UseAmmo(int32 Count)
-{
+void ADFWeapon::UseAmmo(int32 Count) {
 	if (!HasInfiniteAmmo())
-	{
 		ClipAmmo = FMath::Max(0, ClipAmmo - Count);
-	}
 }
 
-bool ADFWeapon::HasInfiniteAmmo() const
-{
+bool ADFWeapon::HasInfiniteAmmo() const {
 	if (MaxClips <= 1 && MaxClipAmmo <= 1)
-	{
 		return false;
-	}
 	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
 	const ADFCharacter* C = GetOwnerCharacter();
 	return (GS && GS->bInfiniteAmmo) || (C && C->HasInfiniteAmmo());
 }
 
-void ADFWeapon::SetState(EDFWeaponState NewState, float Duration)
-{
-	if (NewState == EDFWeaponState::Firing)
-	{
+void ADFWeapon::SetState(EDFWeaponState NewState, float Duration) {
+	if (NewState == EDFWeaponState::Firing) {
 		if (const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>())
-		{
-			Duration /= GS->FireRate;   // ?FireRate
-		}
+			Duration /= GS->FireRate; // ?FireRate
 	}
 	State = NewState;
 	if (Arms && NewState != EDFWeaponState::Firing && NewState != EDFWeaponState::Inactive && IsLocallyControlled())
-	{
-		PlayArmsAnim(NewState, Duration);   // shots play theirs with the shot (PlayFireEffects)
-	}
+		PlayArmsAnim(NewState, Duration); // shots play theirs with the shot (PlayFireEffects)
 	ClearStateTimer();
-	if (Duration > 0.f)
-	{
+	if (Duration > 0.f) {
 		GetWorldTimerManager().SetTimer(StateTimer, this, &ADFWeapon::OnStateTimer, Duration, false);
-	}
-	else if (NewState != EDFWeaponState::Idle && NewState != EDFWeaponState::Inactive)
-	{
+	} else if (NewState != EDFWeaponState::Idle && NewState != EDFWeaponState::Inactive) {
 		// no animation (MF items with empty Play*Anim): done on the next frame
 		StateTimer = GetWorldTimerManager().SetTimerForNextTick(this, &ADFWeapon::OnStateTimer);
 	}
 }
 
-void ADFWeapon::ClearStateTimer()
-{
+void ADFWeapon::ClearStateTimer() {
 	if (UWorld* World = GetWorld())
-	{
 		World->GetTimerManager().ClearTimer(StateTimer);
-	}
 }
 
-void ADFWeapon::OnStateTimer()
-{
-	switch (State)
-	{
+void ADFWeapon::OnStateTimer() {
+	switch (State) {
 	case EDFWeaponState::Equipping:
 		State = EDFWeaponState::Idle;
 		Finish();
@@ -314,153 +255,102 @@ void ADFWeapon::OnStateTimer()
 	case EDFWeaponState::PuttingDown:
 		ForceInactive();
 		if (ADFCharacter* C = GetOwnerCharacter())
-		{
 			C->OnWeaponPutDown(this);
-		}
 		break;
 	default:
 		break;
 	}
 }
 
-void ADFWeapon::Finish()
-{
+void ADFWeapon::Finish() {
 	ADFCharacter* C = GetOwnerCharacter();
 	State = EDFWeaponState::Idle;
 	if (!C || !C->IsAlive())
-	{
 		return;
-	}
 
-	if (bDestroyWhenEmpty && !HasAnyAmmo())
-	{
+	if (bDestroyWhenEmpty && !HasAnyAmmo()) {
 		// MF: single-use items must leave the hands right away (loadout-consumables 6B)
 		if (HasAuthority())
-		{
 			OnDepleted();
-		}
 		return;
 	}
 
-	if (bPendingReload || (!HasAmmoInClip() && CanReload()))
-	{
+	if (bPendingReload || (!HasAmmoInClip() && CanReload())) {
 		bPendingReload = false;
 		StartReload();
 		return;
 	}
 
-	if (!HasAmmoInClip())
-	{
+	if (!HasAmmoInClip()) {
 		if (HasAuthority())
-		{
 			C->SwitchToBestWeapon();
-		}
 		return;
 	}
 
 	if (bFireHeld)
-	{
 		TryFire(false);
-	}
 	else if (bAltFireHeld && MaxZoomLevel == 0)
-	{
 		TryFire(true);
-	}
 }
 
 // --- input entry points --------------------------------------------------------------
 
-void ADFWeapon::StartFire(bool bAlt)
-{
+void ADFWeapon::StartFire(bool bAlt) {
 	(bAlt ? bAltFireHeld : bFireHeld) = true;
 	if (GetLocalRole() < ROLE_Authority)
-	{
 		ServerStartFire(bAlt);
-	}
 	if (!IsSimulatingLocally() || State != EDFWeaponState::Idle)
-	{
 		return;
-	}
 	if (bAlt && MaxZoomLevel > 0)
-	{
 		ToggleZoom();
-	}
 	else
-	{
 		TryFire(bAlt);
-	}
 }
 
-void ADFWeapon::StopFire(bool bAlt)
-{
+void ADFWeapon::StopFire(bool bAlt) {
 	(bAlt ? bAltFireHeld : bFireHeld) = false;
 	if (GetLocalRole() < ROLE_Authority)
-	{
 		ServerStopFire(bAlt);
-	}
 }
 
-void ADFWeapon::ServerStartFire_Implementation(bool bAlt)
-{
+void ADFWeapon::ServerStartFire_Implementation(bool bAlt) {
 	StartFire(bAlt);
 }
 
-void ADFWeapon::ServerStopFire_Implementation(bool bAlt)
-{
+void ADFWeapon::ServerStopFire_Implementation(bool bAlt) {
 	StopFire(bAlt);
 }
 
-void ADFWeapon::StartReload()
-{
+void ADFWeapon::StartReload() {
 	if (GetLocalRole() < ROLE_Authority && IsLocallyControlled() && State == EDFWeaponState::Idle)
-	{
 		ServerReload();
-	}
 	if (!IsSimulatingLocally() || !CanReload())
-	{
 		return;
-	}
 	if (State != EDFWeaponState::Idle)
-	{
 		return;
-	}
-	if (ZoomLevel > 0)
-	{
+	if (ZoomLevel > 0) {
 		ZoomLevel = 0;
 		if (ADFCharacter* C = GetOwnerCharacter())
-		{
 			C->UpdateCarrySpeed();
-		}
 	}
 	SetState(EDFWeaponState::Reloading, ReloadTime);
 	if (HasAuthority())
-	{
 		MulticastReload();
-	}
 	if (IsLocallyControlled())
-	{
 		PlaySoundLocal(ReloadSound);
-	}
 }
 
-void ADFWeapon::ServerReload_Implementation()
-{
+void ADFWeapon::ServerReload_Implementation() {
 	StartReload();
 }
 
-bool ADFWeapon::TryFire(bool bAlt)
-{
+bool ADFWeapon::TryFire(bool bAlt) {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (!C || !C->IsAlive() || C->IsInLoadout())
-	{
 		return false;
-	}
-	if (!HasAmmoInClip())
-	{
+	if (!HasAmmoInClip()) {
 		if (CanReload())
-		{
 			StartReload();
-		}
 		return false;
 	}
 	const float Duration = ZoomLevel > 0 ? ZoomedFireTime : FireTime;
@@ -469,70 +359,49 @@ bool ADFWeapon::TryFire(bool bAlt)
 	return true;
 }
 
-void ADFWeapon::ToggleZoom()
-{
+void ADFWeapon::ToggleZoom() {
 	ZoomLevel = (ZoomLevel + 1) % (MaxZoomLevel + 1);
 	OnZoomChanged();
 	SetState(EDFWeaponState::Zooming, ZoomTime);
 	if (ADFCharacter* C = GetOwnerCharacter())
-	{
 		C->UpdateCarrySpeed();
-	}
 	if (IsLocallyControlled())
-	{
 		PlaySoundLocal(ZoomLevel > 0 ? ZoomInSound : ZoomOutSound);
-	}
 }
 
-void ADFWeapon::OnRep_ZoomLevel(uint8 OldZoom)
-{
+void ADFWeapon::OnRep_ZoomLevel(uint8 OldZoom) {
 	if (ADFCharacter* C = GetOwnerCharacter())
-	{
 		C->UpdateCarrySpeed();
-	}
 	OnZoomChanged();
 }
 
 // --- firing --------------------------------------------------------------------------
 
-void ADFWeapon::FireShot(bool bAlt)
-{
+void ADFWeapon::FireShot(bool bAlt) {
 	UseAmmo();
 	bLastShotAlt = bAlt;
 
-	if (HasAuthority())
-	{
+	if (HasAuthority()) {
 		++BurstCounter;
 		const bool bZoomed = ZoomLevel > 0;
 		const float UseAccuracy = (bAlt || bZoomed) ? AltAccuracy : Accuracy;
 		TSubclassOf<ADFProjectile> Proj = bAlt && AltProjectileClass ? AltProjectileClass : ProjectileClass;
 		if (bInstantHit || !Proj)
-		{
 			TraceFire(UseAccuracy, Pellets, bAlt);
-		}
 		else
-		{
 			SpawnProjectile(Proj, 0.f, bAlt);
-		}
 		if (ADFCharacter* C = GetOwnerCharacter())
-		{
 			C->MakeNoise(1.f, C);
-		}
 	}
 
 	if (IsLocallyControlled() || GetNetMode() == NM_Standalone)
-	{
 		PlayFireEffects(bAlt);
-	}
 }
 
-void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
-{
+void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt) {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (!C)
-	{
 		return;
-	}
 	const FVector Start = GetFireStart();
 	const FRotationMatrix Aim(GetAimRotation());
 	const FVector X = Aim.GetUnitAxis(EAxis::X);
@@ -541,25 +410,18 @@ void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFWeaponTrace), true, C);
 	Params.AddIgnoredActor(this);
-	bImpactSoundSent = bFleshSoundSent = false;   // one of each per shot (pellets)
-	Params.AddIgnoredActor(C->GetAttachParentActor());   // passengers shoot out of their vehicle
+	bImpactSoundSent = bFleshSoundSent = false; // one of each per shot (pellets)
+	Params.AddIgnoredActor(C->GetAttachParentActor()); // passengers shoot out of their vehicle
 
-	for (int32 i = 0; i < FMath::Max(1, InPellets); ++i)
-	{
+	for (int32 i = 0; i < FMath::Max(1, InPellets); ++i) {
 		// MF TraceFire: End = Start + Acc*(rand-0.5)*Y*1000 + Acc*(rand-0.5)*Z*1000 + X*MaxTraceDistance
-		const FVector End = Start
-			+ InAccuracy * (FMath::FRand() - 0.5f) * Y * 2250.f
-			+ InAccuracy * (FMath::FRand() - 0.5f) * Z * 2250.f
-			+ X * MaxTraceDistance;
+		const FVector End = Start + InAccuracy * (FMath::FRand() - 0.5f) * Y * 2250.f + InAccuracy * (FMath::FRand() - 0.5f) * Z * 2250.f + X * MaxTraceDistance;
 		FHitResult Hit;
 		const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_MFWeapon, Params);
 		if (bHit)
-		{
 			ProcessTraceHit(Hit, (End - Start).GetSafeNormal(), bAlt);
-		}
 		// RageWeapon.TraceFire: TracerCount counts down, a tracer when it runs out
-		if (TracerEvery > 0 && --TracerCount <= 0)
-		{
+		if (TracerEvery > 0 && --TracerCount <= 0) {
 			TracerCount = TracerEvery;
 			// everyone sees it through the multicast, the shooter too (the shot is the server's)
 			MulticastTracer(Start, bHit ? FVector(Hit.ImpactPoint) : End);
@@ -567,25 +429,19 @@ void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt)
 	}
 }
 
-void ADFWeapon::MulticastTracer_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End)
-{
+void ADFWeapon::MulticastTracer_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End) {
 	ADFTracer::Fire(GetWorld(), Start, End);
 }
 
-void ADFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt)
-{
+void ADFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt) {
 	AActor* Other = Hit.GetActor();
 	if (!Other || Other == GetOwner())
-	{
 		return;
-	}
 	float Damage = HitDamage;
 	TSubclassOf<UDamageType> Type = DamageType;
 	float Momentum = HitMomentum;
-	if (const ADFCharacter* Victim = Cast<ADFCharacter>(Other))
-	{
-		if (HeadshotDamage > 0.f && Victim->IsHeadshot(Hit.ImpactPoint))
-		{
+	if (const ADFCharacter* Victim = Cast<ADFCharacter>(Other)) {
+		if (HeadshotDamage > 0.f && Victim->IsHeadshot(Hit.ImpactPoint)) {
 			Damage = HeadshotDamage;
 			Type = HeadshotDamageType;
 			Momentum *= 2.f;
@@ -594,25 +450,19 @@ void ADFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, b
 	FPointDamageEvent Event(Damage, Hit, ShotDir, Type);
 	APawn* Shooter = Cast<APawn>(GetOwner());
 	Other->TakeDamage(Damage, Event, Shooter ? Shooter->GetController() : nullptr, this);
-	if (Cast<ADFCharacter>(Other) ? !bFleshSoundSent : (bWallImpactFX && !Cast<APawn>(Other) && !bImpactSoundSent))
-	{
+	if (Cast<ADFCharacter>(Other) ? !bFleshSoundSent : (bWallImpactFX && !Cast<APawn>(Other) && !bImpactSoundSent)) {
 		(Cast<ADFCharacter>(Other) ? bFleshSoundSent : bImpactSoundSent) = true;
 		MulticastImpactFX(Hit.ImpactPoint, Hit.ImpactNormal, Cast<ADFCharacter>(Other) != nullptr);
 	}
 
 	if (UPrimitiveComponent* Comp = Hit.GetComponent(); Comp && Comp->IsSimulatingPhysics())
-	{
 		Comp->AddImpulseAtLocation(ShotDir * Momentum, Hit.ImpactPoint);
-	}
 }
 
-ADFProjectile* ADFWeapon::SpawnProjectile(TSubclassOf<ADFProjectile> Class, float Speed, bool bAlt)
-{
+ADFProjectile* ADFWeapon::SpawnProjectile(TSubclassOf<ADFProjectile> Class, float Speed, bool bAlt) {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (!C || !Class)
-	{
 		return nullptr;
-	}
 	const FRotator Aim = GetAimRotation();
 	const FVector Start = GetFireStart() + Aim.Vector() * 40.f;
 	FActorSpawnParameters SP;
@@ -621,35 +471,24 @@ ADFProjectile* ADFWeapon::SpawnProjectile(TSubclassOf<ADFProjectile> Class, floa
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ADFProjectile* P = GetWorld()->SpawnActor<ADFProjectile>(Class, Start, Aim, SP);
 	if (P)
-	{
 		P->Launch(Aim.Vector(), Speed, C->GetVelocity());
-	}
 	return P;
 }
 
-void ADFWeapon::PlayFireEffects(bool bAlt)
-{
+void ADFWeapon::PlayFireEffects(bool bAlt) {
 	PlaySoundLocal(FireSound);
 	ADFCharacter* C = GetOwnerCharacter();
 	if (C && C->IsLocallyControlled())
-	{
 		C->AddRecoil(RecoilPower * 6.f);
-	}
 	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f && GetNetMode() != NM_DedicatedServer)
-	{
 		ShowMuzzleFlash();
-	}
-	if (Arms && C && C->IsLocallyControlled())
-	{
+	if (Arms && C && C->IsLocallyControlled()) {
 		const float Left = State == EDFWeaponState::Firing ? GetWorldTimerManager().GetTimerRemaining(StateTimer) : 0.f;
 		PlayArmsAnim(EDFWeaponState::Firing, Left > 0.f ? Left : (IsZoomed() ? ZoomedFireTime : FireTime), bAlt);
 	}
 	if (UDFSoldierAnimInstance* Anim = C ? C->GetSoldierAnim() : nullptr)
-	{
-		Anim->OnFire(bAlt);   // knife stab, grenade / trip bomb throw
-	}
-	if (C && !CasingMesh.IsEmpty())
-	{
+		Anim->OnFire(bAlt); // knife stab, grenade / trip bomb throw
+	if (C && !CasingMesh.IsEmpty()) {
 		// EjectBrass, from where the shooter looks
 		FVector Eye;
 		FRotator View;
@@ -658,19 +497,14 @@ void ADFWeapon::PlayFireEffects(bool bAlt)
 	}
 }
 
-void ADFWeapon::ShowMuzzleFlash()
-{
+void ADFWeapon::ShowMuzzleFlash() {
 	if (!bHasViewMesh || !Mesh1P->GetStaticMesh())
-	{
 		return;
-	}
-	if (MuzzleFlash && Arms && MuzzleFlash->GetAttachParent() != Arms)
-	{
+	if (MuzzleFlash && Arms && MuzzleFlash->GetAttachParent() != Arms) {
 		MuzzleFlash->DestroyComponent();
 		MuzzleFlash = nullptr;
 	}
-	if (!MuzzleFlash)
-	{
+	if (!MuzzleFlash) {
 		MuzzleFlash = NewObject<UStaticMeshComponent>(this);
 		MuzzleFlash->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
 		MuzzleFlash->SetMaterial(0, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_MuzzleFlash.M_MF_MuzzleFlash"), nullptr, LOAD_NoWarn | LOAD_Quiet));
@@ -685,24 +519,21 @@ void ADFWeapon::ShowMuzzleFlash()
 		MuzzleFlash->SetRelativeLocation(FVector(B.Max.X + 2.f, B.GetCenter().Y, B.Max.Z - B.GetSize().Z * 0.2f));
 	}
 	// a random turn and frame-ish size each shot (FlashYellow A01-A04 in MF)
-	MuzzleFlash->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));   // the plane's face towards the eye
+	MuzzleFlash->SetRelativeRotation(FRotator(90.f, 0.f, 0.f)); // the plane's face towards the eye
 	MuzzleFlash->AddLocalRotation(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f));
 	const USceneComponent* On = MuzzleFlash->GetAttachParent();
 	const float Size = MuzzleFlashSize * FMath::FRandRange(0.8f, 1.2f) / FMath::Max(On ? On->GetRelativeScale3D().GetMax() : 1.f, 0.01f) / 100.f;
 	MuzzleFlash->SetRelativeScale3D(FVector(Size));
 	MuzzleFlash->SetVisibility(true);
-	GetWorldTimerManager().SetTimer(MuzzleFlashTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { if (MuzzleFlash) { MuzzleFlash->SetVisibility(false); } }), 0.05f, false);
+	GetWorldTimerManager().SetTimer(MuzzleFlashTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { if (MuzzleFlash)  MuzzleFlash->SetVisibility(false); }), 0.05f, false);
 }
 
-void ADFWeapon::OnRep_BurstCounter()
-{
+void ADFWeapon::OnRep_BurstCounter() {
 	PlayFireEffects(false);
 }
 
-void ADFWeapon::OnDepleted()
-{
-	if (ADFCharacter* C = GetOwnerCharacter())
-	{
+void ADFWeapon::OnDepleted() {
+	if (ADFCharacter* C = GetOwnerCharacter()) {
 		C->RemoveWeapon(this, true);
 		C->SwitchToBestWeapon();
 	}
@@ -710,52 +541,37 @@ void ADFWeapon::OnDepleted()
 
 // --- equip / holster -----------------------------------------------------------------
 
-void ADFWeapon::OnGiven(ADFCharacter* NewOwner)
-{
+void ADFWeapon::OnGiven(ADFCharacter* NewOwner) {
 	SetOwner(NewOwner);
 	SetInstigator(NewOwner);
 	if (NewOwner && NewOwner->GetWeaponAttachPoint())
-	{
 		AttachToComponent(NewOwner->GetWeaponAttachPoint(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	}
 	ForceInactive();
 }
 
-void ADFWeapon::OnEquip()
-{
+void ADFWeapon::OnEquip() {
 	SetActorHiddenInGame(false);
 	SetState(EDFWeaponState::Equipping, EquipTime);
 	if (ADFCharacter* C = GetOwnerCharacter(); C && C->GetSoldierAnim())
-	{
 		AttachToSoldier(C->GetMesh());
-	}
 	if (IsLocallyControlled())
-	{
 		PlaySoundLocal(SelectSound);
-	}
 }
 
-void ADFWeapon::OnPutDown()
-{
+void ADFWeapon::OnPutDown() {
 	bFireHeld = bAltFireHeld = false;
 	SetAmbientMFSound(nullptr);
-	if (ZoomLevel > 0)
-	{
+	if (ZoomLevel > 0) {
 		ZoomLevel = 0;
 		if (ADFCharacter* C = GetOwnerCharacter())
-		{
 			C->UpdateCarrySpeed();
-		}
 	}
 	SetState(EDFWeaponState::PuttingDown, PutDownTime);
 }
 
-void ADFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
-{
+void ADFWeapon::DropFrom(const FVector& From, const FRotator& Facing) {
 	if (!HasAuthority())
-	{
 		return;
-	}
 	ForceInactive();
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	SetOwner(nullptr);
@@ -767,11 +583,9 @@ void ADFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	FCollisionQueryParams Params(TEXT("DFDrop"), false, this);
 	const FCollisionObjectQueryParams World(ECC_TO_BITFIELD(ECC_WorldStatic) | ECC_TO_BITFIELD(ECC_WorldDynamic) | ECC_TO_BITFIELD(ECC_PhysicsBody));
 	FHitResult Hit;
-	FVector Spot = From + Dir.Vector() * 153.f;   // 4 x 17 uu
+	FVector Spot = From + Dir.Vector() * 153.f; // 4 x 17 uu
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, From, Spot, World, Params))
-	{
 		Spot = Hit.Location - Dir.Vector() * 20.f;
-	}
 	PlaceAsPickup(Spot, Dir);
 
 	// keep the world tidy: the oldest dropped weapon goes beyond the mode's MaxDroppedWeapons
@@ -780,25 +594,18 @@ void ADFWeapon::DropFrom(const FVector& From, const FRotator& Facing)
 	const int32 MaxDropped = GM ? GM->MaxDroppedWeapons : 32;
 	ADFWeapon* Oldest = nullptr;
 	int32 Count = 0;
-	for (TActorIterator<ADFWeapon> It(GetWorld()); It; ++It)
-	{
-		if (It->IsDropped() && !It->bMapPickup)
-		{
+	for (TActorIterator<ADFWeapon> It(GetWorld()); It; ++It) {
+		if (It->IsDropped() && !It->bMapPickup) {
 			++Count;
 			if (!Oldest || It->DroppedTime < Oldest->DroppedTime)
-			{
 				Oldest = *It;
-			}
 		}
 	}
 	if (Count > MaxDropped && Oldest)
-	{
 		Oldest->Destroy();
-	}
 }
 
-void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing)
-{
+void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing) {
 	// lands with the model's underside on the floor; falls there from Spot
 	FCollisionQueryParams Params(TEXT("DFDrop"), false, this);
 	const FCollisionObjectQueryParams World(ECC_TO_BITFIELD(ECC_WorldStatic) | ECC_TO_BITFIELD(ECC_WorldDynamic) | ECC_TO_BITFIELD(ECC_PhysicsBody));
@@ -806,9 +613,7 @@ void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing)
 	FHitResult Hit;
 	LandZ = Spot.Z - 5000.f;
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, Spot, Spot - FVector(0, 0, 5000.f), World, Params))
-	{
 		LandZ = Hit.Location.Z - Bottom + 1.f;
-	}
 	FallSpeed = 0.f;
 	SetActorLocationAndRotation(FVector(Spot.X, Spot.Y, FMath::Max(Spot.Z, LandZ)), Facing);
 	SetActorTickEnabled(GetActorLocation().Z > LandZ);
@@ -819,14 +624,12 @@ void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing)
 	ForceNetUpdate();
 }
 
-void ADFWeapon::Tick(float DeltaSeconds)
-{
+void ADFWeapon::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 	FVector L = GetActorLocation();
 	FallSpeed += -GetWorld()->GetGravityZ() * DeltaSeconds;
 	L.Z -= FallSpeed * DeltaSeconds;
-	if (!bDropped || L.Z <= LandZ)
-	{
+	if (!bDropped || L.Z <= LandZ) {
 		L.Z = FMath::Max(L.Z, LandZ);
 		SetActorTickEnabled(false);
 		UE_LOG(LogDF, Verbose, TEXT("%s landed at %s"), *GetName(), *L.ToCompactString());
@@ -834,8 +637,7 @@ void ADFWeapon::Tick(float DeltaSeconds)
 	SetActorLocation(L);
 }
 
-void ADFWeapon::OnPickedUp(ADFCharacter* NewOwner)
-{
+void ADFWeapon::OnPickedUp(ADFCharacter* NewOwner) {
 	SetActorTickEnabled(false);
 	bDropped = false;
 	bMapPickup = false;
@@ -845,19 +647,14 @@ void ADFWeapon::OnPickedUp(ADFCharacter* NewOwner)
 	ForceNetUpdate();
 }
 
-void ADFWeapon::OnRep_Dropped()
-{
+void ADFWeapon::OnRep_Dropped() {
 	UpdateDroppedLook();
 }
 
-void ADFWeapon::AttachToSoldier(USkeletalMeshComponent* Body)
-{
+void ADFWeapon::AttachToSoldier(USkeletalMeshComponent* Body) {
 	if (!Mesh3P || !Body || bDropped)
-	{
 		return;
-	}
-	if (Mesh3P->GetAttachParent() != Body)
-	{
+	if (Mesh3P->GetAttachParent() != Body) {
 		// MESH WEAPONATTACH BONE="Bone_Weapon", WEAPONPOSITION YAW=64 PITCH=-64 (256ths of a turn)
 		Mesh3P->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Bone_weapon"));
 		Mesh3P->SetRelativeRotation(FRotator(-90.f, 90.f, 0.f));
@@ -865,36 +662,26 @@ void ADFWeapon::AttachToSoldier(USkeletalMeshComponent* Body)
 	Mesh3P->SetVisibility(true);
 }
 
-void ADFWeapon::UpdateDroppedLook()
-{
-	if (Mesh3P && bDropped)
-	{
+void ADFWeapon::UpdateDroppedLook() {
+	if (Mesh3P && bDropped) {
 		Mesh3P->SetVisibility(false);
 		Mesh3P->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	}
-	if (Arms)
-	{
+	if (Arms) {
 		Arms->SetVisibility(!bDropped);
-		Mesh1P->SetVisibility(bDropped);   // the carry model is only the pickup now
+		Mesh1P->SetVisibility(bDropped); // the carry model is only the pickup now
 	}
 	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
 	if (bHasViewMesh)
-	{
 		Mesh1P->SetRelativeTransform(bDropped ? FTransform::Identity : HandTransform);
-	}
 	if (bDropped)
-	{
 		SetActorHiddenInGame(false);
-	}
 	else if (State == EDFWeaponState::Inactive)
-	{
 		SetActorHiddenInGame(true);
-	}
 }
 
-void ADFWeapon::ForceInactive()
-{
+void ADFWeapon::ForceInactive() {
 	ClearStateTimer();
 	State = EDFWeaponState::Inactive;
 	bFireHeld = bAltFireHeld = false;
@@ -903,10 +690,8 @@ void ADFWeapon::ForceInactive()
 	SetActorHiddenInGame(true);
 }
 
-void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector_NetQuantizeNormal Normal, bool bFlesh)
-{
-	if (bFlesh)
-	{
+void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector_NetQuantizeNormal Normal, bool bFlesh) {
+	if (bFlesh) {
 		// PlaySound(Sound'MiscSFX.RageChunkHit',, 4.0,,100): only right next to it; RageEffect.AddBlood
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/RageChunkHit")), At, 1.f, 100.f);
 		DF::SpawnEffect(this, TEXT("Blood"), At);
@@ -919,29 +704,20 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 	// RageEffect.AddWallHit: a ricochet, one of two impacts, or nothing (a quarter each)
 	const float R = FMath::FRand();
 	if (R < 0.25f)
-	{
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/WallHitSFX/Ricochet")), At, 0.6f, 1200.f, 0.5f + FMath::FRand());
-	}
 	else if (R < 0.75f)
-	{
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(R < 0.5f ? TEXT("Sounds/WallHitSFX/imp01") : TEXT("Sounds/WallHitSFX/imp02")), At, 0.9f, 1000.f);
-	}
 }
 
 // --- first-person arms ---------------------------------------------------------------------
 
-void ADFWeapon::SetupArms()
-{
+void ADFWeapon::SetupArms() {
 	if (ArmsMesh.IsEmpty() || GetNetMode() == NM_DedicatedServer)
-	{
 		return;
-	}
 	// the importer's layout: <pack>/Weapons/<Mesh>/<Mesh>/SkeletalMeshes/<Mesh>
 	USkeletalMesh* Mesh = DF::LoadClassic<USkeletalMesh>(FString::Printf(TEXT("Weapons/%s/%s/SkeletalMeshes/%s"), *ArmsMesh, *ArmsMesh, *ArmsMesh));
 	if (!Mesh)
-	{
 		return;
-	}
 	Arms = NewObject<USkeletalMeshComponent>(this, TEXT("Arms"));
 	Arms->SetOnlyOwnerSee(true);
 	Arms->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -956,129 +732,88 @@ void ADFWeapon::SetupArms()
 	Arms->SetRelativeLocation(ArmsOffset * 2.25f);
 	Arms->SetRelativeScale3D((Rest ? Rest->ComponentScale : FVector::OneVector) * ArmsScale);
 	Arms->RegisterComponent();
-	if (UDFTweenAnimInstance* Anim = GetArmsAnim())
-	{
+	if (UDFTweenAnimInstance* Anim = GetArmsAnim()) {
 		Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
 		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));
 	}
 	UpdateDroppedLook();
 }
 
-UDFTweenAnimInstance* ADFWeapon::GetArmsAnim() const
-{
+UDFTweenAnimInstance* ADFWeapon::GetArmsAnim() const {
 	return Arms ? Cast<UDFTweenAnimInstance>(Arms->GetAnimInstance()) : nullptr;
 }
 
-FName ADFWeapon::GetArmsAnimName(EDFWeaponState ForState, bool bAlt)
-{
+FName ADFWeapon::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
 	UDFTweenAnimInstance* Anim = GetArmsAnim();
 	if (!Anim)
-	{
 		return NAME_None;
-	}
 	// the first of these the mesh has; "Name0N" lists pick one of the numbered takes at random
-	auto Pick = [Anim](std::initializer_list<const TCHAR*> Names) -> FName
-	{
-		for (const TCHAR* N : Names)
-		{
+	auto Pick = [Anim](std::initializer_list<const TCHAR*> Names) -> FName {
+		for (const TCHAR* N : Names) {
 			if (Anim->HasSequence(N))
-			{
 				return N;
-			}
 			TArray<FName, TInlineAllocator<4>> Takes;
-			for (int32 i = 1; i <= 4; ++i)
-			{
+			for (int32 i = 1; i <= 4; ++i) {
 				const FName Take(*FString::Printf(TEXT("%s%02d"), N, i));
 				if (Anim->HasSequence(Take))
-				{
 					Takes.Add(Take);
-				}
 			}
 			if (Takes.Num())
-			{
 				return Takes[FMath::RandHelper(Takes.Num())];
-			}
 		}
 		return NAME_None;
 	};
 	const bool bZoomed = IsZoomed();
-	switch (ForState)
-	{
-	case EDFWeaponState::Equipping:   return Pick({ TEXT("SelectUp"), TEXT("SelectUpBothEmptyNoReload"), TEXT("EmptySelectUp") });
+	switch (ForState) {
+	case EDFWeaponState::Equipping: return Pick({ TEXT("SelectUp"), TEXT("SelectUpBothEmptyNoReload"), TEXT("EmptySelectUp") });
 	case EDFWeaponState::PuttingDown: return Pick({ TEXT("SelectDown"), TEXT("SelectDownBothFull"), TEXT("EmptySelectDown") });
-	case EDFWeaponState::Reloading:   return Pick({ TEXT("Reload"), TEXT("ReloadBothEmpty"), TEXT("ReloadEmpty") });
+	case EDFWeaponState::Reloading: return Pick({ TEXT("Reload"), TEXT("ReloadBothEmpty"), TEXT("ReloadEmpty") });
 	case EDFWeaponState::Zooming:
 		return bZoomed ? Pick({ TEXT("AccurateAimUp"), TEXT("BringScopeUp") }) : Pick({ TEXT("AccurateAimDown"), TEXT("BringScopeDown") });
 	case EDFWeaponState::Firing:
 		if (bZoomed && !bAlt)
-		{
 			return Pick({ TEXT("AccurateAimFire"), TEXT("Fire"), TEXT("Shoot") });
-		}
-		if (bAlt)
-		{
+		if (bAlt) {
 			const FName Alt = Pick({ TEXT("AltFire"), TEXT("RightThrow"), TEXT("FireBothBarrelsFull") });
 			if (!Alt.IsNone())
-			{
 				return Alt;
-			}
 		}
 		return Pick({ TEXT("Fire"), TEXT("ContinuousFire"), TEXT("Shoot"), TEXT("Slash"), TEXT("ThrowOver"), TEXT("PlaceForward"), TEXT("FireLeftBarrelRightFull") });
 	default:
 		return bZoomed ? Pick({ TEXT("AccurateAimStill"), TEXT("AccurateAimUpStill"), TEXT("Still"), TEXT("StillBothFull") })
-			: Pick({ TEXT("Still"), TEXT("StillBothFull"), TEXT("EmptyStill"), TEXT("ActivateStill") });
+					   : Pick({ TEXT("Still"), TEXT("StillBothFull"), TEXT("EmptyStill"), TEXT("ActivateStill") });
 	}
 }
 
-void ADFWeapon::PlayArmsAnim(EDFWeaponState ForState, float Duration, bool bAlt)
-{
+void ADFWeapon::PlayArmsAnim(EDFWeaponState ForState, float Duration, bool bAlt) {
 	UDFTweenAnimInstance* Anim = GetArmsAnim();
 	if (!Anim)
-	{
 		return;
-	}
 	Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false), 0.1f);
 	const FName Name = GetArmsAnimName(ForState, bAlt);
 	if (!Name.IsNone())
-	{
 		Anim->PlayFitted(Name, Duration, ForState == EDFWeaponState::Reloading ? 0.2f : 0.05f);
-	}
 }
 
-void ADFWeapon::UpdateFirstPersonView(bool bBehindView)
-{
+void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 	if (Mesh3P)
-	{
 		Mesh3P->SetOwnerNoSee(!bBehindView);
-	}
 	if (bDropped)
-	{
 		return;
-	}
 	// MF draws nothing in hand behind a raised scope (the HUD's scope mask covers the view)
 	const bool bScoped = IsZoomed() && ZoomScale >= 3.f && State != EDFWeaponState::Zooming;
 	if (Arms)
-	{
 		Arms->SetVisibility(!bBehindView && !bScoped);
-	}
 	else if (Mesh1P && bHasViewMesh)
-	{
 		Mesh1P->SetVisibility(!bBehindView);
-	}
 }
 
-void ADFWeapon::MulticastReload_Implementation()
-{
+void ADFWeapon::MulticastReload_Implementation() {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (!C || GetNetMode() == NM_DedicatedServer)
-	{
 		return;
-	}
 	if (!IsLocallyControlled())
-	{
 		DF::PlaySoundRadius(this, ReloadSound, C->GetActorLocation(), 0.6f);
-	}
 	if (UDFSoldierAnimInstance* Anim = C->GetSoldierAnim())
-	{
 		Anim->OnReload(ReloadTime);
-	}
 }

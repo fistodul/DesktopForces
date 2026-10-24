@@ -12,8 +12,7 @@ class UStaticMeshComponent;
 
 /** 'SentryGunDOTSentryGun' - "%k's %w shredded %o." */
 UCLASS()
-class DESKTOPFORCES_API UDFDamage_Sentry : public UDFDamageType
-{
+class DESKTOPFORCES_API UDFDamage_Sentry : public UDFDamageType {
 	GENERATED_BODY()
 public:
 	UDFDamage_Sentry();
@@ -26,8 +25,7 @@ public:
  * (85, radius 250). 8 minutes. Timer driven: 5 Hz while scanning, 20 Hz while firing.
  */
 UCLASS()
-class DESKTOPFORCES_API ASentryTurret : public AActor
-{
+class DESKTOPFORCES_API ASentryTurret : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -40,7 +38,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
 	int32 MaxAmmo = 850;
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
-	float ScanRange = 4275.f;          // MF 1900 uu
+	float ScanRange = 4275.f; // MF 1900 uu
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
 	float ShotDamage = 20.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
@@ -52,7 +50,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
 	float Spread = 0.025f;
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
-	float TurnRate = 95.f;             // degrees per second
+	float TurnRate = 95.f; // degrees per second
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
 	int32 Health = 80;
 
@@ -96,13 +94,13 @@ protected:
 
 /** Sentry Gun (SentryGun extends TripBombs): fire or alt fire deploys it on flat ground in front; 2 out per player. */
 UCLASS()
-class DESKTOPFORCES_API ASentryGun : public ADFWeapon
-{
+class DESKTOPFORCES_API ASentryGun : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	ASentryGun();
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
 	int32 MaxActiveSentries = 2;
+
 protected:
 	virtual bool TryFire(bool bAlt) override;
 	bool FindPlacementSpot(FVector& OutLoc, FRotator& OutRot) const;

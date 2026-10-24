@@ -1,7 +1,6 @@
 #include "World/DFBotSpot.h"
 
-ADFBotSpot::ADFBotSpot()
-{
+ADFBotSpot::ADFBotSpot() {
 	PrimaryActorTick.bCanEverTick = false;
 	SetActorEnableCollision(false);
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));

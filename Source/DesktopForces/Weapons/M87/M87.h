@@ -10,8 +10,7 @@
  * only offered where that pack is installed). 14 damage, 28 to the head; 8 x 8.
  */
 UCLASS()
-class DESKTOPFORCES_API AM87 : public ADFWeapon
-{
+class DESKTOPFORCES_API AM87 : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AM87();

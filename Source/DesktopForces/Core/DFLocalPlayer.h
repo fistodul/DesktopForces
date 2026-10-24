@@ -6,8 +6,7 @@
 #include "DFLocalPlayer.generated.h"
 
 UCLASS()
-class DESKTOPFORCES_API UDFLocalPlayer : public ULocalPlayer
-{
+class DESKTOPFORCES_API UDFLocalPlayer : public ULocalPlayer {
 	GENERATED_BODY()
 
 public:

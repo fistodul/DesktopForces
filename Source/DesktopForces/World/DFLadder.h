@@ -19,8 +19,7 @@ class UCapsuleComponent;
  * ledge it leads to, so bots path over it; the level builder places the ends by tracing.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFLadderVolume : public AActor, public INavLinkHostInterface, public INavRelevantInterface
-{
+class DESKTOPFORCES_API ADFLadderVolume : public AActor, public INavLinkHostInterface, public INavRelevantInterface {
 	GENERATED_BODY()
 
 public:
@@ -32,10 +31,10 @@ public:
 	float ClimbSpeed = 0.5f;
 
 	UPROPERTY(EditAnywhere, Category = "DF")
-	float Radius = 72.f;          // MF CollisionRadius 32
+	float Radius = 72.f; // MF CollisionRadius 32
 
 	UPROPERTY(EditAnywhere, Category = "DF")
-	float HalfHeight = 342.f;     // MF CollisionHeight 152
+	float HalfHeight = 342.f; // MF CollisionHeight 152
 
 	/** Nav link ends, relative to the actor (bottom in front of the ladder, top on the ledge). */
 	UPROPERTY(EditAnywhere, Category = "DF|Navigation", meta = (MakeEditWidget))

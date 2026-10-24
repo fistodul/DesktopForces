@@ -7,8 +7,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Sound/SoundBase.h"
 
-ADFShellCase::ADFShellCase()
-{
+ADFShellCase::ADFShellCase() {
 	PrimaryActorTick.bCanEverTick = false;
 	SetReplicates(false);
 	// a pea-sized sphere sweeps against the world (not soldiers or vehicles), the mesh rides on it
@@ -28,7 +27,7 @@ ADFShellCase::ADFShellCase()
 	Movement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("Movement"));
 	Movement->SetUpdatedComponent(Sphere);
 	Movement->bShouldBounce = true;
-	Movement->Bounciness = 0.5f;          // Velocity = 0.5 * reflected
+	Movement->Bounciness = 0.5f; // Velocity = 0.5 * reflected
 	Movement->Friction = 0.4f;
 	Movement->ProjectileGravityScale = 1.f;
 	Movement->bRotationFollowsVelocity = false;
@@ -38,12 +37,9 @@ ADFShellCase::ADFShellCase()
 	InitialLifeSpan = 3.f;
 }
 
-void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& InheritVelocity)
-{
+void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& InheritVelocity) {
 	if (!World || World->GetNetMode() == NM_DedicatedServer || MeshName.IsEmpty())
-	{
 		return;
-	}
 	const FRotationMatrix Axes(View);
 	const FVector X = Axes.GetUnitAxis(EAxis::X), Y = Axes.GetUnitAxis(EAxis::Y), Z = Axes.GetUnitAxis(EAxis::Z);
 	// EjectBrass: in front of the eyes, a little right and down (30 uu ahead, ~7 uu right)
@@ -52,12 +48,9 @@ void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, co
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ADFShellCase* S = World->SpawnActor<ADFShellCase>(At, View, SP);
 	if (!S)
-	{
 		return;
-	}
-	if (!DF::ApplyPropMesh(S->Mesh, *MeshName, Scale))
-	{
-		S->Destroy();   // no classic content: no cases
+	if (!DF::ApplyPropMesh(S->Mesh, *MeshName, Scale)) {
+		S->Destroy(); // no classic content: no cases
 		return;
 	}
 	// Eject(((FRand()*0.3+0.4)*X + (FRand()*0.2+0.2)*Y + (FRand()*0.3+1.0)*Z) * 160) uu/s
@@ -67,11 +60,9 @@ void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, co
 	S->SetActorRotation(FRotator(FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f), 0.f));
 }
 
-void ADFShellCase::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity)
-{
+void ADFShellCase::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
 	// RageRifle_BulletCase.HitWall: a tink each bounce, gone after three
-	if (++Bounces > 3)
-	{
+	if (++Bounces > 3) {
 		Movement->StopMovementImmediately();
 		return;
 	}
@@ -79,8 +70,7 @@ void ADFShellCase::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity
 	SetActorRotation(FRotator(FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f)));
 }
 
-void ADFShellCase::OnStop(const FHitResult& Hit)
-{
+void ADFShellCase::OnStop(const FHitResult& Hit) {
 	// Landed: lie flat
 	SetActorRotation(FRotator(0.f, GetActorRotation().Yaw, 90.f));
 }

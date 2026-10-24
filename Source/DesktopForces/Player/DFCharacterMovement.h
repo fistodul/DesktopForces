@@ -6,9 +6,8 @@
 
 /** Custom movement modes (MOVE_Custom + this). */
 UENUM()
-enum class EDFMoveMode : uint8
-{
-	Ladder = 0,   // UE1 PHYS_Ladder (LadderClimber volumes)
+enum class EDFMoveMode : uint8 {
+	Ladder = 0, // UE1 PHYS_Ladder (LadderClimber volumes)
 };
 
 /**
@@ -25,8 +24,7 @@ enum class EDFMoveMode : uint8
  * walking / crouching (x0.3, UE1 native), aiming down sights, deployed HMG.
  */
 UCLASS()
-class DESKTOPFORCES_API UDFCharacterMovement : public UCharacterMovementComponent
-{
+class DESKTOPFORCES_API UDFCharacterMovement : public UCharacterMovementComponent {
 	GENERATED_BODY()
 
 public:
@@ -83,8 +81,7 @@ protected:
 };
 
 /** Saved move carrying the walk (FLAG_Custom_0) and parachute (FLAG_Custom_1) flags. */
-class FDFSavedMove : public FSavedMove_Character
-{
+class FDFSavedMove : public FSavedMove_Character {
 public:
 	using Super = FSavedMove_Character;
 	bool bSavedWantsToWalk = false;
@@ -97,10 +94,10 @@ public:
 	virtual void PrepMoveFor(ACharacter* Character) override;
 };
 
-class FDFNetworkPredictionData_Client : public FNetworkPredictionData_Client_Character
-{
+class FDFNetworkPredictionData_Client : public FNetworkPredictionData_Client_Character {
 public:
 	using Super = FNetworkPredictionData_Client_Character;
-	explicit FDFNetworkPredictionData_Client(const UCharacterMovementComponent& ClientMovement) : Super(ClientMovement) {}
+	explicit FDFNetworkPredictionData_Client(const UCharacterMovementComponent& ClientMovement)
+		: Super(ClientMovement) {}
 	virtual FSavedMovePtr AllocateNewMove() override { return FSavedMovePtr(new FDFSavedMove()); }
 };

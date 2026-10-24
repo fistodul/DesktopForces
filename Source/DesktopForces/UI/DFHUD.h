@@ -10,7 +10,9 @@ class ADFPlayerController;
 class ADFWeapon;
 class UTexture2D;
 
-enum class EDFCellState : uint8 { Owned, Available, Unavailable };
+enum class EDFCellState : uint8 { Owned,
+	Available,
+	Unavailable };
 
 /**
  * Canvas HUD laid out like MF's RageHUD: loadout grid top left (a row per key), carry
@@ -20,8 +22,7 @@ enum class EDFCellState : uint8 { Owned, Available, Unavailable };
  * and mobile. Messages arrive through UDFDeathMessage / UDFAnnouncement.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADFHUD : public AHUD
-{
+class DESKTOPFORCES_API ADFHUD : public AHUD {
 	GENERATED_BODY()
 
 public:
@@ -80,7 +81,11 @@ protected:
 	void DrawItemCell(const ADFWeapon* W, float X, float Y, float CellW, float CellH, EDFCellState State, const FString& Ammo, const FString& Corner);
 	static FString AmmoText(const ADFWeapon* W, bool bLive);
 
-	struct FMessage { FString Text; FLinearColor Color; float Time; };
+	struct FMessage {
+		FString Text;
+		FLinearColor Color;
+		float Time;
+	};
 	TArray<FMessage> Messages;
 	FString Announcement;
 	float AnnouncementTime = -100.f;
@@ -115,8 +120,8 @@ protected:
 	bool DrawGameInfoMF(ADFGameState* GS);
 	float HitTime = -100.f;
 	FVector HitDir = FVector::ZeroVector;
-	float Block = 64.f;   // MF BlockSize
-	float RS = 1.f;       // MF RenderScale = BlockSize / 64
+	float Block = 64.f; // MF BlockSize
+	float RS = 1.f; // MF RenderScale = BlockSize / 64
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> TexBoxes;
 	UPROPERTY(Transient)

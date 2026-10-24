@@ -9,8 +9,7 @@
  * the original game's content): loads return null and callers cope (no sound, simple HUD,
  * placeholder meshes).
  */
-namespace DF
-{
+namespace DF {
 	/** Mount point of the MobileForcesClassic plugin. */
 	inline const TCHAR* ClassicRoot = TEXT("/MobileForcesClassic");
 	/** Community content not vouched for yet (the servers' weapon mods ...): its own plugin. */
@@ -28,8 +27,7 @@ namespace DF
 	DESKTOPFORCES_API UObject* LoadClassicObject(UClass* Class, const FString& Rel);
 
 	template <typename T>
-	T* LoadClassic(const FString& Rel)
-	{
+	T* LoadClassic(const FString& Rel) {
 		return Cast<T>(LoadClassicObject(T::StaticClass(), Rel));
 	}
 
@@ -63,4 +61,4 @@ namespace DF
 		float Scale = 1.f, const FRotator& Rotation = FRotator::ZeroRotator);
 	/** The same, following a component (ExplosionFire on burning debris: SetLocation(Owner.Location)). */
 	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffectAttached(const TCHAR* Name, class USceneComponent* AttachTo, float Scale = 1.f);
-}
+} // namespace DF

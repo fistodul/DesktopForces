@@ -4,17 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AG36::AG36()
-{
+AG36::AG36() {
 	// Reload @10 + 0.25
 	ViewMesh = TEXT("g36/g36PickupCarryMesh");
-	ArmsMesh = TEXT("g36PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("g36PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(2.5f, -1.2f, -3.5f);
 	RequiredContent = TEXT("Props/g36/g36PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/g36/Skins/g36image");
-	HUDIconRect = FIntRect(0, 190, 120, 268);   // WeaponIcon X=0 Y=190 W=120 H=78
+	HUDIconRect = FIntRect(0, 190, 120, 268); // WeaponIcon X=0 Y=190 W=120 H=78
 	DisplayName = LOCTEXT("G36", "G36");
 	InventoryGroup = 3;
 	CarrySize = 2;

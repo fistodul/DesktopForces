@@ -15,8 +15,7 @@ class URotatingMovementComponent;
  * still once it lands; gone after 10-17 s. Cosmetic, spawned on each client (bNetTemporary).
  */
 UCLASS(NotBlueprintable)
-class DESKTOPFORCES_API AVehicleFrag : public AActor
-{
+class DESKTOPFORCES_API AVehicleFrag : public AActor {
 	GENERATED_BODY()
 
 public:

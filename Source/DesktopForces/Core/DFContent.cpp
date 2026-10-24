@@ -14,38 +14,25 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWave.h"
 
-UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel)
-{
+UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel) {
 	// which root has it is worked out once: asking for a package that isn't there costs a
 	// synchronous load attempt (FlushAsyncLoading, a hitch) every time - and classic assets were
 	// first asked for under the community root on every footstep and every effect
-	static TMap<FString, FString> Resolved;   // Rel -> object path; empty: in no root
+	static TMap<FString, FString> Resolved; // Rel -> object path; empty: in no root
 	if (const FString* Path = Resolved.Find(Rel))
-	{
 		return Path->IsEmpty() ? nullptr : StaticLoadObject(Class, nullptr, **Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
-	}
 	TArray<FString, TInlineAllocator<UE_ARRAY_COUNT(ContentRoots)>> Packages;
 	if (Rel.StartsWith(TEXT("/")))
-	{
-		Packages.Add(Rel);   // a package path
-	}
+		Packages.Add(Rel); // a package path
 	else
-	{
 		for (const TCHAR* Root : ContentRoots)
-		{
 			Packages.Add(FString(Root) / Rel);
-		}
-	}
 	const FString Name = FPaths::GetBaseFilename(Rel);
-	for (const FString& Package : Packages)
-	{
+	for (const FString& Package : Packages) {
 		if (!FPackageName::DoesPackageExist(Package))
-		{
 			continue;
-		}
 		const FString Path = Package + TEXT(".") + Name;
-		if (UObject* O = StaticLoadObject(Class, nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet))
-		{
+		if (UObject* O = StaticLoadObject(Class, nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet)) {
 			Resolved.Add(Rel, Path);
 			return O;
 		}
@@ -54,15 +41,13 @@ UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel)
 	return nullptr;
 }
 
-USoundAttenuation* DF::GetAttenuation(float RadiusUU)
-{
+USoundAttenuation* DF::GetAttenuation(float RadiusUU) {
 	// one shared attenuation per radius: full volume in the inner 6 %, linear to nothing at the
 	// radius (rooted, weak pointers: nothing to tear down at exit after the object system is gone)
 	static TMap<int32, TWeakObjectPtr<USoundAttenuation>> Cache;
 	const int32 Key = FMath::Max(1, FMath::RoundToInt(RadiusUU));
 	TWeakObjectPtr<USoundAttenuation>& A = Cache.FindOrAdd(Key);
-	if (!A.IsValid())
-	{
+	if (!A.IsValid()) {
 		A = NewObject<USoundAttenuation>(GetTransientPackage());
 		A->AddToRoot();
 		const float Radius = Key * 2.25f;
@@ -76,25 +61,20 @@ USoundAttenuation* DF::GetAttenuation(float RadiusUU)
 	return A.Get();
 }
 
-void DF::PlaySoundRadius(const UObject* WorldContext, USoundBase* Sound, const FVector& Location, float Volume, float RadiusUU, float Pitch)
-{
+void DF::PlaySoundRadius(const UObject* WorldContext, USoundBase* Sound, const FVector& Location, float Volume, float RadiusUU, float Pitch) {
 	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	if (!Sound || !World || World->GetNetMode() == NM_DedicatedServer)
-	{
 		return;
-	}
 	UGameplayStatics::PlaySoundAtLocation(WorldContext, Sound, Location, FRotator::ZeroRotator, Volume, Pitch, 0.f, GetAttenuation(RadiusUU));
 }
 
-TArray<FString> DF::FindMaps()
-{
+TArray<FString> DF::FindMaps() {
 	FARFilter Filter;
 	Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
 	TArray<FString> Roots;
-	for (const FString& Root : { FString(TEXT("/Game")), FString(TEXT("/Game/MF")), FString(ClassicRoot), FString(UnverifiedRoot) })
-	{
+	for (const FString& Root : { FString(TEXT("/Game")), FString(TEXT("/Game/MF")), FString(ClassicRoot), FString(UnverifiedRoot) }) {
 		const FString Maps = Root / TEXT("Maps");
-		if (FPackageName::IsValidPath(Maps))   // a pack not installed isn't mounted
+		if (FPackageName::IsValidPath(Maps)) // a pack not installed isn't mounted
 		{
 			Roots.Add(Maps);
 			Filter.PackagePaths.Add(FName(Maps));
@@ -102,66 +82,53 @@ TArray<FString> DF::FindMaps()
 	}
 	IAssetRegistry& Registry = IAssetRegistry::GetChecked();
 #if WITH_EDITOR
-	Registry.ScanPathsSynchronous(Roots, false);   // the editor scans in the background
+	Registry.ScanPathsSynchronous(Roots, false); // the editor scans in the background
 #endif
 	TArray<FAssetData> Assets;
 	Registry.GetAssets(Filter, Assets);
 	Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
 	TArray<FString> Out;
 	for (const FAssetData& A : Assets)
-	{
 		Out.Add(A.PackageName.ToString());
-	}
 	return Out;
 }
 
-USoundBase* DF::LoadSound(const FString& MFName)
-{
+USoundBase* DF::LoadSound(const FString& MFName) {
 	FString Package, Name;
 	return MFName.Split(TEXT("."), &Package, &Name) ? LoadClassic<USoundBase>(FString::Printf(TEXT("Sounds/%s/%s"), *Package, *Name)) : nullptr;
 }
 
-UAudioComponent* DF::PlayLoop(USceneComponent* Component, const FString& MFName, float RadiusUU)
-{
+UAudioComponent* DF::PlayLoop(USceneComponent* Component, const FString& MFName, float RadiusUU) {
 	if (!Component || Component->GetNetMode() == NM_DedicatedServer)
-	{
 		return nullptr;
-	}
 	USoundBase* Sound = LoadSound(MFName);
 	if (USoundWave* Wave = Cast<USoundWave>(Sound))
-	{
-		Wave->bLooping = true;   // an ambient sound loops (the same wave as a one-shot is never wanted)
-	}
+		Wave->bLooping = true; // an ambient sound loops (the same wave as a one-shot is never wanted)
 	return Sound ? UGameplayStatics::SpawnSoundAttached(Sound, Component, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
-		true, 1.f, 1.f, 0.f, GetAttenuation(RadiusUU)) : nullptr;
+					   true, 1.f, 1.f, 0.f, GetAttenuation(RadiusUU))
+				 : nullptr;
 }
 
-namespace
-{
-	UParticleSystem* LoadEffect(const UObject* WorldContext, const TCHAR* Name)
-	{
+namespace {
+	UParticleSystem* LoadEffect(const UObject* WorldContext, const TCHAR* Name) {
 		const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 		if (!World || World->GetNetMode() == NM_DedicatedServer)
-		{
 			return nullptr;
-		}
 		return DF::LoadClassic<UParticleSystem>(FString(TEXT("Effects/P_")) + Name);
 	}
-}
+} // namespace
 
-UParticleSystemComponent* DF::SpawnEffect(const UObject* WorldContext, const TCHAR* Name, const FVector& Location, float Scale, const FRotator& Rotation)
-{
+UParticleSystemComponent* DF::SpawnEffect(const UObject* WorldContext, const TCHAR* Name, const FVector& Location, float Scale, const FRotator& Rotation) {
 	UParticleSystem* PS = LoadEffect(WorldContext, Name);
 	return PS ? UGameplayStatics::SpawnEmitterAtLocation(WorldContext, PS, Location, Rotation, FVector(Scale), true, EPSCPoolMethod::AutoRelease) : nullptr;
 }
 
-UParticleSystemComponent* DF::SpawnEffectAttached(const TCHAR* Name, USceneComponent* AttachTo, float Scale)
-{
+UParticleSystemComponent* DF::SpawnEffectAttached(const TCHAR* Name, USceneComponent* AttachTo, float Scale) {
 	UParticleSystem* PS = AttachTo ? LoadEffect(AttachTo, Name) : nullptr;
 	UParticleSystemComponent* C = PS ? UGameplayStatics::SpawnEmitterAttached(PS, AttachTo, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, FVector(Scale),
-		EAttachLocation::KeepRelativeOffset, true, EPSCPoolMethod::AutoRelease) : nullptr;
-	if (C)
-	{
+										   EAttachLocation::KeepRelativeOffset, true, EPSCPoolMethod::AutoRelease)
+									 : nullptr;
+	if (C) {
 		// MF moves the effect to its owner (SetLocation), it doesn't turn with a spinning chunk
 		C->SetUsingAbsoluteRotation(true);
 		C->SetUsingAbsoluteScale(true);
@@ -171,37 +138,25 @@ UParticleSystemComponent* DF::SpawnEffectAttached(const TCHAR* Name, USceneCompo
 	return C;
 }
 
-namespace
-{
+namespace {
 	/** Playing music and the volume it was asked for (before the music setting). */
 	TMap<TWeakObjectPtr<UAudioComponent>, float> GMusic;
-}
+} // namespace
 
-UAudioComponent* DF::PlayMusic(const UObject* WorldContext, USoundBase* Music, float Volume)
-{
+UAudioComponent* DF::PlayMusic(const UObject* WorldContext, USoundBase* Music, float Volume) {
 	UAudioComponent* C = Music ? UGameplayStatics::SpawnSound2D(WorldContext, Music, Volume * UDFUserSettings::Get().MusicVolume) : nullptr;
-	if (C)
-	{
+	if (C) {
 		for (auto It = GMusic.CreateIterator(); It; ++It)
-		{
 			if (!It->Key.IsValid())
-			{
 				It.RemoveCurrent();
-			}
-		}
 		GMusic.Add(C, Volume);
 	}
 	return C;
 }
 
-void DF::UpdateMusicVolume()
-{
+void DF::UpdateMusicVolume() {
 	const float MusicVolume = UDFUserSettings::Get().MusicVolume;
 	for (const auto& Pair : GMusic)
-	{
 		if (UAudioComponent* C = Pair.Key.Get())
-		{
 			C->SetVolumeMultiplier(Pair.Value * MusicVolume);
-		}
-	}
 }

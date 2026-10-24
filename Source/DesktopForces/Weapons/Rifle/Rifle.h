@@ -9,8 +9,7 @@
  * release to fire 20 x power damage (head x3). Alt toggles the scope (3x-30x, mouse wheel).
  */
 UCLASS()
-class DESKTOPFORCES_API ARifle : public ADFWeapon
-{
+class DESKTOPFORCES_API ARifle : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	ARifle();
@@ -20,6 +19,7 @@ public:
 	virtual FString GetHUDStatus() const override;
 	void AdjustZoom(int32 Steps);
 	float GetShotPower() const;
+
 protected:
 	virtual void FireShot(bool bAlt) override;
 	virtual void Finish() override;
@@ -39,6 +39,7 @@ protected:
 	float MaxZoomScale = 30.f;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	int32 ZoomScaleIncrements = 6;
+
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };

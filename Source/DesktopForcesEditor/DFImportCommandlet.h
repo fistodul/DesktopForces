@@ -13,8 +13,7 @@
  * Tools/mfport/mfport.py import runs this for you.
  */
 UCLASS()
-class UDFImportCommandlet : public UCommandlet
-{
+class UDFImportCommandlet : public UCommandlet {
 	GENERATED_BODY()
 
 public:

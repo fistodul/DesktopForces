@@ -16,8 +16,7 @@ class UStaticMeshComponent;
  * gets a buoyancy of 0.9-1.5 times its weight (Box.PreBeginPlay). `summon WoodenBox`, or placed.
  */
 UCLASS()
-class DESKTOPFORCES_API AWoodenBox : public AActor
-{
+class DESKTOPFORCES_API AWoodenBox : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -53,8 +52,7 @@ protected:
 
 /** BoxPhysics.WoodFragments: a plank thrown out of a broken box (cosmetic, on each machine). */
 UCLASS(NotBlueprintable)
-class DESKTOPFORCES_API AWoodFragment : public AVehicleFrag
-{
+class DESKTOPFORCES_API AWoodFragment : public AVehicleFrag {
 	GENERATED_BODY()
 
 public:
@@ -63,5 +61,5 @@ public:
 
 protected:
 	virtual void PickMesh() override;
-	virtual void PlayHitSound(float Speed) override {}   // no ImpactSound
+	virtual void PlayHitSound(float Speed) override {} // no ImpactSound
 };

@@ -16,25 +16,21 @@
 
 using namespace DFImportUtil;
 
-bool FDFImporter::ImportSkeletal()
-{
+bool FDFImporter::ImportSkeletal() {
 	TSharedPtr<FJsonObject> Info = LoadJson(WorkDir / TEXT("Skeletal/skeletal.json"));
-	if (!Info)
-	{
+	if (!Info) {
 		UE_LOG(LogDFEditor, Warning, TEXT("No Skeletal/skeletal.json - run mfport.py skeletal"));
 		return false;
 	}
 	// skinned meshes need their master material compiled for skeletal meshes too
-	if (UMaterial* Master = GetMasterMaterial(TEXT("Opaque"))->GetMaterial(); Master && !Master->GetUsageByFlag(MATUSAGE_SkeletalMesh))
-	{
+	if (UMaterial* Master = GetMasterMaterial(TEXT("Opaque"))->GetMaterial(); Master && !Master->GetUsageByFlag(MATUSAGE_SkeletalMesh)) {
 		Master->SetMaterialUsage(MATUSAGE_SkeletalMesh);
 		SaveAsset(Master);
 	}
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	int32 Ok = 0;
-	for (const TSharedPtr<FJsonValue>& V : Info->GetArrayField(TEXT("meshes")))
-	{
+	for (const TSharedPtr<FJsonValue>& V : Info->GetArrayField(TEXT("meshes"))) {
 		const TSharedPtr<FJsonObject> M = V->AsObject();
 		const FString Name = M->GetStringField(TEXT("name"));
 		const FString Dest = FString::Printf(TEXT("%s/%s/%s"), *Packs.PackageRoot(M->GetStringField(TEXT("package"))), *M->GetStringField(TEXT("folder")), *Name);
@@ -51,20 +47,14 @@ bool FDFImporter::ImportSkeletal()
 		Registry.GetAssetsByPath(FName(*Dest), Assets, true);
 		USkeletalMesh* Mesh = nullptr;
 		TArray<UObject*> Junk;
-		for (const FAssetData& A : Assets)
-		{
+		for (const FAssetData& A : Assets) {
 			UObject* Obj = A.GetAsset();
 			if (USkeletalMesh* SK = Cast<USkeletalMesh>(Obj))
-			{
 				Mesh = SK;
-			}
 			else if (Cast<UMaterialInterface>(Obj) || Cast<UTexture>(Obj))
-			{
-				Junk.Add(Obj);   // glTF's own materials: the slots get MF's skins instead
-			}
+				Junk.Add(Obj); // glTF's own materials: the slots get MF's skins instead
 		}
-		if (!Mesh)
-		{
+		if (!Mesh) {
 			UE_LOG(LogDFEditor, Error, TEXT("%s: no skeletal mesh imported into %s"), *Name, *Dest);
 			continue;
 		}
@@ -74,31 +64,22 @@ bool FDFImporter::ImportSkeletal()
 		const TSharedPtr<FJsonObject>* Keys = nullptr;
 		M->TryGetObjectField(TEXT("materials"), Keys);
 		TArray<FSkeletalMaterial> Mats = Mesh->GetMaterials();
-		for (FSkeletalMaterial& Slot : Mats)
-		{
+		for (FSkeletalMaterial& Slot : Mats) {
 			FString Key;
 			if (Keys && (*Keys)->TryGetStringField(Slot.MaterialSlotName.ToString().RightChop(4), Key))
-			{
 				Slot.MaterialInterface = GetMaterial(Key);
-			}
 		}
 		const TArray<TSharedPtr<FJsonValue>>* Extra = nullptr;
 		if (M->TryGetArrayField(TEXT("extra_materials"), Extra))
-		{
 			for (const TSharedPtr<FJsonValue>& E : *Extra)
-			{
 				GetMaterial(E->AsString());
-			}
-		}
 		Mesh->SetMaterials(Mats);
 		// a non-uniform MESHMAP SCALE can't be in the skeleton: its rest goes on the component
 		Mesh->RemoveUserDataOfClass(UDFMeshScaleData::StaticClass());
 		const TArray<TSharedPtr<FJsonValue>>* Scale = nullptr;
-		if (M->TryGetArrayField(TEXT("component_scale"), Scale) && Scale->Num() == 3)
-		{
+		if (M->TryGetArrayField(TEXT("component_scale"), Scale) && Scale->Num() == 3) {
 			const FVector Rest((*Scale)[0]->AsNumber(), (*Scale)[1]->AsNumber(), (*Scale)[2]->AsNumber());
-			if (!Rest.Equals(FVector::OneVector))
-			{
+			if (!Rest.Equals(FVector::OneVector)) {
 				UDFMeshScaleData* Data = NewObject<UDFMeshScaleData>(Mesh);
 				Data->ComponentScale = Rest;
 				Mesh->AddAssetUserData(Data);
@@ -106,16 +87,12 @@ bool FDFImporter::ImportSkeletal()
 		}
 		Mesh->PostEditChange();
 		if (Junk.Num())
-		{
 			ObjectTools::ForceDeleteObjects(Junk, false);
-		}
 		int32 Anims = 0;
 		Assets.Reset();
 		Registry.GetAssetsByPath(FName(*Dest), Assets, true);
-		for (const FAssetData& A : Assets)
-		{
-			if (UObject* Obj = A.GetAsset())
-			{
+		for (const FAssetData& A : Assets) {
+			if (UObject* Obj = A.GetAsset()) {
 				Anims += Obj->IsA<UAnimSequence>() ? 1 : 0;
 				SaveAsset(Obj);
 			}

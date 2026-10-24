@@ -11,9 +11,8 @@
 
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
-AArmour::AArmour()
-{
-	HUDIconRect = FIntRect(0, 64, 64, 128);   // WeaponIcon X=0 Y=64 W=64 H=64
+AArmour::AArmour() {
+	HUDIconRect = FIntRect(0, 64, 64, 128); // WeaponIcon X=0 Y=64 W=64 H=64
 	DisplayName = LOCTEXT("Armour", "Body Armour");
 	InventoryGroup = 11;
 	CarrySize = 1;
@@ -25,37 +24,27 @@ AArmour::AArmour()
 	bHideAmmoCount = true;
 }
 
-void AArmour::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void AArmour::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AArmour, Charge);
 }
 
-void AArmour::GiveFullAmmo()
-{
+void AArmour::GiveFullAmmo() {
 	Super::GiveFullAmmo();
 	Charge = MaxCharge;
 }
 
-int32 AArmour::AbsorbDamage(int32 Damage, const UDFDamageType* Type)
-{
+int32 AArmour::AbsorbDamage(int32 Damage, const UDFDamageType* Type) {
 	// Inventory.ArmorAbsorbDamage + RageArmour: drowning and falling bypass armour
 	if (Type && Type->bBypassArmour)
-	{
 		return Damage;
-	}
 	int32 ArmorDamage = Damage * ArmorAbsorption / 100;
-	if (ArmorDamage >= Charge)
-	{
+	if (ArmorDamage >= Charge) {
 		ArmorDamage = Charge;
 		Charge = 0;
 		if (ADFCharacter* C = GetOwnerCharacter())
-		{
-			C->RemoveWeapon(this, true);   // worn out
-		}
-	}
-	else
-	{
+			C->RemoveWeapon(this, true); // worn out
+	} else {
 		Charge -= ArmorDamage;
 	}
 	return Damage - ArmorDamage;

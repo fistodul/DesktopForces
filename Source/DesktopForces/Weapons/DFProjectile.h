@@ -18,8 +18,7 @@ class USoundBase;
  * multicast. Movement is UProjectileMovementComponent (cheap, no physics bodies).
  */
 UCLASS(Abstract)
-class DESKTOPFORCES_API ADFProjectile : public AActor
-{
+class DESKTOPFORCES_API ADFProjectile : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -114,8 +113,7 @@ protected:
 
 /** RageWeapons.Rocket: 1200 uu/s, 135 damage, radius 400. */
 UCLASS()
-class DESKTOPFORCES_API ARocket : public ADFProjectile
-{
+class DESKTOPFORCES_API ARocket : public ADFProjectile {
 	GENERATED_BODY()
 public:
 	ARocket();
@@ -123,8 +121,7 @@ public:
 
 /** RageWeapons.Grenade1: timed fuse 3 s, bounces (50% damping), 160 damage, radius 400. */
 UCLASS()
-class DESKTOPFORCES_API AGrenade : public ADFProjectile
-{
+class DESKTOPFORCES_API AGrenade : public ADFProjectile {
 	GENERATED_BODY()
 public:
 	AGrenade();
@@ -132,8 +129,7 @@ public:
 
 /** RageWeapons.Grenade2 (alt fire): explodes on impact, 120 damage. */
 UCLASS()
-class DESKTOPFORCES_API AImpactGrenade : public AGrenade
-{
+class DESKTOPFORCES_API AImpactGrenade : public AGrenade {
 	GENERATED_BODY()
 public:
 	AImpactGrenade();
@@ -145,8 +141,7 @@ public:
  * touches it or ReturnTime runs out, and goes back to their knife.
  */
 UCLASS()
-class DESKTOPFORCES_API AThrownKnife : public ADFProjectile
-{
+class DESKTOPFORCES_API AThrownKnife : public ADFProjectile {
 	GENERATED_BODY()
 public:
 	AThrownKnife();

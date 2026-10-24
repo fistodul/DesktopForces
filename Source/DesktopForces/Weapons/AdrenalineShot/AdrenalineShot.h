@@ -6,13 +6,13 @@
 
 /** Adrenaline shot: restores full health; alt injects a team mate within 90 uu. */
 UCLASS()
-class DESKTOPFORCES_API AAdrenalineShot : public ADFWeapon
-{
+class DESKTOPFORCES_API AAdrenalineShot : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AAdrenalineShot();
+
 protected:
 	virtual bool TryFire(bool bAlt) override;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float InjectRange = 202.5f;           // MF Range 90
+	float InjectRange = 202.5f; // MF Range 90
 };

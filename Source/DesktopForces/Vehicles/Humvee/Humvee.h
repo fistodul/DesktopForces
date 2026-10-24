@@ -10,8 +10,7 @@
  * z forward) and the Rage classes (seats, doors, camera distance, armour; uu x 2.25 = cm).
  */
 UCLASS()
-class DESKTOPFORCES_API AHumvee : public ADFVehicle
-{
+class DESKTOPFORCES_API AHumvee : public ADFVehicle {
 	GENERATED_BODY()
 public:
 	AHumvee();

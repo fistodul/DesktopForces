@@ -25,8 +25,7 @@ class ADFVehicle;
  * Riding as a passenger it fights from its seat (the gunner seat aims the turret).
  */
 UCLASS()
-class DESKTOPFORCES_API ADFBotController : public AAIController
-{
+class DESKTOPFORCES_API ADFBotController : public AAIController {
 	GENERATED_BODY()
 
 public:

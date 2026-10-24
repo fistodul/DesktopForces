@@ -10,8 +10,7 @@ class USphereComponent;
 class UStaticMeshComponent;
 
 UENUM(BlueprintType)
-enum class EDFFlagState : uint8
-{
+enum class EDFFlagState : uint8 {
 	Home,
 	Held,
 	Dropped,
@@ -24,8 +23,7 @@ enum class EDFFlagState : uint8
  * holder only after 1 s). The game mode decides what touching it at home does.
  */
 UCLASS()
-class DESKTOPFORCES_API AFlag : public AActor
-{
+class DESKTOPFORCES_API AFlag : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -84,8 +82,7 @@ protected:
  * team colour ("Name: I have the Blue flag! ...").
  */
 UCLASS(Abstract, Config = Game)
-class DESKTOPFORCES_API AFlagGame : public ADFGameMode
-{
+class DESKTOPFORCES_API AFlagGame : public ADFGameMode {
 	GENERATED_BODY()
 
 public:
@@ -122,8 +119,7 @@ protected:
 
 /** Flag base (MF RageFlagBase): the flag's home; bring the enemy flag here while yours is home. */
 UCLASS()
-class DESKTOPFORCES_API AFlagBase : public AActor
-{
+class DESKTOPFORCES_API AFlagBase : public AActor {
 	GENERATED_BODY()
 
 public:
@@ -148,8 +144,7 @@ protected:
  * flag at home with it. First to 4 captures, 20 minutes, respawn after 5 s.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ACaptureTheFlag : public AFlagGame
-{
+class DESKTOPFORCES_API ACaptureTheFlag : public AFlagGame {
 	GENERATED_BODY()
 
 public:

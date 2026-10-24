@@ -7,8 +7,7 @@
 
 /** grenLaunch launcherGrenade1: impact grenade, 250 damage in 200 uu. */
 UCLASS()
-class DESKTOPFORCES_API ALauncherGrenade : public AImpactGrenade
-{
+class DESKTOPFORCES_API ALauncherGrenade : public AImpactGrenade {
 	GENERATED_BODY()
 public:
 	ALauncherGrenade();
@@ -16,8 +15,7 @@ public:
 
 /** grenFragment: one of the cluster's 15 bomblets, 20 damage (300 / 15) in 200 uu. */
 UCLASS()
-class DESKTOPFORCES_API AGrenadeFragment : public AImpactGrenade
-{
+class DESKTOPFORCES_API AGrenadeFragment : public AImpactGrenade {
 	GENERATED_BODY()
 public:
 	AGrenadeFragment();
@@ -25,17 +23,16 @@ public:
 
 /** grenLaunch launcherGrenade (alt fire): bursts into 15 fragments where it lands. */
 UCLASS()
-class DESKTOPFORCES_API AClusterGrenade : public AImpactGrenade
-{
+class DESKTOPFORCES_API AClusterGrenade : public AImpactGrenade {
 	GENERATED_BODY()
 public:
 	AClusterGrenade();
 	virtual void Explode(const FVector& Location, const FVector& Normal) override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	int32 FragmentCount = 15;           // altFireFragmentCount
+	int32 FragmentCount = 15; // altFireFragmentCount
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float FragmentSpread = 1.f;         // altFireFragmentSpread
+	float FragmentSpread = 1.f; // altFireFragmentSpread
 };
 
 /**
@@ -43,8 +40,7 @@ public:
  * (250, 200 uu); alt: a cluster grenade that bursts into 15 fragments.
  */
 UCLASS()
-class DESKTOPFORCES_API AGrenadeLauncher : public ADFWeapon
-{
+class DESKTOPFORCES_API AGrenadeLauncher : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AGrenadeLauncher();

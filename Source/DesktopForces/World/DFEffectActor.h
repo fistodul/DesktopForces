@@ -11,8 +11,7 @@
  * only (mods' turrets, mines, missiles); multicasts do the same for actors that stay a moment.
  */
 UCLASS(NotBlueprintable)
-class DESKTOPFORCES_API ADFEffectActor : public AActor
-{
+class DESKTOPFORCES_API ADFEffectActor : public AActor {
 	GENERATED_BODY()
 
 public:

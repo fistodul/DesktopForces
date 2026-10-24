@@ -10,8 +10,7 @@
  * (M_MF_Tracer, made by the importer).
  */
 UCLASS(NotPlaceable, Transient)
-class DESKTOPFORCES_API ADFTracer : public AActor
-{
+class DESKTOPFORCES_API ADFTracer : public AActor {
 	GENERATED_BODY()
 
 public:

@@ -13,8 +13,7 @@
  * at 1800 uu/s and 140 damage; an assault launcher.
  */
 UCLASS()
-class DESKTOPFORCES_API ARocketLauncher : public ADFWeapon
-{
+class DESKTOPFORCES_API ARocketLauncher : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	ARocketLauncher();

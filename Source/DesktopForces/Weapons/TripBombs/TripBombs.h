@@ -11,14 +11,14 @@
  * mine (120 damage, radius 200, triggers within 64 uu). Two per item, max 3 items.
  */
 UCLASS()
-class DESKTOPFORCES_API ATripBombs : public ADFWeapon
-{
+class DESKTOPFORCES_API ATripBombs : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	ATripBombs();
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
 	virtual FString GetHUDStatus() const override;
+
 protected:
 	UFUNCTION(Server, Reliable)
 	void ServerUse(bool bAlt, float Power);
@@ -38,7 +38,7 @@ protected:
 	bool bWinding = false;
 	float GetThrowPower() const;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float MaxLaserDistance = 2304.f;   // MF 1024
+	float MaxLaserDistance = 2304.f; // MF 1024
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float PlaceReach = 112.5f;         // MF trace 50 uu
+	float PlaceReach = 112.5f; // MF trace 50 uu
 };

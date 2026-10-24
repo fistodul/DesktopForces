@@ -12,8 +12,7 @@ class ADFPlayerState;
  * ElapsedTime come from the engine; this adds the MF rules and team scores.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFGameState : public AGameState
-{
+class DESKTOPFORCES_API ADFGameState : public AGameState {
 	GENERATED_BODY()
 
 public:
@@ -71,8 +70,7 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	TArray<int32> TeamLoadoutAccess;
 
-	int32 GetLoadoutAccess(uint8 Team) const
-	{
+	int32 GetLoadoutAccess(uint8 Team) const {
 		return TeamLoadoutAccess.IsValidIndex(Team) ? TeamLoadoutAccess[Team] : LoadoutAccess;
 	}
 
@@ -119,8 +117,7 @@ public:
 	bool IsTeamGame() const { return NumTeams > 0; }
 
 	/** Seconds left (TimeLimit minus the time since the round began); -1 without a limit. */
-	int32 GetRemainingTime() const
-	{
+	int32 GetRemainingTime() const {
 		const int32 Limit = TimeLimitSeconds > 0 ? TimeLimitSeconds : TimeLimit * 60;
 		return Limit > 0 ? FMath::Max(0, Limit - (ElapsedTime - RoundStartTime)) : -1;
 	}

@@ -1,0 +1,65 @@
+# Desktop Forces C++ style (clang-format 18): braces on the same line, no braces around a single
+# statement, tabs, lines left as long as they are written. Run Tools/format.sh (or your editor's
+# clang-format) before committing; Tools/format.sh --check lists what isn't formatted.
+Language: Cpp
+Standard: c++20
+BasedOnStyle: LLVM
+
+# indentation: tabs, 4 wide; namespaces indented; case labels at the switch's level
+UseTab: ForContinuationAndIndentation
+IndentWidth: 4
+TabWidth: 4
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+NamespaceIndentation: All
+IndentCaseLabels: false
+IndentPPDirectives: None
+
+# braces: on the same line everywhere (`) {`, `} else {`); a single statement goes without them
+BreakBeforeBraces: Attach
+RemoveBracesLLVM: true
+InsertBraces: false
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: All
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+
+# lines: kept as written (no rewrapping), one blank line at most
+ColumnLimit: 0
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# comments: one space before a trailing comment, not lined up across lines
+SpacesBeforeTrailingComments: 1
+AlignTrailingComments:
+  Kind: Never
+ReflowComments: false
+
+# alignment: none (diffs stay small)
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+AlignOperands: DontAlign
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines: DontAlign
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceAfterTemplateKeyword: true
+SpaceBeforeParens: ControlStatements
+Cpp11BracedListStyle: false
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: Never
+BreakInheritanceList: BeforeColon
+AlwaysBreakTemplateDeclarations: Yes
+
+# includes: as written (the module's own header first, *.generated.h last - UHT needs that)
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+# Unreal's reflection macros stand on their own lines
+StatementAttributeLikeMacros: [UPROPERTY, UFUNCTION, UCLASS, USTRUCT, UENUM, UINTERFACE, UMETA, UPARAM, GENERATED_BODY, GENERATED_UCLASS_BODY]
+StatementMacros: [UPROPERTY, UFUNCTION, UCLASS, USTRUCT, UENUM, UINTERFACE, UMETA, UPARAM, GENERATED_BODY, GENERATED_UCLASS_BODY, GENERATED_USTRUCT_BODY, UE_DEPRECATED, DECLARE_LOG_CATEGORY_EXTERN, DEFINE_LOG_CATEGORY, DECLARE_DYNAMIC_MULTICAST_DELEGATE, DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam, DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams, DECLARE_DELEGATE, DECLARE_DELEGATE_OneParam, DECLARE_MULTICAST_DELEGATE, DECLARE_MULTICAST_DELEGATE_OneParam, IMPLEMENT_PRIMARY_GAME_MODULE, IMPLEMENT_MODULE]

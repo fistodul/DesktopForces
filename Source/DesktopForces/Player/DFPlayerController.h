@@ -10,8 +10,7 @@ class UInputMappingContext;
 
 /** A key that runs a console command (MF User.ini [Engine.Input] style). */
 USTRUCT()
-struct FDFCommandBind
-{
+struct FDFCommandBind {
 	GENERATED_BODY()
 
 	UPROPERTY(Config, EditAnywhere, Category = "DF")
@@ -24,8 +23,7 @@ class ADFCharacter;
 class ADFWeapon;
 
 /** A key the player can change (Options > Controls): Action names an input action or Cmd<N>. */
-struct FDFBinding
-{
+struct FDFBinding {
 	FName Action;
 	FText Label;
 	FKey Default;
@@ -45,8 +43,7 @@ struct FDFBinding
  * Away from loadout, the loadout key drops the held weapon.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADFPlayerController : public APlayerController
-{
+class DESKTOPFORCES_API ADFPlayerController : public APlayerController {
 	GENERATED_BODY()
 
 public:
@@ -350,7 +347,6 @@ public:
 	void ApplyKeyBindings();
 
 protected:
-
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> MappingContext;
 

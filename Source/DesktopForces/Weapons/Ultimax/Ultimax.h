@@ -10,8 +10,7 @@
  * only offered where that pack is installed). 30 damage, 60 to the head; 100 x 4.
  */
 UCLASS()
-class DESKTOPFORCES_API AUltimax : public AMachineGun
-{
+class DESKTOPFORCES_API AUltimax : public AMachineGun {
 	GENERATED_BODY()
 public:
 	AUltimax();

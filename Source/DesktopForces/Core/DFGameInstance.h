@@ -6,8 +6,7 @@
 
 /** Game-wide state that survives map changes (settings, future menus / server browser). */
 UCLASS()
-class DESKTOPFORCES_API UDFGameInstance : public UGameInstance
-{
+class DESKTOPFORCES_API UDFGameInstance : public UGameInstance {
 	GENERATED_BODY()
 
 public:

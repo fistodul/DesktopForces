@@ -15,8 +15,7 @@
  * flying until it is back on its wheels); water crashes it too.
  */
 UCLASS()
-class DESKTOPFORCES_API APiper : public ADFVehicle
-{
+class DESKTOPFORCES_API APiper : public ADFVehicle {
 	GENERATED_BODY()
 
 public:
@@ -54,8 +53,7 @@ protected:
 
 /** piperTs: the two-seat Piper (cabin model, a passenger facing back). */
 UCLASS()
-class DESKTOPFORCES_API APiperTs : public APiper
-{
+class DESKTOPFORCES_API APiperTs : public APiper {
 	GENERATED_BODY()
 
 public:

@@ -16,8 +16,7 @@ class UCapsuleComponent;
  * level builder (`mfport.py import --steps patch` adds them to built maps).
  */
 UCLASS()
-class DESKTOPFORCES_API ATeleporter : public AActor, public INavLinkHostInterface, public INavRelevantInterface
-{
+class DESKTOPFORCES_API ATeleporter : public AActor, public INavLinkHostInterface, public INavRelevantInterface {
 	GENERATED_BODY()
 
 public:
@@ -85,8 +84,7 @@ protected:
  * seconds, PhaseShift seconds out of step with the others (Period 0: always on).
  */
 UCLASS()
-class DESKTOPFORCES_API ADFPeriodicSound : public AActor
-{
+class DESKTOPFORCES_API ADFPeriodicSound : public AActor {
 	GENERATED_BODY()
 
 public:

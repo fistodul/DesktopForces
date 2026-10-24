@@ -7,8 +7,7 @@
 
 /** Trailer mode's cab (MF TrailerCab extends Humvee): tows the bomb trailer. */
 UCLASS()
-class DESKTOPFORCES_API ATrailerCab : public AHumvee
-{
+class DESKTOPFORCES_API ATrailerCab : public AHumvee {
 	GENERATED_BODY()
 public:
 	ATrailerCab();
@@ -16,8 +15,7 @@ public:
 
 /** MF TrailerX / BombTrailer: no engine, no seats, towed by a cab. */
 UCLASS()
-class DESKTOPFORCES_API ATrailer : public ADFVehicle
-{
+class DESKTOPFORCES_API ATrailer : public ADFVehicle {
 	GENERATED_BODY()
 public:
 	ATrailer();

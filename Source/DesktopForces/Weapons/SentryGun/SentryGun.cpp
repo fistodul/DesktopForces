@@ -19,29 +19,25 @@
 
 #define LOCTEXT_NAMESPACE "SentryGun"
 
-namespace SentryLocal
-{
-	void PlayAt(const AActor* A, const TCHAR* Path)
-	{
+namespace SentryLocal {
+	void PlayAt(const AActor* A, const TCHAR* Path) {
 		UGameplayStatics::PlaySoundAtLocation(A, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet), A->GetActorLocation());
 	}
 	const TCHAR* ActivatingSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/Activating.Activating");
 	const TCHAR* FireSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_HeavyMachineGun/Fire.Fire");
 	const TCHAR* SpinDownSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_HeavyMachineGun/SpinDown.SpinDown");
-}
+} // namespace SentryLocal
 
-UDFDamage_Sentry::UDFDamage_Sentry()
-{
+UDFDamage_Sentry::UDFDamage_Sentry() {
 	DeathVerb = LOCTEXT("Shredded", "shredded");
-	VehicleDamageScale = 0.125f;   // gun rounds: like bullets
+	VehicleDamageScale = 0.125f; // gun rounds: like bullets
 	bBallistic = true;
 	bHitsPetrolCap = true;
 }
 
 // --- turret -------------------------------------------------------------------------------
 
-ASentryTurret::ASentryTurret()
-{
+ASentryTurret::ASentryTurret() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	bAlwaysRelevant = true;
@@ -67,48 +63,36 @@ ASentryTurret::ASentryTurret()
 	Gun->SetRelativeLocation(FVector(0.f, 0.f, 22.5f));
 	Gun->SetRelativeScale3D(FVector(0.9f, 0.25f, 0.25f));
 	if (Cylinder.Succeeded())
-	{
 		Tripod->SetStaticMesh(Cylinder.Object);
-	}
 	if (Cube.Succeeded())
-	{
 		Gun->SetStaticMesh(Cube.Object);
-	}
 }
 
-void ASentryTurret::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
+void ASentryTurret::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ASentryTurret, Aim);
 	DOREPLIFETIME(ASentryTurret, Team);
 }
 
-void ASentryTurret::InitPlacer(ADFCharacter* Placer)
-{
+void ASentryTurret::InitPlacer(ADFCharacter* Placer) {
 	SetInstigator(Placer);
 	Team = Placer ? Placer->GetTeam() : DF::NoTeam;
 	Aim = GetActorRotation();
 }
 
-void ASentryTurret::BeginPlay()
-{
+void ASentryTurret::BeginPlay() {
 	Super::BeginPlay();
 	// MF SentryGunTurret draws the HMG carry model (DrawScale 1.25); team tint on the placeholder only
-	if (DF::ApplyPropMesh(Gun, TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh"), 1.25f, FVector(0.f, 0.f, 22.5f)))
-	{
+	if (DF::ApplyPropMesh(Gun, TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh"), 1.25f, FVector(0.f, 0.f, 22.5f))) {
 		Gun->SetWorldRotation(Aim);
-	}
-	else if (GetNetMode() != NM_DedicatedServer)
-	{
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-		{
+	} else if (GetNetMode() != NM_DedicatedServer) {
+		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial()) {
 			Gun->SetMaterial(0, M);
 			const FLinearColor C = Team == DF::NoTeam ? FLinearColor(0.9f, 0.7f, 0.15f) : UDFGameSettings::Get().GetTeamColor(Team);
 			Gun->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
 		}
 	}
-	if (HasAuthority())
-	{
+	if (HasAuthority()) {
 		Ammo = MaxAmmo;
 		SentryLocal::PlayAt(this, SentryLocal::ActivatingSound);
 		// state Deploying: 0.4 s, then Scanning at 5 Hz
@@ -116,32 +100,24 @@ void ASentryTurret::BeginPlay()
 	}
 }
 
-void ASentryTurret::OnRep_Aim()
-{
+void ASentryTurret::OnRep_Aim() {
 	Gun->SetWorldRotation(Aim);
 }
 
-bool ASentryTurret::IsFriendly(const AActor* Other) const
-{
+bool ASentryTurret::IsFriendly(const AActor* Other) const {
 	if (const ASentryTurret* S = Cast<ASentryTurret>(Other))
-	{
 		return S == this || (Team != DF::NoTeam ? S->Team == Team : S->GetInstigator() == GetInstigator());
-	}
 	const ADFCharacter* C = Cast<ADFCharacter>(Other);
 	if (!C || !C->IsAlive())
-	{
 		return true;
-	}
 	return C == GetInstigator() || (Team != DF::NoTeam && C->GetTeam() == Team);
 }
 
-FVector ASentryTurret::Muzzle() const
-{
+FVector ASentryTurret::Muzzle() const {
 	return GetActorLocation() + FVector(0.f, 0.f, 22.5f);
 }
 
-bool ASentryTurret::CanSee(const AActor* A) const
-{
+bool ASentryTurret::CanSee(const AActor* A) const {
 	// GetTargetAimPoint: middle of a player, low on a turret
 	const FVector To = A->IsA<ADFCharacter>() ? A->GetActorLocation() + FVector(0.f, 0.f, 30.f) : A->GetActorLocation() + FVector(0.f, 0.f, 34.f);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFSentrySight), false, this);
@@ -149,46 +125,32 @@ bool ASentryTurret::CanSee(const AActor* A) const
 	return !GetWorld()->LineTraceTestByChannel(Muzzle(), To, ECC_Visibility, Params);
 }
 
-AActor* ASentryTurret::FindBestTarget() const
-{
+AActor* ASentryTurret::FindBestTarget() const {
 	AActor* Best = nullptr;
 	float BestDist = ScanRange;
-	auto Consider = [&](AActor* A)
-	{
+	auto Consider = [&](AActor* A) {
 		const float D = FVector::Dist(A->GetActorLocation(), GetActorLocation());
-		if (D < BestDist && !IsFriendly(A) && CanSee(A))
-		{
+		if (D < BestDist && !IsFriendly(A) && CanSee(A)) {
 			BestDist = D;
 			Best = A;
 		}
 	};
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)
-	{
 		Consider(*It);
-	}
 	for (TActorIterator<ASentryTurret> It(GetWorld()); It; ++It)
-	{
 		if (!It->bDead)
-		{
 			Consider(*It);
-		}
-	}
 	return Best;
 }
 
-void ASentryTurret::Scan()
-{
+void ASentryTurret::Scan() {
 	if (bDead)
-	{
 		return;
-	}
-	if (Ammo <= 0)
-	{
+	if (Ammo <= 0) {
 		OutOfAmmo();
 		return;
 	}
-	if (AActor* T = FindBestTarget())
-	{
+	if (AActor* T = FindBestTarget()) {
 		Target = T;
 		SentryLocal::PlayAt(this, SentryLocal::ActivatingSound);
 		CurrentInterval = InitialFireInterval;
@@ -197,20 +159,15 @@ void ASentryTurret::Scan()
 	}
 }
 
-void ASentryTurret::FireTick()
-{
+void ASentryTurret::FireTick() {
 	AActor* T = Target.Get();
-	if (!T || IsFriendly(T) || FVector::Dist(T->GetActorLocation(), GetActorLocation()) > ScanRange || !CanSee(T))
-	{
+	if (!T || IsFriendly(T) || FVector::Dist(T->GetActorLocation(), GetActorLocation()) > ScanRange || !CanSee(T)) {
 		T = FindBestTarget();
 		Target = T;
-		if (!T)
-		{
+		if (!T) {
 			// back to scanning; it winds down if it had spun up
 			if (CurrentInterval < InitialFireInterval)
-			{
 				SentryLocal::PlayAt(this, SentryLocal::SpinDownSound);
-			}
 			GetWorldTimerManager().SetTimer(Timer, this, &ASentryTurret::Scan, 0.2f, true);
 			return;
 		}
@@ -226,89 +183,72 @@ void ASentryTurret::FireTick()
 	Aim.Normalize();
 	OnRep_Aim();
 	const float Now = GetWorld()->GetTimeSeconds();
-	if (FMath::Abs(Delta.Yaw) < 15.f && FMath::Abs(Delta.Pitch) < 15.f && Now >= NextShot)
-	{
+	if (FMath::Abs(Delta.Yaw) < 15.f && FMath::Abs(Delta.Pitch) < 15.f && Now >= NextShot) {
 		FireShot();
 		CurrentInterval = FMath::Max(FireInterval, CurrentInterval - FireIntervalStep);
 		NextShot = Now + CurrentInterval;
 		if (Ammo <= 0)
-		{
 			OutOfAmmo();
-		}
 	}
 }
 
-AController* ASentryTurret::Credit() const
-{
+AController* ASentryTurret::Credit() const {
 	// GetDamageInstigator: the placer gets the kills while still on the placing team
 	const ADFCharacter* Placer = Cast<ADFCharacter>(GetInstigator());
 	return Placer && (Team == DF::NoTeam || Placer->GetTeam() == Team) ? Placer->GetController() : nullptr;
 }
 
-void ASentryTurret::FireShot()
-{
+void ASentryTurret::FireShot() {
 	--Ammo;
 	const FVector Start = Muzzle();
 	const FRotationMatrix M(Aim);
-	const FVector Dir = (M.GetUnitAxis(EAxis::X) + (FMath::FRand() - 0.5f) * Spread * M.GetUnitAxis(EAxis::Y)
-		+ (FMath::FRand() - 0.5f) * Spread * M.GetUnitAxis(EAxis::Z)).GetSafeNormal();
+	const FVector Dir = (M.GetUnitAxis(EAxis::X) + (FMath::FRand() - 0.5f) * Spread * M.GetUnitAxis(EAxis::Y) + (FMath::FRand() - 0.5f) * Spread * M.GetUnitAxis(EAxis::Z)).GetSafeNormal();
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFSentryShot), false, this);
 	SentryLocal::PlayAt(this, SentryLocal::FireSound);
 	MakeNoise(1.f, GetInstigator());
 	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * ScanRange, ECC_GameTraceChannel2, Params))
-	{
 		return;
-	}
 	AActor* Other = Hit.GetActor();
 	if (!Other || (IsFriendly(Other) && (Other->IsA<ADFCharacter>() || Other->IsA<ASentryTurret>())))
-	{
-		return;   // ProcessTraceHit: friends take nothing
-	}
+		return; // ProcessTraceHit: friends take nothing
 	FPointDamageEvent Ev(ShotDamage, Hit, Dir, UDFDamage_Sentry::StaticClass());
 	Other->TakeDamage(ShotDamage, Ev, Credit(), this);
 }
 
-void ASentryTurret::OutOfAmmo()
-{
+void ASentryTurret::OutOfAmmo() {
 	// state OutOfAmmo: spin down, gone 0.7 s later
 	GetWorldTimerManager().ClearTimer(Timer);
 	SentryLocal::PlayAt(this, SentryLocal::SpinDownSound);
 	SetLifeSpan(0.7f);
 }
 
-float ASentryTurret::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
-{
-	if (HasAuthority() && !bDead && DamageAmount > 0.f)
-	{
+float ASentryTurret::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	if (HasAuthority() && !bDead && DamageAmount > 0.f) {
 		Health -= FMath::CeilToInt(DamageAmount);
 		if (Health <= 0)
-		{
 			BlowUp();
-		}
 	}
 	return DamageAmount;
 }
 
-void ASentryTurret::BlowUp()
-{
+void ASentryTurret::BlowUp() {
 	bDead = true;
 	GetWorldTimerManager().ClearTimer(Timer);
 	const FVector At = GetActorLocation() + FVector(0.f, 0.f, 22.5f);
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 85.f, 0.f, At, 0.f, 562.5f, 1.f,
-		UDFDamage_Sentry::StaticClass(), Ignore, this, Credit(), ECC_Visibility);   // MF HurtRadius(85, 250)
-	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.f);    // AddExplosionServer(Size 2.5)
+		UDFDamage_Sentry::StaticClass(), Ignore, this, Credit(), ECC_Visibility); // MF HurtRadius(85, 250)
+	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.f); // AddExplosionServer(Size 2.5)
 	Destroy();
 }
 
 // --- the item -------------------------------------------------------------------------------
 
-ASentryGun::ASentryGun()
-{
+ASentryGun::ASentryGun() {
 	DisplayName = LOCTEXT("SentryGun", "Sentry Gun");
 	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
-	ArmsMesh.Reset();   // no arms of its own: the carry model stays in hand
+	ArmsMesh.Reset(); // no arms of its own: the carry model stays in hand
 	InventoryGroup = 11;
 	CarrySize = 2;
 	MaxClipAmmo = 1;
@@ -324,38 +264,29 @@ ASentryGun::ASentryGun()
 	HUDIconRect = FIntRect(0, 0, 128, 64);
 }
 
-void ASentryGun::Message(const FString& Text) const
-{
+void ASentryGun::Message(const FString& Text) const {
 	const ADFCharacter* Me = GetOwnerCharacter();
 	if (APlayerController* PC = Me ? Cast<APlayerController>(Me->GetController()) : nullptr)
-	{
 		PC->ClientMessage(Text);
-	}
 }
 
-bool ASentryGun::FindPlacementSpot(FVector& OutLoc, FRotator& OutRot) const
-{
+bool ASentryGun::FindPlacementSpot(FVector& OutLoc, FRotator& OutRot) const {
 	// SentryGun.FindPlacementSpot: flat ground 40-140 uu ahead where you look, else just in front
 	const ADFCharacter* Me = GetOwnerCharacter();
 	const FRotator Flat(0.f, GetAimRotation().Yaw, 0.f);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFSentryPlace), false, Me);
 	FHitResult Hit;
 	const FVector Eye = GetFireStart();
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + GetAimRotation().Vector() * 337.5f, ECC_Visibility, Params)
-		&& Hit.ImpactNormal.Z > 0.65f)
-	{
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + GetAimRotation().Vector() * 337.5f, ECC_Visibility, Params) && Hit.ImpactNormal.Z > 0.65f) {
 		const float D = FVector::Dist2D(Hit.ImpactPoint, Me->GetActorLocation());
-		if (D >= 90.f && D <= 315.f)
-		{
+		if (D >= 90.f && D <= 315.f) {
 			OutLoc = Hit.ImpactPoint;
 			OutRot = Flat;
 			return true;
 		}
 	}
 	const FVector Ahead = Me->GetActorLocation() + Flat.Vector() * 168.75f;
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Ahead + FVector(0.f, 0.f, 45.f), Ahead - FVector(0.f, 0.f, 270.f), ECC_Visibility, Params)
-		&& Hit.ImpactNormal.Z > 0.65f)
-	{
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Ahead + FVector(0.f, 0.f, 45.f), Ahead - FVector(0.f, 0.f, 270.f), ECC_Visibility, Params) && Hit.ImpactNormal.Z > 0.65f) {
 		OutLoc = Hit.ImpactPoint;
 		OutRot = Flat;
 		return true;
@@ -363,53 +294,43 @@ bool ASentryGun::FindPlacementSpot(FVector& OutLoc, FRotator& OutRot) const
 	return false;
 }
 
-bool ASentryGun::TryFire(bool bAlt)
-{
+bool ASentryGun::TryFire(bool bAlt) {
 	ADFCharacter* Me = GetOwnerCharacter();
 	if (!Me || !Me->IsAlive() || Me->IsInLoadout() || !HasAmmoInClip())
-	{
 		return false;
-	}
-	if (!HasAuthority())
-	{
+	if (!HasAuthority()) {
 		SetState(EDFWeaponState::Firing, FireTime);
 		return true;
 	}
 	int32 Active = 0;
 	for (TActorIterator<ASentryTurret> It(GetWorld()); It; ++It)
-	{
 		Active += It->GetInstigator() == Me && !It->IsActorBeingDestroyed();
-	}
-	if (Active >= MaxActiveSentries)
-	{
+	if (Active >= MaxActiveSentries) {
 		Message(FString::Printf(TEXT("Max active Sentry Guns reached: %d"), MaxActiveSentries));
 		return false;
 	}
 	FVector Loc;
 	FRotator Rot;
-	if (!FindPlacementSpot(Loc, Rot))
-	{
+	if (!FindPlacementSpot(Loc, Rot)) {
 		Message(TEXT("Cannot place Sentry Gun here (clear flat ground required)"));
 		return false;
 	}
-	Loc.Z += 55.f;   // box half height + a little, so the spawn test clears the floor
+	Loc.Z += 55.f; // box half height + a little, so the spawn test clears the floor
 	FActorSpawnParameters SP;
 	SP.Instigator = Me;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
 	ASentryTurret* Turret = GetWorld()->SpawnActorDeferred<ASentryTurret>(ASentryTurret::StaticClass(), FTransform(Rot, Loc), nullptr, Me,
 		ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding);
-	if (Turret)
-	{
+	if (Turret) {
 		Turret->InitPlacer(Me);
 		UGameplayStatics::FinishSpawningActor(Turret, FTransform(Rot, Loc));
 	}
-	if (!IsValid(Turret))
-	{
+	if (!IsValid(Turret)) {
 		Message(TEXT("Cannot deploy Sentry Gun (space obstructed)"));
 		return false;
 	}
 	SetState(EDFWeaponState::Firing, FireTime);
-	ClipAmmo = 0;   // Finish() hands the empty item back
+	ClipAmmo = 0; // Finish() hands the empty item back
 	return true;
 }
 

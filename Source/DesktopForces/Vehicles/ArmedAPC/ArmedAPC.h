@@ -13,8 +13,7 @@ class UDFVehicleTurret;
  * map's Armadillo generators, ?APCs=ArmedAPCRocket the rocket version. The gun: UDFVehicleTurret.
  */
 UCLASS()
-class DESKTOPFORCES_API AArmedAPC : public AArmadillo
-{
+class DESKTOPFORCES_API AArmedAPC : public AArmadillo {
 	GENERATED_BODY()
 
 public:
@@ -27,8 +26,7 @@ protected:
 
 /** Armed APC with a rocket launcher on the hatch (ArmedAPCRocket): 4 rockets, 0.8 s apart. */
 UCLASS()
-class DESKTOPFORCES_API AArmedAPCRocket : public AArmedAPC
-{
+class DESKTOPFORCES_API AArmedAPCRocket : public AArmedAPC {
 	GENERATED_BODY()
 
 public:

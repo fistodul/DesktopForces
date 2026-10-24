@@ -20,17 +20,14 @@
 
 #define LOCTEXT_NAMESPACE "SeekerMines"
 
-namespace SeekerLocal
-{
-	USoundBase* Sound(const TCHAR* Path)
-	{
+namespace SeekerLocal {
+	USoundBase* Sound(const TCHAR* Path) {
 		return LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	}
 	const TCHAR* ActivatingSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/Activating.Activating");
-}
+} // namespace SeekerLocal
 
-UDFDamage_SeekerMine::UDFDamage_SeekerMine()
-{
+UDFDamage_SeekerMine::UDFDamage_SeekerMine() {
 	bExplosive = true;
 	VehicleDamageScale = 1.5f;
 	DeathVerb = LOCTEXT("HuntedDown", "hunted down");
@@ -38,8 +35,7 @@ UDFDamage_SeekerMine::UDFDamage_SeekerMine()
 
 // --- the drone --------------------------------------------------------------------------
 
-ASeekerMine::ASeekerMine()
-{
+ASeekerMine::ASeekerMine() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	SetReplicatingMovement(true);
@@ -59,64 +55,51 @@ ASeekerMine::ASeekerMine()
 	Mesh->SetupAttachment(Collision);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-	if (Sphere.Succeeded())
-	{
-		Mesh->SetStaticMesh(Sphere.Object);   // placeholder until the mod's drone model is converted
+	if (Sphere.Succeeded()) {
+		Mesh->SetStaticMesh(Sphere.Object); // placeholder until the mod's drone model is converted
 		Mesh->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.3f));
 	}
 
 	Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("Movement"));
-	Movement->MaxSpeed = 1395.f;         // MF AirSpeed 620 uu/s
-	Movement->Acceleration = 5400.f;     // MF AccelRate 2400
+	Movement->MaxSpeed = 1395.f; // MF AirSpeed 620 uu/s
+	Movement->Acceleration = 5400.f; // MF AccelRate 2400
 	Movement->Deceleration = 5400.f;
 	Movement->UpdatedComponent = Collision;
 }
 
-void ASeekerMine::InitPlacer(ADFCharacter* Placer)
-{
+void ASeekerMine::InitPlacer(ADFCharacter* Placer) {
 	SetInstigator(Placer);
 	PlacedTeam = Placer ? Placer->GetTeam() : DF::NoTeam;
 }
 
-void ASeekerMine::BeginPlay()
-{
+void ASeekerMine::BeginPlay() {
 	Super::BeginPlay();
 	BaseSpeed = Movement->MaxSpeed;
-	if (GetNetMode() != NM_DedicatedServer)
-	{
+	if (GetNetMode() != NM_DedicatedServer) {
 		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-		{
 			Mesh->SetMaterial(0, M);
-		}
 	}
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &ASeekerMine::OnOverlap);
-	if (HasAuthority())
-	{
+	if (HasAuthority()) {
 		UGameplayStatics::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
 		// state Deploying: 0.35 s, then hunt
 		GetWorldTimerManager().SetTimer(ThinkTimer, this, &ASeekerMine::Think, 0.2f, true, 0.35f);
 	}
 }
 
-bool ASeekerMine::IsFriendly(const AActor* Other) const
-{
+bool ASeekerMine::IsFriendly(const AActor* Other) const {
 	const ADFCharacter* C = Cast<ADFCharacter>(Other);
 	if (!C || !C->IsAlive())
-	{
-		return true;   // only living players are worth chasing
-	}
+		return true; // only living players are worth chasing
 	return C == GetInstigator() || (PlacedTeam != DF::NoTeam && C->GetTeam() == PlacedTeam);
 }
 
-ADFCharacter* ASeekerMine::FindBestTarget() const
-{
+ADFCharacter* ASeekerMine::FindBestTarget() const {
 	ADFCharacter* Best = nullptr;
 	float BestDist = SeekRadius;
-	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)
-	{
+	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
 		const float D = FVector::Dist(It->GetActorLocation(), GetActorLocation());
-		if (D < BestDist && !IsFriendly(*It))
-		{
+		if (D < BestDist && !IsFriendly(*It)) {
 			BestDist = D;
 			Best = *It;
 		}
@@ -124,27 +107,19 @@ ADFCharacter* ASeekerMine::FindBestTarget() const
 	return Best;
 }
 
-void ASeekerMine::MoveTo(AActor* Goal, float Acceptance, float SpeedScale)
-{
+void ASeekerMine::MoveTo(AActor* Goal, float Acceptance, float SpeedScale) {
 	Movement->MaxSpeed = BaseSpeed * SpeedScale;
 	if (AAIController* AI = Cast<AAIController>(GetController()))
-	{
 		AI->MoveToActor(Goal, Acceptance, true, true, true, nullptr, true);
-	}
 }
 
-void ASeekerMine::Think()
-{
+void ASeekerMine::Think() {
 	if (bDetonating)
-	{
 		return;
-	}
 	AAIController* AI = Cast<AAIController>(GetController());
 	// state Hunting
-	if (ADFCharacter* Target = FindBestTarget())
-	{
-		if (FVector::Dist(Target->GetActorLocation(), GetActorLocation()) <= DetonateRange)
-		{
+	if (ADFCharacter* Target = FindBestTarget()) {
+		if (FVector::Dist(Target->GetActorLocation(), GetActorLocation()) <= DetonateRange) {
 			StartDetonating();
 			return;
 		}
@@ -154,72 +129,52 @@ void ASeekerMine::Think()
 	// state Escorting: stay 250-450 uu from the owner while they're near
 	const ADFCharacter* Placer = Cast<ADFCharacter>(GetInstigator());
 	const float PlacerDist = Placer ? FVector::Dist(Placer->GetActorLocation(), GetActorLocation()) : 1e9f;
-	if (Placer && Placer->IsAlive() && PlacerDist < 5625.f)
-	{
+	if (Placer && Placer->IsAlive() && PlacerDist < 5625.f) {
 		if (PlacerDist > 1012.f)
-		{
 			MoveTo(const_cast<ADFCharacter*>(Placer), 600.f, 0.85f);
-		}
 		else if (AI)
-		{
 			AI->StopMovement();
-		}
 		return;
 	}
 	// state Roaming: wander between random reachable spots at half speed
 	const float Now = GetWorld()->GetTimeSeconds();
-	if (AI && Now >= RoamUntil)
-	{
+	if (AI && Now >= RoamUntil) {
 		RoamUntil = Now + 4.f;
 		FNavLocation Dest;
 		UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (Nav && Nav->GetRandomReachablePointInRadius(GetActorLocation(), 3000.f, Dest))
-		{
+		if (Nav && Nav->GetRandomReachablePointInRadius(GetActorLocation(), 3000.f, Dest)) {
 			Movement->MaxSpeed = BaseSpeed * 0.5f;
 			AI->MoveToLocation(Dest.Location, 100.f);
 		}
 	}
 }
 
-void ASeekerMine::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body, bool bSweep, const FHitResult& Hit)
-{
+void ASeekerMine::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body, bool bSweep, const FHitResult& Hit) {
 	if (HasAuthority() && !IsFriendly(Other))
-	{
 		StartDetonating();
-	}
 }
 
-void ASeekerMine::StartDetonating()
-{
+void ASeekerMine::StartDetonating() {
 	// state Detonating: a beep, 0.12 s, boom
 	if (bDetonating || bDetonated)
-	{
 		return;
-	}
 	bDetonating = true;
 	UGameplayStatics::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
 	GetWorldTimerManager().SetTimer(ThinkTimer, this, &ASeekerMine::BlowUp, 0.12f, false);
 }
 
-float ASeekerMine::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
-{
-	if (HasAuthority() && !bDetonating && DamageAmount > 0.f)
-	{
+float ASeekerMine::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	if (HasAuthority() && !bDetonating && DamageAmount > 0.f) {
 		Health -= FMath::CeilToInt(DamageAmount);
 		if (Health <= 0)
-		{
 			BlowUp();
-		}
 	}
 	return DamageAmount;
 }
 
-void ASeekerMine::BlowUp()
-{
+void ASeekerMine::BlowUp() {
 	if (bDetonated)
-	{
 		return;
-	}
 	bDetonated = true;
 	// GetDamageInstigator: the placer gets the kills while still on the throwing team
 	const ADFCharacter* Placer = Cast<ADFCharacter>(GetInstigator());
@@ -228,43 +183,36 @@ void ASeekerMine::BlowUp()
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, DamageRadius, 1.f,
 		UDFDamage_SeekerMine::StaticClass(), Ignore, this, Credit, ECC_Visibility);
-	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.4f);   // AddExplosionServer(Size 3.5)
+	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.4f); // AddExplosionServer(Size 3.5)
 	Destroy();
 }
 
 // --- thrown -----------------------------------------------------------------------------------
 
-ASeekerMineThrown::ASeekerMineThrown()
-{
-	Movement->InitialSpeed = 2700.f;   // MF speed 1200 uu/s (the throw sets it)
-	Movement->MaxSpeed = 6750.f;       // MF MaxSpeed 3000
+ASeekerMineThrown::ASeekerMineThrown() {
+	Movement->InitialSpeed = 2700.f; // MF speed 1200 uu/s (the throw sets it)
+	Movement->MaxSpeed = 6750.f; // MF MaxSpeed 3000
 	Movement->ProjectileGravityScale = 1.f;
 	bExplodeOnImpact = true;
-	FuseTime = 0.5f;                   // SetTimer(0.5) -> DeployMine
+	FuseTime = 0.5f; // SetTimer(0.5) -> DeployMine
 	Damage = 0.f;
 }
 
-void ASeekerMineThrown::Explode(const FVector& Location, const FVector& Normal)
-{
+void ASeekerMineThrown::Explode(const FVector& Location, const FVector& Normal) {
 	if (bExploded)
-	{
 		return;
-	}
 	bExploded = true;
 	FActorSpawnParameters SP;
 	SP.Instigator = GetInstigator();
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	if (ASeekerMine* Mine = GetWorld()->SpawnActor<ASeekerMine>(Location + Normal * 40.f, FRotator(0.f, GetActorRotation().Yaw, 0.f), SP))
-	{
 		Mine->InitPlacer(Cast<ADFCharacter>(GetInstigator()));
-	}
 	Destroy();
 }
 
 // --- the weapon -------------------------------------------------------------------------------
 
-ASeekerMines::ASeekerMines()
-{
+ASeekerMines::ASeekerMines() {
 	DisplayName = LOCTEXT("SeekerMines", "Seeker Mine");
 	MaxClipAmmo = 1;
 	AltProjectileClass = ASeekerMineThrown::StaticClass();
@@ -274,32 +222,23 @@ ASeekerMines::ASeekerMines()
 	HUDIconRect = FIntRect(0, 0, 64, 64);
 }
 
-void ASeekerMines::StartFire(bool bAlt)
-{
-	Super::StartFire(true);   // SeekerMines.Fire -> AltFire: both buttons wind up a throw
+void ASeekerMines::StartFire(bool bAlt) {
+	Super::StartFire(true); // SeekerMines.Fire -> AltFire: both buttons wind up a throw
 }
 
-void ASeekerMines::StopFire(bool bAlt)
-{
+void ASeekerMines::StopFire(bool bAlt) {
 	Super::StopFire(true);
 }
 
-bool ASeekerMines::CanPlace() const
-{
+bool ASeekerMines::CanPlace() const {
 	const ADFCharacter* Me = GetOwnerCharacter();
 	int32 Active = 0;
 	for (TActorIterator<ASeekerMine> It(GetWorld()); It; ++It)
-	{
 		Active += It->GetInstigator() == Me && !It->IsActorBeingDestroyed();
-	}
 	if (Active < MaxActiveMines)
-	{
 		return true;
-	}
 	if (APlayerController* PC = Me ? Cast<APlayerController>(Me->GetController()) : nullptr)
-	{
 		PC->ClientMessage(FString::Printf(TEXT("Max active Seeker Mines reached: %d"), MaxActiveMines));
-	}
 	return false;
 }
 

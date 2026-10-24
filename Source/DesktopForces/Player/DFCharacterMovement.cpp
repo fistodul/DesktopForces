@@ -6,24 +6,23 @@
 #include "Components/CapsuleComponent.h"
 #include "World/DFLadder.h"
 
-UDFCharacterMovement::UDFCharacterMovement()
-{
-	MaxWalkSpeed = 900.f;                      // MF Pawn.BaseGroundSpeed 400 uu/s
-	MaxWalkSpeedCrouched = 270.f;              // UE1 crouch: 0.3 x ground speed
-	MaxSwimSpeed = 450.f;                      // MF Pawn.WaterSpeed 200
-	Buoyancy = 0.99f;                          // RPlayer.Buoyancy 99 / Mass 100: sinks very slowly
-	MaxFlySpeed = 900.f;                       // MF RPlayer.AirSpeed 400
-	MaxAcceleration = 4608.f;                  // MF RPlayer.AccelRate 2048
-	JumpZVelocity = 731.25f;                   // MF Pawn.JumpZ 325
-	AirControl = 0.35f;                        // RPlayer.AirControl
-	AirControlBoostMultiplier = 1.f;           // UE1 has no low-speed air control boost
+UDFCharacterMovement::UDFCharacterMovement() {
+	MaxWalkSpeed = 900.f; // MF Pawn.BaseGroundSpeed 400 uu/s
+	MaxWalkSpeedCrouched = 270.f; // UE1 crouch: 0.3 x ground speed
+	MaxSwimSpeed = 450.f; // MF Pawn.WaterSpeed 200
+	Buoyancy = 0.99f; // RPlayer.Buoyancy 99 / Mass 100: sinks very slowly
+	MaxFlySpeed = 900.f; // MF RPlayer.AirSpeed 400
+	MaxAcceleration = 4608.f; // MF RPlayer.AccelRate 2048
+	JumpZVelocity = 731.25f; // MF Pawn.JumpZ 325
+	AirControl = 0.35f; // RPlayer.AirControl
+	AirControlBoostMultiplier = 1.f; // UE1 has no low-speed air control boost
 	AirControlBoostVelocityThreshold = 0.f;
-	MaxStepHeight = 56.25f;                    // MF Pawn.MaxStepHeight 25
+	MaxStepHeight = 56.25f; // MF Pawn.MaxStepHeight 25
 	// UE1 collision is a flat-bottomed cylinder: stand on the rim of grated stair treads
 	// instead of sagging into them (warehouse stairs: 54 cm rise, grating 9 cm lower)
 	bUseFlatBaseForFloorChecks = true;
-	SetWalkableFloorZ(0.7f);                   // UE1 MINFLOORZ
-	GravityScale = 1.f;                        // world gravity (project settings) = MF -950 uu/s^2
+	SetWalkableFloorZ(0.7f); // UE1 MINFLOORZ
+	GravityScale = 1.f; // world gravity (project settings) = MF -950 uu/s^2
 
 	// UE1: Velocity -= (Velocity - AccelDir*|V|) * min(2*Friction*dt, 1) while accelerating,
 	//      Velocity -= Velocity * 2*Friction*dt when braking. ZoneGroundFriction = 8.
@@ -35,7 +34,7 @@ UDFCharacterMovement::UDFCharacterMovement()
 	BrakingDecelerationFalling = 0.f;
 	FallingLateralFriction = 0.f;
 
-	LadderSpeed = 450.f;                        // MF Pawn.LadderSpeed 200
+	LadderSpeed = 450.f; // MF Pawn.LadderSpeed 200
 	// Bots steer through acceleration like players, so ladder physics (which reads it) works for them
 	NavMovementProperties.bUseAccelerationForPaths = true;
 
@@ -49,106 +48,80 @@ UDFCharacterMovement::UDFCharacterMovement()
 	NetworkSimulatedSmoothLocationTime = 0.1f;
 }
 
-float UDFCharacterMovement::GetMaxSpeed() const
-{
+float UDFCharacterMovement::GetMaxSpeed() const {
 	if (IsOnLadder())
-	{
 		return LadderSpeed * LadderClimbScale;
-	}
 	float Speed = Super::GetMaxSpeed();
-	if (MovementMode == MOVE_Walking || MovementMode == MOVE_NavWalking)
-	{
+	if (MovementMode == MOVE_Walking || MovementMode == MOVE_NavWalking) {
 		// Engine speeds, scaled by carried weight and aiming (both predicted on client and server)
 		Speed = (IsCrouching() ? MaxWalkSpeedCrouched : MaxWalkSpeed) * CarrySpeedScale * AimSpeedScale;
 		if (bWantsToWalk && !IsCrouching())
-		{
 			Speed *= WalkSpeedFraction;
-		}
 	}
 	return Speed;
 }
 
-void UDFCharacterMovement::UpdateFromCompressedFlags(uint8 Flags)
-{
+void UDFCharacterMovement::UpdateFromCompressedFlags(uint8 Flags) {
 	Super::UpdateFromCompressedFlags(Flags);
 	bWantsToWalk = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 	bWantsParachute = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 }
 
-FNetworkPredictionData_Client* UDFCharacterMovement::GetPredictionData_Client() const
-{
-	if (!ClientPredictionData)
-	{
+FNetworkPredictionData_Client* UDFCharacterMovement::GetPredictionData_Client() const {
+	if (!ClientPredictionData) {
 		UDFCharacterMovement* Mutable = const_cast<UDFCharacterMovement*>(this);
 		Mutable->ClientPredictionData = new FDFNetworkPredictionData_Client(*this);
 	}
 	return ClientPredictionData;
 }
 
-void UDFCharacterMovement::SetLadder(ADFLadderVolume* Ladder)
-{
+void UDFCharacterMovement::SetLadder(ADFLadderVolume* Ladder) {
 	TouchedLadder = Ladder;
 }
 
-void UDFCharacterMovement::ClearLadder(ADFLadderVolume* Ladder)
-{
-	if (TouchedLadder == Ladder)
-	{
+void UDFCharacterMovement::ClearLadder(ADFLadderVolume* Ladder) {
+	if (TouchedLadder == Ladder) {
 		TouchedLadder = nullptr;
 		ExitLadder();
 	}
 }
 
-bool UDFCharacterMovement::WantsLadder() const
-{
+bool UDFCharacterMovement::WantsLadder() const {
 	const ADFLadderVolume* L = TouchedLadder.Get();
 	if (!L || !UpdatedComponent || GetWorld()->GetTimeSeconds() < LadderRegrabTime)
-	{
 		return false;
-	}
 	// MF grabs on touch (LadderClimber touch -> PHYS_Ladder): the soldier's cylinder meeting the
 	// climber's (EnterLadder then puts them on the rungs at once, no gliding in)
 	const FVector Rel = UpdatedComponent->GetComponentLocation() - L->GetActorLocation();
 	const float Reach = L->Radius + (CharacterOwner ? CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius() : 0.f);
 	if (Rel.Size2D() > Reach)
-	{
 		return false;
-	}
 	if (IsFalling())
-	{
-		return true;   // walked off the top / jumped at it
-	}
+		return true; // walked off the top / jumped at it
 	// on the floor: only at the bottom half and pushing towards the rungs, so you can walk away
 	// at the foot and step off onto the ledge at the top
 	if (Rel.Z > 0.f)
-	{
 		return false;
-	}
 	const FVector Into = L->GetActorForwardVector().GetSafeNormal2D();
 	return IsMovingOnGround() && FVector::DotProduct(GetCurrentAcceleration().GetSafeNormal2D(), Into) > 0.5f;
 }
 
-void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
-{
+void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds) {
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
 	// RagePlayer.RageTick (Gregaras' parachute): Jump held, falling at least 150 uu/s down. Decided
 	// in the move, so the owning client predicts it and the server (which doesn't tick remote
 	// players' pawns) runs the same; bParachute replicates the canopy to everyone else
-	if (ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner))
-	{
+	if (ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner)) {
 		const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
-		C->SetParachute(bWantsParachute && GS && GS->bParachutes && C->IsAlive() && !C->GetAttachParentActor()
-			&& IsFalling() && Velocity.Z <= -337.5f);
+		C->SetParachute(bWantsParachute && GS && GS->bParachutes && C->IsAlive() && !C->GetAttachParentActor() && IsFalling() && Velocity.Z <= -337.5f);
 	}
-	if (!IsOnLadder() && WantsLadder())
-	{
+	if (!IsOnLadder() && WantsLadder()) {
 		const ADFLadderVolume* L = TouchedLadder.Get();
 		EnterLadder(-L->GetActorForwardVector(), L->ClimbSpeed);
 		// straight onto the ladder's line (swept: walls still stop it)
 		FVector Offset = L->GetActorLocation() - UpdatedComponent->GetComponentLocation();
 		Offset.Z = 0.f;
-		if (!Offset.IsNearlyZero())
-		{
+		if (!Offset.IsNearlyZero()) {
 			FHitResult Hit;
 			SafeMoveUpdatedComponent(Offset, UpdatedComponent->GetComponentQuat(), true, Hit);
 		}
@@ -156,46 +129,34 @@ void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds
 	}
 }
 
-void UDFCharacterMovement::EnterLadder(const FVector& WallNormal, float ClimbSpeedScale)
-{
+void UDFCharacterMovement::EnterLadder(const FVector& WallNormal, float ClimbSpeedScale) {
 	LadderWallNormal = WallNormal.GetSafeNormal2D();
 	LadderClimbScale = ClimbSpeedScale > 0.f ? ClimbSpeedScale * 2.f : 1.f; // LadderClimber.ClimbSpeed 0.5 = normal
 	SetMovementMode(MOVE_Custom, uint8(EDFMoveMode::Ladder));
 }
 
-void UDFCharacterMovement::ExitLadder()
-{
+void UDFCharacterMovement::ExitLadder() {
 	if (IsOnLadder())
-	{
 		SetMovementMode(MOVE_Falling);
-	}
 }
 
-void UDFCharacterMovement::PhysFalling(float DeltaTime, int32 Iterations)
-{
-	if (const ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner); C && C->IsParachuting())
-	{
+void UDFCharacterMovement::PhysFalling(float DeltaTime, int32 Iterations) {
+	if (const ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner); C && C->IsParachuting()) {
 		// down to 200 uu/s (MF: x0.7 a frame below it), the speed along the ground turned the way
 		// the soldier looks (and eased off above 1000 uu/s)
 		if (Velocity.Z < -450.f)
-		{
 			Velocity.Z = FMath::Max(-450.f, Velocity.Z * FMath::Pow(0.7f, DeltaTime * 60.f));
-		}
 		const FVector Facing = FRotator(0.f, C->GetControlRotation().Yaw, 0.f).Vector();
 		float Ground = FVector2D(Velocity).Size();
 		if (Ground > 2250.f)
-		{
 			Ground *= FMath::Pow(0.97f, DeltaTime * 60.f);
-		}
 		Velocity = FVector(Facing.X * Ground, Facing.Y * Ground, Velocity.Z);
 	}
 	Super::PhysFalling(DeltaTime, Iterations);
 }
 
-void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
-{
-	if (!IsOnLadder() || DeltaTime < MIN_TICK_TIME)
-	{
+void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations) {
+	if (!IsOnLadder() || DeltaTime < MIN_TICK_TIME) {
 		Super::PhysCustom(DeltaTime, Iterations);
 		return;
 	}
@@ -204,8 +165,7 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 	// strafing moves sideways. Looking up/down does not matter (manual tip: "run at them
 	// whilst looking straight ahead").
 	// Jump lets go of the ladder, pushing away from the wall
-	if (CharacterOwner && CharacterOwner->bPressedJump)
-	{
+	if (CharacterOwner && CharacterOwner->bPressedJump) {
 		Velocity = LadderWallNormal * 300.f + FVector(0, 0, JumpZVelocity * 0.5f);
 		LadderRegrabTime = GetWorld()->GetTimeSeconds() + 0.5f;
 		SetMovementMode(MOVE_Falling);
@@ -223,17 +183,13 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 	// the climber onto the ledge
 	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f + Into * FMath::Max(Climb, 0.f) * 0.5f) * GetMaxSpeed();
 	if (Accel.IsNearlyZero())
-	{
 		Velocity = FVector::ZeroVector;
-	}
 
 	FHitResult Hit;
 	SafeMoveUpdatedComponent(Velocity * DeltaTime, UpdatedComponent->GetComponentQuat(), true, Hit);
-	if (Hit.IsValidBlockingHit())
-	{
-		if (Climb < 0.f && Hit.ImpactNormal.Z > GetWalkableFloorZ())
-		{
-			SetMovementMode(MOVE_Walking);   // reached the floor going down
+	if (Hit.IsValidBlockingHit()) {
+		if (Climb < 0.f && Hit.ImpactNormal.Z > GetWalkableFloorZ()) {
+			SetMovementMode(MOVE_Walking); // reached the floor going down
 			return;
 		}
 		SlideAlongSurface(Velocity * DeltaTime, 1.f - Hit.Time, Hit.Normal, Hit, true);
@@ -242,69 +198,50 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations)
 
 // --- saved move -----------------------------------------------------------------
 
-void FDFSavedMove::Clear()
-{
+void FDFSavedMove::Clear() {
 	Super::Clear();
 	bSavedWantsToWalk = false;
 	bSavedWantsParachute = false;
 }
 
-uint8 FDFSavedMove::GetCompressedFlags() const
-{
+uint8 FDFSavedMove::GetCompressedFlags() const {
 	uint8 Result = Super::GetCompressedFlags();
 	if (bSavedWantsToWalk)
-	{
 		Result |= FLAG_Custom_0;
-	}
 	if (bSavedWantsParachute)
-	{
 		Result |= FLAG_Custom_1;
-	}
 	return Result;
 }
 
-bool FDFSavedMove::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const
-{
+bool FDFSavedMove::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const {
 	const FDFSavedMove* New = static_cast<FDFSavedMove*>(NewMove.Get());
 	if (bSavedWantsToWalk != New->bSavedWantsToWalk || bSavedWantsParachute != New->bSavedWantsParachute)
-	{
 		return false;
-	}
 	return Super::CanCombineWith(NewMove, Character, MaxDelta);
 }
 
-void FDFSavedMove::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, FNetworkPredictionData_Client_Character& ClientData)
-{
+void FDFSavedMove::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, FNetworkPredictionData_Client_Character& ClientData) {
 	Super::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
-	if (const UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(Character->GetCharacterMovement()))
-	{
+	if (const UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(Character->GetCharacterMovement())) {
 		bSavedWantsToWalk = Move->bWantsToWalk;
 		bSavedWantsParachute = Move->bWantsParachute;
 	}
 }
 
-void FDFSavedMove::PrepMoveFor(ACharacter* Character)
-{
+void FDFSavedMove::PrepMoveFor(ACharacter* Character) {
 	Super::PrepMoveFor(Character);
-	if (UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(Character->GetCharacterMovement()))
-	{
+	if (UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(Character->GetCharacterMovement())) {
 		Move->bWantsToWalk = bSavedWantsToWalk;
 		Move->bWantsParachute = bSavedWantsParachute;
 	}
 }
 
-void UDFCharacterMovement::ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity)
-{
+void UDFCharacterMovement::ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity) {
 	if (!Cast<ADFVehicle>(Impact.GetActor()))
-	{
 		Super::ApplyImpactPhysicsForces(Impact, ImpactAcceleration, ImpactVelocity);
-	}
 }
 
-void UDFCharacterMovement::ApplyDownwardForce(float DeltaSeconds)
-{
+void UDFCharacterMovement::ApplyDownwardForce(float DeltaSeconds) {
 	if (!CurrentFloor.HitResult.IsValidBlockingHit() || !Cast<ADFVehicle>(CurrentFloor.HitResult.GetActor()))
-	{
 		Super::ApplyDownwardForce(DeltaSeconds);
-	}
 }

@@ -4,17 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
-AMAC10::AMAC10()
-{
+AMAC10::AMAC10() {
 	// Fire01-04 3 @55 + 0.05; Reload 10 @8 + 0.25
 	ViewMesh = TEXT("MAC10/MAC10PickupCarryMesh");
-	ArmsMesh = TEXT("MAC10PlayerMesh");   // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ArmsMesh = TEXT("MAC10PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-3.f, 0.5f, -5.5f);
 	RequiredContent = TEXT("Props/MAC10/MAC10PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/MAC10/Skins/MAC10image");
-	HUDIconRect = FIntRect(0, 162, 120, 240);   // WeaponIcon X=0 Y=162 W=120 H=78
+	HUDIconRect = FIntRect(0, 162, 120, 240); // WeaponIcon X=0 Y=162 W=120 H=78
 	DisplayName = LOCTEXT("MAC10", "MAC-10");
 	InventoryGroup = 2;
 	CarrySize = 1;

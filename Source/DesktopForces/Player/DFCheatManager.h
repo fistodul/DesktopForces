@@ -9,8 +9,7 @@
  * `EnableCheats`; never in shipping multiplayer).
  */
 UCLASS()
-class DESKTOPFORCES_API UDFCheatManager : public UCheatManager
-{
+class DESKTOPFORCES_API UDFCheatManager : public UCheatManager {
 	GENERATED_BODY()
 
 public:

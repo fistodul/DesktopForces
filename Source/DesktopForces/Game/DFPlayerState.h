@@ -12,8 +12,7 @@
  * controllers forward IGenericTeamAgentInterface to it.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFPlayerState : public APlayerState, public IGenericTeamAgentInterface
-{
+class DESKTOPFORCES_API ADFPlayerState : public APlayerState, public IGenericTeamAgentInterface {
 	GENERATED_BODY()
 
 public:
