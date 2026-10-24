@@ -1103,6 +1103,11 @@ TArray<APlayerState*> ADFPlayerController::GetCommandTargets() const {
 }
 
 void ADFPlayerController::ShowCommandMenu() {
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	if (CommandMenuStage == 0 && !(GS && GS->IsTeamGame())) {
+		ClientMessage(TEXT("No team-mates to give orders to"));
+		return;
+	}
 	SetCommandMenuStage(CommandMenuStage > 0 ? 0 : 1);
 	PlayUISound(TEXT("/MobileForcesClassic/Sounds/RageMenuSFX/Click.Click"));
 }
@@ -1130,17 +1135,11 @@ void ADFPlayerController::Type() {
 void ADFPlayerController::CommandMenuKey(int32 Slot) {
 	// MF OrdersWindow.KeyEvent: 1-9 pick, 0 = the tenth
 	const int32 Index = Slot - 1;
-	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
 	if (CommandMenuStage == 1) {
 		if (!GetCommandMenuOrders().IsValidIndex(Index))
 			return;
 		CommandMenuOrder = Index;
-		if (GS && GS->IsTeamGame()) {
-			CommandMenuStage = 2; // TargetChildWindow: All, then each team-mate
-		} else {
-			ServerGiveOrder(Index, nullptr);
-			SetCommandMenuStage(0);
-		}
+		CommandMenuStage = 2; // TargetChildWindow: All, then each team-mate
 	} else if (CommandMenuStage == 2) {
 		const TArray<APlayerState*> Targets = GetCommandTargets();
 		if (Index == 0 || Targets.IsValidIndex(Index - 1)) {

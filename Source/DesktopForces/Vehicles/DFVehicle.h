@@ -323,9 +323,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float KillSpeed = 800.f;
 
-	/** Where riders sit (body space, cm; seat 0 drives) and get out (doors). */
+	/** Where riders' eyes are (MF aSeatsPos; body space, cm; seat 0 drives) and where they get
+	 *  out (doors). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<FVector> SeatPositions;
+	/** Where C stands in Seat, relative to the body: the seat is the eye (RagePlayer.GetPos:
+	 *  seat - EyeHeight), the soldier one eye height below it. */
+	FVector GetSeatOffset(int32 Seat, const ADFCharacter* C) const;
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<FVector> DoorPositions;
 	/** Per door, the seats it gets you into, best first; seat 0 drives. Empty: the driver's

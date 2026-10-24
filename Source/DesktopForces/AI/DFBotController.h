@@ -61,6 +61,8 @@ protected:
 	/** Took its kit since spawning (a mode may allow none of it: knife only, still fights). */
 	bool bDidLoadout = false;
 	ADFCharacter* FindEnemy(ADFCharacter* C) const;
+	/** Target in sight of C, the cars they sit in not counting as cover. */
+	bool CanSee(const ADFCharacter* C, const ADFCharacter* Target) const;
 	void Fight(ADFCharacter* C, ADFCharacter* Target);
 	void Roam(ADFCharacter* C);
 

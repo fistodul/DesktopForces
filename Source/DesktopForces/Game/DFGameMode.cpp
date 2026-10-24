@@ -627,8 +627,8 @@ FName ADFGameMode::GetOrderSound(int32 Order) const {
 
 void ADFGameMode::GiveOrder(AController* Giver, int32 Order, APlayerState* Target) {
 	const ADFPlayerState* GiverPS = Giver ? Giver->GetPlayerState<ADFPlayerState>() : nullptr;
-	if (!GiverPS)
-		return;
+	if (!GiverPS || !IsTeamGame())
+		return; // orders go to team-mates; in deathmatch everyone is an enemy
 	// MF chat line: "Sender: Heywood, Defend this area." (to the team), said aloud; "Improvise"
 	// comes out as "Fire at will" 40% of the time (SetOrderMessage: OrderSound / OrderString 15)
 	const bool bFireAtWill = Order == 4 && FMath::FRand() < 0.4f;

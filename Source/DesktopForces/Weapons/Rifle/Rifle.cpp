@@ -90,6 +90,23 @@ void ARifle::StopFire(bool bAlt) {
 	Super::StopFire(bAlt);
 }
 
+void ARifle::OnPutDown() {
+	CancelCharge();
+	Super::OnPutDown();
+}
+
+void ARifle::ForceInactive() {
+	CancelCharge();
+	Super::ForceInactive();
+}
+
+void ARifle::CancelCharge() {
+	bCharging = false;
+	ReleasedPower = 1.f;
+	GetWorldTimerManager().ClearTimer(PoweredUpTimer);
+	SetAmbientMFSound(nullptr);
+}
+
 void ARifle::ServerReleaseFire_Implementation(float Power) {
 	ReleasedPower = FMath::Clamp(Power, 1.f, 10.f);
 	bCharging = false;

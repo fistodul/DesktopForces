@@ -419,6 +419,11 @@ int32 ADFVehicle::GetSeatOf(const ADFCharacter* C) const {
 	return I > 0 ? I : INDEX_NONE;
 }
 
+FVector ADFVehicle::GetSeatOffset(int32 Seat, const ADFCharacter* C) const {
+	const FVector Eye = SeatPositions.IsValidIndex(Seat) ? SeatPositions[Seat] : FVector::ZeroVector;
+	return Eye - BoxCenter - FVector(0.f, 0.f, C ? C->BaseEyeHeight : 0.f);
+}
+
 void ADFVehicle::SeatPassenger(ADFCharacter* C, int32 Seat) {
 	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
 	Passengers[Seat] = C;
@@ -430,7 +435,7 @@ void ADFVehicle::SeatPassenger(ADFCharacter* C, int32 Seat) {
 	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	Body->IgnoreActorWhenMoving(C, true);
 	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	C->SetActorRelativeLocation(SeatPositions[Seat] - BoxCenter); // aSeatsPos: where the soldier stands or sits
+	C->SetActorRelativeLocation(GetSeatOffset(Seat, C));
 	PassengerEntered(C, Seat);
 }
 
@@ -541,7 +546,7 @@ bool ADFVehicle::EnterDriver(ADFCharacter* C) {
 	C->SetActorEnableCollision(false);
 	C->GetCharacterMovement()->DisableMovement(); // stays in sight at the wheel (Drive animations)
 	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	C->SetActorRelativeLocation((SeatPositions.Num() ? SeatPositions[0] : FVector::ZeroVector) - BoxCenter);
+	C->SetActorRelativeLocation(GetSeatOffset(0, C));
 	LastDriver = C;
 	if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>())
 		GM->VehicleEntered(this, C); // before possession: the soldier still has the player state

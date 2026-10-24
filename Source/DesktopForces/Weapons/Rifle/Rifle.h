@@ -22,6 +22,10 @@ public:
 
 protected:
 	virtual void FireShot(bool bAlt) override;
+	/** Put away mid-charge: the charge is gone (a fresh press starts from 1 again). */
+	virtual void OnPutDown() override;
+	virtual void ForceInactive() override;
+	void CancelCharge();
 	virtual void Finish() override;
 	virtual void ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt) override;
 	UFUNCTION(Server, Reliable)

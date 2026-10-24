@@ -92,13 +92,24 @@ ADFCharacter* ADFBotController::FindEnemy(ADFCharacter* C) const {
 			continue;
 
 		const float D = FVector::Dist(O->GetActorLocation(), C->GetActorLocation());
-		if (D < BestDist && LineOfSightTo(O)) {
+		if (D < BestDist && CanSee(C, O)) {
 			BestDist = D;
 			Best = O;
 		}
 	}
 
 	return Best;
+}
+
+bool ADFBotController::CanSee(const ADFCharacter* C, const ADFCharacter* Target) const {
+	// eyes to the soldier; the vehicles either of them sits in don't block (a driver is seen
+	// through his own car, and shots at him hit it)
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFBotSight), false, C);
+	Params.AddIgnoredActor(Target);
+	Params.AddIgnoredActor(C->GetAttachParentActor());
+	Params.AddIgnoredActor(Target->GetAttachParentActor());
+	const FVector Eyes = C->GetPawnViewLocation();
+	return !GetWorld()->LineTraceTestByChannel(Eyes, Target->GetActorLocation() + FVector(0.f, 0.f, 40.f), ECC_Visibility, Params);
 }
 
 void ADFBotController::Think() {
@@ -120,8 +131,10 @@ void ADFBotController::Think() {
 	CheckStuck(C);
 
 	ADFCharacter* Seen = FindEnemy(C);
-	if (Seen && Seen != Enemy.Get())
+	if (Seen && Seen != Enemy.Get()) {
 		ReactionDue = Now + FMath::Lerp(0.6f, 0.15f, Skill); // reaction time
+		UE_LOG(LogDF, Verbose, TEXT("%s: sees %s%s"), *GetName(), *Seen->GetName(), Seen->GetAttachParentActor() ? *FString::Printf(TEXT(" in %s"), *Seen->GetAttachParentActor()->GetName()) : TEXT(""));
+	}
 
 	if (Seen) {
 		Enemy = Seen;
@@ -229,7 +242,9 @@ bool ADFBotController::TryGoal(AActor* G) {
 
 void ADFBotController::SetOrder(EDFBotOrder NewOrder, APawn* Giver) {
 	Order = NewOrder;
-	OrderGiver = Giver;
+	// the soldier, also when the order comes from behind a wheel (the car is the giver's pawn then)
+	const ADFVehicle* GiverVehicle = Cast<ADFVehicle>(Giver);
+	OrderGiver = GiverVehicle ? GiverVehicle->GetDriver() : Giver;
 	OrderSpot = Giver ? Giver->GetActorLocation() : (GetPawn() ? GetPawn()->GetActorLocation() : FVector::ZeroVector);
 	// drop the current plan so the order takes effect on the next think
 	CurrentGoal = nullptr;
@@ -285,14 +300,17 @@ bool ADFBotController::FollowOrder(ADFCharacter* C) {
 		if (const APawn* G = OrderGiver.Get()) {
 			// ... and get in with them (RageBot: Orders 'Follow', OrderObject.VehicleIn)
 			if (ADFVehicle* GV = Cast<ADFVehicle>(G->GetAttachParentActor())) {
-				if (C->GetAttachParentActor() != GV && GV->BotDesirability(C) > 0.f && GetWorld()->GetTimeSeconds() >= DontEnterVehicleTime) {
+				if (C->GetAttachParentActor() == GV)
+					return true; // riding along
+				if (GV->BotDesirability(C) > 0.f && GetWorld()->GetTimeSeconds() >= DontEnterVehicleTime) {
 					if (GoingForVehicle.Get() != GV) {
 						GoingForVehicle = GV;
 						GoingForVehicleSince = GetWorld()->GetTimeSeconds();
 					}
-					GoToVehicle(C);
+					if (GoToVehicle(C))
+						return true;
 				}
-				return true;
+				// no seat for us, or it's moving off: keep up on foot
 			}
 			if (FVector::Dist(C->GetActorLocation(), G->GetActorLocation()) > 450.f)
 				MoveToActor(const_cast<APawn*>(G), 250.f);

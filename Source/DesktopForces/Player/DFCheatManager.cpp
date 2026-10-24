@@ -409,19 +409,35 @@ void UDFCheatManager::DFAimAt(float X, float Y, float Z) {
 	UE_LOG(LogDF, Display, TEXT("DFAimAt %s from %s"), *PC->GetControlRotation().ToCompactString(), *From.ToCompactString());
 }
 
-void UDFCheatManager::DFAimAtNearest(const FString& ClassName) {
-	const APawn* P = GetPlayerController()->GetPawn();
-	const AActor* Best = nullptr;
-	for (TActorIterator<AActor> It(GetWorld()); P && It; ++It) {
-		bool bMatch = false;
-		for (const UClass* C = It->GetClass(); C && !bMatch; C = C->GetSuperClass())
-			bMatch = C->GetName() == ClassName;
-		if (bMatch && *It != P && (!Best || FVector::DistSquared(It->GetActorLocation(), P->GetActorLocation()) < FVector::DistSquared(Best->GetActorLocation(), P->GetActorLocation())))
-			Best = *It;
+namespace {
+	/** The nearest actor whose class (or a parent class) is called ClassName, not Me nor what rides in Me. */
+	const AActor* FindNearest(UWorld* World, const APawn* Me, const FString& ClassName) {
+		const AActor* Best = nullptr;
+		for (TActorIterator<AActor> It(World); Me && It; ++It) {
+			bool bMatch = false;
+			for (const UClass* C = It->GetClass(); C && !bMatch; C = C->GetSuperClass())
+				bMatch = C->GetName() == ClassName;
+			if (!bMatch || *It == Me || It->GetAttachParentActor() == Me)
+				continue;
+			if (!Best || FVector::DistSquared(It->GetActorLocation(), Me->GetActorLocation()) < FVector::DistSquared(Best->GetActorLocation(), Me->GetActorLocation()))
+				Best = *It;
+		}
+		return Best;
 	}
-	if (Best) {
+} // namespace
+
+void UDFCheatManager::DFAimAtNearest(const FString& ClassName) {
+	if (const AActor* Best = FindNearest(GetWorld(), GetPlayerController()->GetPawn(), ClassName)) {
 		const FVector At = Best->GetActorLocation();
 		DFAimAt(At.X, At.Y, At.Z);
+	}
+}
+
+void UDFCheatManager::DFTeleportNear(const FString& ClassName, float Dist) {
+	if (const AActor* Best = FindNearest(GetWorld(), GetPlayerController()->GetPawn(), ClassName)) {
+		// Dist in front of it, a little up (vehicles settle)
+		const FVector At = Best->GetActorLocation() + Best->GetActorForwardVector() * Dist + FVector(0.f, 0.f, 50.f);
+		DFTeleport(At.X, At.Y, At.Z);
 	}
 }
 
@@ -489,7 +505,7 @@ bool UDFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UO
 		// views and test helpers stay on this machine (and only where cheats are on: a free
 		// camera sees through walls); everything else changes the game, so the server runs it
 		static const TCHAR* Local[] = { TEXT("DFCam"), TEXT("DFTopView"), TEXT("DFNavTest"), TEXT("DFNavPath"), TEXT("DFNavRelevant"),
-			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFFire"), TEXT("DFVehicles"), TEXT("ViewMe"),
+			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFVehicles"), TEXT("ViewMe"),
 			TEXT("ViewSelf"), TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
 		const TCHAR* Str = Cmd;
 		FString Name;

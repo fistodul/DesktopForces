@@ -97,6 +97,9 @@ public:
 	/** Turn to the nearest actor whose class is called ClassName (or derives from it). */
 	UFUNCTION(Exec)
 	void DFAimAtNearest(const FString& ClassName);
+	/** Move yourself (or what you drive) Dist cm in front of the nearest actor of a class (tests). */
+	UFUNCTION(Exec)
+	void DFTeleportNear(const FString& ClassName, float Dist = 600.f);
 
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)
