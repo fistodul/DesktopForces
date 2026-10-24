@@ -146,7 +146,7 @@ public:
 			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(24.f, 16.f)
 			[
 				SNew(STextBlock).Font(Font(10)).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f)).ShadowOffset(FVector2D(1.f, 1.f))
-				.Text(LOCTEXT("Footer", "by fistodul, for the world's gamers  -  a fan project, not affiliated with Mobile Forces"))
+				.Text(LOCTEXT("Footer", "for the world's gamers - a fan project, not affiliated with Mobile Forces"))
 			]
 		];
 	}
