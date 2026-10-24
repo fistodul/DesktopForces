@@ -1,0 +1,45 @@
+# Set default behavior to automatically handle line endings and convert to LF on commit
+* text=auto eol=lf
+
+# Explicit LF for shell and linux scripts (CRLF breaks bash scripts with "\r: command not found")
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Source code & config text files
+*.c text
+*.cpp text
+*.h text
+*.hpp text
+*.cs text
+*.py text
+*.json text
+*.toml text
+*.ini text
+*.txt text
+*.md text
+*.uproject text
+*.uplugin text
+
+# Unreal Engine assets & binary files (never modify line endings)
+*.uasset binary
+*.umap binary
+*.bmp binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tga binary
+*.mp3 binary
+*.wav binary
+*.ogg binary
+*.fbx binary
+*.obj binary
+*.exe binary
+*.dll binary
+*.lib binary
+*.pak binary
+*.uccas binary
