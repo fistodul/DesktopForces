@@ -17,7 +17,7 @@ AKnife::AKnife() {
 	ViewMesh = TEXT("RageWeapons/KnifePickupCarryMesh"); // PickupViewMesh / ThirdPersonMesh
 	ArmsMesh = TEXT("KnifePlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
-	ArmsOffset = FVector(3.2f, -2.f, 0.f);
+	ArmsOffset = FVector(3.2f, -2.f, -5.f); // MF PlayerViewOffset Z inherits from Weapon.uc
 	ViewRotation = FRotator(-70.f, 0.f, 0.f); // the blade stands up in the model: point it forward
 	ViewOffset = FVector(16.f, 10.f, 9.f);
 	HUDIconRect = FIntRect(96, 0, 144, 64); // WeaponIcon X=96 Y=0 W=48 H=64

@@ -10,7 +10,7 @@ ADeagle::ADeagle() {
 	ViewMesh = TEXT("deagle/deaglePickupCarryMesh");
 	ArmsMesh = TEXT("deaglePlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.04f;
-	ArmsOffset = FVector(3.f, -1.f, 0.f);
+	ArmsOffset = FVector(3.f, -1.f, -5.f); // inherits from Weapon.uc via Pistol
 	HUDIcon = TEXT("Textures/deagle/Icons/deagleIcon");
 	HUDIconRect = FIntRect(0, 0, 64, 64); // WeaponIcon X=0 Y=0 W=64 H=64
 	bAddToLoadout = true;
