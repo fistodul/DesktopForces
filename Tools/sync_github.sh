@@ -109,7 +109,7 @@ else
             if [[ -n "$TOUCHES_SOURCE" ]]; then
                 SUBJECT=$(git log -1 --format="%s" "$commit")
                 echo "Applying $commit ($SUBJECT)..."
-                git cherry-pick "$commit"
+                git cherry-pick --empty=drop "$commit" || git cherry-pick --skip 2>/dev/null || true
             fi
         done
     fi
