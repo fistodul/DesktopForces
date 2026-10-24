@@ -78,11 +78,11 @@ else
         echo "$UNPUSHED_ON_MAIN"
     else
         echo "Inspecting commits on $CURRENT_BRANCH to sync to $GITHUB_BRANCH..."
+        CONTENT_REGEX='^(\.gitignore|\.gitignore\.github|Content/Maps/|Content/MF/Community/|Content/MF/Replacements/|Content/MF/Music/)'
         for commit in $COMMITS; do
             SUBJECT=$(git log -1 --format="%s" "$commit")
-            # Check if this commit touches content paths only
-            TOUCHES_CONTENT=$(git diff-tree --no-commit-id --name-only -r "$commit" | grep -E "^(Content/Maps/|Content/MF/Community/|Content/MF/Replacements/|Content/MF/Music/)" || true)
-            TOUCHES_SOURCE=$(git diff-tree --no-commit-id --name-only -r "$commit" | grep -v -E "^(Content/Maps/|Content/MF/Community/|Content/MF/Replacements/|Content/MF/Music/)" || true)
+            # Check if this commit touches non-content files
+            TOUCHES_SOURCE=$(git -c core.quotepath=false diff-tree --no-commit-id --name-only -r "$commit" | grep -v -E "$CONTENT_REGEX" || true)
 
             if [[ -z "$TOUCHES_SOURCE" ]]; then
                 echo "  [SKIP CONTENT] $commit $SUBJECT"
@@ -105,7 +105,7 @@ else
 
     if [[ -n "$COMMITS" ]]; then
         for commit in $COMMITS; do
-            TOUCHES_SOURCE=$(git diff-tree --no-commit-id --name-only -r "$commit" | grep -v -E "^(Content/Maps/|Content/MF/Community/|Content/MF/Replacements/|Content/MF/Music/)" || true)
+            TOUCHES_SOURCE=$(git -c core.quotepath=false diff-tree --no-commit-id --name-only -r "$commit" | grep -v -E "$CONTENT_REGEX" || true)
             if [[ -n "$TOUCHES_SOURCE" ]]; then
                 SUBJECT=$(git log -1 --format="%s" "$commit")
                 echo "Applying $commit ($SUBJECT)..."
