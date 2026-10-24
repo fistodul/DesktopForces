@@ -832,11 +832,11 @@ void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 		return;
 	// MF draws nothing in hand behind a raised scope (the HUD's scope mask covers the view)
 	const bool bScoped = IsZoomed() && ZoomScale >= 3.f && State != EDFWeaponState::Zooming;
-	const bool bHidden = UDFUserSettings::Get().WeaponHand == EDFWeaponHand::Hidden; // MF Handedness 2
+	const bool bHandHidden = UDFUserSettings::Get().WeaponHand == EDFWeaponHand::Hidden; // MF Handedness 2
 	if (Arms)
-		Arms->SetVisibility(!bBehindView && !bScoped && !bHidden);
+		Arms->SetVisibility(!bBehindView && !bScoped && !bHandHidden);
 	else if (Mesh1P && bHasViewMesh)
-		Mesh1P->SetVisibility(!bBehindView && !bHidden);
+		Mesh1P->SetVisibility(!bBehindView && !bHandHidden);
 }
 
 void ADFWeapon::MulticastReload_Implementation() {
