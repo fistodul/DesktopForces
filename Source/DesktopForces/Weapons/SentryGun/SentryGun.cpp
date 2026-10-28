@@ -249,7 +249,10 @@ void ASentryTurret::BlowUp() {
 ASentryGun::ASentryGun() {
 	DisplayName = LOCTEXT("SentryGun", "Sentry Gun");
 	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
-	ArmsMesh.Reset(); // no arms of its own: the carry model stays in hand
+	// SentryGun extends TripBombs and keeps its PlayerViewMesh: placed with the trip-bomb arms
+	ArmsMesh = TEXT("TripBombsPlayerMesh");
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(2.f, 0.2f, -1.f);
 	InventoryGroup = 11;
 	CarrySize = 2;
 	MaxClipAmmo = 1;
