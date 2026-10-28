@@ -887,15 +887,19 @@ private:
 		} else if (CurrentMode == EWindowMode::Fullscreen)
 			CurrentMode = EWindowMode::WindowedFullscreen;
 		SelectedWindowMode = WindowModes[FMath::Max(0, WindowModeValues.IndexOfByKey(CurrentMode))];
-		// UE scalability 0-3; Low is the potato default (no post, small shadow maps)
-		Qualities = { MakeShared<FString>(TEXT("Low")), MakeShared<FString>(TEXT("Medium")), MakeShared<FString>(TEXT("High")), MakeShared<FString>(TEXT("Epic")) };
+		// UE's own scalability levels and names (Low .. Cinematic; [ScalabilitySettings] can change
+		// the count); Low is the potato default (no post, small shadow maps)
+		const int32 NumLevels = Scalability::GetQualityLevelCounts().ViewDistanceQuality;
+		Qualities.Reset();
+		for (int32 i = 0; i < NumLevels; ++i)
+			Qualities.Add(MakeShared<FString>(Scalability::GetQualityLevelText(i, NumLevels).ToString()));
 		// Compare the quality groups independently of the advanced render-scale setting.
 		Scalability::FQualityLevels Quality = S.ScalabilityQuality;
 		Scalability::FQualityLevels Preset;
 		Preset.SetFromSingleQualityLevel(Quality.ViewDistanceQuality);
 		Quality.ResolutionQuality = Preset.ResolutionQuality;
 		const int32 Q = Quality.GetSingleQualityLevel();
-		if (Q < 0 || Q > 3) {
+		if (!Qualities.IsValidIndex(Q)) {
 			Qualities.Add(MakeShared<FString>(TEXT("Custom")));
 			SelectedQuality = Qualities.Last();
 		} else
@@ -945,7 +949,7 @@ private:
 		S.SetFullscreenMode(PendingWindowMode());
 		if (S.GetFullscreenMode() == EWindowMode::WindowedFullscreen)
 			S.SetScreenResolution(S.GetDesktopResolution());
-		if (const int32 Q = IndexOf(Qualities, SelectedQuality); Q >= 0 && Q < 4)
+		if (const int32 Q = IndexOf(Qualities, SelectedQuality); Q >= 0 && Q < Scalability::GetQualityLevelCounts().ViewDistanceQuality)
 			S.SetOverallScalabilityLevel(Q);
 		if (const int32 F = IndexOf(FrameRates, SelectedFrameRate); FrameRateLimits.IsValidIndex(F))
 			S.SetFrameRateLimit(FrameRateLimits[F]);

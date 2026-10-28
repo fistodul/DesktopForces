@@ -47,7 +47,7 @@ and Ctrl+Shift+`,` (GPU profile) stay.
 
 Without a map on the command line the game starts at the **main menu** (play: map, game type -
 MF's own first, then the community's - bots, skill, time limit, LAN host; join an address;
-options in tabs: **Video** resolution, display mode, graphics level, brightness,
+options in tabs: **Video** resolution, display mode, graphics level (UE's Low … Cinematic), brightness,
 field of view, bullet holes / scorch marks (FPS, VSync and render scale in **Advanced**); **Audio** volume, music; **Controls** mouse, every
 key (click it, press the new one; a key already in use swaps); **Game** name, crosshair shape/size, HUD
 size, console; **Defaults** puts MF's options back, Apply keeps them). Options live in
