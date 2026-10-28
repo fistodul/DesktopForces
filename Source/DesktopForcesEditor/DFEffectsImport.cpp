@@ -8,6 +8,7 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "Distributions/DistributionFloatConstant.h"
+#include "Distributions/DistributionFloatParticleParameter.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
 #include "Distributions/DistributionFloatUniform.h"
 #include "Distributions/DistributionVectorConstant.h"
@@ -71,6 +72,14 @@ namespace {
 	UDistributionFloat* Const(UObject* Outer, float V) {
 		UDistributionFloatConstant* D = NewObject<UDistributionFloatConstant>(Outer);
 		D->Constant = V;
+		return D;
+	}
+
+	UDistributionFloat* Parameter(UObject* Outer, const FString& Name, float Default) {
+		UDistributionFloatParticleParameter* D = NewObject<UDistributionFloatParticleParameter>(Outer);
+		D->ParameterName = FName(*Name);
+		D->Constant = Default;
+		D->ParamMode = DPM_Direct;
 		return D;
 	}
 
@@ -304,6 +313,8 @@ UParticleSystem* FDFImporter::BuildParticleSystem(const FString& PackagePath, co
 		Req->ScreenAlignment = JNum(E, TEXT("stretch")) > 0.f ? PSA_Velocity : PSA_Square;
 		UParticleModuleSpawn* Spawn = LOD->SpawnModule;
 		Spawn->RateScale.Distribution = Const(Spawn, 1.f);
+		if (E->HasField(TEXT("scale_spawn_rate")))
+			Spawn->bApplyGlobalSpawnRateScale = JBool(E, TEXT("scale_spawn_rate"));
 		Spawn->BurstList.Reset();
 		const TArray<TSharedPtr<FJsonValue>>* RateKeys = nullptr;
 		if (E->HasField(TEXT("burst"))) {
@@ -339,6 +350,9 @@ UParticleSystem* FDFImporter::BuildParticleSystem(const FString& PackagePath, co
 			Req->EmitterDelay = Req->EmitterDelayLow = Phase < 0.f ? -Phase : FMath::Fmod(Cycle - FMath::Fmod(Phase, Cycle), Cycle);
 			Req->bDelayFirstLoopOnly = true;
 		}
+		FString RateParameter;
+		if (E->TryGetStringField(TEXT("rate_param"), RateParameter))
+			Spawn->Rate.Distribution = Parameter(Spawn, RateParameter, JNum(E, TEXT("rate")));
 		Req->bKillOnCompleted = Req->EmitterLoops != 0;
 		Longest = FMath::Max(Longest, Req->EmitterDelay + Req->EmitterDuration + Life);
 
@@ -370,6 +384,9 @@ UParticleSystem* FDFImporter::BuildParticleSystem(const FString& PackagePath, co
 		UParticleModuleColor* ColorM = AddModule<UParticleModuleColor>(LOD);
 		ColorM->StartColor.Distribution = VRange(ColorM, FVector::OneVector, FVector::OneVector);
 		ColorM->StartAlpha.Distribution = Const(ColorM, JNum(E, TEXT("alpha"), 1.f));
+		FString AlphaParameter;
+		if (E->TryGetStringField(TEXT("alpha_param"), AlphaParameter))
+			ColorM->StartAlpha.Distribution = Parameter(ColorM, AlphaParameter, JNum(E, TEXT("alpha"), 1.f));
 		ColorM->bClampAlpha = true;
 		if (JBool(E, TEXT("fade"))) {
 			UParticleModuleColorScaleOverLife* Fade = AddModule<UParticleModuleColorScaleOverLife>(LOD);

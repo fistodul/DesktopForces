@@ -2,14 +2,10 @@
 # Relative paths are relative to this folder (Tools/mfport).
 # Any key can also be set by an environment variable MFPORT_<KEY>, e.g. MFPORT_GAME_DIR.
 
-# Your Mobile Forces install (the folder holding System/, Maps/, Textures/ ...).
-game_dir = "../../../MoFo/MobileForces"
-
 # Scratch space for exported / converted files (never committed).
 work_dir = "work"
 
-# Unreal Engine 5 root (holding Engine/) and the project file.
-ue_root = "../../../Linux_Unreal_Engine_5.8.3"
+# The project file.
 uproject = "../../DesktopForces.uproject"
 
 # Wine command used to run the game's UCC.exe on Linux/macOS (ignored on Windows).
@@ -20,3 +16,14 @@ wine = "wine"
 # cook World textures down to 256 (Config/DefaultDeviceProfiles.ini). Remastered
 # overrides can be larger - raise this to keep them.
 max_texture_size = 512
+
+# Set your install paths in the section for each operating system you use.
+# game_dir holds System/, Maps/, Textures/ ...; ue_root holds Engine/.
+# Use single quotes for Windows backslashes, or forward slashes.
+[linux]
+game_dir = '~/Documents/Unreal Projects/MoFo/MobileForces'
+ue_root = '~/Linux_Unreal_Engine_5.8.4'
+
+[windows]
+game_dir = 'C:/Program Files (x86)/Steam/steamapps/common/Mobile Forces'
+ue_root = 'C:/Program Files/Epic Games/UE_5.8'

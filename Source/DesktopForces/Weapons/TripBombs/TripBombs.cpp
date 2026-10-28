@@ -110,7 +110,7 @@ bool ATripBombs::TryPlant() {
 		return false;
 	const FVector BombLoc = Wall.ImpactPoint + Wall.ImpactNormal * 6.f;
 	if (bNeedLaserTarget && !GetWorld()->LineTraceSingleByChannel(Opposite, BombLoc, BombLoc + Wall.ImpactNormal * MaxLaserDistance, ECC_Visibility, Params)) {
-		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("WeaponSFX_TripBombs.PlantFail")), BombLoc);
+		DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("WeaponSFX_TripBombs.PlantFail")), BombLoc);
 		return false; // too far for the laser to work reliably
 	}
 	FActorSpawnParameters SP;

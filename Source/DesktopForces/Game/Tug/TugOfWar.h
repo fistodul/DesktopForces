@@ -8,7 +8,7 @@
  * Tug of War (MF-mods TugGame): two teams; an enemy you kill doesn't die, they switch to
  * your team on the spot with full health. A team that runs out of players loses the round
  * (the last converter +2). A round lasts TimeLimit minutes; when it runs out the bigger team
- * wins it. First to GoalTeamScore rounds (3) wins; every round starts with the original teams.
+ * wins it. First to ScoreLimit rounds (3) wins; every round starts with the original teams.
  */
 UCLASS(Config = Game)
 class DESKTOPFORCES_API ATugOfWar : public ADFGameMode {

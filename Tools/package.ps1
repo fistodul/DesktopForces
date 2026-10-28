@@ -1,21 +1,20 @@
 # =============================================================================
-# build_windows.ps1 - DesktopForces Windows Builder & Packager
+# package.ps1 - DesktopForces Windows Builder & Packager
 #
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1
-#   powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Config Development
-#   powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Package:$false   (compile only)
-#   powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Clean
-#   powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Public   (no Classic / Unverified content)
-#   powershell -ExecutionPolicy Bypass -File Tools\build_windows.ps1 -Zip      (also one .zip to hand around)
-#   pwsh Tools/build_windows.ps1 -DryRun   (print what would run; works on Linux too)
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Config Development
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Package:$false   (compile only)
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Clean
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Public   (no Classic / Unverified content)
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Zip      (also one .zip to hand around)
+#   pwsh Tools/package.ps1 -DryRun   (print what would run; works on Linux too)
 #
 # Same build as Tools/package.sh on Linux: every map passed by name (the cooker doesn't take maps
 # from the always-cook folders), iostore + compressed paks.
 #
 # The engine is the project's EngineAssociation (DesktopForces.uproject, "5.8"): -UePath or
-# $env:UE_ROOT if given, else where the Epic Games Launcher registered it (registry,
-# LauncherInstalled.dat), else <drive>:\Program Files\Epic Games\UE_<version> on any drive.
+# $env:UE_ROOT if given, else the same config and engine discovery as Tools/play.py.
 # =============================================================================
 
 param (
@@ -44,57 +43,28 @@ Write-Host "==========================================================" -Foregro
 # -----------------------------------------------------------------------------
 # 1. Locate Unreal Engine
 # -----------------------------------------------------------------------------
-$SearchPaths = @($UePath, $env:UNREAL_ENGINE_PATH)
-if ($OnWindows) {
-    # Epic Games Launcher installs
-    $Key = "HKLM:\SOFTWARE\EpicGames\Unreal Engine\$Assoc"
-    if (Test-Path $Key) { $SearchPaths += (Get-ItemProperty $Key).InstalledDirectory }
-    $Dat = Join-Path $env:ProgramData "Epic\UnrealEngineLauncher\LauncherInstalled.dat"
-    if (Test-Path $Dat) {
-        $SearchPaths += (Get-Content $Dat -Raw | ConvertFrom-Json).InstallationList |
-            Where-Object { $_.AppName -eq "UE_$Assoc" } | ForEach-Object { $_.InstallLocation }
+# Reuse the Python launcher's config/environment/registry discovery.
+if (-not $UePath -and $OnWindows) {
+    $Python = Get-Command python -ErrorAction SilentlyContinue
+    $PythonArgs = @()
+    if (-not $Python) {
+        $Python = Get-Command py -ErrorAction SilentlyContinue
+        $PythonArgs = @("-3")
     }
-    # source builds registered with UnrealVersionSelector
-    $Builds = "HKCU:\SOFTWARE\Epic Games\Unreal Engine\Builds"
-    if (Test-Path $Builds) {
-        $SearchPaths += (Get-ItemProperty $Builds).PSObject.Properties | Where-Object { $_.Name -notlike "PS*" } | ForEach-Object { $_.Value }
-    }
-    # the usual places on every drive
-    foreach ($Drive in (Get-PSDrive -PSProvider FileSystem | ForEach-Object { $_.Root })) {
-        $SearchPaths += (Join-Path $Drive "Program Files\Epic Games\UE_$Assoc"), (Join-Path $Drive "Epic Games\UE_$Assoc")
-    }
+    if (-not $Python) { throw "Python 3.11+ is required; or supply -UePath explicitly." }
+    $ResolvedEngine = & $Python.Source @PythonArgs (Join-Path $PSScriptRoot "play.py") --engine-root
+    if ($LASTEXITCODE -ne 0) { throw "Engine discovery failed; check mfport.toml or supply -UePath." }
+    $UePath = ($ResolvedEngine | Select-Object -Last 1).Trim()
 }
-
-$FoundUe = $null
-foreach ($path in $SearchPaths) {
-    if ($path -and (Test-Path (Join-Path $path "Engine\Build\BatchFiles\RunUAT.bat"))) {
-        $FoundUe = (Resolve-Path $path).Path
-        break
+if ($UePath) {
+    if (-not (Test-Path (Join-Path $UePath "Engine/Build/BatchFiles/RunUAT.bat"))) {
+        throw "No Windows engine at '$UePath'. Install it with Epic Games Launcher or set -UePath."
     }
-}
-
-if (-not $FoundUe -and $DryRun) {
+    $FoundUe = (Resolve-Path $UePath).Path
+} elseif ($DryRun) {
     $FoundUe = "<UE_$Assoc>"
-}
-elseif (-not $FoundUe) {
-    Write-Host ""
-    Write-Host "[!] Unreal Engine $Assoc was not found (looked at: $(($SearchPaths | Where-Object { $_ }) -join '; '))." -ForegroundColor Red
-    Write-Host ""
-    Write-Host "HOW TO GET A MINIMAL ~12 GB UNREAL ENGINE INSTALLATION:" -ForegroundColor Yellow
-    Write-Host "  1. Open Epic Games Launcher on Windows" -ForegroundColor Yellow
-    Write-Host "  2. Go to Unreal Engine -> Library -> Install UE $Assoc" -ForegroundColor Yellow
-    Write-Host "  3. Click the dropdown arrow next to 'Install' -> Options" -ForegroundColor Yellow
-    Write-Host "  4. UNCHECK the following to save ~50 GB:" -ForegroundColor Yellow
-    Write-Host "     [ ] Editor symbols for debugging   (Saves ~35 GB!)" -ForegroundColor Yellow
-    Write-Host "     [ ] Starter Content               (Saves ~3 GB)" -ForegroundColor Yellow
-    Write-Host "     [ ] Templates and Feature Packs   (Saves ~3 GB)" -ForegroundColor Yellow
-    Write-Host "     [ ] Engine Source                 (Saves ~3 GB)" -ForegroundColor Yellow
-    Write-Host "     [ ] Android / Linux Platforms     (Saves ~5 GB)" -ForegroundColor Yellow
-    Write-Host "  Total install size will drop from ~70 GB to only ~12-14 GB!" -ForegroundColor Green
-    Write-Host "  (or from Linux, onto the Windows drive: python3 Tools/download_ue_windows.py)" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Or specify your existing path: -UePath 'X:\Path\To\UE_$Assoc'" -ForegroundColor Cyan
-    exit 1
+} else {
+    throw "Run Windows builds on Windows. Use -DryRun to inspect the commands from Linux."
 }
 
 Write-Host "[+] Unreal Engine: $FoundUe" -ForegroundColor Green

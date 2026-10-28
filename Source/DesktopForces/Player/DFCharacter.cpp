@@ -1,4 +1,5 @@
 #include "Player/DFCharacter.h"
+#include "Game/CTF/Flag.h"
 #include "Game/DFGameState.h"
 #include "Core/DFProps.h"
 #include "Player/DFPlayerController.h"
@@ -82,6 +83,7 @@ UDFCharacterMovement* ADFCharacter::GetMFMovement() const {
 void ADFCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFCharacter, Health);
+	DOREPLIFETIME(ADFCharacter, bFeigningDeath);
 	DOREPLIFETIME_CONDITION(ADFCharacter, bParachute, COND_SkipOwner);
 	DOREPLIFETIME(ADFCharacter, MaxHealth);
 	DOREPLIFETIME_CONDITION(ADFCharacter, bInfiniteAmmo, COND_OwnerOnly);
@@ -188,7 +190,7 @@ void ADFCharacter::PawnClientRestart() {
 
 void ADFCharacter::ResumeWeapon() {
 	// back from a vehicle's driving seat (ADFVehicle::TryEnter put the weapon away): bring it up
-	if (CurrentWeapon && IsAlive() && CurrentWeapon->GetState() == EDFWeaponState::Inactive && !PendingWeapon)
+	if (CurrentWeapon && IsAlive() && !IsFeigningDeath() && CurrentWeapon->GetState() == EDFWeaponState::Inactive && !PendingWeapon)
 		CurrentWeapon->OnEquip();
 }
 
@@ -268,6 +270,8 @@ void ADFCharacter::Tick(float DeltaSeconds) {
 
 void ADFCharacter::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) {
 	FirstPersonCamera->GetCameraView(DeltaTime, OutResult);
+	if (bFeigningDeath)
+		OutResult.Location = GetPawnViewLocation();
 	if (IsBehindView()) {
 		// UE1 CalcBehindView(150 uu): back along the view from the eyes, short of walls
 		const FVector Eye = OutResult.Location;
@@ -681,7 +685,7 @@ void ADFCharacter::UpdateCarrySpeed() {
 }
 
 void ADFCharacter::EquipWeapon(ADFWeapon* Weapon) {
-	if (!Weapon || Weapon == CurrentWeapon || !Weapon->bSelectable || !IsAlive())
+	if (!Weapon || Weapon == CurrentWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath)
 		return;
 	if (GetLocalRole() < ROLE_Authority)
 		ServerEquipWeapon(Weapon);
@@ -806,6 +810,10 @@ void ADFCharacter::SwitchToBestWeapon() {
 // --- input-driven actions ----------------------------------------------------------
 
 void ADFCharacter::StartFire(bool bAlt) {
+	if (bFeigningDeath) {
+		ServerSetFeignDeath(false); // fire gets up; it does not also fire a hidden weapon
+		return;
+	}
 	(bAlt ? bWantsAltFire : bWantsFire) = true;
 	if (CurrentWeapon && !bInLoadout)
 		CurrentWeapon->StartFire(bAlt);
@@ -818,7 +826,7 @@ void ADFCharacter::StopFire(bool bAlt) {
 }
 
 void ADFCharacter::Reload() {
-	if (CurrentWeapon && !bInLoadout)
+	if (CurrentWeapon && !bInLoadout && !bFeigningDeath)
 		CurrentWeapon->StartReload();
 }
 
@@ -855,7 +863,7 @@ void ADFCharacter::ApplyLoadoutState() {
 		// MF StartLoadout / EndLoadout sounds
 		const TCHAR* Path = bInLoadout ? TEXT("/MobileForcesClassic/Sounds/MiscSFX/LoadoutEnter.LoadoutEnter")
 									   : TEXT("/MobileForcesClassic/Sounds/MiscSFX/LoadoutExit.LoadoutExit");
-		UGameplayStatics::PlaySound2D(this, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
+		DF::PlayUISound(this, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
 	}
 	if (bInLoadout) {
 		// MF StartLoadout: SetPhysics(PHYS_None), Velocity = 0 - the soldier stands still
@@ -865,6 +873,20 @@ void ADFCharacter::ApplyLoadoutState() {
 			CurrentWeapon->StopFire(true);
 		}
 	}
+}
+
+void ADFCharacter::OnRep_AttachmentReplication() {
+	Super::OnRep_AttachmentReplication();
+	// The owner predicts the canopy and skips its replication. Attachment must also close it
+	// locally, even after the driver has stopped controlling/ticking this character.
+	if (GetAttachParentActor())
+		StopParachuting();
+}
+
+void ADFCharacter::StopParachuting() {
+	SetParachute(false);
+	if (UDFCharacterMovement* Move = Cast<UDFCharacterMovement>(GetCharacterMovement()))
+		Move->bWantsParachute = false;
 }
 
 void ADFCharacter::SetParachute(bool bOpen) {
@@ -890,4 +912,47 @@ void ADFCharacter::OnRep_Parachute() {
 		ParachuteMesh->SetVisibility(bParachute);
 	if (bParachute)
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/parachute/parachute_sound")), GetActorLocation(), 1.f, 1600.f);
+}
+
+void ADFCharacter::ServerSetFeignDeath_Implementation(bool bFeign) {
+	if (!IsAlive() || bInLoadout || GetAttachParentActor() || bFeign == bFeigningDeath)
+		return;
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	if (bFeign && !Move->IsMovingOnGround())
+		return;
+	if (!bFeign && GetWorld()->GetTimeSeconds() - FeignStartedAt < 0.7f)
+		return; // let the fall pose finish; weapon equip supplies the recovery delay
+	bFeigningDeath = bFeign;
+	if (bFeign) {
+		FeignStartedAt = GetWorld()->GetTimeSeconds();
+		StopFire(false);
+		StopFire(true);
+		Move->StopMovementImmediately();
+		StopParachuting();
+		if (AFlag* Flag = AFlag::FindCarriedBy(this))
+			Flag->Drop(); // RPlayer.FeigningDeath.BeginState
+	}
+	OnRep_FeigningDeath();
+	ForceNetUpdate();
+}
+
+void ADFCharacter::OnRep_FeigningDeath() {
+	bUseControllerRotationYaw = !bFeigningDeath;
+	if (bFeigningDeath) {
+		bWantsFire = bWantsAltFire = false;
+		Crouch(); // keep a low, damageable capsule, with gravity and floor checks active
+		if (CurrentWeapon)
+			CurrentWeapon->ForceInactive();
+	} else {
+		UnCrouch();
+		ResumeWeapon();
+	}
+	if (!GetSoldierAnim()) {
+		PlaceholderBody->SetRelativeRotation(bFeigningDeath ? FRotator(90.f, 0.f, 0.f) : FRotator::ZeroRotator);
+		PlaceholderBody->SetRelativeLocation(bFeigningDeath ? FVector(0.f, 0.f, -20.f) : FVector::ZeroVector);
+	}
+}
+
+FVector ADFCharacter::GetPawnViewLocation() const {
+	return bFeigningDeath ? GetActorLocation() + FVector(0.f, 0.f, 25.f - GetSimpleCollisionHalfHeight()) : Super::GetPawnViewLocation();
 }

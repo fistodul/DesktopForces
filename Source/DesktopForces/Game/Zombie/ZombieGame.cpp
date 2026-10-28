@@ -28,7 +28,7 @@ AZombieGame::AZombieGame() {
 	GameName = TEXT("Zombie Mode");
 	MFGameClass = TEXT("ZombieGame");
 	NumTeams = 2;
-	GoalTeamScore = 3; // FragLimit 3 (rounds)
+	ScoreLimit = 3; // ZombieGame: rounds to win
 	TimeLimit = 8; // per round
 	FriendlyFireScale = 0.01f;
 	bScoreTeamKills = false;
@@ -41,8 +41,7 @@ void AZombieGame::InitGame(const FString& MapName, const FString& Options, FStri
 	bZombieInfect = UGameplayStatics::GetIntOption(Options, TEXT("Infect"), bZombieInfect ? 1 : 0) != 0;
 	if (!bZombieInfect) {
 		// ZombieGame.PreBeginPlay: without infection it's a team deathmatch
-		FragLimit = UGameplayStatics::GetIntOption(Options, TEXT("FragLimit"), 30);
-		GoalTeamScore = UGameplayStatics::GetIntOption(Options, TEXT("GoalTeamScore"), 30);
+		ScoreLimit = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), 30));
 		bScoreTeamKills = true;
 	}
 	bInfectActive = bZombieInfect;

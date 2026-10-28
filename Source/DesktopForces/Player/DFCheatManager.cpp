@@ -524,7 +524,8 @@ bool UDFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UO
 			}
 		}
 	}
-	return Super::ProcessConsoleExec(Cmd, Ar, Executor);
+	// UObject dispatch remains available in Shipping, where UE disables its cheat wrapper.
+	return UObject::ProcessConsoleExec(Cmd, Ar, Executor);
 }
 
 // --- admin -----------------------------------------------------------------------------------

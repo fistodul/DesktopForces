@@ -1,4 +1,5 @@
 #include "Weapons/SentryGun/SentryGun.h"
+#include "Core/DFContent.h"
 #include "World/DFEffectActor.h"
 #include "Core/DFGameSettings.h"
 #include "Core/DFProps.h"
@@ -21,7 +22,7 @@
 
 namespace SentryLocal {
 	void PlayAt(const AActor* A, const TCHAR* Path) {
-		UGameplayStatics::PlaySoundAtLocation(A, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet), A->GetActorLocation());
+		DF::PlaySoundAtLocation(A, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet), A->GetActorLocation());
 	}
 	const TCHAR* ActivatingSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/Activating.Activating");
 	const TCHAR* FireSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_HeavyMachineGun/Fire.Fire");

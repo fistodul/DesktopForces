@@ -13,6 +13,9 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundClass.h"
+#include "AudioDevice.h"
+#include "AudioDeviceManager.h"
 
 UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel) {
 	// which root has it is worked out once: asking for a package that isn't there costs a
@@ -61,10 +64,55 @@ USoundAttenuation* DF::GetAttenuation(float RadiusUU) {
 	return A.Get();
 }
 
+namespace {
+	USoundClass* SoundCategory(bool bVoice) {
+		static TWeakObjectPtr<USoundClass> Effects, Voice;
+		TWeakObjectPtr<USoundClass>& Category = bVoice ? Voice : Effects;
+		if (!Category.IsValid()) {
+			Category = NewObject<USoundClass>(GetTransientPackage());
+			Category->AddToRoot();
+			if (GEngine && GEngine->GetAudioDeviceManager())
+				GEngine->GetAudioDeviceManager()->RegisterSoundClass(Category.Get());
+		}
+		return Category.Get();
+	}
+} // namespace
+
+void DF::UpdateSoundVolumes() {
+	const UDFUserSettings& Settings = UDFUserSettings::Get();
+	SoundCategory(false)->Properties.Volume = Settings.EffectsVolume;
+	SoundCategory(true)->Properties.Volume = Settings.AnnouncerVolume;
+}
+
+USoundBase* DF::EffectsSound(USoundBase* Sound) {
+	if (Sound)
+		Sound->SoundClassObject = SoundCategory(false);
+	return Sound;
+}
+
+void DF::PlaySoundAtLocation(const UObject* WorldContext, USoundBase* Sound, const FVector& Location, float Volume, float Pitch, float StartTime, USoundAttenuation* Attenuation) {
+	UGameplayStatics::PlaySoundAtLocation(WorldContext, EffectsSound(Sound), Location, Volume, Pitch, StartTime, Attenuation);
+}
+
+void DF::PlayUISound(const UObject* WorldContext, USoundBase* Sound) {
+	if (Sound) {
+		Sound->SoundClassObject = SoundCategory(false);
+		UGameplayStatics::PlaySound2D(WorldContext, Sound);
+	}
+}
+
+UAudioComponent* DF::PlayAnnouncer(const UObject* WorldContext, USoundBase* Sound) {
+	if (!Sound)
+		return nullptr;
+	Sound->SoundClassObject = SoundCategory(true);
+	return UGameplayStatics::SpawnSound2D(WorldContext, Sound);
+}
+
 void DF::PlaySoundRadius(const UObject* WorldContext, USoundBase* Sound, const FVector& Location, float Volume, float RadiusUU, float Pitch) {
 	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	if (!Sound || !World || World->GetNetMode() == NM_DedicatedServer)
 		return;
+	Sound->SoundClassObject = SoundCategory(false);
 	UGameplayStatics::PlaySoundAtLocation(WorldContext, Sound, Location, FRotator::ZeroRotator, Volume, Pitch, 0.f, GetAttenuation(RadiusUU));
 }
 
@@ -102,6 +150,8 @@ UAudioComponent* DF::PlayLoop(USceneComponent* Component, const FString& MFName,
 	if (!Component || Component->GetNetMode() == NM_DedicatedServer)
 		return nullptr;
 	USoundBase* Sound = LoadSound(MFName);
+	if (Sound)
+		Sound->SoundClassObject = SoundCategory(false);
 	if (USoundWave* Wave = Cast<USoundWave>(Sound))
 		Wave->bLooping = true; // an ambient sound loops (the same wave as a one-shot is never wanted)
 	return Sound ? UGameplayStatics::SpawnSoundAttached(Sound, Component, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
@@ -123,16 +173,17 @@ UParticleSystemComponent* DF::SpawnEffect(const UObject* WorldContext, const TCH
 	return PS ? UGameplayStatics::SpawnEmitterAtLocation(WorldContext, PS, Location, Rotation, FVector(Scale), true, EPSCPoolMethod::AutoRelease) : nullptr;
 }
 
-UParticleSystemComponent* DF::SpawnEffectAttached(const TCHAR* Name, USceneComponent* AttachTo, float Scale) {
+UParticleSystemComponent* DF::SpawnEffectAttached(const TCHAR* Name, USceneComponent* AttachTo, float Scale, bool bFollowRotation) {
 	UParticleSystem* PS = AttachTo ? LoadEffect(AttachTo, Name) : nullptr;
 	UParticleSystemComponent* C = PS ? UGameplayStatics::SpawnEmitterAttached(PS, AttachTo, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, FVector(Scale),
 										   EAttachLocation::KeepRelativeOffset, true, EPSCPoolMethod::AutoRelease)
 									 : nullptr;
 	if (C) {
 		// MF moves the effect to its owner (SetLocation), it doesn't turn with a spinning chunk
-		C->SetUsingAbsoluteRotation(true);
+		C->SetUsingAbsoluteRotation(!bFollowRotation);
 		C->SetUsingAbsoluteScale(true);
-		C->SetWorldRotation(FRotator::ZeroRotator);
+		if (!bFollowRotation)
+			C->SetWorldRotation(FRotator::ZeroRotator);
 		C->SetWorldScale3D(FVector(Scale));
 	}
 	return C;
@@ -159,4 +210,11 @@ void DF::UpdateMusicVolume() {
 	for (const auto& Pair : GMusic)
 		if (UAudioComponent* C = Pair.Key.Get())
 			C->SetVolumeMultiplier(Pair.Value * MusicVolume);
+}
+
+void DF::StopEffect(UParticleSystemComponent* Effect) {
+	if (Effect) {
+		Effect->DeactivateSystem();
+		Effect->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	}
 }

@@ -11,9 +11,8 @@ ATugOfWar::ATugOfWar() {
 	GameName = TEXT("Tug of War");
 	MFGameClass = TEXT("TugGame");
 	NumTeams = 2;
-	GoalTeamScore = 3; // TugGame FragLimit 3 (rounds)
+	ScoreLimit = 3; // TugGame: rounds to win
 	TimeLimit = 8; // per round
-	FragLimit = 0;
 	bScoreTeamKills = false;
 }
 
@@ -80,7 +79,7 @@ void ATugOfWar::RoundEnded(int32 Winner) {
 	bRoundOver = true;
 	GS->TeamScores[Winner] += 1;
 	const FString Team = GS->GetTeamName(Winner).ToString();
-	if (GoalTeamScore > 0 && GS->TeamScores[Winner] >= GoalTeamScore) {
+	if (ScoreLimit > 0 && GS->TeamScores[Winner] >= ScoreLimit) {
 		FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *Team));
 		return;
 	}

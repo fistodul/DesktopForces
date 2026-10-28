@@ -42,6 +42,12 @@ namespace DF {
 	DESKTOPFORCES_API class USoundAttenuation* GetAttenuation(float RadiusUU);
 	DESKTOPFORCES_API void PlaySoundRadius(const UObject* WorldContext, class USoundBase* Sound, const FVector& Location, float Volume = 1.f, float RadiusUU = 1600.f, float Pitch = 1.f);
 
+	DESKTOPFORCES_API void UpdateSoundVolumes();
+	DESKTOPFORCES_API class USoundBase* EffectsSound(class USoundBase* Sound);
+	DESKTOPFORCES_API void PlaySoundAtLocation(const UObject* WorldContext, class USoundBase* Sound, const FVector& Location, float Volume = 1.f, float Pitch = 1.f, float StartTime = 0.f, class USoundAttenuation* Attenuation = nullptr);
+	DESKTOPFORCES_API void PlayUISound(const UObject* WorldContext, class USoundBase* Sound);
+	DESKTOPFORCES_API class UAudioComponent* PlayAnnouncer(const UObject* WorldContext, class USoundBase* Sound);
+
 	/** UE1 AmbientSound: MF's "Package.Name" sound looping on Component until the component (or
 	 *  what it returns) is stopped; nothing on a dedicated server. */
 	DESKTOPFORCES_API class UAudioComponent* PlayLoop(class USceneComponent* Component, const FString& MFName, float RadiusUU = 1600.f);
@@ -60,5 +66,7 @@ namespace DF {
 	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffect(const UObject* WorldContext, const TCHAR* Name, const FVector& Location,
 		float Scale = 1.f, const FRotator& Rotation = FRotator::ZeroRotator);
 	/** The same, following a component (ExplosionFire on burning debris: SetLocation(Owner.Location)). */
-	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffectAttached(const TCHAR* Name, class USceneComponent* AttachTo, float Scale = 1.f);
+	DESKTOPFORCES_API class UParticleSystemComponent* SpawnEffectAttached(const TCHAR* Name, class USceneComponent* AttachTo, float Scale = 1.f, bool bFollowRotation = false);
+	/** Stop a pooled emitter; existing particles finish and the component returns to its pool. */
+	DESKTOPFORCES_API void StopEffect(class UParticleSystemComponent* Effect);
 } // namespace DF

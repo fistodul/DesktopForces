@@ -249,7 +249,11 @@ def decode_p8(pkg: Package, info: dict, alpha: bool) -> Image.Image | None:
     """
     if info.get('format', 0) != 0 or not info.get('palette'):
         return None
-    pal_exp = pkg.find(info['palette'].split('.')[-1], 'Palette')
+    # Palette names repeat across groups (e.g. Palette25 and BloodSpang.Palette25).
+    # Resolving only the leaf name silently substitutes unrelated colour and alpha data.
+    palette_path = info['palette'].casefold()
+    pal_exp = next((e for e in pkg.exports_of('Palette')
+                    if pkg.ref_path(e.index).casefold() == palette_path), None)
     if pal_exp is None:
         return None
     r = Reader(pkg.data, pkg.read_object(pal_exp).native_offset)

@@ -13,7 +13,7 @@ class ADFWeapon;
  * boxes (five random weapons each), shoots metal towers for builder ammo and puts up platforms
  * with the builder. A safe zone shrinks around the map's domination timer; outside it costs
  * health every second. The last one standing ends the round; kills score (or survived rounds,
- * bScoreLastedRounds) up to FragLimit 30 within 12 minutes. Maps: BR-*.
+ * bScoreLastedRounds) up to ScoreLimit 30 within 12 minutes. Maps: BR-*.
  */
 UCLASS(Config = Game)
 class DESKTOPFORCES_API ABattleRoyale : public ADFGameMode {

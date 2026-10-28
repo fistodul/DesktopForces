@@ -46,10 +46,9 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	Super::InitGame(MapName, Options, ErrorMessage);
 	EnsureKillZ();
 	NumTeams = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("Teams"), NumTeams));
-	FragLimit = UGameplayStatics::GetIntOption(Options, TEXT("FragLimit"), FragLimit);
+	ScoreLimit = FMath::Max(0, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), ScoreLimit));
 	TimeLimit = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimit"), TimeLimit);
 	TimeLimitSeconds = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimitSecs"), TimeLimitSeconds);
-	GoalTeamScore = UGameplayStatics::GetIntOption(Options, TEXT("GoalTeamScore"), GoalTeamScore);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
 	if (const FString V = UGameplayStatics::ParseOption(Options, TEXT("Vehicles")); !V.IsEmpty()) {
@@ -96,10 +95,9 @@ void ADFGameMode::InitGameState() {
 			if (C && C->IsChildOf<ADFWeapon>())
 				GS->BannedItems.Add(C);
 		}
-		GS->FragLimit = FragLimit;
+		GS->ScoreLimit = ScoreLimit;
 		GS->TimeLimit = TimeLimit;
 		GS->TimeLimitSeconds = TimeLimitSeconds;
-		GS->GoalTeamScore = GoalTeamScore;
 		GS->RespawnWait = FMath::Max(1, RespawnWait);
 		GS->GameName = GameName;
 	}
@@ -545,15 +543,15 @@ void ADFGameMode::ScoreKill(ADFPlayerState* Killer, ADFPlayerState* Victim) {
 void ADFGameMode::CheckEndConditions(ADFPlayerState* LastKiller) {
 	const ADFGameState* GS = GetGameState<ADFGameState>();
 	if (IsTeamGame()) {
-		if (GS && GoalTeamScore > 0) {
+		if (GS && ScoreLimit > 0) {
 			for (int32 T = 0; T < GS->TeamScores.Num(); ++T) {
-				if (GS->TeamScores[T] >= GoalTeamScore) {
+				if (GS->TeamScores[T] >= ScoreLimit) {
 					FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GetGameState<ADFGameState>()->GetTeamName(T).ToString()));
 					return;
 				}
 			}
 		}
-	} else if (FragLimit > 0 && LastKiller && LastKiller->GetScore() >= FragLimit) {
+	} else if (ScoreLimit > 0 && LastKiller && LastKiller->GetScore() >= ScoreLimit) {
 		FinishMatch(FString::Printf(TEXT("%s Wins!"), *LastKiller->GetPlayerName()));
 	}
 }
@@ -709,10 +707,10 @@ void ADFGameMode::HandleMatchHasEnded() {
 }
 
 ATeamDeathMatch::ATeamDeathMatch() {
+	ScoreLimit = 0;
 	GameName = TEXT("Team DM");
 	MFGameClass = TEXT("RageTeamGame");
 	NumTeams = 2;
-	FragLimit = 0;
 	TimeLimit = 12;
 }
 

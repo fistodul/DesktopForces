@@ -9,7 +9,7 @@
  * rounds without respawning. A round goes to the team that wipes out the other or holds the
  * map's Holdout point for TimeUntilCapture seconds once it unlocks (TimeUntilUnlock after the
  * round starts); stepping off it, or an enemy stepping on, resets the capture. First to
- * GoalTeamScore rounds (5) wins. Maps: ARENA-*.
+ * ScoreLimit rounds (5) wins. Maps: ARENA-*.
  */
 UCLASS(Config = Game)
 class DESKTOPFORCES_API AArena : public AHoldout {

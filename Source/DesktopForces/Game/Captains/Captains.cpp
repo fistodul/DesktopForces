@@ -23,9 +23,8 @@ ACaptains::ACaptains() {
 	MFGameClass = TEXT("RageCaptains");
 	InstructionSound = TEXT("Get_their_Captain");
 	NumTeams = 2;
-	GoalTeamScore = 5; // RageCaptains.GoalTeamScore
+	ScoreLimit = 5; // RageCaptains: captain kills to win
 	TimeLimit = 12;
-	FragLimit = 0;
 	bScoreTeamKills = false;
 }
 
@@ -103,7 +102,7 @@ void ACaptains::Killed(AController* Killer, AController* Victim, ADFCharacter* V
 	if (GS && GS->TeamScores.IsValidIndex(KPS->GetTeam()))
 		GS->TeamScores[KPS->GetTeam()] += 1;
 	BroadcastChat(nullptr, FString::Printf(TEXT("%s killed %s squad captain - %s"), *KPS->GetPlayerName(), Team == 0 ? TEXT("blue") : TEXT("red"), *VPS->GetPlayerName()), false);
-	if (GS && GoalTeamScore > 0 && GS->GetTeamScore(KPS->GetTeam()) >= GoalTeamScore) {
+	if (GS && ScoreLimit > 0 && GS->GetTeamScore(KPS->GetTeam()) >= ScoreLimit) {
 		FinishMatch(FString::Printf(TEXT("%s Squad wins!"), SquadName(KPS->GetTeam())));
 		return;
 	}

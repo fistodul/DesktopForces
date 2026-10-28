@@ -23,11 +23,11 @@ public:
  * becomes one (infection); the round goes to the zombies when no human is left, to the humans
  * if any survive the clock. Lone zombies against five or more humans become a NEMESIS (much
  * stronger, regenerates; infection pauses and dead humans wait for the next round); lone humans
- * against five or more zombies become SURVIVORS. Three rounds win (GoalTeamScore); every round
+ * against five or more zombies become SURVIVORS. Three rounds win (ScoreLimit); every round
  * starts with the original teams (Tug of War's round logic).
  *
  * ?game=/Script/DesktopForces.ZombieGame (maps: ZM-*). Options: ?ZombieWeapons=0-4
- * ?Infect=0 (plain team deathmatch with zombie bodies, FragLimit 30).
+ * ?Infect=0 (plain team deathmatch with zombie bodies, ScoreLimit 30).
  */
 UCLASS(Config = Game)
 class DESKTOPFORCES_API AZombieGame : public ATugOfWar {

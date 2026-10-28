@@ -18,7 +18,7 @@ where the original had the command; case doesn't matter.
 | `Type` | the one-line console (Tab) |
 | `SShot` | screenshot (`Saved/Screenshots/...`) |
 | `GrowHUD` / `ShrinkHUD` | HUD size 0-4 (32 … 128 px item boxes), saved (also Options > Game) |
-| `ChangeCrosshair` | next of the 24 MF crosshairs, saved (also Options > Game, with a preview) |
+| `ChangeCrosshair` | next distinct crosshair shape, saved (also Options > Game, with a preview) |
 | `BehindView [0\|1]` | third-person camera (UE1's: 150 uu behind your view, pulled in at walls) / back in your eyes; no number: the other one |
 | `FOV N` | field of view (UE) |
 | `RestartLevel` | restart the map (single player / host) |
@@ -49,10 +49,10 @@ and Ctrl+Shift+`,` (GPU profile) stay.
 
 Without a map on the command line the game starts at the **main menu** (play: map, game type -
 MF's own first, then the community's - bots, skill, time limit, LAN host; join an address;
-options in tabs: **Video** resolution, display mode, graphics level, render scale, brightness,
-field of view, bullet holes / scorch marks; **Audio** volume, music; **Controls** mouse, every
-key (click it, press the new one; a key already in use swaps); **Game** name, crosshair, HUD
-size; **Defaults** puts MF's options back, Apply keeps them). Options live in
+options in tabs: **Video** resolution, display mode, graphics level, brightness,
+field of view, bullet holes / scorch marks (FPS, VSync and render scale in **Advanced**); **Audio** volume, music; **Controls** mouse, every
+key (click it, press the new one; a key already in use swaps); **Game** name, crosshair shape/size, HUD
+size, console; **Defaults** puts MF's options back, Apply keeps them). Options live in
 `Saved/Config/<platform>/GameUserSettings.ini` (`UDFUserSettings`).
 
 ## Admin
@@ -130,3 +130,18 @@ to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/De
 
 Not ported (no equivalent yet): `KillCars`, `ExpireCars`,
 `FeignDeath`, `Taunt`, `Speech`.
+
+The console checkbox controls the actual viewport console in Development and Shipping.
+Development defaults to enabled; Shipping defaults to disabled. Enabling the console does
+not grant admin privileges. The game's cheat manager is instantiated in Shipping too, with
+server-side authorization unchanged; engine commands compiled out of Shipping are still
+unavailable. `Summon` uses a loaded/cooked actor class, e.g. `/Script/DesktopForces.Buggy`.
+
+### Vehicle entry and feign death
+
+- `TryEnterExit`: normal vehicle entry/exit. Front seats redirect to an empty driver seat;
+  rear seats retain passenger selection. Holding Shift requests passenger-only entry.
+- `EnterPassenger`: deliberately enter the nearest free passenger seat, even without a driver.
+  It also exits the current seat. A separate binding can be assigned in Controls.
+- `FeignDeath`: toggle the low, damageable fake-death pose. Default key: Left Alt.
+  Fire or Jump also requests getting up without performing that action on the same press.

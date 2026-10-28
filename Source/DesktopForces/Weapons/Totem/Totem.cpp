@@ -1,4 +1,5 @@
 #include "Weapons/Totem/Totem.h"
+#include "Core/DFContent.h"
 #include "Player/DFCharacter.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -12,7 +13,7 @@
 namespace TotemLocal {
 	void PlayAt(const AActor* Where, const TCHAR* Path) {
 		if (Where)
-			UGameplayStatics::PlaySoundAtLocation(Where, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet), Where->GetActorLocation());
+			DF::PlaySoundAtLocation(Where, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet), Where->GetActorLocation());
 	}
 	const TCHAR* TotemSound = TEXT("/MobileForcesClassic/Sounds/MiscSFX/ArmourWearOut.ArmourWearOut");
 } // namespace TotemLocal

@@ -120,7 +120,7 @@ void ATripBomb::Detonate(const FVector& At, float Damage) {
 void ATripBomb::MulticastExplodeFX_Implementation(FVector_NetQuantize At) {
 	// TripBomb.Explode: EffectsFix.TripBombVehProx -> a RageEffects.Explosion (DrawScale 0.4), its bang
 	if (GetNetMode() != NM_DedicatedServer) {
-		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), At);
+		DF::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), At);
 		DF::SpawnEffect(this, TEXT("Explosion"), At, 0.4f);
 		DF::SpawnScorchBelow(this, At, 180.f);
 	}

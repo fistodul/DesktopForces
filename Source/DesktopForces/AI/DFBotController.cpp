@@ -88,7 +88,7 @@ ADFCharacter* ADFBotController::FindEnemy(ADFCharacter* C) const {
 	float BestDist = 9225.f; // MF PlayerPawn.SightRadius 4100 uu
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
 		ADFCharacter* O = *It;
-		if (O == C || !O->IsAlive() || O->IsSpawnProtected() || (bTeams && O->GetTeam() == C->GetTeam()))
+		if (O == C || !O->IsAlive() || O->IsFeigningDeath() || O->IsSpawnProtected() || (bTeams && O->GetTeam() == C->GetTeam()))
 			continue;
 
 		const float D = FVector::Dist(O->GetActorLocation(), C->GetActorLocation());
@@ -171,6 +171,7 @@ void ADFBotController::Fight(ADFCharacter* C, ADFCharacter* Target) {
 	const float Now = GetWorld()->GetTimeSeconds();
 	ADFWeapon* W = C->GetCurrentWeapon();
 	if (!W || (!W->HasAnyAmmo() && !W->bUndroppable)) {
+		bHoldingFire = false;
 		C->SwitchToBestWeapon();
 		return;
 	}
@@ -199,6 +200,7 @@ void ADFBotController::Fight(ADFCharacter* C, ADFCharacter* Target) {
 	if (Now >= ReactionDue) {
 		if (!W->HasAmmoInClip() && W->CanReload()) {
 			C->StopFire(false);
+			bHoldingFire = false;
 			C->Reload();
 		} else {
 			// Charged weapons (rifle power, grenade throw) fire on release
@@ -482,8 +484,9 @@ bool ADFBotController::GoToVehicle(ADFCharacter* C) {
 	if (V->IsNear(C)) {
 		GoingForVehicle = nullptr;
 		StopMovement();
-		if (!V->TryEnter(C)) // the driver's seat if free, else the first free passenger seat
-		{
+		// Bots seek the driver's seat when empty; manual entry uses the nearest seat.
+		const bool bEntered = V->GetDriver() ? V->TryEnter(C) : V->EnterSeat(C, 0);
+		if (!bEntered) {
 			DontEnterVehicleTime = Now + 5.f;
 			return false;
 		}

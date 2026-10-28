@@ -15,7 +15,7 @@
 #include "TimerManager.h"
 
 namespace {
-	constexpr float Radius = 144.f; // TripBombOnGround.CollisionRadius 64 uu
+	constexpr float MineTriggerRadius = 144.f; // TripBombOnGround.CollisionRadius 64 uu
 	constexpr float VehicleRadius = 216.f; // vehicles at 1.5 x
 	constexpr float RearmTime = 5.f; // mineGenerator.checkInterval
 } // namespace
@@ -79,7 +79,7 @@ void AMineGenerator::Check() {
 		const AActor* A = H.GetActor();
 		const ADFCharacter* C = Cast<ADFCharacter>(A);
 		const bool bVehicle = Cast<ADFVehicle>(A) != nullptr;
-		if ((C && C->IsAlive() && FVector::Dist(C->GetActorLocation(), GetActorLocation()) < Radius + 40.f) || bVehicle) {
+		if ((C && C->IsAlive() && FVector::Dist(C->GetActorLocation(), GetActorLocation()) < MineTriggerRadius + 40.f) || bVehicle) {
 			SetOff();
 			return;
 		}

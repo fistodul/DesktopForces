@@ -44,19 +44,19 @@ Forces install for the classic content.
 cp Tools/mfport/mfport.example.toml Tools/mfport/mfport.toml && $EDITOR Tools/mfport/mfport.toml
 
 # 2. build the C++ modules
-Tools/play.sh build
+python3 Tools/play.py build
 
 # 3. convert + import a map (warehouse ~10 min the first time; shaders compile once)
 python3 Tools/mfport/mfport.py all mf-warehouse
 
-# 4. play (map, mode dm|tdm|holdout|sc|ctf|det|cap|trailer|koh|tug, bots) - or `Tools/play.sh editor`
-Tools/play.sh mf-warehouse tdm 8
+# 4. play (map, mode dm|tdm|holdout|sc|ctf|det|cap|trailer|koh|tug, bots) - or `python3 Tools/play.py editor`
+python3 Tools/play.py mf-warehouse tdm 8
 
 # or start at the main menu (map / mode / bots / options / credits)
 <UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/DesktopForces.uproject" -game
 ```
 
-On Windows: `Tools\build_windows.ps1` builds and packages, and the pipeline runs with `py -3`
+On Windows: `Tools\package.ps1` builds and packages, and the pipeline runs with `py -3`
 instead of Wine - [Docs/Building.md](Docs/Building.md#windows), also for dual boot (one
 checkout shared by Linux and Windows).
 
@@ -65,7 +65,7 @@ Ctrl / C crouch (nitro when driving), Shift walk, E get in / out of vehicles, G 
 V orders (keys or mouse), F1 scores, Tab one-line console, `~` full console, Esc menu), plus X for armour/gadgets; in the loadout screen a number picks a row, a second
 number the item in it. Map URL options: `?game=/Script/DesktopForces.TeamDeathMatch` (also
 `Holdout`, `KingOfTheHill`, ...), `?Bots=8?BotSkill=0.7`, `?Teams=4`,
-`?FragLimit=10?TimeLimit=5`, `?Vehicles=0`.
+`?ScoreLimit=10?TimeLimit=5`, `?Vehicles=0`.
 
 ## Layout
 
@@ -83,7 +83,7 @@ number the item in it. Map URL options: `?game=/Script/DesktopForces.TeamDeathMa
 | `Content/Maps/`, `Content/MF/Community/` | Converted community maps cleared for the game (tracked on Azure, generated on GitHub) |
 | `Plugins/MobileForcesClassic/` | Content converted from the original game - generated locally, **never committed** |
 | `Tools/setup.py` | Interactive first-time setup and map import helper |
-| `Tools/sync_github.sh` | Sync source-only code from `main` → GitHub (strips content) |
+| `Tools/sync_github.sh` | Preview/export individual source commits to GitHub without checking out content |
 | `Docs/` | How everything works |
 
 ## Docs

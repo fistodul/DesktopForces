@@ -84,6 +84,7 @@ class DESKTOPFORCES_API ADFVehicle : public APawn {
 
 public:
 	ADFVehicle();
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
@@ -105,8 +106,8 @@ public:
 	void ServerSetNitro(bool bOn);
 
 	// --- seats -------------------------------------------------------------------------------
-	/** Server: put a soldier in (driver if the driver seat is free). False if full / too far. */
-	bool TryEnter(ADFCharacter* C);
+	/** Server: enter the nearest free seat, including passengers when no driver is present. */
+	bool TryEnter(ADFCharacter* C, bool bPassengerOnly = false);
 	/** Where the team flag stands (MF FlagPos, MF body space, cm); zero: no flag. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicle")
 	FVector FlagPosition = FVector::ZeroVector;
@@ -116,7 +117,7 @@ public:
 	void Exit(bool bForce = false);
 	/** Server: everyone out, boxed in or not (blown up, locked, gone). */
 	void ExitAll();
-	/** Server: take a particular passenger seat (1..) if it's free and in reach. */
+	/** Server: take a particular seat (0 driver, 1.. passengers) if free and in reach. */
 	bool EnterSeat(ADFCharacter* C, int32 Seat);
 	/** Server: let a passenger out (MF passengers sit or stand at aSeatsPos and keep their
 	 *  weapons; only the driver can't shoot). False if boxed in and not forced. */
@@ -163,6 +164,9 @@ public:
 	/** Vehicle health (MF Pawn.Health 100 by default). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle")
 	int32 Health = 100;
+	/** Empty generated vehicles away from their spawn or damaged are recycled. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float AbandonedLifetime = 45.f;
 
 	/** HUD readout. */
 	float GetSpeedKmh() const;
@@ -187,6 +191,9 @@ protected:
 	TObjectPtr<UBoxComponent> Body;
 
 	UPROPERTY(VisibleAnywhere, Category = "Vehicle")
+	TObjectPtr<UBoxComponent> PawnCollider;
+
+	UPROPERTY(VisibleAnywhere, Category = "Vehicle")
 	TObjectPtr<UStaticMeshComponent> BodyMesh;
 
 	UPROPERTY(VisibleAnywhere, Category = "Vehicle")
@@ -198,7 +205,7 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> WheelMeshes;
 
-	/** Shot at, a tyre: spheres round the wheels for weapon traces only (MF WheelCollision). */
+	/** Tyre queries for weapon hits (MF WheelCollision) and pawn movement. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class USphereComponent>> WheelColliders;
 	/** The petrol cap the same way (MF PetrolCap). */
@@ -332,14 +339,17 @@ protected:
 	FVector GetSeatOffset(int32 Seat, const ADFCharacter* C) const;
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<FVector> DoorPositions;
-	/** Per door, the seats it gets you into, best first; seat 0 drives. Empty: the driver's
-	 *  seat, then the first free one. */
+	/** Original MF door/seat ordering, retained as import reference. Manual entry uses driver
+	 *  priority, then the nearest free passenger seat. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<FDFDoorSeats> DoorSeats;
 	/** MF aSeatsSit: who rides that seat sits (the passenger animations); the others stand.
 	 *  Seats past the end sit if they are the driver's. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	TArray<bool> SeatSits;
+	/** MF aSeatNearDrivers: these passenger seats redirect to an empty driver seat. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	TArray<int32> SeatsNearDriver;
 
 	/** Camera distance (MF NearCamera, uu x 2.25). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
@@ -369,6 +379,11 @@ protected:
 	/** Into the driver's seat: the soldier's controller drives. */
 	bool EnterDriver(ADFCharacter* C);
 	void UnseatPassenger(ADFCharacter* C);
+	void PlaceExitingPawn(ADFCharacter* C, const FVector& Spot, AController* ReturningController = nullptr);
+	TMap<TWeakObjectPtr<ADFCharacter>, float> ExitProtection;
+	void CheckAbandonment();
+	FTimerHandle AbandonmentTimer;
+	float AbandonedSince = -1.f;
 	bool FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const;
 
 	TWeakObjectPtr<ADFCharacter> LastDriver;
@@ -392,7 +407,6 @@ protected:
 	TArray<float> WheelSpin;
 	float UpsideDownTime = 0.f;
 	/** Velocity before this frame's contacts (a soldier hit is judged on it, not on the stop). */
-	FVector PrevVelocity = FVector::ZeroVector;
 	bool bBlownUp = false;
 	/** PhysicalWaterInfo.WaterHeight (cm); none: -inf. Submerged share of the body (0..1). */
 	float WaterPlaneZ = -1e9f;
@@ -417,6 +431,10 @@ protected:
 	FTimerHandle EngineStartTimer;
 	float BumpSoundUntil = 0.f;
 	void UpdateEngineSound();
+	void UpdateDamageSmoke();
+	FTimerHandle DamageSmokeTimer;
+	UPROPERTY(Transient)
+	TObjectPtr<class UParticleSystemComponent> DamageSmoke;
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastBump(float Volume);
 	/** Wheel.HitWall: a tyre landing hard thumps (WheelSFX.HitWheel). */
@@ -437,6 +455,9 @@ protected:
 
 	UFUNCTION()
 	void OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	UFUNCTION()
+	void OnPawnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
 
 	void SimulateWheels(float DeltaSeconds);
 	void UpdateWheelVisuals(float DeltaSeconds);

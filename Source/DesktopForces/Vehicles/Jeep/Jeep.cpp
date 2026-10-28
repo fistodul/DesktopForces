@@ -34,6 +34,7 @@ AJeep::AJeep() {
 	// aSeatsPos (DriverSeat 1 first, the gunner standing at the back last), aDoorsPos
 	SeatPositions = { FVector(9.f, -56.25f, 112.5f), FVector(9.f, 56.25f, 112.5f), FVector(-67.5f, -11.25f, 180.f) };
 	SeatSits = { true, true }; // aSeatsSit
+	SeatsNearDriver = { 1 }; // MF aSeatNearDrivers: paired front seats share driver access
 	DoorPositions = { FVector(22.5f, 148.5f, 57.4f), FVector(22.5f, -148.5f, 57.4f), FVector(-299.25f, 0.f, 57.4f) };
 	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
 	SetHandling({ 540.f, 540.f, 543.f, 543.f, 543.f, 543.f, 543.f, 543.f, 40.f, 0.f },

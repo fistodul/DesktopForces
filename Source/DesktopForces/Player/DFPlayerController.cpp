@@ -47,19 +47,28 @@ ADFCharacter* ADFPlayerController::GetMFCharacter() const {
 	return Cast<ADFCharacter>(GetPawn());
 }
 
+void ADFPlayerController::EnsureCheatManager() {
+	// UE's AddCheats is compiled out in Shipping. Our commands still use the same
+	// CanCheat/ServerAdmin authorization in every build.
+	if (!CheatManager) {
+		CheatManager = NewObject<UDFCheatManager>(this);
+		CheatManager->InitCheatManager();
+	}
+}
+
 void ADFPlayerController::BeginPlay() {
 	Super::BeginPlay();
 	if (IsLocalController()) {
 		// cheat commands always parse here: the server ones go to the server, which says
 		// whether this player may (UDFCheatManager::ProcessConsoleExec)
-		AddCheats(true);
+		EnsureCheatManager();
 		SetInputMode(FInputModeGameOnly());
 		bShowMouseCursor = false;
 		// until we stand somewhere the camera sits wherever the map starts it, textures still
 		// streaming in: black, then a fade in on the first spawn (MF showed its loading screen)
 		if (PlayerCameraManager) {
 			PlayerCameraManager->SetManualCameraFade(1.f, FLinearColor::Black, false);
-			GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 1.5f, false); // spectators, waiting
+			GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 1.f, false); // spectators, waiting
 		}
 	}
 }
@@ -72,14 +81,14 @@ void ADFPlayerController::AcknowledgePossession(APawn* P) {
 void ADFPlayerController::FadeInSoon(APawn* P) {
 	if (P && !bFadedIn && IsLocalController()) {
 		// a moment for the spawn spot's textures, then in
-		GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 0.1f, false);
+		GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 1.f / 15.f, false);
 	}
 }
 
 void ADFPlayerController::FadeIn() {
 	if (!bFadedIn && PlayerCameraManager) {
 		bFadedIn = true;
-		PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.3f, FLinearColor::Black, false, false);
+		PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.2f, FLinearColor::Black, false, false);
 	}
 }
 
@@ -116,6 +125,8 @@ TArray<FDFBinding> ADFPlayerController::GetBindings() {
 		{ TEXT("Jump"), LOCTEXT("KJump", "Jump"), EKeys::SpaceBar, EKeys::NumPadZero },
 		{ TEXT("Crouch"), LOCTEXT("KCrouch", "Crouch"), EKeys::LeftControl, EKeys::C },
 		{ TEXT("Walk"), LOCTEXT("KWalk", "Walk"), EKeys::LeftShift },
+		{ TEXT("FeignDeath"), LOCTEXT("KFeignDeath", "Feign death / stand up"), EKeys::LeftAlt },
+		{ TEXT("EnterPassenger"), LOCTEXT("KEnterPassenger", "Enter passenger seat"), EKeys::Invalid },
 		{ TEXT("Reload"), LOCTEXT("KReload", "Reload"), EKeys::R },
 		{ TEXT("Loadout"), LOCTEXT("KLoadout", "Loadout"), EKeys::Q, EKeys::BackSpace },
 		{ TEXT("Use"), LOCTEXT("KUse", "Use / get in or out"), EKeys::E, EKeys::Enter },
@@ -158,7 +169,7 @@ void ADFPlayerController::BuildInput() {
 	// MF Delete = LookUp, PageDown = LookDown (aLookUp, held)
 	Make(TEXT("LookKey"), EInputActionValueType::Axis1D);
 	for (const TCHAR* Name : { TEXT("Fire"), TEXT("AltFire"), TEXT("Jump"), TEXT("Crouch"), TEXT("CrouchAlt"), TEXT("Walk"),
-			 TEXT("Reload"), TEXT("Loadout"), TEXT("Use"), TEXT("NextWeapon"), TEXT("PrevWeapon"), TEXT("NextWeaponKey"),
+			 TEXT("Reload"), TEXT("Loadout"), TEXT("Use"), TEXT("FeignDeath"), TEXT("EnterPassenger"), TEXT("NextWeapon"), TEXT("PrevWeapon"), TEXT("NextWeaponKey"),
 			 TEXT("PrevWeaponKey"), TEXT("Throw"), TEXT("LoadoutAlt"), TEXT("Scores"), TEXT("MenuUp"), TEXT("MenuDown"), TEXT("MenuSelect") })
 		Make(Name, EInputActionValueType::Boolean);
 	for (int32 i = 1; i <= 11; ++i)
@@ -305,6 +316,8 @@ void ADFPlayerController::SetupInputComponent() {
 	EIC->BindAction(A(TEXT("AltFire")), ETriggerEvent::Started, this, &ADFPlayerController::OnAltFire);
 	EIC->BindAction(A(TEXT("AltFire")), ETriggerEvent::Completed, this, &ADFPlayerController::OnAltFireReleased);
 	EIC->BindAction(A(TEXT("Reload")), ETriggerEvent::Started, this, &ADFPlayerController::OnReload);
+	EIC->BindAction(A(TEXT("FeignDeath")), ETriggerEvent::Started, this, &ADFPlayerController::FeignDeath);
+	EIC->BindAction(A(TEXT("EnterPassenger")), ETriggerEvent::Started, this, &ADFPlayerController::EnterPassenger);
 	EIC->BindAction(A(TEXT("Loadout")), ETriggerEvent::Started, this, &ADFPlayerController::OnLoadout);
 	EIC->BindAction(A(TEXT("LoadoutAlt")), ETriggerEvent::Started, this, &ADFPlayerController::OnLoadout);
 	EIC->BindAction(A(TEXT("Throw")), ETriggerEvent::Started, this, &ADFPlayerController::ThrowWeapon);
@@ -358,6 +371,10 @@ void ADFPlayerController::OnLook(const FInputActionValue& Value) {
 void ADFPlayerController::OnJump() {
 	bVehicleHandbrake = true; // jump = handbrake while driving
 	if (ADFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout()) {
+		if (C->IsFeigningDeath()) {
+			C->ServerSetFeignDeath(false);
+			return;
+		}
 		C->Jump();
 		if (UDFCharacterMovement* M = Cast<UDFCharacterMovement>(C->GetCharacterMovement()))
 			M->bWantsParachute = true; // held: the parachute while falling
@@ -593,7 +610,7 @@ void ADFPlayerController::OnLoadout() {
 
 void ADFPlayerController::ServerToggleLoadout_Implementation() {
 	ADFCharacter* C = GetMFCharacter();
-	if (!C || !C->IsAlive())
+	if (!C || !C->IsAlive() || C->IsFeigningDeath())
 		return;
 	if (C->IsInLoadout()) {
 		ExitLoadout();
@@ -643,16 +660,16 @@ void ADFPlayerController::OnMenuSelect() {
 }
 
 void ADFPlayerController::TryEnterExit() {
-	ServerTryEnterExit();
+	ServerTryEnterExit(IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift));
 }
 
-void ADFPlayerController::ServerTryEnterExit_Implementation() {
+void ADFPlayerController::ServerTryEnterExit_Implementation(bool bPassengerOnly) {
 	if (ADFVehicle* V = Cast<ADFVehicle>(GetPawn())) {
 		V->Exit();
 		return;
 	}
 	ADFCharacter* C = GetMFCharacter();
-	if (!C || !C->IsAlive() || C->IsInLoadout())
+	if (!C || !C->IsAlive() || C->IsInLoadout() || C->IsFeigningDeath())
 		return;
 	if (ADFVehicle* Riding = Cast<ADFVehicle>(C->GetAttachParentActor())) {
 		Riding->ExitPassenger(C);
@@ -669,7 +686,7 @@ void ADFPlayerController::ServerTryEnterExit_Implementation() {
 		}
 	}
 	if (Best)
-		Best->TryEnter(C);
+		Best->TryEnter(C, bPassengerOnly);
 }
 
 TArray<ADFWeapon*> ADFPlayerController::GetLoadoutInventory() const {
@@ -748,7 +765,7 @@ void ADFPlayerController::PlayAnnouncer(FName Line) {
 		return;
 	if (UAudioComponent* Old = AnnouncerAudio.Get())
 		Old->Stop();
-	AnnouncerAudio = UGameplayStatics::SpawnSound2D(this, Sound);
+	AnnouncerAudio = DF::PlayAnnouncer(this, Sound);
 }
 
 FName ADFPlayerController::TimeRemainingLine(int32 Seconds) {
@@ -839,7 +856,7 @@ void ADFPlayerController::ForceMove(const FVector2D& Input, float Seconds, float
 }
 
 void ADFPlayerController::PlayUISound(const TCHAR* Path) {
-	UGameplayStatics::PlaySound2D(this, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
+	DF::PlayUISound(this, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
 }
 
 void ADFPlayerController::ServerLoadoutDrop_Implementation(ADFWeapon* Item) {
@@ -966,7 +983,7 @@ void ADFPlayerController::ServerAdmin_Implementation(const FString& Command) {
 		ClientMessage(TEXT("Cheats are off here: AdminLogin <password> first."));
 		return;
 	}
-	AddCheats(true);
+	EnsureCheatManager();
 	UE_LOG(LogDF, Log, TEXT("%s %s: %s"), GM->IsAdmin(this) ? TEXT("Admin") : TEXT("Cheat"), PlayerState ? *PlayerState->GetPlayerName() : TEXT("?"), *Command);
 	// cheats for anyone allowed; the rest (this controller's and the pawn's commands, the
 	// game mode's, the engine's: servertravel, kick ...) for admins only
@@ -1295,4 +1312,9 @@ void ADFPlayerController::ServerDropWeapon_Implementation() {
 	ADFWeapon* W = C ? C->GetCurrentWeapon() : nullptr;
 	if (W && !W->bUndroppable)
 		C->DropWeapon(W); // lands on the ground; anyone takes it through their loadout
+}
+
+void ADFPlayerController::FeignDeath() {
+	if (ADFCharacter* C = GetMFCharacter())
+		C->ServerSetFeignDeath(!C->IsFeigningDeath());
 }

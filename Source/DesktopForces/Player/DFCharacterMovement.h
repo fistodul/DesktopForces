@@ -62,6 +62,8 @@ public:
 	/** Soldiers don't shove vehicles about by walking into or standing on them (MF). */
 	virtual void ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity) override;
 	virtual void ApplyDownwardForce(float DeltaSeconds) override;
+	virtual void ApplyRepulsionForce(float DeltaSeconds) override;
+	virtual void CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) override;
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 	virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 

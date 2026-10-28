@@ -53,6 +53,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:
+	friend class FDFGameplayLifecycleCheck;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 

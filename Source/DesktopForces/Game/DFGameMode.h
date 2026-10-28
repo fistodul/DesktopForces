@@ -23,7 +23,7 @@ class ADFWeapon;
  *
  * Game modes extend this by overriding the small virtuals (ScoreKill, CheckEndConditions,
  * OnTimeLimit, IsStartAllowed, SetPlayerDefaults) rather than copying bodies.
- * URL options: ?FragLimit=10?TimeLimit=5?GoalTeamScore=3?Teams=4?Bots=8?BotSkill=0.7?Vehicles=0
+ * URL options: ?ScoreLimit=10?TimeLimit=5?Teams=4?Bots=8?BotSkill=0.7?Vehicles=0
  */
 UCLASS(Config = Game)
 class DESKTOPFORCES_API ADFGameMode : public AGameMode {
@@ -142,16 +142,13 @@ public:
 	int32 NumTeams = 0;
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	int32 FragLimit = 30;
+	int32 ScoreLimit = 30;
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	int32 TimeLimit = 7;
 
 	/** Seconds; overrides TimeLimit when > 0 (URL option TimeLimitSecs). */
 	int32 TimeLimitSeconds = 0;
-
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	int32 GoalTeamScore = 0;
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	int32 RespawnWait = 0;

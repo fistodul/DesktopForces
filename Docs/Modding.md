@@ -97,7 +97,7 @@ Subclass the closest mode and override only what differs. KOH changes how points
 (`SpawnPoints`), how they score (`UpdatePoints`) and the capture bonus (`PointCaptured`);
 spawning, teams, bots, HUD and match flow are inherited. Play it with
 `<map>?game=/Script/DesktopForces.KingOfTheHill?Bots=8`. Rules are `Config` properties, so
-servers tune them in `DefaultGame.ini` or per match with URL options (`?GoalTeamScore=500`).
+servers tune them in `DefaultGame.ini` or per match with URL options (`?ScoreLimit=500`).
 Bots get objectives from `ADFGameMode::GetBotGoals()` (best first).
 
 ### A map

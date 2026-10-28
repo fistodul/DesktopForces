@@ -122,7 +122,7 @@ ADetonation::ADetonation() {
 	GameName = TEXT("Detonation");
 	MFGameClass = TEXT("RageDetonation");
 	InstructionSound = TEXT("Get_the_key");
-	GoalTeamScore = 4; // RageDetonation.GoalTeamScore
+	ScoreLimit = 4; // RageDetonation: detonations to win
 	TimeLimit = 10;
 	RespawnWait = 5; // the community servers' MobileForces.ini
 	ObjectName = TEXT("Detonation Key");
@@ -192,7 +192,7 @@ void ADetonation::Detonated(AController* Scorer, uint8 ScorerTeam) {
 				  Scorer && Scorer->PlayerState ? *Scorer->PlayerState->GetPlayerName() : TEXT("Someone"),
 				  ScorerTeam == 0 ? TEXT("BLUE") : TEXT("RED"), ScorerTeam == 0 ? TEXT("RED") : TEXT("BLUE")),
 			ScorerTeam);
-		if (GS && GoalTeamScore > 0 && GS->GetTeamScore(ScorerTeam) >= GoalTeamScore) {
+		if (GS && ScoreLimit > 0 && GS->GetTeamScore(ScorerTeam) >= ScoreLimit) {
 			FinishMatch(FString::Printf(TEXT("%s team wins!"), TeamName(ScorerTeam)));
 			return;
 		}

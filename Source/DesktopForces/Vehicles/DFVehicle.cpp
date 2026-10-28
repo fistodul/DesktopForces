@@ -1,5 +1,6 @@
 #include "Vehicles/DFVehicle.h"
 #include "Materials/MaterialInterface.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Game/DFGameState.h"
 #include "Vehicles/DFVehicles.h"
 #include "Vehicles/Boat/Boat.h"
@@ -57,6 +58,17 @@ ADFVehicle::ADFVehicle() {
 	// mark it dirty ("NAVMESH NEEDS TO BE REBUILT"); bots steer round vehicles themselves
 	Body->SetCanEverAffectNavigation(false);
 	RootComponent = Body;
+	// Pawns must not become immovable Chaos obstacles. Character movement still sweeps
+	// against the query shell, while overlap events handle the vehicle hitting a soldier.
+	Body->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	Body->SetGenerateOverlapEvents(true);
+	PawnCollider = CreateDefaultSubobject<UBoxComponent>(TEXT("PawnCollider"));
+	PawnCollider->SetupAttachment(Body);
+	PawnCollider->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PawnCollider->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PawnCollider->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	PawnCollider->BodyInstance.bAutoWeld = false;
+	PawnCollider->SetCanEverAffectNavigation(false);
 
 	// bullets and knives hit the model itself, not the physics box (the "Weapon" trace channel,
 	// ECC_GameTraceChannel2): gaps stay gaps, the petrol cap can be aimed at
@@ -94,6 +106,7 @@ void ADFVehicle::BeginPlay() {
 	if (!FlagPosition.IsZero() && GetNetMode() != NM_DedicatedServer)
 		GetWorldTimerManager().SetTimer(FlagTimer, this, &ADFVehicle::UpdateFlag, 0.5f, true, 0.1f);
 	Body->SetBoxExtent(BoxExtent);
+	PawnCollider->SetBoxExtent(BoxExtent);
 	CameraArm->TargetArmLength = CameraDistance;
 	// everything is laid out in MF body space (origin at the MF actor); the box is the root
 	if (!DF::ApplyPropMesh(BodyMesh, *BodyMeshName, 1.f, -BoxCenter))
@@ -110,13 +123,14 @@ void ADFVehicle::BeginPlay() {
 			C->SetRelativeScale3D(FVector(W.Radius / 50.f, W.Radius / 50.f, 0.3f));
 		}
 		WheelMeshes.Add(C);
-		// MF WheelCollision: a sphere round the tyre that only weapon traces see
+		// MF WheelCollision supplies weapon hits; pawn queries also block on the tyre.
 		USphereComponent* S = NewObject<USphereComponent>(this);
 		S->SetupAttachment(C);
 		S->SetSphereRadius(W.Radius);
 		S->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		S->SetCollisionResponseToAllChannels(ECR_Ignore);
 		S->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block);
+		S->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 		S->BodyInstance.bAutoWeld = false;
 		S->SetCanEverAffectNavigation(false);
 		S->RegisterComponent();
@@ -139,6 +153,9 @@ void ADFVehicle::BeginPlay() {
 	LastCompression.Init(0.f, Wheels.Num());
 	WheelSpin.Init(0.f, Wheels.Num());
 	Body->OnComponentHit.AddDynamic(this, &ADFVehicle::OnBodyHit);
+	Body->OnComponentBeginOverlap.AddDynamic(this, &ADFVehicle::OnPawnOverlap);
+	if (GetNetMode() != NM_DedicatedServer)
+		GetWorldTimerManager().SetTimer(DamageSmokeTimer, this, &ADFVehicle::UpdateDamageSmoke, 0.25f, true);
 	if (!EngineSounds.IsEmpty()) {
 		auto Default = [this](FString& Path, const TCHAR* Name) { if (Path.IsEmpty())  Path = FString::Printf(TEXT("Sounds/%s/%s"), *EngineSounds, Name); };
 		Default(EngineStartSound, TEXT("EngineStart"));
@@ -156,6 +173,7 @@ void ADFVehicle::BeginPlay() {
 		Body->SetLinearDamping(0.02f);
 		Body->SetAngularDamping(0.6f);
 		Body->SetSimulatePhysics(true);
+		GetWorldTimerManager().SetTimer(AbandonmentTimer, this, &ADFVehicle::CheckAbandonment, 1.f, true);
 	}
 }
 
@@ -164,6 +182,13 @@ float ADFVehicle::GetSpeedKmh() const {
 }
 
 void ADFVehicle::DebugDump() const {
+	if (DamageSmoke) {
+		float SmokeRate = 0.f, SmokeAlpha = 0.f;
+		DamageSmoke->GetFloatParameter(TEXT("SmokeRate"), SmokeRate);
+		DamageSmoke->GetFloatParameter(TEXT("SmokeAlpha"), SmokeAlpha);
+		UE_LOG(LogDF, Log, TEXT("Vehicle smoke %s: %d particles, active %d, rate %.2f, alpha %.2f, at %s"),
+			*GetName(), DamageSmoke->GetNumActiveParticles(), DamageSmoke->IsActive(), SmokeRate, SmokeAlpha, *DamageSmoke->GetComponentLocation().ToCompactString());
+	}
 	FString Wheel;
 	for (int32 i = 0; i < Wheels.Num(); ++i)
 		Wheel += FString::Printf(TEXT(" %.0f"), LastCompression.IsValidIndex(i) ? LastCompression[i] : -1.f);
@@ -215,10 +240,8 @@ void ADFVehicle::ServerSetNitro_Implementation(bool bOn) {
 
 void ADFVehicle::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
-	if (HasAuthority() && !bBlownUp && Body->IsSimulatingPhysics()) {
-		PrevVelocity = Body->GetPhysicsLinearVelocity();
+	if (HasAuthority() && !bBlownUp && Body->IsSimulatingPhysics())
 		SimulateWheels(FMath::Min(DeltaSeconds, 0.05f));
-	}
 	if (GetNetMode() != NM_DedicatedServer) {
 		UpdateWheelVisuals(DeltaSeconds);
 		UpdateEngineSound();
@@ -309,8 +332,11 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		const FVector Contact = Hit.ImpactPoint;
 		// wheel frame: steering turns the front ones (less at speed)
 		const float SteerAngle = W.bSteer ? Steer * SteerLock * FMath::GetMappedRangeValueClamped(FVector2D(0.f, TopSpeed), FVector2D(1.f, 0.45f), FMath::Abs(Speed)) : 0.f;
-		const FVector WFwd = Fwd.RotateAngleAxis(SteerAngle, Up);
-		const FVector WRight = FVector::CrossProduct(Up, WFwd);
+		// A flat tyre leans the body. Ground support must not lean with it and push the
+		// parked car sideways. Tyre friction also acts in the contact plane.
+		const FVector GroundNormal = Hit.ImpactNormal;
+		const FVector WFwd = FVector::VectorPlaneProject(Fwd.RotateAngleAxis(SteerAngle, Up), GroundNormal).GetSafeNormal();
+		const FVector WRight = FVector::CrossProduct(GroundNormal, WFwd);
 		const FVector V = Body->GetPhysicsLinearVelocityAtPoint(Contact);
 		const float VLat = FVector::DotProduct(V, WRight);
 		const float VLong = FVector::DotProduct(V, WFwd);
@@ -331,7 +357,7 @@ void ADFVehicle::SimulateWheels(float Dt) {
 			FLong += DriveForce / Driven * (bFlat ? 0.5f : 1.f);
 		}
 		FLong = FMath::Clamp(FLong, -MaxFriction * 1.2f, MaxFriction * 1.2f);
-		Body->AddForceAtLocation(Up * Fz + WRight * FLat + WFwd * FLong, Contact);
+		Body->AddForceAtLocation(GroundNormal * Fz + WRight * FLat + WFwd * FLong, Contact);
 		WheelSpin[i] += VLong / FMath::Max(W.Radius, 1.f) * Dt;
 	}
 	SimulateDrive(Dt);
@@ -429,6 +455,7 @@ void ADFVehicle::SeatPassenger(ADFCharacter* C, int32 Seat) {
 	Passengers[Seat] = C;
 	// rides along at the seat, still a soldier: looks around and shoots (InCarState), never
 	// pushes the vehicle it sits in
+	C->StopParachuting();
 	C->GetCharacterMovement()->DisableMovement();
 	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
 	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
@@ -445,6 +472,7 @@ void ADFVehicle::UnseatPassenger(ADFCharacter* C) {
 		return;
 	PassengerLeft(C, Seat);
 	Passengers[Seat] = nullptr;
+	C->SetActorEnableCollision(false);
 	Body->IgnoreActorWhenMoving(C, false);
 	C->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	const UCapsuleComponent* Def = GetDefault<ACharacter>(C->GetClass())->GetCapsuleComponent();
@@ -477,9 +505,7 @@ bool ADFVehicle::ExitPassenger(ADFCharacter* C, bool bForce) {
 	if (!FindExitSpot(C, Spot) && !bForce)
 		return false; // boxed in: stay inside
 	UnseatPassenger(C);
-	C->TeleportTo(Spot, FRotator(0.f, GetActorRotation().Yaw, 0.f));
-	C->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
-	C->GetCharacterMovement()->Velocity = GetVelocity() * 0.5f;
+	PlaceExitingPawn(C, Spot);
 	return true;
 }
 
@@ -493,47 +519,46 @@ void ADFVehicle::PassengerDied(ADFCharacter* C) {
 }
 
 bool ADFVehicle::EnterSeat(ADFCharacter* C, int32 Seat) {
-	if (Seat <= 0)
-		return TryEnter(C);
-	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || GetSeatOf(C) != INDEX_NONE || !SeatPositions.IsValidIndex(Seat))
+	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || C->IsInLoadout() || C->IsFeigningDeath() || GetSeatOf(C) != INDEX_NONE || !SeatPositions.IsValidIndex(Seat))
 		return false;
 	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
+	if (Seat == 0)
+		return bDriveable && !Driver && EnterDriver(C);
 	if (Passengers[Seat])
 		return false;
 	SeatPassenger(C, Seat);
 	return true;
 }
 
-bool ADFVehicle::TryEnter(ADFCharacter* C) {
-	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || C->IsInLoadout() || GetSeatOf(C) != INDEX_NONE)
+bool ADFVehicle::TryEnter(ADFCharacter* C, bool bPassengerOnly) {
+	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || C->IsInLoadout() || C->IsFeigningDeath() || GetSeatOf(C) != INDEX_NONE)
 		return false;
-	// MF PawnEnterVehicle: the nearest door with a free seat, the seats behind it in MF's order
-	// (the buggy's back door is the gunner's, the humvee's the back seats'); then any free one
-	TArray<int32> Order;
-	if (DoorSeats.Num() && DoorPositions.Num()) {
-		TArray<int32> Doors;
-		for (int32 D = 0; D < DoorPositions.Num(); ++D)
-			Doors.Add(D);
-		const FVector At = C->GetActorLocation();
-		Doors.Sort([this, &At](int32 A, int32 B) { return FVector::DistSquared(DoorExit(A), At) < FVector::DistSquared(DoorExit(B), At); });
-		for (const int32 D : Doors) {
-			if (DoorSeats.IsValidIndex(D))
-				for (const int32 Seat : DoorSeats[D].Seats)
-					Order.AddUnique(Seat);
-		}
-	}
-	for (int32 Seat = 0; Seat < FMath::Max(1, SeatPositions.Num()); ++Seat)
-		Order.AddUnique(Seat);
 	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
-	for (const int32 Seat : Order) {
-		if (Seat == 0 && bDriveable && !Driver)
-			return EnterDriver(C);
-		if (Seat > 0 && Passengers.IsValidIndex(Seat) && !Passengers[Seat]) {
-			SeatPassenger(C, Seat);
-			return true;
+	// Determine the approach before filtering occupied seats. An occupied shotgun seat
+	// must not make a front-door approach select an empty rear seat instead of the driver.
+	int32 Approach = INDEX_NONE;
+	float ApproachDistance = TNumericLimits<float>::Max();
+	for (int32 Seat = 0; Seat < SeatPositions.Num(); ++Seat) {
+		const float D = FVector::DistSquared(C->GetPawnViewLocation(), GetActorTransform().TransformPosition(SeatPositions[Seat] - BoxCenter));
+		if (D < ApproachDistance) {
+			Approach = Seat;
+			ApproachDistance = D;
 		}
 	}
-	return false;
+	if (!bPassengerOnly && !Driver && bDriveable && (Approach == 0 || SeatsNearDriver.Contains(Approach)))
+		return EnterSeat(C, 0);
+	int32 Nearest = INDEX_NONE;
+	float Distance = TNumericLimits<float>::Max();
+	for (int32 Seat = bPassengerOnly ? 1 : 0; Seat < SeatPositions.Num(); ++Seat) {
+		if (Seat == 0 ? (!bDriveable || Driver != nullptr) : Passengers[Seat] != nullptr)
+			continue;
+		const float D = FVector::DistSquared(C->GetPawnViewLocation(), GetActorTransform().TransformPosition(SeatPositions[Seat] - BoxCenter));
+		if (D < Distance) {
+			Nearest = Seat;
+			Distance = D;
+		}
+	}
+	return Nearest != INDEX_NONE && EnterSeat(C, Nearest);
 }
 
 bool ADFVehicle::EnterDriver(ADFCharacter* C) {
@@ -543,7 +568,12 @@ bool ADFVehicle::EnterDriver(ADFCharacter* C) {
 	Driver = C;
 	if (ADFWeapon* W = C->GetCurrentWeapon())
 		W->ForceInactive();
-	C->SetActorEnableCollision(false);
+	C->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
+	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
+	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	Body->IgnoreActorWhenMoving(C, true);
+	C->StopParachuting();
 	C->GetCharacterMovement()->DisableMovement(); // stays in sight at the wheel (Drive animations)
 	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	C->SetActorRelativeLocation(GetSeatOffset(0, C));
@@ -576,17 +606,13 @@ void ADFVehicle::Exit(bool bForce) {
 	AController* PC = GetController();
 	Driver = nullptr;
 	bDriverFire = bDriverAltFire = bNitro = false;
+	C->SetActorEnableCollision(false);
 	C->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	C->SetActorHiddenInGame(false);
-	C->SetActorEnableCollision(true);
-	C->TeleportTo(Spot, FRotator(0.f, GetActorRotation().Yaw, 0.f));
-	C->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
-	C->GetCharacterMovement()->Velocity = GetVelocity() * 0.5f;
-	if (PC) {
-		const FRotator View = PC->GetControlRotation();
-		PC->Possess(C);
-		PC->SetControlRotation(View);
-	}
+	Body->IgnoreActorWhenMoving(C, false);
+	const UCapsuleComponent* Def = GetDefault<ADFCharacter>(C->GetClass())->GetCapsuleComponent();
+	C->GetCapsuleComponent()->SetCollisionEnabled(Def->GetCollisionEnabled());
+	C->GetCapsuleComponent()->SetCollisionResponseToChannels(Def->GetCollisionResponseToChannels());
+	PlaceExitingPawn(C, Spot, PC);
 }
 
 void ADFVehicle::Destroyed() {
@@ -746,6 +772,7 @@ void ADFVehicle::BlowOutWheel(int32 Index) {
 
 void ADFVehicle::OnRep_BlownWheels() {
 	for (int32 i = 0; i < WheelMeshes.Num() && i < Wheels.Num(); ++i) {
+		WheelColliders[i]->SetSphereRadius(Wheels[i].Radius * (IsWheelBlown(i) ? 0.75f : 1.f));
 		const FString& Want = IsWheelBlown(i) && !Wheels[i].BlownMesh.IsEmpty() ? Wheels[i].BlownMesh : Wheels[i].Mesh;
 		const FVector Loc = WheelMeshes[i]->GetRelativeLocation();
 		const FRotator Rot = WheelMeshes[i]->GetRelativeRotation();
@@ -753,7 +780,7 @@ void ADFVehicle::OnRep_BlownWheels() {
 			WheelMeshes[i]->SetRelativeRotation(Rot);
 	}
 	if (BlownWheels && GetNetMode() != NM_DedicatedServer)
-		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/HitRubber")), GetActorLocation());
+		DF::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/HitRubber")), GetActorLocation());
 	// DestroyWheel: EffectsFix.SmokePuffVeh at the wheel that just went
 	for (int32 i = 0; i < WheelMeshes.Num(); ++i)
 		if ((BlownWheels & ~ShownBlownWheels) & (1 << i))
@@ -763,7 +790,7 @@ void ADFVehicle::OnRep_BlownWheels() {
 
 void ADFVehicle::MulticastHitFX_Implementation(FVector_NetQuantize At, bool bTyre) {
 	if (GetNetMode() != NM_DedicatedServer)
-		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(bTyre ? TEXT("Sounds/MiscSFX/HitRubber") : TEXT("Sounds/MiscSFX/HitMetal")), At);
+		DF::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(bTyre ? TEXT("Sounds/MiscSFX/HitRubber") : TEXT("Sounds/MiscSFX/HitMetal")), At);
 }
 
 void ADFVehicle::BlowUp(AController* By) {
@@ -790,7 +817,7 @@ void ADFVehicle::BlowUp(AController* By) {
 
 void ADFVehicle::MulticastBlowUpFX_Implementation() {
 	if (GetNetMode() != NM_DedicatedServer) {
-		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("MiscSFX.Explode")), GetActorLocation());
+		DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("MiscSFX.Explode")), GetActorLocation());
 		AVehicleFrag::Burst(GetWorld(), GetActorLocation());
 		AVehicleFrag::Explosion(GetWorld(), GetActorLocation()); // EffectsFix.VehExplosion
 	}
@@ -803,13 +830,13 @@ void ADFVehicle::UpdateEngineSound() {
 	if (bWant != bEngineOn) {
 		bEngineOn = bWant;
 		if (bWant) {
-			UGameplayStatics::SpawnSoundAttached(DF::LoadClassic<USoundBase>(EngineStartSound), Body,
+			UGameplayStatics::SpawnSoundAttached(DF::EffectsSound(DF::LoadClassic<USoundBase>(EngineStartSound)), Body,
 				NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.8f, 1.f, 0.f, DF::GetAttenuation(1600.f));
 			GetWorldTimerManager().SetTimer(EngineStartTimer, FTimerDelegate::CreateWeakLambda(this, [this]() {
 				if (!bEngineOn)
 					return;
 				if (!EngineAudio)
-					EngineAudio = UGameplayStatics::SpawnSoundAttached(DF::LoadClassic<USoundBase>(EngineLoopSound), Body,
+					EngineAudio = UGameplayStatics::SpawnSoundAttached(DF::EffectsSound(DF::LoadClassic<USoundBase>(EngineLoopSound)), Body,
 						NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.5f, 1.f, 0.f, DF::GetAttenuation(2500.f), nullptr, false);
 				else
 					EngineAudio->Play();
@@ -859,25 +886,51 @@ void ADFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 			MulticastBump(FMath::Min(HitSpeed, 700.f) / 700.f * 0.8f);
 		}
 	}
-	// MF Vehicle.CheckKill (Bump): the car's speed at the soldier, KillSpeed or more, runs him
-	// down (100 'RunDown'). Judged on the speed before this frame's contact: by the time the
-	// hit is reported the physics has already stopped the car against the soldier's capsule
+}
+
+void ADFVehicle::OnPawnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep) {
+	// MF Vehicle.CheckKill (Bump): run down soldiers at KillSpeed, without making their
+	// kinematic capsules stop the rigid body. Riders and soldiers on the roof are excluded.
 	ADFCharacter* C = Cast<ADFCharacter>(Other);
-	if (!HasAuthority() || !C || !C->IsAlive() || C == Driver || GetSeatOf(C) != INDEX_NONE || C->GetMovementBaseObject() == Body || FMath::Abs(Hit.ImpactNormal.Z) > 0.7f)
-		return; // riders, and soldiers standing on it, aren't run over
+	const UActorComponent* MovementBase = C ? Cast<UActorComponent>(C->GetMovementBaseObject()) : nullptr;
+	if (const float* Until = ExitProtection.Find(C); Until && GetWorld()->GetTimeSeconds() < *Until)
+		return;
+	if (!HasAuthority() || !C || !C->IsAlive() || GetSeatOf(C) != INDEX_NONE ||
+		(MovementBase && MovementBase->GetOwner() == this))
+		return;
+	const FVector VelocityBefore = Body->GetPhysicsLinearVelocity();
 	const FVector Away = (C->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
-	const float Closing = FVector::DotProduct(PrevVelocity, Away); // the car's, not the soldier walking into it
+	const float Closing = FVector::DotProduct(VelocityBefore, Away);
 	if (Closing < 50.f)
 		return;
-	if (PrevVelocity.Size() >= KillSpeed) {
+	if (VelocityBefore.Size() >= KillSpeed) {
 		FDamageEvent Ev(UDFDamage_RunOver::StaticClass());
 		C->TakeDamage(100.f, Ev, GetController(), this);
 	}
-	// a soldier doesn't stop a car: he is shoved aside, the car keeps nearly all its way
-	// (80 kg against its mass)
 	if (C->IsAlive())
 		C->LaunchCharacter(Away * Closing * 1.1f + FVector(0.f, 0.f, FMath::Min(Closing * 0.3f, 400.f)), true, true);
-	Body->SetPhysicsLinearVelocity(PrevVelocity * (MassKg / (MassKg + 80.f)));
+	// A slight jolt, once per contact; no solver resistance from an infinite-mass pawn.
+	Body->SetPhysicsLinearVelocity(VelocityBefore * (MassKg / (MassKg + 20.f)));
+}
+
+void ADFVehicle::UpdateDamageSmoke() {
+	const float DamageFraction = 1.f - float(Health) / FMath::Max(GetClass()->GetDefaultObject<ADFVehicle>()->Health, 1);
+	if (DamageFraction <= 0.f || Health <= 0 || bBlownUp) {
+		if (DamageSmoke) {
+			DamageSmoke->DeactivateSystem();
+			DamageSmoke = nullptr;
+		}
+		return;
+	}
+	if (!DamageSmoke) {
+		DamageSmoke = DF::SpawnEffectAttached(TEXT("VehicleDamageSmoke"), Body);
+		if (DamageSmoke)
+			DamageSmoke->SetRelativeLocation(FVector(BoxExtent.X * 0.55f, 0.f, BoxExtent.Z));
+	}
+	if (DamageSmoke) {
+		DamageSmoke->SetFloatParameter(TEXT("SmokeRate"), FMath::Lerp(2.f, 16.f, DamageFraction));
+		DamageSmoke->SetFloatParameter(TEXT("SmokeAlpha"), FMath::Lerp(0.12f, 0.9f, DamageFraction));
+	}
 }
 
 // --- generator -------------------------------------------------------------------------------------
@@ -1112,4 +1165,48 @@ float ADFVehicle::GetDriveForce(float ForwardSpeed, float InThrottle) const {
 		Pull *= FMath::Clamp((Top - ForwardSpeed) / (Top * 0.03f), 0.f, 1.f);
 	const float Force = FMath::Min(Pull * 100.f, MassKg * MaxDriveAccel); // N -> kg cm/s^2
 	return Force * InThrottle;
+}
+
+void ADFVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	DF::StopEffect(DamageSmoke);
+	Super::EndPlay(EndPlayReason);
+}
+
+void ADFVehicle::PlaceExitingPawn(ADFCharacter* C, const FVector& Spot, AController* ReturningController) {
+	const float Now = GetWorld()->GetTimeSeconds();
+	for (auto It = ExitProtection.CreateIterator(); It; ++It)
+		if (!It.Key().IsValid() || It.Value() <= Now)
+			It.RemoveCurrent();
+	ExitProtection.Add(C, Now + 1.f);
+	// Keep collision off until the pawn is outside and possession is restored. Restoring
+	// collision in the seat can invoke overlap damage and death synchronously.
+	C->SetActorLocationAndRotation(Spot, FRotator(0.f, GetActorRotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+	C->SetActorHiddenInGame(false);
+	if (ReturningController) {
+		const FRotator View = ReturningController->GetControlRotation();
+		ReturningController->Possess(C);
+		ReturningController->SetControlRotation(View);
+	}
+	if (C->IsAlive()) {
+		C->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+		C->GetCharacterMovement()->Velocity = GetVelocity();
+		C->SetActorEnableCollision(true);
+	}
+}
+
+void ADFVehicle::CheckAbandonment() {
+	if (!HasAuthority() || !Generator.IsValid() || bLocked || bBlownUp)
+		return;
+	const bool bOccupied = Driver || Passengers.ContainsByPredicate([](const ADFCharacter* C) { return C != nullptr; });
+	const bool bUsed = Health < GetClass()->GetDefaultObject<ADFVehicle>()->Health || BlownWheels ||
+		FVector::DistSquared2D(GetActorLocation(), Generator->GetActorLocation()) > FMath::Square(450.f);
+	if (bOccupied || !bUsed) {
+		AbandonedSince = -1.f;
+		return;
+	}
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (AbandonedSince < 0.f)
+		AbandonedSince = Now;
+	else if (Now - AbandonedSince >= AbandonedLifetime)
+		Destroy(); // MF SilentDestroy; the generator schedules the replacement
 }

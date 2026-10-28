@@ -23,10 +23,9 @@ void ADFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ADFGameState, bImprovedRL);
 	DOREPLIFETIME(ADFGameState, BannedItems);
 	DOREPLIFETIME(ADFGameState, AllowedItemGroups);
-	DOREPLIFETIME(ADFGameState, FragLimit);
+	DOREPLIFETIME(ADFGameState, ScoreLimit);
 	DOREPLIFETIME(ADFGameState, TimeLimit);
 	DOREPLIFETIME(ADFGameState, TimeLimitSeconds);
-	DOREPLIFETIME(ADFGameState, GoalTeamScore);
 	DOREPLIFETIME(ADFGameState, RespawnWait);
 	DOREPLIFETIME(ADFGameState, TeamScores);
 	DOREPLIFETIME(ADFGameState, WinnerText);

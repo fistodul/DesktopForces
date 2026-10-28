@@ -1,4 +1,6 @@
 #include "UI/DFMenu.h"
+#include "UI/DFCrosshairs.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "DesktopForces.h"
 #include "Core/DFUserSettings.h"
 #include "Framework/Application/SlateApplication.h"
@@ -39,6 +41,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
@@ -218,6 +221,7 @@ public:
 	}
 
 private:
+	friend class FDFMenuOptionsTest;
 	bool bInGame = false;
 	TWeakObjectPtr<APlayerController> Owner;
 	TSharedPtr<SWidgetSwitcher> Switcher;
@@ -245,28 +249,40 @@ private:
 	TArray<FIntPoint> ResolutionSizes; // what each Resolutions entry says
 	TSharedPtr<FString> SelectedResolution;
 	TArray<TSharedPtr<FString>> WindowModes;
+	TArray<EWindowMode::Type> WindowModeValues;
 	TSharedPtr<FString> SelectedWindowMode;
 	TArray<TSharedPtr<FString>> Qualities;
 	TSharedPtr<FString> SelectedQuality;
+	TArray<TSharedPtr<FString>> FrameRates;
+	TArray<float> FrameRateLimits;
+	TSharedPtr<FString> SelectedFrameRate;
+	bool bVSync = false;
 	float Brightness = 1.f;
 	float Sensitivity = 1.f;
 	float FOV = 100.f;
 	float RenderScale = 1.f;
 	bool bInvert = false;
 	bool bConsole = false;
+	bool bConsoleEdited = false;
+	bool bAdvancedExpanded = false;
 	TArray<TSharedPtr<FString>> Hands; // EDFWeaponHand order
 	TSharedPtr<FString> SelectedHand;
 	TArray<TSharedPtr<FString>> DecalModes;
 	TSharedPtr<FString> SelectedDecals;
 	float MasterVolume = 1.f;
 	float MusicVolume = 1.f;
+	float EffectsVolume = 1.f;
+	float AnnouncerVolume = 1.f;
 	int32 Crosshair = 13;
+	float CrosshairSize = 1.f;
 	float HUDSize = 2.f;
 	/** Options > Controls: the keys as they'll be saved (action -> key), the one waiting for a press. */
 	TMap<FName, FKey> PendingKeys;
 	FName Capturing;
 	TSharedPtr<SBox> OptionsHost;
 	TSharedPtr<SWidgetSwitcher> OptionTabs;
+	TSharedPtr<SCheckBox> ConsoleCheck;
+	TSharedPtr<SExpandableArea> AdvancedArea;
 	TArray<TStrongObjectPtr<UTexture2D>> CrosshairTextures;
 	FSlateBrush CrosshairBrush;
 
@@ -309,7 +325,7 @@ private:
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
-				SNew(SSlider).MinValue(Min).MaxValue(Max).Value(Value)
+				SNew(SSlider).MinValue(Min).MaxValue(Max).Value_Lambda([V]() { return *V; })
 				.StepSize(Step > 0.f ? Step : 0.01f).MouseUsesStep(Step > 0.f)
 				.OnValueChanged_Lambda([V](float New) { *V = New; })
 			]
@@ -437,7 +453,7 @@ private:
 	TSharedRef<SWidget> Check(bool& Value)
 	{
 		bool* V = &Value;
-		return SNew(SCheckBox).IsChecked(Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+		return SNew(SCheckBox).IsChecked_Lambda([V]() { return *V ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			.OnCheckStateChanged_Lambda([V](ECheckBoxState S) { *V = S == ECheckBoxState::Checked; });
 	}
 
@@ -446,25 +462,67 @@ private:
 		// Video / Audio / Controls / Game, like MF's Options window tabs
 		TSharedRef<SGridPanel> Video = Grid();
 		Video->AddSlot(0, 0)[Label(LOCTEXT("Res", "Resolution"))];
-		Video->AddSlot(1, 0).Padding(2.f)[Combo(Resolutions, SelectedResolution)];
+		Video->AddSlot(1, 0).Padding(2.f)
+		[
+			SNew(SWidgetSwitcher).WidgetIndex_Lambda([this]() { return PendingWindowMode() == EWindowMode::WindowedFullscreen ? 1 : 0; })
+			+ SWidgetSwitcher::Slot()[Combo(Resolutions, SelectedResolution)]
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(STextBlock).Font(Font(12)).Text_Lambda([]() {
+					const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
+					return FText::Format(LOCTEXT("DesktopRes", "{0} x {1} (desktop)"), FText::AsNumber(Desktop.X, &FNumberFormattingOptions::DefaultNoGrouping()), FText::AsNumber(Desktop.Y, &FNumberFormattingOptions::DefaultNoGrouping()));
+				})
+			]
+		];
 		Video->AddSlot(0, 1)[Label(LOCTEXT("Window", "Display"))];
 		Video->AddSlot(1, 1).Padding(2.f)[Combo(WindowModes, SelectedWindowMode)];
 		Video->AddSlot(0, 2)[Label(LOCTEXT("Quality", "Graphics"))];
 		Video->AddSlot(1, 2).Padding(2.f)[Combo(Qualities, SelectedQuality)];
-		Video->AddSlot(0, 3)[Label(LOCTEXT("RenderScale", "Render scale"))];
-		Video->AddSlot(1, 3).Padding(2.f)[Slider(RenderScale, 0.25f, 2.f, TEXT("percent"), 0.25f)];
-		Video->AddSlot(0, 4)[Label(LOCTEXT("Bright", "Brightness"))];
-		Video->AddSlot(1, 4).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))];
-		Video->AddSlot(0, 5)[Label(LOCTEXT("FOV", "Field of view"))];
-		Video->AddSlot(1, 5).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))];
-		Video->AddSlot(0, 6)[Label(LOCTEXT("Decals", "Bullet holes, scorch marks"))];
-		Video->AddSlot(1, 6).Padding(2.f)[Combo(DecalModes, SelectedDecals)];
+		Video->AddSlot(0, 3)[Label(LOCTEXT("Bright", "Brightness"))];
+		Video->AddSlot(1, 3).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))];
+		Video->AddSlot(0, 4)[Label(LOCTEXT("FOV", "Field of view"))];
+		Video->AddSlot(1, 4).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))];
+		Video->AddSlot(0, 5)[Label(LOCTEXT("Decals", "Bullet holes, scorch marks"))];
+		Video->AddSlot(1, 5).Padding(2.f)[Combo(DecalModes, SelectedDecals)];
+
+		Video->AddSlot(0, 6).ColumnSpan(2).Padding(0.f, 8.f)
+		[
+			SAssignNew(AdvancedArea, SExpandableArea).InitiallyCollapsed(!bAdvancedExpanded)
+			.OnAreaExpansionChanged_Lambda([this](bool Expanded) { bAdvancedExpanded = Expanded; })
+			.HeaderContent()[Label(LOCTEXT("AdvancedGraphics", "Advanced Graphics"))]
+			.BodyContent()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SGridPanel).FillColumn(1, 1.f)
+					+ SGridPanel::Slot(0, 0)[Label(LOCTEXT("FPSLimit", "FPS limit"))]
+					+ SGridPanel::Slot(1, 0).Padding(2.f)[Combo(FrameRates, SelectedFrameRate)]
+					+ SGridPanel::Slot(0, 1)[Label(LOCTEXT("VSync", "VSync"))]
+					+ SGridPanel::Slot(1, 1).Padding(2.f).HAlign(HAlign_Left)
+					[
+						SNew(SBox).ToolTipText(LOCTEXT("VSyncHint", "Synchronize to the monitor to prevent tearing. May increase input latency. The FPS limit remains an additional ceiling; changing it does not disable VSync."))[Check(bVSync)]
+					]
+					+ SGridPanel::Slot(0, 2)[Label(LOCTEXT("RenderScale", "Render scale"))]
+					+ SGridPanel::Slot(1, 2).Padding(2.f)[Slider(RenderScale, 0.25f, 2.f, TEXT("percent"), 0.25f)]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f)
+				[
+					SNew(STextBlock).Font(Font(11)).AutoWrapText(true)
+					.Text(LOCTEXT("ScaleHint", "100% renders at the output resolution. Lower values trade sharpness for speed; 200% renders four times as many pixels. Menus stay sharp."))
+				]
+			]
+		];
 
 		TSharedRef<SGridPanel> Audio = Grid();
-		Audio->AddSlot(0, 0)[Label(LOCTEXT("Master", "Volume"))];
+		Audio->AddSlot(0, 0)[Label(LOCTEXT("Master", "Master volume"))];
 		Audio->AddSlot(1, 0).Padding(2.f)[Slider(MasterVolume, 0.f, 1.f, TEXT("percent"))];
 		Audio->AddSlot(0, 1)[Label(LOCTEXT("Music", "Music"))];
 		Audio->AddSlot(1, 1).Padding(2.f)[Slider(MusicVolume, 0.f, 1.f, TEXT("percent"))];
+		Audio->AddSlot(0, 2)[Label(LOCTEXT("EffectsVolume", "Sound effects"))];
+		Audio->AddSlot(1, 2).Padding(2.f)[Slider(EffectsVolume, 0.f, 1.f, TEXT("percent"))];
+		Audio->AddSlot(0, 3)[Label(LOCTEXT("AnnouncerVolume", "Announcer"))];
+		Audio->AddSlot(1, 3).Padding(2.f)[Slider(AnnouncerVolume, 0.f, 1.f, TEXT("percent"))];
 
 		TSharedRef<SGridPanel> Keys = Grid();
 		int32 Row = 0;
@@ -496,7 +554,13 @@ private:
 			}
 			++Row;
 		}
+		TSharedRef<SGridPanel> Mouse = Grid();
+		Mouse->AddSlot(0, 0)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))];
+		Mouse->AddSlot(1, 0).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
+		Mouse->AddSlot(0, 1)[Label(LOCTEXT("Invert", "Invert mouse"))];
+		Mouse->AddSlot(1, 1).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
 		TSharedRef<SVerticalBox> Controls = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Mouse]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 2.f)
 			[
 				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
@@ -520,21 +584,29 @@ private:
 			[
 				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.3f, 0.35f, 0.4f)).Padding(4.f)
 				[
-					SNew(SBox).WidthOverride(48.f).HeightOverride(48.f)[SNew(SImage).Image(&CrosshairBrush)]
+					SNew(SBox).WidthOverride(96.f).HeightOverride(96.f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride_Lambda([this]() { return 48.f * CrosshairSize; }).HeightOverride_Lambda([this]() { return 48.f * CrosshairSize; })[SNew(SImage).Image(&CrosshairBrush)]]
 				]
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(LOCTEXT("Next", ">"), [this]() { StepCrosshair(1); })]
 		];
-		Game->AddSlot(0, 2)[Label(LOCTEXT("HUDSize", "HUD size"))];
-		Game->AddSlot(1, 2).Padding(2.f)[Slider(HUDSize, 0.f, 4.f, TEXT("int"), 1.f)];
-		Game->AddSlot(0, 3)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))];
-		Game->AddSlot(1, 3).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
-		Game->AddSlot(0, 4)[Label(LOCTEXT("Invert", "Invert mouse"))];
-		Game->AddSlot(1, 4).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
-		Game->AddSlot(0, 5)[Label(LOCTEXT("Hand", "Weapon hand"))];
-		Game->AddSlot(1, 5).Padding(2.f)[Combo(Hands, SelectedHand)];
-		Game->AddSlot(0, 6)[Label(LOCTEXT("Console", "Console (~, Tab)"))];
-		Game->AddSlot(1, 6).Padding(2.f).HAlign(HAlign_Left)[Check(bConsole)];
+		Game->AddSlot(0, 2)[Label(LOCTEXT("CrosshairSize", "Crosshair size"))];
+		Game->AddSlot(1, 2).Padding(2.f)[Slider(CrosshairSize, 0.25f, 2.f, TEXT("percent"), 0.25f)];
+		Game->AddSlot(0, 3)[Label(LOCTEXT("HUDSize", "HUD size"))];
+		Game->AddSlot(1, 3).Padding(2.f)[Slider(HUDSize, 0.f, 4.f, TEXT("int"), 1.f)];
+		Game->AddSlot(0, 4)[Label(LOCTEXT("Hand", "Weapon position"))];
+		Game->AddSlot(1, 4).Padding(2.f)
+		[
+			SNew(SBox).ToolTipText(LOCTEXT("HandHint", "First-person view only: right, mirrored left, classic centered view, or hidden. Aiming is unchanged."))[Combo(Hands, SelectedHand)]
+		];
+		Game->AddSlot(0, 5)[Label(LOCTEXT("Console", "Console (~, Tab)"))];
+		Game->AddSlot(1, 5).Padding(2.f).HAlign(HAlign_Left)
+		[
+			SAssignNew(ConsoleCheck, SCheckBox).IsChecked_Lambda([this]() {
+				return (bConsoleEdited ? bConsole : UDFUserSettings::Get().IsConsoleEnabled()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			})
+			.OnCheckStateChanged_Lambda([this](ECheckBoxState State) { bConsole = State == ECheckBoxState::Checked; bConsoleEdited = true; })
+		];
 
 		auto Tab = [this](const FText& Text, int32 Index)
 		{
@@ -577,7 +649,7 @@ private:
 	// clang-format on
 
 	void StepCrosshair(int32 Delta) {
-		Crosshair = (Crosshair + Delta + 24) % 24;
+		Crosshair = DF::NextCrosshair(Crosshair, Delta);
 		UpdateCrosshairBrush();
 	}
 
@@ -592,23 +664,33 @@ private:
 		UTexture2D* T = CrosshairTextures.IsValidIndex(Crosshair) ? CrosshairTextures[Crosshair].Get() : nullptr;
 		CrosshairBrush.SetResourceObject(T);
 		CrosshairBrush.ImageSize = FVector2D(48.f);
+		const FIntRect Bounds = DF::CrosshairBounds(Crosshair);
+		CrosshairBrush.SetUVRegion(FBox2f(FVector2f(Bounds.Min) / 32.f, FVector2f(Bounds.Max) / 32.f));
 		CrosshairBrush.TintColor = FSlateColor(FLinearColor::White);
 	}
 
 	/** Defaults: MF's options back as they ship (the window, resolution and graphics stay); Apply keeps them. */
 	void ResetOptions() {
-		const UDFUserSettings* D = GetDefault<UDFUserSettings>();
+		TStrongObjectPtr<UDFUserSettings> Defaults(NewObject<UDFUserSettings>());
+		Defaults->SetToDefaults(); // the CDO can contain saved config; do not use it as factory defaults
+		const UDFUserSettings* D = Defaults.Get();
 		Brightness = D->Brightness;
 		Sensitivity = D->MouseSensitivity;
 		bInvert = D->bInvertMouse;
 		SelectedHand = Hands[int32(D->WeaponHand)];
 		bConsole = D->bConsole;
+		bConsoleEdited = true;
 		FOV = D->FieldOfView;
 		RenderScale = D->RenderScale;
+		bVSync = false;
+		SelectedFrameRate = FrameRates[FrameRateLimits.IndexOfByKey(120.f)];
 		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
 		MasterVolume = D->MasterVolume;
 		MusicVolume = D->MusicVolume;
+		EffectsVolume = D->EffectsVolume;
+		AnnouncerVolume = D->AnnouncerVolume;
 		Crosshair = D->Crosshair;
+		CrosshairSize = D->CrosshairSize;
 		HUDSize = D->HUDSize;
 		PendingKeys.Reset();
 		Capturing = NAME_None;
@@ -722,6 +804,11 @@ private:
 		SelectedMode = ModeNames.Num() ? ModeNames[0] : nullptr;
 	}
 
+	EWindowMode::Type PendingWindowMode() const {
+		const int32 Index = IndexOf(WindowModes, SelectedWindowMode);
+		return WindowModeValues.IsValidIndex(Index) ? WindowModeValues[Index] : EWindowMode::WindowedFullscreen;
+	}
+
 	void LoadOptions() {
 		const UDFUserSettings& S = UDFUserSettings::Get();
 		PlayerName = S.PlayerName.IsEmpty() ? FString(TEXT("Player")) : S.PlayerName;
@@ -730,14 +817,26 @@ private:
 		bInvert = S.bInvertMouse;
 		Hands = { MakeShared<FString>(TEXT("Right")), MakeShared<FString>(TEXT("Left")), MakeShared<FString>(TEXT("Center")), MakeShared<FString>(TEXT("Hidden")) };
 		SelectedHand = Hands[FMath::Clamp(int32(S.WeaponHand), 0, Hands.Num() - 1)];
-		bConsole = S.bConsole;
+		bConsole = S.IsConsoleEnabled();
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
+		bVSync = S.IsVSyncEnabled();
+		FrameRateLimits = { 0.f, 30.f, 60.f, 90.f, 100.f, 120.f, 144.f, 165.f, 240.f };
+		// Keep a saved custom cap selectable after the standard choices.
+		FrameRateLimits.AddUnique(S.GetFrameRateLimit());
+		for (float Limit : FrameRateLimits) {
+			FrameRates.Add(MakeShared<FString>(Limit == 0.f ? TEXT("Unlimited") : FString::Printf(TEXT("%g FPS"), Limit)));
+			if (Limit == S.GetFrameRateLimit())
+				SelectedFrameRate = FrameRates.Last();
+		}
 		DecalModes = { MakeShared<FString>(TEXT("Off")), MakeShared<FString>(TEXT("Simple")), MakeShared<FString>(TEXT("Full")) };
 		SelectedDecals = DecalModes[FMath::Clamp(S.DecalQuality, 0, 2)];
 		MasterVolume = S.MasterVolume;
 		MusicVolume = S.MusicVolume;
+		EffectsVolume = S.EffectsVolume;
+		AnnouncerVolume = S.AnnouncerVolume;
 		Crosshair = S.Crosshair;
+		CrosshairSize = FMath::Clamp(S.CrosshairSize, 0.25f, 2.f);
 		HUDSize = S.HUDSize;
 		PendingKeys = S.KeyBindings;
 		UpdateCrosshairBrush();
@@ -755,17 +854,37 @@ private:
 		Supported.AddUnique(Current);
 		Supported.Sort([](const FIntPoint& A, const FIntPoint& B) { return A.X * A.Y < B.X * B.Y; });
 		for (const FIntPoint& P : Supported) {
+			if (P.X <= 0 || P.Y <= 0)
+				continue;
 			Resolutions.Add(MakeShared<FString>(FString::Printf(TEXT("%d x %d"), P.X, P.Y)));
 			ResolutionSizes.Add(P);
 			if (P == Current)
 				SelectedResolution = Resolutions.Last();
 		}
-		WindowModes = { MakeShared<FString>(TEXT("Fullscreen")), MakeShared<FString>(TEXT("Borderless window")), MakeShared<FString>(TEXT("Window")) };
-		SelectedWindowMode = WindowModes[FMath::Clamp(int32(S.GetFullscreenMode()), 0, 2)];
+		if (!SelectedResolution && !Resolutions.IsEmpty())
+			SelectedResolution = Resolutions.Last();
+		WindowModes = { MakeShared<FString>(TEXT("Borderless window")), MakeShared<FString>(TEXT("Window")) };
+		WindowModeValues = { EWindowMode::WindowedFullscreen, EWindowMode::Windowed };
+		EWindowMode::Type CurrentMode = S.GetFullscreenMode();
+		if (!FPlatformApplicationMisc::FullscreenSameAsWindowedFullscreen()) {
+			WindowModes.Insert(MakeShared<FString>(TEXT("Fullscreen")), 0);
+			WindowModeValues.Insert(EWindowMode::Fullscreen, 0);
+		} else if (CurrentMode == EWindowMode::Fullscreen)
+			CurrentMode = EWindowMode::WindowedFullscreen;
+		SelectedWindowMode = WindowModes[FMath::Max(0, WindowModeValues.IndexOfByKey(CurrentMode))];
 		// UE scalability 0-3; Low is the potato default (no post, small shadow maps)
 		Qualities = { MakeShared<FString>(TEXT("Low")), MakeShared<FString>(TEXT("Medium")), MakeShared<FString>(TEXT("High")), MakeShared<FString>(TEXT("Epic")) };
-		const int32 Q = S.GetOverallScalabilityLevel();
-		SelectedQuality = Qualities[FMath::Clamp(Q < 0 ? 0 : Q, 0, 3)];
+		// Compare the quality groups independently of the advanced render-scale setting.
+		Scalability::FQualityLevels Quality = S.ScalabilityQuality;
+		Scalability::FQualityLevels Preset;
+		Preset.SetFromSingleQualityLevel(Quality.ViewDistanceQuality);
+		Quality.ResolutionQuality = Preset.ResolutionQuality;
+		const int32 Q = Quality.GetSingleQualityLevel();
+		if (Q < 0 || Q > 3) {
+			Qualities.Add(MakeShared<FString>(TEXT("Custom")));
+			SelectedQuality = Qualities.Last();
+		} else
+			SelectedQuality = Qualities[Q];
 	}
 
 	FString NameOption() const {
@@ -785,13 +904,16 @@ private:
 		S.MouseSensitivity = Sensitivity;
 		S.bInvertMouse = bInvert;
 		S.WeaponHand = EDFWeaponHand(FMath::Max(0, IndexOf(Hands, SelectedHand)));
-		S.bConsole = bConsole;
+		S.bConsole = bConsoleEdited ? bConsole : S.IsConsoleEnabled();
 		S.FieldOfView = FOV;
 		S.RenderScale = RenderScale;
 		S.DecalQuality = FMath::Max(0, IndexOf(DecalModes, SelectedDecals));
 		S.MasterVolume = MasterVolume;
 		S.MusicVolume = MusicVolume;
+		S.EffectsVolume = EffectsVolume;
+		S.AnnouncerVolume = AnnouncerVolume;
 		S.Crosshair = Crosshair;
+		S.CrosshairSize = CrosshairSize;
 		S.HUDSize = FMath::RoundToInt(HUDSize);
 		// only what differs from MF's defaults is kept
 		S.KeyBindings.Reset();
@@ -801,10 +923,18 @@ private:
 		Capturing = NAME_None;
 		if (const int32 R = IndexOf(Resolutions, SelectedResolution); ResolutionSizes.IsValidIndex(R))
 			S.SetScreenResolution(ResolutionSizes[R]);
-		S.SetFullscreenMode(EWindowMode::ConvertIntToWindowMode(FMath::Max(0, IndexOf(WindowModes, SelectedWindowMode))));
-		S.SetOverallScalabilityLevel(FMath::Max(0, IndexOf(Qualities, SelectedQuality)));
+		S.SetFullscreenMode(PendingWindowMode());
+		if (S.GetFullscreenMode() == EWindowMode::WindowedFullscreen)
+			S.SetScreenResolution(S.GetDesktopResolution());
+		if (const int32 Q = IndexOf(Qualities, SelectedQuality); Q >= 0 && Q < 4)
+			S.SetOverallScalabilityLevel(Q);
+		if (const int32 F = IndexOf(FrameRates, SelectedFrameRate); FrameRateLimits.IsValidIndex(F))
+			S.SetFrameRateLimit(FrameRateLimits[F]);
+		S.SetVSyncEnabled(bVSync);
 		S.ApplySettings(false);
+		S.ConfirmVideoMode();
 		S.SaveSettings();
+		bConsoleEdited = false;
 		if (APlayerController* PC = Owner.Get()) {
 			PC->ConsoleCommand(TEXT("DFApplyUserSettings"));
 			if (PC->PlayerState && !PlayerName.IsEmpty() && PC->PlayerState->GetPlayerName() != PlayerName)
@@ -914,3 +1044,67 @@ void ADFMenuPlayerController::EndPlay(const EEndPlayReason::Type Reason) {
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#include "UnrealClient.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFMenuOptionsTest, "DesktopForces.Gameplay.MenuOptions", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
+	UDFUserSettings& Settings = UDFUserSettings::Get();
+	const bool OldConsole = Settings.bConsole;
+	Settings.bConsole = false;
+	Settings.ApplyConsole();
+	TSharedRef<SMFMenu> Menu = SNew(SMFMenu).bInGame(true);
+	TestFalse(TEXT("Console initially reflects disabled viewport"), Menu->ConsoleCheck->IsChecked());
+	Settings.bConsole = true;
+	Settings.ApplyConsole();
+	TestTrue(TEXT("Console follows startup enable after widget construction"), Menu->ConsoleCheck->IsChecked());
+	Menu->bConsoleEdited = true;
+	Menu->bConsole = false;
+	TestFalse(TEXT("Pending console edit is displayed until Apply"), Menu->ConsoleCheck->IsChecked());
+
+	UDFUserSettings* CDO = GetMutableDefault<UDFUserSettings>();
+	const float SavedCDOSize = CDO->CrosshairSize;
+	CDO->CrosshairSize = 1.75f; // reproduce config values contaminating the class default object
+	Menu->CrosshairSize = 2.f;
+	Menu->Crosshair = 2;
+	Menu->Sensitivity = 3.f;
+	Menu->EffectsVolume = 0.2f;
+	Menu->OptionTabs->SetActiveWidgetIndex(3);
+	Menu->AdvancedArea->SetExpanded(true);
+	Menu->ResetOptions();
+	TestEqual(TEXT("Factory reset ignores saved CDO size"), Menu->CrosshairSize, 1.f);
+	TestEqual(TEXT("Factory reset restores crosshair shape"), Menu->Crosshair, 13);
+	TestEqual(TEXT("Factory reset restores mouse sensitivity"), Menu->Sensitivity, 1.f);
+	TestEqual(TEXT("Factory reset restores effects volume"), Menu->EffectsVolume, 1.f);
+	TestEqual(TEXT("Reset keeps selected tab"), Menu->OptionTabs->GetActiveWidgetIndex(), 3);
+	TestTrue(TEXT("Reset keeps Advanced expanded"), Menu->AdvancedArea->IsExpanded());
+	if (FPlatformApplicationMisc::FullscreenSameAsWindowedFullscreen())
+		TestFalse(TEXT("No unsupported exclusive fullscreen choice"), Menu->WindowModeValues.Contains(EWindowMode::Fullscreen));
+	for (const FIntPoint& Size : Menu->ResolutionSizes)
+		TestTrue(TEXT("All selectable resolutions are positive"), Size.X > 0 && Size.Y > 0);
+	CDO->CrosshairSize = SavedCDOSize;
+	Settings.bConsole = OldConsole;
+	Settings.ApplyConsole();
+
+	const FIntPoint OldResolution = Settings.GetScreenResolution();
+	const EWindowMode::Type OldMode = Settings.GetFullscreenMode();
+	Settings.SetFullscreenMode(EWindowMode::Windowed);
+	Settings.SetScreenResolution(FIntPoint(960, 540));
+	Settings.ApplyResolutionSettings(false);
+	const double ReadyAt = FPlatformTime::Seconds() + 1.0;
+	FAutomationTestFramework::Get().EnqueueLatentCommand(MakeShared<FFunctionLatentCommand>([this, ReadyAt, OldResolution, OldMode]() {
+		if (FPlatformTime::Seconds() < ReadyAt)
+			return false;
+		TestEqual(TEXT("Window resolution changes the actual rendered viewport"), GEngine->GameViewport->Viewport->GetSizeXY(), FIntPoint(960, 540));
+		UDFUserSettings& S = UDFUserSettings::Get();
+		S.SetScreenResolution(OldResolution);
+		S.SetFullscreenMode(OldMode);
+		S.ApplyResolutionSettings(false);
+		return true;
+	}));
+	return true;
+}
+#endif

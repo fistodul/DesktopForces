@@ -30,6 +30,7 @@ AHumvee::AHumvee() {
 	// aSeatsPos; MF DriverSeat=1: the driver sits on the left (our seat 0 drives)
 	SeatPositions = { FVector(34.9f, -72.f, 125.f), FVector(34.9f, 72.f, 125.f), FVector(-112.5f, -54.f, 248.6f), FVector(-112.5f, 54.f, 248.6f) };
 	SeatSits = { true, true }; // aSeatsSit
+	SeatsNearDriver = { 1 }; // MF aSeatNearDrivers: paired front seats share driver access
 	DoorPositions = { FVector(22.5f, 148.5f, 57.4f), FVector(22.5f, -148.5f, 57.4f), FVector(-299.f, 0.f, 57.4f) };
 	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
 	SetHandling({ 540.f, 540.f, 543.f, 543.f, 543.f, 543.f, 543.f, 543.f, 40.f, 0.f },

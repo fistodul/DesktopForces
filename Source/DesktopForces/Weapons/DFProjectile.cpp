@@ -1,5 +1,6 @@
 #include "Weapons/DFProjectile.h"
 #include "Sound/SoundWave.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "DesktopForces.h"
 #include "TimerManager.h"
 #include "Core/DFContent.h"
@@ -65,6 +66,8 @@ void ADFProjectile::BeginPlay() {
 		SetLifeSpan(FuseTime);
 	if (GetNetMode() != NM_DedicatedServer) {
 		DF::PlayLoop(RootComponent, ClassicAmbientSound);
+		if (!TrailEffect.IsEmpty())
+			Trail = DF::SpawnEffectAttached(*TrailEffect, RootComponent, 1.f, true);
 		if (bTicking) {
 			FTimerHandle Tick;
 			GetWorldTimerManager().SetTimer(Tick, FTimerDelegate::CreateWeakLambda(this, [this]() {
@@ -130,8 +133,10 @@ void ADFProjectile::Explode(const FVector& Location, const FVector& Normal) {
 }
 
 void ADFProjectile::MulticastExplosionFX_Implementation(FVector_NetQuantize Location) {
+	if (Trail)
+		Trail->DeactivateSystem();
 	if (GetNetMode() != NM_DedicatedServer && ExplosionSound)
-		UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, Location);
+		DF::PlaySoundAtLocation(this, ExplosionSound, Location);
 	if (ExplosionEffectScale > 0.f) {
 		DF::SpawnEffect(this, TEXT("Explosion"), Location, ExplosionEffectScale);
 		DF::SpawnScorchBelow(this, Location, ExplosionEffectScale * 450.f); // grenade ~1.8 m, rocket ~5.4 m
@@ -153,6 +158,7 @@ ARocket::ARocket() {
 	ExplosionEffectScale = 1.2f; // AddExplosion Size 3
 	ClassicAmbientSound = TEXT("WeaponSFX_RocketLauncher.RocketFly");
 	PropMesh = TEXT("RageWeapons/RocketMesh");
+	TrailEffect = TEXT("RocketTrail");
 }
 
 AGrenade::AGrenade() {
@@ -257,7 +263,7 @@ void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVel
 	// (UE1 Landed: a walkable surface) makes it bounce, damped, until it lies still
 	if (Hit.ImpactNormal.Z < 0.7f) {
 		if (USoundBase* S = DF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
-			UGameplayStatics::PlaySoundAtLocation(this, S, Hit.ImpactPoint);
+			DF::PlaySoundAtLocation(this, S, Hit.ImpactPoint);
 		SetActorRotation(ImpactVelocity.Rotation());
 		BecomeSafe(Hit.GetComponent());
 	}
@@ -321,4 +327,9 @@ void ADFProjectile::UpdateHoming() {
 	Movement->HomingAccelerationMagnitude = 60000.f; // MF: half the speed towards it every smoke puff (~1000 deg/s)
 	if (!T)
 		GetWorldTimerManager().ClearTimer(HomingTimer);
+}
+
+void ADFProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	DF::StopEffect(Trail);
+	Super::EndPlay(EndPlayReason);
 }

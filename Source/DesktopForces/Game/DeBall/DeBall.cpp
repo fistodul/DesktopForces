@@ -151,7 +151,7 @@ ADeBallGame::ADeBallGame() {
 	GameName = TEXT("DeBall");
 	MFGameClass = TEXT("MoBallGame");
 	NumTeams = 2;
-	GoalTeamScore = 4; // MoBallGame.GoalTeamScore 4
+	ScoreLimit = 4; // MoBallGame: goals to win
 	TimeLimit = 15;
 	bScoreTeamKills = false;
 	bVehicles = true; // bAlwaysUseVehicles
@@ -208,7 +208,7 @@ void ADeBallGame::CheckGoals() {
 			GS->TeamScores[Scorer] += 1;
 			Event(FString::Printf(TEXT("%s Team Score!"), *GS->GetTeamName(Scorer).ToString()), Scorer);
 			Ball->Expire(5.f); // LifeSpan = 5
-			if (bOverTime || (GoalTeamScore > 0 && GS->TeamScores[Scorer] >= GoalTeamScore))
+			if (bOverTime || (ScoreLimit > 0 && GS->TeamScores[Scorer] >= ScoreLimit))
 				FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(Scorer).ToString()));
 			return;
 		}

@@ -1,10 +1,9 @@
 #include "World/DFDecals.h"
 #include "Core/DFUserSettings.h"
-#include "Components/DecalComponent.h"
+#include "ProceduralMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
-#include "HAL/IConsoleManager.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
@@ -25,8 +24,8 @@ namespace {
 		return LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/MF/Materials/Decals/%s.%s"), *Name, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
 	}
 
-	/** Live scorch decals, oldest first (a cap keeps the DBuffer cheap). */
-	TArray<TWeakObjectPtr<UDecalComponent>> GScorches;
+	/** Live projected meshes, oldest first; bounded geometry and lifetime. */
+	TArray<TWeakObjectPtr<ADFProjectedScorch>> GScorches;
 	constexpr int32 MaxScorches = 24;
 } // namespace
 
@@ -42,28 +41,26 @@ void DF::SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At,
 	if (!World->LineTraceSingleByChannel(Surface, At + N * 4.f, At - N * 4.f, ECC_GameTraceChannel2, Params) || !Surface.GetComponent() || Surface.GetComponent()->Mobility == EComponentMobility::Movable)
 		return;
 	const int32 Variant = FMath::RandRange(0, Kind == EDecal::BulletHole ? 3 : 1);
-	// projected decals render into the DBuffer, which is off unless r.DBuffer is set (the
-	// forward renderer draws them only there): flat quads otherwise
-	static const IConsoleVariable* DBuffer = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
-	if (Kind == EDecal::Scorch && Quality >= 2 && DBuffer && DBuffer->GetInt() != 0) {
-		UMaterialInterface* M = DecalMaterial(Kind, Variant, false);
-		if (!M)
-			return;
-		// projects along its X axis, into the surface; a random turn so marks don't repeat
-		FRotator Rot = (-N).Rotation();
-		Rot.Roll = FMath::FRand() * 360.f;
-		if (UDecalComponent* D = UGameplayStatics::SpawnDecalAtLocation(World, M, FVector(Size * 0.25f, Size * 0.5f, Size * 0.5f), At, Rot, 30.f)) {
-			D->SetFadeOut(25.f, 5.f, false);
-			D->SetFadeScreenSize(0.002f);
-			GScorches.RemoveAll([](const TWeakObjectPtr<UDecalComponent>& W) { return !W.IsValid(); });
-			GScorches.Add(D);
-			if (GScorches.Num() > MaxScorches) {
-				if (UDecalComponent* Old = GScorches[0].Get())
-					Old->DestroyComponent();
-				GScorches.RemoveAt(0);
+	if (Kind == EDecal::Scorch && Quality >= 2) {
+		UMaterialInterface* Material = DecalMaterial(Kind, Variant, true);
+		if (Material) {
+			FActorSpawnParameters Spawn;
+			Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			ADFProjectedScorch* Decal = World->SpawnActor<ADFProjectedScorch>(At, FRotator::ZeroRotator, Spawn);
+			if (Decal && Decal->Project(N, Size, Material)) {
+				GScorches.RemoveAll([](const TWeakObjectPtr<ADFProjectedScorch>& W) { return !W.IsValid(); });
+				GScorches.Add(Decal);
+				if (GScorches.Num() > MaxScorches) {
+					if (ADFProjectedScorch* Old = GScorches[0].Get())
+						Old->Destroy();
+					GScorches.RemoveAt(0);
+				}
+				return;
 			}
+			if (Decal)
+				Decal->Destroy();
 		}
-		return;
+		// Fall back to the simple mark if projection found no usable surface.
 	}
 	if (ADFDecalQuads* Q = ADFDecalQuads::Get(World)) {
 		// flat on the surface, a hair off it; a random turn
@@ -161,4 +158,58 @@ void ADFDecalQuads::Expire() {
 			Ring.Mesh->MarkRenderStateDirty();
 		}
 	}
+}
+
+ADFProjectedScorch::ADFProjectedScorch() {
+	PrimaryActorTick.bCanEverTick = false;
+	Mesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("Scorch"));
+	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Mesh->SetCastShadow(false);
+	Mesh->SetCanEverAffectNavigation(false);
+	RootComponent = Mesh;
+	InitialLifeSpan = 30.f;
+}
+
+bool ADFProjectedScorch::Project(const FVector& Normal, float Size, UMaterialInterface* Material) {
+	constexpr int32 Cells = 16;
+	constexpr int32 Width = Cells + 1;
+	const FVector N = Normal.GetSafeNormal();
+	const FMatrix Basis = FRotationMatrix::MakeFromZ(N);
+	const FQuat Rotation(N, FMath::FRand() * UE_TWO_PI);
+	const FVector U = Rotation.RotateVector(Basis.GetUnitAxis(EAxis::X));
+	const FVector V = Rotation.RotateVector(Basis.GetUnitAxis(EAxis::Y));
+	const float Depth = Size * 0.5f;
+	TArray<FVector> Vertices, Normals;
+	TArray<FVector2D> UV;
+	TArray<int32> Triangles;
+	TArray<bool> Valid;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFScorchProjection), true, this);
+	for (int32 Y = 0; Y <= Cells; ++Y)
+		for (int32 X = 0; X <= Cells; ++X) {
+			const FVector2D Tex(float(X) / Cells, float(Y) / Cells);
+			const FVector Point = GetActorLocation() + Size * ((Tex.X - 0.5f) * U + (Tex.Y - 0.5f) * V);
+			FHitResult Hit;
+			const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Point + N * Depth, Point - N * Depth, ECC_GameTraceChannel2, Params) && Hit.GetComponent() && Hit.GetComponent()->Mobility != EComponentMobility::Movable && FVector::DotProduct(Hit.ImpactNormal, N) > 0.1f;
+			Valid.Add(bHit);
+			Vertices.Add(bHit ? Hit.ImpactPoint + Hit.ImpactNormal * 0.4f - GetActorLocation() : FVector::ZeroVector);
+			Normals.Add(bHit ? Hit.ImpactNormal : N);
+			UV.Add(Tex);
+		}
+	auto Triangle = [&](int32 A, int32 B, int32 C) {
+		// Do not bridge holes, cliffs or discontinuous surfaces.
+		const float MaxEdge = FMath::Square(Size / Cells * 2.f);
+		if (Valid[A] && Valid[B] && Valid[C] && FVector::DotProduct(Normals[A], Normals[B]) > 0.99f && FVector::DotProduct(Normals[A], Normals[C]) > 0.99f && FMath::Abs(FVector::DotProduct(Vertices[B] - Vertices[A], Normals[A])) < 1.f && FMath::Abs(FVector::DotProduct(Vertices[C] - Vertices[A], Normals[A])) < 1.f && FVector::DistSquared(Vertices[A], Vertices[B]) <= MaxEdge && FVector::DistSquared(Vertices[B], Vertices[C]) <= MaxEdge && FVector::DistSquared(Vertices[C], Vertices[A]) <= MaxEdge)
+			Triangles.Append({ A, C, B });
+	};
+	for (int32 Y = 0; Y < Cells; ++Y)
+		for (int32 X = 0; X < Cells; ++X) {
+			const int32 A = Y * Width + X;
+			Triangle(A, A + 1, A + Width);
+			Triangle(A + 1, A + Width + 1, A + Width);
+		}
+	if (Triangles.IsEmpty())
+		return false;
+	Mesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV, {}, {}, false);
+	Mesh->SetMaterial(0, Material);
+	return true;
 }

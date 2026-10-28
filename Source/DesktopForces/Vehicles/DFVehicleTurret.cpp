@@ -121,7 +121,7 @@ void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
 		}
 	}
 	if (FireSound)
-		UGameplayStatics::PlaySoundAtLocation(this, FireSound, Start, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
+		DF::PlaySoundAtLocation(this, FireSound, Start, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
 	V->MakeNoise(1.f, Gunner);
 	--ClipAmmo;
 	if (ClipAmmo > 0)
@@ -136,7 +136,7 @@ void UDFVehicleTurret::Reload() {
 	ClipAmmo = 0;
 	FireDelay = ReloadTime;
 	if (ReloadSound)
-		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetOwner()->GetActorLocation(), 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
+		DF::PlaySoundAtLocation(this, ReloadSound, GetOwner()->GetActorLocation(), 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
 }
 
 void UDFVehicleTurret::SeatEntered(ADFCharacter* C, int32 Seat) {

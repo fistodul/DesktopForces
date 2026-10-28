@@ -98,7 +98,7 @@ examples.
 ### Code style
 `.clang-format` at the root (clang-format 18): braces on the same line (`) {`, `} else {`), no
 braces around a single statement, tabs, one space before a trailing `//` comment, lines as long
-as written. `Tools/format.sh` formats `Source/` (`--check` lists what isn't); Visual Studio,
+as written. Use `clang-format -i FILE...` or `--dry-run --Werror` to check. Visual Studio,
 Rider and VS Code use the file by themselves. Slate's declarative widget code sits between
 `// clang-format off` / `on` (see `UI/DFMenu.cpp`). Don't name locals or parameters like an
 inherited member (`Owner`, `Instigator`, `Mesh` ...): MSVC refuses that even for private ones.

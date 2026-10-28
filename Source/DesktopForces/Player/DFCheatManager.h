@@ -5,8 +5,7 @@
 #include "DFCheatManager.generated.h"
 
 /**
- * Debug console commands (UE cheat manager: available in standalone/PIE, or after
- * `EnableCheats`; never in shipping multiplayer).
+ * Game/debug console commands in every build, restricted by CanCheat and ServerAdmin.
  */
 UCLASS()
 class DESKTOPFORCES_API UDFCheatManager : public UCheatManager {

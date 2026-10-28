@@ -19,6 +19,8 @@ public class DesktopForces : ModuleRules
 			"UMG",
 			"Slate",
 			"SlateCore",
+			"ApplicationCore",
+			"ProceduralMeshComponent",
 			"NetCore",
 			"PhysicsCore",
 			"DeveloperSettings",

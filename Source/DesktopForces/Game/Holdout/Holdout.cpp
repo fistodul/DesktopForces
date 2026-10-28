@@ -5,7 +5,7 @@
 AHoldout::AHoldout() {
 	GameName = TEXT("Holdout");
 	MFGameClass = TEXT("RageDomination");
-	GoalTeamScore = 6; // minutes of hold time (RageDomination.GoalTeamScore)
+	ScoreLimit = 6; // RageDomination: minutes of hold time
 	TimeLimit = 20;
 	PointsToSpawn = 1;
 	CaptureBonus = 0;

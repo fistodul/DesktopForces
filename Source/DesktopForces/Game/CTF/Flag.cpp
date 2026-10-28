@@ -193,8 +193,8 @@ void AFlag::UpdateLook() {
 // --- flag modes --------------------------------------------------------------------------
 
 AFlagGame::AFlagGame() {
+	ScoreLimit = 0;
 	NumTeams = 2;
-	FragLimit = 0;
 	RespawnWait = 5;
 	bScoreTeamKills = false;
 }
@@ -238,7 +238,7 @@ void AFlagGame::FlagPickedUp(AFlag* Flag, ADFCharacter* By) {
 	Event(FString::Printf(TEXT("%s: I have the %s %s! %s"), *NameOf(By), TeamName(Flag->Team), *ObjectName, *CarryLine), Flag->Team,
 		ObjectName == TEXT("gold") ? TEXT("Gold_captured") : TEXT("Flag_captured"));
 	if (Flag->HomeBase)
-		UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("CTFSFX.flagtaken")), Flag->HomeBase->GetActorLocation());
+		DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("CTFSFX.flagtaken")), Flag->HomeBase->GetActorLocation());
 }
 
 void AFlagGame::FlagDropped(AFlag* Flag, ADFCharacter* Was) {
@@ -315,7 +315,7 @@ ACaptureTheFlag::ACaptureTheFlag() {
 	GameName = TEXT("CTF");
 	MFGameClass = TEXT("RageCTF");
 	InstructionSound = TEXT("Get_the_flag");
-	GoalTeamScore = 4; // RageCTF.GoalTeamScore
+	ScoreLimit = 4; // RageCTF: captures to win
 	TimeLimit = 20;
 	ObjectName = TEXT("flag");
 	CarryLine = TEXT("Returning to base!");
@@ -345,7 +345,7 @@ void ACaptureTheFlag::FlagTouchedAtHome(AFlag* Flag, ADFCharacter* C) {
 	if (C->GetTeam() == Flag->Team) {
 		if (AFlag* Carried = AFlag::FindCarriedBy(C); Carried && Carried != Flag) {
 			FlagCaptured(Carried, C);
-			if (const ADFGameState* GS = GetGameState<ADFGameState>(); GS && GoalTeamScore > 0 && GS->GetTeamScore(C->GetTeam()) >= GoalTeamScore)
+			if (const ADFGameState* GS = GetGameState<ADFGameState>(); GS && ScoreLimit > 0 && GS->GetTeamScore(C->GetTeam()) >= ScoreLimit)
 				FinishMatch(FString::Printf(TEXT("%s team wins!"), TeamName(C->GetTeam())));
 		}
 		return;

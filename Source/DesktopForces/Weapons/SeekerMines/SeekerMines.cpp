@@ -1,4 +1,5 @@
 #include "Weapons/SeekerMines/SeekerMines.h"
+#include "Core/DFContent.h"
 #include "World/DFEffectActor.h"
 #include "Core/DFGameSettings.h"
 #include "Player/DFCharacter.h"
@@ -81,7 +82,7 @@ void ASeekerMine::BeginPlay() {
 	}
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &ASeekerMine::OnOverlap);
 	if (HasAuthority()) {
-		UGameplayStatics::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
+		DF::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
 		// state Deploying: 0.35 s, then hunt
 		GetWorldTimerManager().SetTimer(ThinkTimer, this, &ASeekerMine::Think, 0.2f, true, 0.35f);
 	}
@@ -159,7 +160,7 @@ void ASeekerMine::StartDetonating() {
 	if (bDetonating || bDetonated)
 		return;
 	bDetonating = true;
-	UGameplayStatics::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
+	DF::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
 	GetWorldTimerManager().SetTimer(ThinkTimer, this, &ASeekerMine::BlowUp, 0.12f, false);
 }
 

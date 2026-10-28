@@ -98,8 +98,7 @@ AKingOfTheHill::AKingOfTheHill() {
 	MFGameClass = TEXT("KOHGame");
 	InstructionSound = TEXT("Hold_the_Point");
 	NumTeams = 2;
-	GoalTeamScore = 700; // team points
-	FragLimit = 0;
+	ScoreLimit = 700; // team points
 	TimeLimit = 0;
 	bScoreTeamKills = false;
 }

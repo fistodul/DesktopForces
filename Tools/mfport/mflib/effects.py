@@ -14,6 +14,8 @@ right, top to bottom). Output: work/out/Effects/effects.json + Effects/<package>
 EMITTER keys (missing = default):
   tex          texture key of the first frame ("rageeffects.densesmoke.densesmoke_a01")
   draw         'add' (RSDT_Additive) | 'sub' (RSDT_Subtractive) | 'alpha' (Normal / Masked / AlphaTexture)
+  scale_spawn_rate  false preserves bounded gameplay cues on Low effects quality
+  alpha_param, rate_param  optional runtime float parameter names
   alpha        0..1 (AddOne Alpha / 255)
   size         [min, max] times the texture's width (RageSprite Size, UE1 sprites: DrawScale x USize)
   life         seconds
@@ -156,6 +158,19 @@ SYSTEMS = {
     # EffectsFix.VehExplosion -> RageEffects.VehicleExplosion (+ 2-4 ExplosionFires on the ground)
     'VehicleExplosion': _smoke_burst(10, 0.8, 0.2) + _fire_burst(25),
     'ExplosionFire': _burning(),
+    # Vehicle.GenerateSmokeParticle: damage increases both smoke frequency and opacity.
+    'VehicleDamageSmoke': [dict(tex=DENSE, draw='alpha', alpha=0.5, alpha_param='SmokeAlpha',
+                                size=[0.7, 1.1], life=2.0, anim_once=True, fade=True,
+                                loc_rand=[12, 12, 8], vel=[0, 0, 110], vel_rand=[15, 15, 20],
+                                rate=2, rate_param='SmokeRate', loop=True, scale_spawn_rate=False)],
+    # Rocket.Timer: old-fire sprites and wispy smoke left along the flight path.
+    # Emission is bounded in time rather than spawning actors at every flight step.
+    'RocketTrail': [dict(tex=OLD_FIRE, draw='add', alpha=1.0, size=[0.3, 0.5], life=0.35,
+                        anim_once=True, fade=True, loc=[-12, 0, 0], loc_rand=[4, 4, 4],
+                        vel=[-80, 0, 0], rate=60, loop=True, rotate=0.25, scale_spawn_rate=False),
+                    dict(tex='rageeffects.wispysmoke.wispysmoke_a01', draw='add', alpha=0.5,
+                         size=[0.5, 0.7], life=0.9, anim_once=True, fade=True,
+                         loc=[-12, 0, 0], vel=[0, 0, 15], rate=18, loop=True, scale_spawn_rate=False)],
     # EffectsFix.SmokePuffVeh: a tyre blown out; SmokePuff: one puff
     'SmokePuffVeh': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.6, 0.6], life=0.8, anim_once=True, burst=8, loc_rand=[20, 20, 20])],
     'SmokePuff': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.6, 0.6], life=0.8, anim_once=True, burst=1)],

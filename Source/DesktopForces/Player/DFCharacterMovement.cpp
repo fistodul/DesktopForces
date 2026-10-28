@@ -49,6 +49,8 @@ UDFCharacterMovement::UDFCharacterMovement() {
 }
 
 float UDFCharacterMovement::GetMaxSpeed() const {
+	if (const ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner); C && C->IsFeigningDeath())
+		return 0.f;
 	if (IsOnLadder())
 		return LadderSpeed * LadderClimbScale;
 	float Speed = Super::GetMaxSpeed();
@@ -63,6 +65,8 @@ float UDFCharacterMovement::GetMaxSpeed() const {
 
 void UDFCharacterMovement::UpdateFromCompressedFlags(uint8 Flags) {
 	Super::UpdateFromCompressedFlags(Flags);
+	if (const ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner); C && C->IsFeigningDeath())
+		bWantsToCrouch = true;
 	bWantsToWalk = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 	bWantsParachute = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 }
@@ -107,13 +111,15 @@ bool UDFCharacterMovement::WantsLadder() const {
 }
 
 void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds) {
+	if (const ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner); C && C->IsFeigningDeath())
+		bWantsToCrouch = true;
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
-	// RagePlayer.RageTick (Gregaras' parachute): Jump held, falling at least 150 uu/s down. Decided
+	// Jump held: deploy only once falling faster than an ordinary jump can return. Decided
 	// in the move, so the owning client predicts it and the server (which doesn't tick remote
 	// players' pawns) runs the same; bParachute replicates the canopy to everyone else
 	if (ADFCharacter* C = Cast<ADFCharacter>(CharacterOwner)) {
 		const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
-		C->SetParachute(bWantsParachute && GS && GS->bParachutes && C->IsAlive() && !C->GetAttachParentActor() && IsFalling() && Velocity.Z <= -337.5f);
+		C->SetParachute(bWantsParachute && GS && GS->bParachutes && C->IsAlive() && !C->GetAttachParentActor() && IsFalling() && (C->IsParachuting() || Velocity.Z <= -(JumpZVelocity + 100.f)));
 	}
 	if (!IsOnLadder() && WantsLadder()) {
 		const ADFLadderVolume* L = TouchedLadder.Get();
@@ -244,4 +250,19 @@ void UDFCharacterMovement::ApplyImpactPhysicsForces(const FHitResult& Impact, co
 void UDFCharacterMovement::ApplyDownwardForce(float DeltaSeconds) {
 	if (!CurrentFloor.HitResult.IsValidBlockingHit() || !Cast<ADFVehicle>(CurrentFloor.HitResult.GetActor()))
 		Super::ApplyDownwardForce(DeltaSeconds);
+}
+
+void UDFCharacterMovement::CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
+	if (!Cast<ADFVehicle>(Other))
+		Super::CapsuleTouched(OverlappedComp, Other, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
+}
+
+void UDFCharacterMovement::ApplyRepulsionForce(float DeltaSeconds) {
+	// UE's overlap repulsion can stop a body outright. Leave vehicle contacts to the
+	// run-over handler; keep normal ball/crate repulsion when clear of a vehicle.
+	if (UpdatedPrimitive)
+		for (const FOverlapInfo& Overlap : UpdatedPrimitive->GetOverlapInfos())
+			if (Cast<ADFVehicle>(Overlap.OverlapInfo.GetActor()))
+				return;
+	Super::ApplyRepulsionForce(DeltaSeconds);
 }

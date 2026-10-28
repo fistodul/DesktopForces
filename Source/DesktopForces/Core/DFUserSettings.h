@@ -24,6 +24,8 @@ class DESKTOPFORCES_API UDFUserSettings : public UGameUserSettings {
 	GENERATED_BODY()
 
 public:
+	UDFUserSettings();
+
 	/** The game's settings object (the engine makes it from GameUserSettingsClassName). */
 	static UDFUserSettings& Get();
 
@@ -53,8 +55,8 @@ public:
 	UPROPERTY(Config)
 	float RenderScale = 1.f;
 
-	/** Bullet holes and scorch marks: 0 none, 1 simple (flat quads), 2 full (scorch marks as
-	 *  projected decals). World/DFDecals.h */
+	/** Bullet holes and scorch marks: 0 none, 1 simple (flat quads), 2 full (surface-conforming
+	 *  scorch meshes). World/DFDecals.h */
 	UPROPERTY(Config)
 	int32 DecalQuality = 2;
 
@@ -66,9 +68,20 @@ public:
 	UPROPERTY(Config)
 	float MusicVolume = 1.f;
 
+	/** Gameplay effects and announcer voice, independent of music. */
+	UPROPERTY(Config)
+	float EffectsVolume = 1.f;
+
+	UPROPERTY(Config)
+	float AnnouncerVolume = 1.f;
+
 	/** MF HUD.Crosshair: CrossHairA..X (0-23); MF's default 13. */
 	UPROPERTY(Config)
 	int32 Crosshair = 13;
+
+	/** Crosshair size relative to the original HUD size. */
+	UPROPERTY(Config)
+	float CrosshairSize = 1.f;
 
 	/** MF HUDSize: 0-4 = 32, 48, 64, 96, 128 px item blocks. */
 	UPROPERTY(Config)
@@ -79,9 +92,9 @@ public:
 	EDFWeaponHand WeaponHand = EDFWeaponHand::Right;
 
 	/** The console keys (~ the console, Tab one line) in the shipped game too; development
-	 *  builds always have them. */
+	 *  builds default to enabled. */
 	UPROPERTY(Config)
-	bool bConsole = false;
+	bool bConsole = !UE_BUILD_SHIPPING;
 
 	/** Keys changed in Options > Controls: action -> key (ADFPlayerController::GetBindings;
 	 *  the rest keep MF's defaults). NAME_None key: unbound. */
@@ -89,13 +102,13 @@ public:
 	TMap<FName, FKey> KeyBindings;
 
 	virtual void ApplyNonResolutionSettings() override;
-	/** Shipping builds: create or drop the game viewport's console (bConsole). UE leaves the
+	/** Create or drop the game viewport's console (bConsole). UE leaves the
 	 *  console out of shipping builds (ALLOW_CONSOLE) but keeps its code. */
 	void ApplyConsole() const;
+	bool IsConsoleEnabled() const;
 	virtual void SetToDefaults() override;
 
 protected:
-	/** r.ScreenPercentage from RenderScale and the resolution (UpdateScreenPercentage). */
+	/** One explicit scale relative to the actual output viewport. */
 	void UpdateScreenPercentage();
-	FDelegateHandle ResizedHandle;
 };

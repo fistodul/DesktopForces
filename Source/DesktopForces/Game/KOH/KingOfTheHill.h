@@ -96,8 +96,8 @@ protected:
 	virtual void SpawnPoints();
 	/** Once per second while the match runs: the holders score. */
 	virtual void UpdatePoints();
-	/** Team score that wins (GoalTeamScore; Holdout counts it in minutes). */
-	virtual int32 GetGoalScore() const { return GoalTeamScore; }
+	/** Team score that wins (ScoreLimit; Holdout counts it in minutes). */
+	virtual int32 GetGoalScore() const { return ScoreLimit; }
 	virtual void CheckEndConditions(ADFPlayerState* LastKiller) override {}
 
 	AHoldoutPoint* SpawnPointAt(const FTransform& Where, const FString& Name);

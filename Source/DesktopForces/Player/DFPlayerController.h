@@ -207,7 +207,11 @@ public:
 	UFUNCTION(Exec)
 	void TryEnterExit();
 	UFUNCTION(Server, Reliable)
-	void ServerTryEnterExit();
+	void ServerTryEnterExit(bool bPassengerOnly = false);
+	UFUNCTION(Exec)
+	void EnterPassenger() { ServerTryEnterExit(true); }
+	UFUNCTION(Exec)
+	void FeignDeath();
 	/** MF Reload (R). */
 	UFUNCTION(Exec)
 	void Reload() { OnReload(); }
@@ -271,6 +275,7 @@ protected:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void AcknowledgePossession(APawn* P) override;
 	/** Black from the map's start until the first spawn (no glimpse of the world half streamed in). */
+	void EnsureCheatManager();
 	void FadeIn();
 	void FadeInSoon(APawn* P);
 	bool bFadedIn = false;

@@ -284,8 +284,9 @@ Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(r
 + MaxTraceDistance (10000)·X.
 
 **Parachutes** (Gregaras, the community servers' mutPack bCanUseParachutes): hold Jump while
-falling faster than 150 uu/s and a canopy opens over you; the fall slows to 200 uu/s and you
+falling faster than a normal jump can return (jump speed + 100 cm/s) and a canopy opens; the fall slows to 200 uu/s and you
 glide the way you look. Let go of Jump and it folds. `?Parachutes=0` turns them off.
+Entering any vehicle seat closes it on the server and on the owning client.
 
 **Minefields** (mineGenerator.u, mf-Pobojowisko_VerII): the map's mines sit on the ground,
 nobody's; a soldier within 64 uu or a vehicle within 96 uu sets one off (120 damage in 200 uu,
@@ -303,8 +304,10 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 | Truck (6 wheels) | 3000 kg | 50 mph | all | 0.78 | 5 |
 | Armadillo APC | 2300 kg | 30 mph | 4x4 | 0.84 | 2 |
 
-- E (TryEnterExit) near a vehicle gets in: the driver's seat, or the first free passenger seat
-  (MF aSeatsPos) when it's taken; E again out of the first free door. Drivers drive (WASD, Space
+- E (TryEnterExit) near a vehicle selects the nearest free seat. Paired front seats use an
+  empty driver seat, matching MF aSeatNearDrivers; rear seats stay passengers. Shift+E
+  (or `EnterPassenger`) skips the driver seat, allowing a hidden passenger to wait for a driver.
+  E again exits through a clear door. Drivers drive (WASD, Space
   handbrake, mouse orbits the camera) and can't shoot; passengers ride standing or sitting at
   their seat, look around and use their own weapons (MF InCarState).
 - Bots (RageBot): 4 in 5 use vehicles in deathmatch, up to 3 in 4 of a team's bots in team
@@ -331,9 +334,13 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   by walking into or standing on them.
 - Tyres (MF WheelCollision): 35 damage of anything bursts one (HitRubber, a jolt): it runs on
   the rim - lower, a third of the grip, half the drive, so a flat front tyre steers badly - and
-  re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too.
+  re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too. Tyres block pawn
+  movement queries; ground support follows the contact normal so a parked flat does not
+  create sideways thrust.
 - Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
   there and the vehicle blows up. A small target: aim at the tank.
+- Damage smoke grows denser and darker as health falls. It uses a bounded local emitter;
+  replicated health drives its rate and opacity on each client.
 - Blowing up (EffectsFix.VehExplosion -> RageEffects.VehicleExplosion): a fireball of smoke and
   flames, 2-4 fires on the ground around it, and 16 chunks (RageEffects.VehicleFrag carfrag01-09)
   that spin, bounce with half their speed and clank (FragHit1-3), then lie there 10-17 s; up to
@@ -346,7 +353,15 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   against 8000 health), knives nothing, bots do a fifth to vehicles and to players riding in
   them, and players' rockets hit soldiers twice as hard. 100 health; at 0 it blows
   up (150, 900 cm) and kills everyone inside. Hitting someone at KillSpeed 8 m/s or more runs
-  them over. Upside down and slow for 3 s: back on its wheels.
+  them over. Pawn contacts apply a small one-time speed loss rather than a rigid-body stop;
+  a separate query shell keeps walking soldiers outside the body. Upside down and slow
+  for 3 s: back on its wheels.
+- Exiting keeps collision disabled until the soldier is outside and possession is restored.
+  For one second, that vehicle cannot run over its exiting occupant; other damage still applies.
+  Drivers remain hittable through mesh openings, as passengers do.
+- Empty generated vehicles recycle after 45 seconds if moved more than 450 cm horizontally
+  or damaged. Occupying the vehicle cancels the timer. This includes deliberate passengers;
+  pristine vehicles at their generator remain available. Locked objective vehicles are excluded.
 - Generators: the map's Buggy/Humvee/Truck/ArmadilloGenerator actors make one each and a new one
   5 s after it's gone; VehicleGenerators with a VehicleClass too (boat.boat, jeep.jeep,
   Rage.*). `?Vehicles=0` turns them off.
@@ -385,3 +400,35 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   128 + 128 uu): it locks, "Trailer detonation in 5 sec", blows up (600, 1200 uu), team point and
   +7 for the driver; a new one 5 s later (also when it's destroyed on the way). 4 / 10 min.
   Vehicle generators at the bays stay off in this mode.
+
+**Score limit**: `?ScoreLimit=N` is the single match target (0 disables it). Its unit
+follows the mode: kills/points, captures, rounds, or Holdout minutes. There are no old-name
+aliases. Deathmatch defaults to 30; team deathmatch retains its time-only default.
+
+**Crosshairs**: shape cycling omits the smaller D/F/H variants of E/G/N. Existing texture
+IDs remain valid; a separate 25–200% size option scales the selected shape and its preview.
+Visible alpha bounds are cropped before drawing, so 100% has the same outer size for every
+shape, including the dot. The other ring/line combinations retain their different geometry.
+Mouse sensitivity and inversion are under Controls; crosshair shape/size and HUD size stay
+together under Game. Weapon position changes only the first-person model: Left mirrors it,
+Center uses MF's classic centered offsets, Hidden hides it. Aim and hit traces are unchanged.
+
+**Spawn fade**: the fallback black wait is 1 second, the possession wait about 0.067 seconds,
+and the fade 0.2 seconds, each reduced by one third.
+
+**Audio**: Master controls the whole mix. Music, Sound effects, and Announcer have independent
+volume controls; effects include weapons, vehicles, ambient loops and interface sounds.
+Changing effects volume also affects already-playing loops through their sound class.
+
+**Scorch marks**: Simple uses flat instanced quads. Full projects a 16×16 mesh onto nearby
+static surfaces, with gaps rejected; this follows slopes/steps without DBuffer. Bullet holes
+stay lightweight quads. Full is capped at 24 scorch meshes, each lasting 30 seconds.
+
+### Feign death
+
+Left Alt toggles `FeignDeath`; the binding can be changed in Controls. It requires a living,
+grounded soldier outside vehicles and loadout. The soldier lowers into a damageable crouch
+capsule, holds MF's DeathEnd pose, hides the weapon, and drops a carried flag. Movement and
+firing are blocked, but damage and gravity remain active. Bots stop selecting the apparent
+corpse as a new target. Alt, Fire, Alt Fire, or Jump gets up after the initial 0.7-second pose;
+the wake-up press does not also shoot or jump, and the weapon uses its normal equip delay.

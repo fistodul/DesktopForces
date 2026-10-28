@@ -23,7 +23,7 @@ public:
 	int32 NumTeams = 0;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
-	int32 FragLimit = 0;
+	int32 ScoreLimit = 0;
 
 	/** Minutes (0 = none). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
@@ -32,9 +32,6 @@ public:
 	/** Seconds; overrides TimeLimit when set (Safecracker part 2 must beat part 1's time). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	int32 TimeLimitSeconds = 0;
-
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
-	int32 GoalTeamScore = 0;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	int32 RespawnWait = 1;

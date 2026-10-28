@@ -10,7 +10,7 @@ AArena::AArena() {
 	GameName = TEXT("Arena");
 	MFGameClass = TEXT("arenaMode");
 	NumTeams = 2;
-	GoalTeamScore = 5; // FragLimit 5 (rounds)
+	ScoreLimit = 5; // arenaMode: rounds to win
 	TimeLimit = 10;
 	bScoreTeamKills = false;
 }
@@ -105,7 +105,7 @@ void AArena::RoundEnd(uint8 Winner, bool bCaptured) {
 	bRoundOver = true;
 	GS->TeamScores[Winner] += 1;
 	const FString Team = GS->GetTeamName(Winner).ToString();
-	if (GS->TeamScores[Winner] >= GoalTeamScore) {
+	if (ScoreLimit > 0 && GS->TeamScores[Winner] >= ScoreLimit) {
 		FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *Team));
 		return;
 	}

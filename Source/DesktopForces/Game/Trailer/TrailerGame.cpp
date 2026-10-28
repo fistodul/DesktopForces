@@ -26,10 +26,9 @@ ATrailerGame::ATrailerGame() {
 	MFGameClass = TEXT("TrailerGame");
 	InstructionSound = TEXT("Get_the_trailer");
 	NumTeams = 2;
-	GoalTeamScore = 4; // TrailerGame.GoalTeamScore
+	ScoreLimit = 4; // TrailerGame: deliveries to win
 	TimeLimit = 10;
 	RespawnWait = 5;
-	FragLimit = 0;
 	bScoreTeamKills = false;
 	bVehicles = true; // bAlwaysUseVehciles
 }
@@ -143,7 +142,7 @@ void ATrailerGame::CheckDelivery() {
 				Scorer = Cab->GetDriver() ? Cab->GetController() : By->GetController();
 				Cab->LockDown();
 				Event(FString::Printf(TEXT("Trailer delivered to %s"), TrailerSquad(Bay.Team)), 1 - Bay.Team, TEXT("trailer_delivered_explosion_imminent"));
-				UGameplayStatics::PlaySoundAtLocation(this, DF::LoadSound(TEXT("TrailerSFX.LockDown")), Cab->GetActorLocation());
+				DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("TrailerSFX.LockDown")), Cab->GetActorLocation());
 				Count = 5;
 				CountDown();
 				return;
@@ -189,7 +188,7 @@ void ATrailerGame::Detonate() {
 		Cab->Destroy(); // takes the trailer along
 	Cab = nullptr;
 	TrailerVehicle = nullptr;
-	if (GS && GoalTeamScore > 0 && GS->GetTeamScore(ScoreTeam) >= GoalTeamScore) {
+	if (GS && ScoreLimit > 0 && GS->GetTeamScore(ScoreTeam) >= ScoreLimit) {
 		FinishMatch(FString::Printf(TEXT("%s wins!"), TrailerSquad(ScoreTeam)));
 		return;
 	}

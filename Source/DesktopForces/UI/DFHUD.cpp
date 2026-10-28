@@ -1,4 +1,5 @@
 #include "UI/DFHUD.h"
+#include "UI/DFCrosshairs.h"
 #include "Core/DFContent.h"
 #include "Core/DFUserSettings.h"
 #include "World/DFMapActors.h"
@@ -218,15 +219,17 @@ void ADFHUD::DrawCrosshair(ADFCharacter* C) {
 	if (UTexture2D* X = TexCrosshair[FMath::Clamp(UDFUserSettings::Get().Crosshair, 0, 23)]) {
 		// RageHUD.DrawCrossHair: 32 px at 640 wide; STY_Subtractive GreyColor (only the shape:
 		// the texture alpha is its brightness), then the team colour added twice
-		const float Size = 32.f * Canvas->ClipX / 640.f;
+		const float Size = 32.f * Canvas->ClipX / 640.f * FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
+		const FIntRect UV = DF::CrosshairBounds(UDFUserSettings::Get().Crosshair);
 		const float PX = FMath::RoundToFloat(CX - Size * 0.5f), PY = FMath::RoundToFloat(CY - Size * 0.5f);
-		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
+		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
 		const FLinearColor Team = SetColour(TeamSet());
-		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, Team, SE_BLEND_Additive);
-		DrawTexRect(X, PX, PY, Size, Size, 1.f, 1.f, 30.f, 30.f, Team, SE_BLEND_Additive);
+		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), Team, SE_BLEND_Additive);
+		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), Team, SE_BLEND_Additive);
 		return;
 	}
-	const float S = 6.f * UIScale, G = 3.f * UIScale;
+	const float Scale = FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
+	const float S = 6.f * UIScale * Scale, G = 3.f * UIScale * Scale;
 	const FLinearColor Col(0.f, 1.f, 0.f, 0.85f);
 	Box(CX - G - S, CY - 1, S, 2, Col);
 	Box(CX + G, CY - 1, S, 2, Col);
@@ -817,7 +820,7 @@ FString ADFHUD::LoadoutKeyName() {
 
 void ADFHUD::ChangeCrosshair(int32 Delta) {
 	UDFUserSettings& S = UDFUserSettings::Get();
-	S.Crosshair = (S.Crosshair + Delta + 24) % 24;
+	S.Crosshair = DF::NextCrosshair(S.Crosshair, Delta);
 	S.SaveSettings();
 }
 

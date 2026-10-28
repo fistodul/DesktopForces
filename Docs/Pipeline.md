@@ -283,3 +283,11 @@ code is ported only with its author's agreement (`packs.toml`, [CREDITS.md](../C
 `work/out/Maps/<map>/` holds everything the importer reads. To eyeball geometry without
 UE, dump OBJ via `MeshBuilder.write_obj` and render it in Blender (see the snippet in
 `Tools/mfport/README.md`).
+
+### Effect palette references
+
+Palette names are only unique within their group. Resolve `BloodSpang.Palette25` as a
+complete object path, not as `Palette25`. The latter selects an unrelated opaque palette
+in RageEffects and makes blood appear as hard-edged dark blocks. Regenerate `effects`
+and import `--steps effects` after updating the converter. Other texture conversions use
+the same fixed lookup when regenerated; existing non-effect assets are not rewritten.

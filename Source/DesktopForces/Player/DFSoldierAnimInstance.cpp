@@ -179,7 +179,7 @@ void UDFSoldierAnimInstance::OnReload(float Duration) {
 
 void UDFSoldierAnimInstance::OnHurt() {
 	ADFCharacter* C = Cast<ADFCharacter>(TryGetPawnOwner());
-	if (!C || bDead || IsPlayingOnce() || C->GetAttachParentActor())
+	if (!C || bDead || C->IsFeigningDeath() || IsPlayingOnce() || C->GetAttachParentActor())
 		return;
 	static const TCHAR* const Hits[] = { TEXT("Guthit"), TEXT("Guthit"), TEXT("Lefthit"), TEXT("Righthit") };
 	Play(Hits[FMath::RandHelper(UE_ARRAY_COUNT(Hits))], 1.f, 0.08f, false);
@@ -255,6 +255,11 @@ void UDFSoldierAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	ADFCharacter* C = Cast<ADFCharacter>(TryGetPawnOwner());
 	if (!C || bDead)
 		return;
+	if (C->IsFeigningDeath()) {
+		if (CurrentName != TEXT("DeathEnd"))
+			Play(TEXT("DeathEnd"), 1.f, 0.5f, false); // RPlayer.PlayFeignDeath
+		return;
+	}
 	const bool bFalling = C->GetCharacterMovement()->IsFalling();
 	if (bWasFalling && !bFalling && !C->bIsCrouched) {
 		// PlayLanded: TweenAnim(GetLandAnim(), 0.12)

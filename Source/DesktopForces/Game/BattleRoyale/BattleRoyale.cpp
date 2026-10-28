@@ -20,7 +20,7 @@ ABattleRoyale::ABattleRoyale() {
 	GameName = TEXT("Battle Royale");
 	MFGameClass = TEXT("battleRoyale");
 	NumTeams = 0;
-	FragLimit = 12; // the community servers' MobileForces.ini (battleRoyale: 30)
+	ScoreLimit = 12; // the community servers' MobileForces.ini (battleRoyale: 30)
 	TimeLimit = 12;
 	// weapPackage / weapClass 0-9 and the MF-mods weapons this game has (deagle, grenlaunch)
 	for (UClass* C : { APistol::StaticClass(), AMachineGun::StaticClass(), AShotgun::StaticClass(),
@@ -177,7 +177,7 @@ void ABattleRoyale::Killed(AController* Killer, AController* Victim, ADFCharacte
 		Event(FString::Printf(TEXT("%s survived the round!"), *PS->GetPlayerName()), DF::NoTeam);
 		if (bScoreLastedRounds) {
 			PS->SetScore(PS->GetScore() + 1.f);
-			if (FragLimit > 0 && PS->GetScore() >= FragLimit) {
+			if (ScoreLimit > 0 && PS->GetScore() >= ScoreLimit) {
 				FinishMatch(PS->GetPlayerName());
 				return;
 			}

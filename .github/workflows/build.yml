@@ -49,17 +49,17 @@ jobs:
       # ------------------------------------------------------------------------
       # Windows (Win64) Build & Package
       # ------------------------------------------------------------------------
-      # the same script as a local Windows build (Tools/build_windows.ps1): engine lookup, the map
+      # the same script as a local Windows build (Tools/package.ps1): engine lookup, the map
       # list, iostore paks
       - name: Build C++ Modules (Win64)
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE != 'true'
         shell: powershell
-        run: .\Tools\build_windows.ps1 -Config $env:BUILD_CONFIG -Package:$false -UePath $env:UE_ROOT
+        run: .\Tools\package.ps1 -Config $env:BUILD_CONFIG -Package:$false -UePath $env:UE_ROOT
 
       - name: Cook & Package Game (Win64)
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE == 'true'
         shell: powershell
-        run: .\Tools\build_windows.ps1 -Config $env:BUILD_CONFIG -UePath $env:UE_ROOT
+        run: .\Tools\package.ps1 -Config $env:BUILD_CONFIG -UePath $env:UE_ROOT
 
       - name: Upload Windows Artifact
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE == 'true'

@@ -1,5 +1,6 @@
 #include "Weapons/PredatorMissile/PredatorMissile.h"
 #include "World/DFEffectActor.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Core/DFContent.h"
 #include "DesktopForces.h"
 #include "Core/DFProps.h"
@@ -55,6 +56,7 @@ APredatorRocket::APredatorRocket() {
 void APredatorRocket::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(APredatorRocket, bBoosting);
+	DOREPLIFETIME(APredatorRocket, bExploded);
 }
 
 void APredatorRocket::InitializeFlight(APredatorMissile* Weapon, float CeilingHeight) {
@@ -64,8 +66,6 @@ void APredatorRocket::InitializeFlight(APredatorMissile* Weapon, float CeilingHe
 	CurrentSpeed = BaseSpeed * InitialSpeedFactor;
 	if (APawn* Guider = GetInstigator())
 		Collision->IgnoreActorWhenMoving(Guider, true);
-	if (DF::ApplyPropMesh(Mesh, TEXT("RageWeapons/RocketMesh"), 2.5f)) // DrawScale 2.5
-		Mesh->SetRelativeRotation(FRotator::ZeroRotator);
 }
 
 FRotator APredatorRocket::ClampDive(FRotator R) const {
@@ -92,8 +92,14 @@ AActor* APredatorRocket::FindBotTarget() const {
 
 void APredatorRocket::BeginPlay() {
 	Super::BeginPlay();
+	if (DF::ApplyPropMesh(Mesh, TEXT("RageWeapons/RocketMesh"), 2.5f)) // DrawScale 2.5
+		Mesh->SetRelativeRotation(FRotator::ZeroRotator);
+
 	// PredatorMissile: AmbientSound RocketFly, SoundRadius 255 (heard across the map)
 	DF::PlayLoop(RootComponent, TEXT("WeaponSFX_RocketLauncher.RocketFly"), 6400.f);
+	Trail = DF::SpawnEffectAttached(TEXT("RocketTrail"), RootComponent, 2.5f, true);
+	if (Trail)
+		Trail->SetOwnerNoSee(true); // the guider views the missile from its nose
 }
 
 void APredatorRocket::Tick(float DeltaSeconds) {
@@ -151,6 +157,8 @@ void APredatorRocket::Explode(const FVector& At) {
 	if (bExploded)
 		return;
 	bExploded = true;
+	OnRep_Exploded();
+	ForceNetUpdate();
 	UE_LOG(LogDF, Log, TEXT("Predator: exploded at %s after %.1f s"), *At.ToCompactString(), FlightTime);
 	TArray<AActor*> Ignore;
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, BlastRadius, 1.f, UDFDamage_Explosion::StaticClass(),
@@ -292,7 +300,7 @@ bool APredatorMissile::TryFire(bool bAlt) {
 	ActiveMissile->InitializeFlight(this, Ceiling);
 	UE_LOG(LogDF, Log, TEXT("Predator: launched from %s (free air %.0f cm)"), *Loc.ToCompactString(), Ceiling);
 	if (USoundBase* Voice = DF::LoadClassic<USoundBase>(TEXT("Sounds/RagePlayerVoice/Nuke_the_whole_area")))
-		UGameplayStatics::PlaySoundAtLocation(this, Voice, C->GetActorLocation());
+		DF::PlaySoundAtLocation(this, Voice, C->GetActorLocation());
 	if (AController* Ctrl = C->GetController()) {
 		Ctrl->SetIgnoreMoveInput(true); // FreezeGuider
 		Ctrl->SetControlRotation(Rot);
@@ -369,3 +377,13 @@ bool APredatorMissile::DrawHUD(UCanvas* Canvas) {
 }
 
 #undef LOCTEXT_NAMESPACE
+
+void APredatorRocket::EndPlay(const EEndPlayReason::Type EndPlayReason) {
+	DF::StopEffect(Trail);
+	Super::EndPlay(EndPlayReason);
+}
+
+void APredatorRocket::OnRep_Exploded() {
+	if (bExploded)
+		DF::StopEffect(Trail);
+}

@@ -82,6 +82,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "DF")
 	bool IsAlive() const { return Health > 0 && !bDying; }
+	bool IsFeigningDeath() const { return bFeigningDeath; }
+	UFUNCTION(Server, Reliable)
+	void ServerSetFeignDeath(bool bFeign);
+	UPROPERTY(ReplicatedUsing = OnRep_FeigningDeath)
+	bool bFeigningDeath = false;
+	UFUNCTION()
+	void OnRep_FeigningDeath();
+	float FeignStartedAt = -1.f;
+	virtual FVector GetPawnViewLocation() const override;
 
 	/** Deployed HMG and the like (ADFWeapon::IsDeployed): rooted to the spot. */
 	bool IsDeployed() const;
@@ -111,6 +120,8 @@ public:
 	/** RagePlayer.RageTick (Gregaras): the canopy open or closed; UDFCharacterMovement decides
 	 *  it (Jump held while falling) and slows the fall. */
 	void SetParachute(bool bOpen);
+	void StopParachuting();
+	virtual void OnRep_AttachmentReplication() override;
 	bool IsParachuting() const { return bParachute; }
 
 	/** Server: scale this soldier's body (modes / mods: zombies, survivors); replicated so the

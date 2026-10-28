@@ -30,6 +30,7 @@ ATruck::ATruck() {
 	};
 	SeatPositions = { FVector(182.8f, -70.3f, 68.f), FVector(182.8f, 70.3f, 68.f), FVector(0.f, 0.f, 123.75f), FVector(-154.7f, 0.f, 123.75f), FVector(-337.5f, 0.f, 123.75f) };
 	SeatSits = { true, true }; // aSeatsSit
+	SeatsNearDriver = { 1 }; // MF aSeatNearDrivers: paired front seats share driver access
 	DoorPositions = { FVector(196.9f, -270.f, 0.f), FVector(196.9f, 270.f, 0.f), FVector(-506.f, 0.f, 0.f) };
 	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
 	SetHandling({ 530.f, 530.f, 530.f, 530.f, 530.f, 530.f, 530.f, 540.f, 90.f, 0.f },

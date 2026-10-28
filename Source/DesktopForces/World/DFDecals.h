@@ -5,17 +5,16 @@
 #include "DFDecals.generated.h"
 
 class UInstancedStaticMeshComponent;
+class UProceduralMeshComponent;
+class UMaterialInterface;
 
 /**
  * Marks left on the world: bullet holes (MF RagePock, 10 s) and scorch marks after explosions
  * (MF had them switched off; a graphics upgrade here). Art: Tools/artgen (T_MF_BulletHole*,
  * T_MF_Scorch*), materials M_MF_Decal / M_MF_DecalQuad (importer EnsureDecalMaterials).
- * UDFUserSettings::DecalQuality picks how: 2 full (scorch marks project as real decals when
- * r.DBuffer is on; bullet holes stay quads: small and on flat walls, nobody tells them apart),
- * 1 simple (all quads), 0 none. Local only: every machine makes its own. Only on surfaces that
- * don't move.
- * TODO: the projected scorch draws nothing under the forward renderer + MSAA with r.DBuffer=1
- * (found 2026-10-21), so r.DBuffer stays off and scorch marks are quads too for now.
+ * UDFUserSettings::DecalQuality: 2 full (surface-conforming scorch meshes), 1 simple
+ * (flat instanced quads), 0 none. Bullet holes stay quads. Local only, static surfaces only.
+ * Full works with the forward renderer and unlit/emissive world materials without DBuffer.
  */
 namespace DF {
 	enum class EDecal : uint8 { BulletHole,
@@ -51,4 +50,16 @@ protected:
 	};
 	TMap<FString, FRing> Rings;
 	FTimerHandle ExpireTimer;
+};
+
+/** A small, collision-free scorch mesh projected onto static surfaces once on impact. */
+UCLASS(NotPlaceable, Transient)
+class DESKTOPFORCES_API ADFProjectedScorch : public AActor {
+	GENERATED_BODY()
+public:
+	ADFProjectedScorch();
+	bool Project(const FVector& Normal, float Size, UMaterialInterface* Material);
+
+	UPROPERTY()
+	TObjectPtr<UProceduralMeshComponent> Mesh;
 };

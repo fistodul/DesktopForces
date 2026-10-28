@@ -21,6 +21,7 @@ class DESKTOPFORCES_API APredatorRocket : public AActor {
 
 public:
 	APredatorRocket();
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void LifeSpanExpired() override;
@@ -45,7 +46,12 @@ protected:
 	float BaseSpeed = 630.f;
 	float CurrentSpeed = 315.f;
 	float FlightTime = 0.f;
+	UPROPERTY(ReplicatedUsing = OnRep_Exploded)
 	bool bExploded = false;
+	UFUNCTION()
+	void OnRep_Exploded();
+	UPROPERTY(Transient)
+	TObjectPtr<class UParticleSystemComponent> Trail;
 
 	// MF defaults (cm where MF had uu)
 	float InitialSlowDuration = 1.5f;

@@ -23,6 +23,7 @@ class DESKTOPFORCES_API ADFProjectile : public AActor {
 
 public:
 	ADFProjectile();
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** Start flying along Dir. Speed <= 0 uses InitialSpeed. MF adds the shooter's velocity along Dir. */
 	virtual void Launch(const FVector& Dir, float Speed, const FVector& InheritVelocity);
@@ -65,6 +66,12 @@ public:
 	/** Looping sound on the way ("Package.Name", MF AmbientSound: the rocket's RocketFly). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicAmbientSound;
+
+	/** Attached flight effect, evaluated locally on every client. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FString TrailEffect;
+	UPROPERTY(Transient)
+	TObjectPtr<class UParticleSystemComponent> Trail;
 
 	/** Grenade1.Tick: "Ticking" every second for the first 3 s. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")

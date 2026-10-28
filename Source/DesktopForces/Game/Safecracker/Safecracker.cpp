@@ -188,7 +188,7 @@ ASafecracker::ASafecracker() {
 	GameName = TEXT("SafeCracker");
 	MFGameClass = TEXT("RageSafeCracker");
 	TimeLimit = 9; // RageSafeCracker.TimeLimit
-	GoalTeamScore = 1;
+	ScoreLimit = 1;
 	RespawnWait = 5; // RespawnWait / MissionRespawnWait
 	ObjectName = TEXT("gold");
 	CarryLine = TEXT("Transport in progress!");

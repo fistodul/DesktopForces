@@ -10,7 +10,7 @@ Quick usage:
   python3 Tools/setup.py --import-all     # import all core maps non-interactively
   python3 Tools/setup.py --list-maps      # show available maps
 """
-import os
+import json
 import platform
 import shutil
 import subprocess
@@ -28,26 +28,26 @@ TOML_USER = MFPORT_DIR / 'mfport.toml'
 CORE_MAPS = {
     'BR-thebigisland':      "Battle Royale island (Filip + Gregaras mashup)",
     'COOP-CoopOneUpdate':   "Co-op survival map (AKVARI)",
-    'dm-HolidayTown':       "Deathmatch – Holiday Town (Marcin)",
-    'DM-Warship':           "Deathmatch – Warship (Marcinbydg)",
-    'MF-Aquarius':          "Team game – Aquarius (Gian)",
-    'mf-BraveDwarfes':      "Team game – Brave Dwarves (Marcin)",
-    'mf-City_Rush':         "Team game – City Rush (Marcinbydg)",
-    'MF-Filip':             "Team game – Filip (AKVARI)",
-    'mf-Pobojowisko_VerII': "Team game – Pobojowisko Ver.II (Marcin)",
-    'mf-Prehistoric':       "Team game – Prehistoric (Marcinbydg)",
-    'MF-RandomLand':        "Team game – Random Land (AKVARI)",
-    'mf-Sardine_City':      "Team game – Sardine City (Marcinbydg)",
-    'mf-Space_station':     "Team game – Space Station (Marcin)",
-    'MF-Stuck':             "Team game – Stuck (AKVARI)",
-    'mf-Tajga':             "Team game – Tajga (Marcin)",
-    'MF-Test_Facility':     "Team game – Test Facility (Ahmed Isaac Alizai)",
-    'mf-Toreford':          "Team game – Toreford (Marcin)",
-    'mf-Treasure_Finders':  "Team game – Treasure Finders (Marcin)",
-    'mf-Tropics':           "Team game – Tropics (Marcinbydg)",
-    'MF-TurpowiaV1':        "Team game – Turpowia V1 (AKVARI)",
-    'mf-Worlds_Peak':       "Team game – World's Peak (Marcin)",
-    'ZM-SpaceZombura':      "Zombie survival – Space Zombura (AKVARI)",
+    'dm-HolidayTown':       "Deathmatch - Holiday Town (Marcin)",
+    'DM-Warship':           "Deathmatch - Warship (Marcinbydg)",
+    'MF-Aquarius':          "Team game - Aquarius (Gian)",
+    'mf-BraveDwarfes':      "Team game - Brave Dwarves (Marcin)",
+    'mf-City_Rush':         "Team game - City Rush (Marcinbydg)",
+    'MF-Filip':             "Team game - Filip (AKVARI)",
+    'mf-Pobojowisko_VerII': "Team game - Pobojowisko Ver.II (Marcin)",
+    'mf-Prehistoric':       "Team game - Prehistoric (Marcinbydg)",
+    'MF-RandomLand':        "Team game - Random Land (AKVARI)",
+    'mf-Sardine_City':      "Team game - Sardine City (Marcinbydg)",
+    'mf-Space_station':     "Team game - Space Station (Marcin)",
+    'MF-Stuck':             "Team game - Stuck (AKVARI)",
+    'mf-Tajga':             "Team game - Tajga (Marcin)",
+    'MF-Test_Facility':     "Team game - Test Facility (Ahmed Isaac Alizai)",
+    'mf-Toreford':          "Team game - Toreford (Marcin)",
+    'mf-Treasure_Finders':  "Team game - Treasure Finders (Marcin)",
+    'mf-Tropics':           "Team game - Tropics (Marcinbydg)",
+    'MF-TurpowiaV1':        "Team game - Turpowia V1 (AKVARI)",
+    'mf-Worlds_Peak':       "Team game - World's Peak (Marcin)",
+    'ZM-SpaceZombura':      "Zombie survival - Space Zombura (AKVARI)",
 }
 
 
@@ -117,23 +117,27 @@ def check_wine():
 
 def check_ue():
     """Try to find an Unreal Engine installation."""
-    candidates = []
-    if platform.system() == 'Linux':
-        candidates += list(Path.home().glob('Linux_Unreal_Engine_*'))
-        candidates += list(Path('/opt').glob('UnrealEngine*'))
-    elif platform.system() == 'Windows':
-        for drive in ['C:', 'D:']:
-            candidates += list(Path(f'{drive}/Program Files/Epic Games').glob('UE_*'))
-    for c in sorted(candidates, reverse=True):
-        if (c / 'Engine').is_dir():
-            print(f'  Unreal Engine: {c} ✓')
-            return str(c)
-    print('  Unreal Engine: not auto-detected (you will need to set ue_root in mfport.toml)')
+    from mfport.mflib.config import load
+    try:
+        root = load().ue_root
+        if (root / 'Engine').is_dir():
+            print(f'  Unreal Engine: {root} ✓')
+            return str(root)
+    except (OSError, ValueError) as exc:
+        print(f'  Unreal Engine: {exc}')
     return None
 
 
 def find_game_install():
     """Try to find a Mobile Forces installation."""
+    from mfport.mflib.config import load
+    try:
+        configured = load().game_dir
+        if (configured / 'System').is_dir() and (configured / 'Maps').is_dir():
+            print(f'  Mobile Forces: {configured} ✓')
+            return str(configured)
+    except (OSError, ValueError):
+        pass
     candidates = []
     if platform.system() == 'Linux':
         # Steam common locations
@@ -165,35 +169,20 @@ def find_game_install():
 
 def create_config(game_dir, ue_root):
     """Create mfport.toml from the example, filling in detected paths."""
-    template = TOML_EXAMPLE.read_text()
-
-    if game_dir:
-        try:
-            rel = os.path.relpath(game_dir, MFPORT_DIR)
-            template = template.replace(
-                'game_dir = "../../../MoFo/MobileForces"',
-                f'game_dir = "{rel}"'
-            )
-        except ValueError:
-            template = template.replace(
-                'game_dir = "../../../MoFo/MobileForces"',
-                f'game_dir = "{game_dir}"'
-            )
-
-    if ue_root:
-        try:
-            rel = os.path.relpath(ue_root, MFPORT_DIR)
-            template = template.replace(
-                'ue_root = "../../../Linux_Unreal_Engine_5.8.3"',
-                f'ue_root = "{rel}"'
-            )
-        except ValueError:
-            template = template.replace(
-                'ue_root = "../../../Linux_Unreal_Engine_5.8.3"',
-                f'ue_root = "{ue_root}"'
-            )
-
-    TOML_USER.write_text(template)
+    template = TOML_EXAMPLE.read_text(encoding='utf-8')
+    # JSON string quoting is TOML-compatible for paths, including backslashes/quotes.
+    # Platform sections keep a Windows setup from invalidating the Linux configuration.
+    section = ''
+    paths = {'game_dir': game_dir, 'ue_root': ue_root}
+    lines = []
+    for line in template.splitlines():
+        if line.startswith('['):
+            section = line.strip('[]')
+        key = line.split('=', 1)[0].strip()
+        if section == platform.system().lower() and key in paths and paths[key]:
+            line = f'{key} = {json.dumps(str(paths[key]), ensure_ascii=False)}'
+        lines.append(line)
+    TOML_USER.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     print(f'\n  Created {TOML_USER}')
 
 

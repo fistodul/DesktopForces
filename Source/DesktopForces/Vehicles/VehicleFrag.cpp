@@ -113,6 +113,7 @@ void AVehicleFrag::Fire(UWorld* World, USceneComponent* AttachTo, const FVector&
 		return;
 	// AmbientSound VehicleBurnLoop at SoundVolume 64 while it burns (ScaleGlow 1 -> 0.1: 4.5 s)
 	USoundBase* Loop = DF::LoadClassic<USoundBase>(TEXT("Sounds/VehicleFragSFX/VehicleBurnLoop"));
+	DF::EffectsSound(Loop);
 	UAudioComponent* Audio = !Loop ? nullptr : AttachTo ? UGameplayStatics::SpawnSoundAttached(Loop, AttachTo, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true, 0.25f)
 														: UGameplayStatics::SpawnSoundAtLocation(World, Loop, At, FRotator::ZeroRotator, 0.25f);
 	if (Audio) {

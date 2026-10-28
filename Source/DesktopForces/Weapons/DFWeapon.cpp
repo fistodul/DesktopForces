@@ -199,7 +199,7 @@ void ADFWeapon::SetAmbientMFSound(const TCHAR* MFName) {
 
 void ADFWeapon::PlaySoundLocal(USoundBase* Sound) const {
 	if (Sound && GetNetMode() != NM_DedicatedServer)
-		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetFireStart());
+		DF::PlaySoundAtLocation(this, Sound, GetFireStart());
 }
 
 // --- state machine -------------------------------------------------------------------
@@ -347,7 +347,7 @@ void ADFWeapon::ServerReload_Implementation() {
 
 bool ADFWeapon::TryFire(bool bAlt) {
 	ADFCharacter* C = GetOwnerCharacter();
-	if (!C || !C->IsAlive() || C->IsInLoadout())
+	if (!C || !C->IsAlive() || C->IsInLoadout() || C->IsFeigningDeath())
 		return false;
 	if (!HasAmmoInClip()) {
 		if (CanReload())
