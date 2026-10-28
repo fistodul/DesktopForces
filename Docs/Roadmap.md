@@ -67,7 +67,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Third-person soldiers: MF helmet / balaclava models, team and captain skins, MF's animation choice (Pawn.uc Get*Anim: weapon sets, zoomed poses, strafes, crouch, swim, jump / land, throws, deaths), carry meshes in hand, drivers and seated passengers; ✅ saved player model and preferred team choice; ⬜ ragdolls
 - 🟡 Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, damage smoke, rocket/Predator fire trails, wall hits, blood, map emitters; ✅ tracers, shell cases, bullet holes and scorch marks (decals), smoke grenades; ⬜ muzzle flashes, water rings, bubbles
 - 🟡 Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ⬜ server browser (333networks master server protocol)
-- ⬜ Touch controls (mobile)
+- ⬜ Touch controls (mobile): plan under "Open threads"
 
 ## Maps
 - ✅ mf-warehouse converts and builds
@@ -159,5 +159,14 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    ported struct and plain defaults with a parent-chain helper in `mflib`.
 4. **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
    in a packaged Windows build is still unchecked.
-5. **Bots and vehicles**: bots see drivers and follow on foot when their order-giver drives.
+5. **Touch controls and an Android build.** Steps:
+   - Install Android Studio, the SDK/NDK versions the engine's `Android_SDK.json` names, and
+     JDK 17, then run `SetupAndroid.sh`.
+   - Package Android (ASTC, OpenGL ES 3.2 or Vulkan; `Performance.md` already caps textures at 512).
+   - Touch: Enhanced Input with a Slate/UMG overlay is preferred over UE's legacy `TouchInterface`
+     (fixed joysticks, no extra buttons). It needs a left move stick, look by dragging the right
+     half, Fire / Alt / Jump / Crouch / Use / Reload / Loadout buttons, a weapon strip, and tap
+     targets for the loadout and menus.
+   - Show it when a touch screen is present (`bAlwaysShowTouchInterface` for desktop testing).
+6. **Bots and vehicles**: bots see drivers and follow on foot when their order-giver drives.
    Riding along and using turrets is still untested and partly unhandled.
