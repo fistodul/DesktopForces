@@ -115,6 +115,7 @@ protected:
 	TWeakObjectPtr<ADFVehicle> GoingForVehicle;
 	float GoingForVehicleSince = 0.f;
 	float DontEnterVehicleTime = 0.f;
+	float NextFollowLog = 0.f; // verbose log throttle
 	/** Where the drive goes (the goal actor if any, it may move) and the road there. */
 	TWeakObjectPtr<AActor> DriveGoal;
 	FVector DriveDest = FVector::ZeroVector;

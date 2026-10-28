@@ -247,9 +247,18 @@ void ADFBotController::SetOrder(EDFBotOrder NewOrder, APawn* Giver) {
 	// the soldier, also when the order comes from behind a wheel (the car is the giver's pawn then)
 	const ADFVehicle* GiverVehicle = Cast<ADFVehicle>(Giver);
 	OrderGiver = GiverVehicle ? GiverVehicle->GetDriver() : Giver;
+	UE_LOG(LogDF, Verbose, TEXT("%s: order %d from %s"), *GetName(), int32(NewOrder), *GetNameSafe(OrderGiver.Get()));
 	OrderSpot = Giver ? Giver->GetActorLocation() : (GetPawn() ? GetPawn()->GetActorLocation() : FVector::ZeroVector);
-	// drop the current plan so the order takes effect on the next think
+	// drop the current plan so the order takes effect on the next think (a vehicle it was
+	// walking to included: covering someone, it gets into theirs instead)
 	CurrentGoal = nullptr;
+	GoingForVehicle = nullptr;
+	// already at a wheel when told to cover someone: drive over to them (then out, and with them)
+	if (NewOrder == EDFBotOrder::Follow && OrderGiver.IsValid() && Cast<ADFVehicle>(GetPawn())) {
+		DriveGoal = OrderGiver.Get();
+		DriveStart = GetWorld()->GetTimeSeconds();
+		Route.Reset(); // plan the road to them
+	}
 	LingerUntil = 0.f;
 	NextRoam = 0.f;
 	StopMovement();
@@ -304,6 +313,10 @@ bool ADFBotController::FollowOrder(ADFCharacter* C) {
 			if (ADFVehicle* GV = Cast<ADFVehicle>(G->GetAttachParentActor())) {
 				if (C->GetAttachParentActor() == GV)
 					return true; // riding along
+				UE_CLOG(GetWorld()->GetTimeSeconds() >= NextFollowLog, LogDF, Verbose, TEXT("%s: following into %s (want %.2f, wait %.1f s, %.0f cm)"), *GetName(), *GV->GetName(),
+					GV->BotDesirability(C), DontEnterVehicleTime - GetWorld()->GetTimeSeconds(), FVector::Dist(GV->GetActorLocation(), C->GetActorLocation()));
+				if (GetWorld()->GetTimeSeconds() >= NextFollowLog)
+					NextFollowLog = GetWorld()->GetTimeSeconds() + 5.f;
 				if (GV->BotDesirability(C) > 0.f && GetWorld()->GetTimeSeconds() >= DontEnterVehicleTime) {
 					if (GoingForVehicle.Get() != GV) {
 						GoingForVehicle = GV;
@@ -318,6 +331,7 @@ bool ADFBotController::FollowOrder(ADFCharacter* C) {
 				MoveToActor(const_cast<APawn*>(G), 250.f);
 			return true;
 		}
+		UE_LOG(LogDF, Verbose, TEXT("%s: order giver gone, freelance"), *GetName());
 		Order = EDFBotOrder::Freelance; // giver gone
 		return false;
 	default:
@@ -433,6 +447,9 @@ bool ADFBotController::PickVehicle(ADFCharacter* C, AActor* Goal, const FVector&
 	const ADFRoadNetwork* Net = ADFRoadNetwork::Get(GetWorld());
 	if (!bUseVehicles || !Net || GoingForVehicle.IsValid() || Now < DontEnterVehicleTime || !C->GetCharacterMovement()->IsMovingOnGround())
 		return false;
+	// covering someone: stay with them (FollowOrder gets in with them), don't drive off alone
+	if (Order == EDFBotOrder::Follow && OrderGiver.IsValid())
+		return false;
 	// how much road the trip takes (it counted the bRoad nodes on its route): more than 10
 	// nodes (Level.MinimumRoadDistanceAttack) is worth a vehicle, more than 18 is far away
 	TArray<int32> Road;
@@ -460,7 +477,7 @@ bool ADFBotController::PickVehicle(ADFCharacter* C, AActor* Goal, const FVector&
 	}
 	if (!Best)
 		return false;
-	UE_LOG(LogDF, Verbose, TEXT("%s: going for %s (%d road nodes to %s)"), *GetName(), *Best->GetName(), Road.Num(), *Dest.ToCompactString());
+	UE_LOG(LogDF, Verbose, TEXT("%s: going for %s (%d road nodes to %s; order %d)"), *GetName(), *Best->GetName(), Road.Num(), *Dest.ToCompactString(), int32(Order));
 	GoingForVehicle = Best;
 	GoingForVehicleSince = Now;
 	DriveGoal = Goal;
