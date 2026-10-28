@@ -83,6 +83,32 @@ build, restoring the project file afterward. Maps still borrowing their textures
 will need replacements (`mfport.py packs`). Builds containing original game content
 are for the team; do not publish that content with the public source.
 
+## Android
+
+Needs the SDK packages the engine names in `Engine/Config/Android/Android_SDK.json`
+(5.8: `platforms;android-36`, `build-tools;36.0.0`, `cmake;3.22.1`, `ndk;27.2.12479018`,
+plus `platform-tools`) and a JDK 17+. Android Studio isn't required. Google's command-line
+tools are enough:
+
+```bash
+mkdir -p ~/Android/Sdk/cmdline-tools && cd ~/Android/Sdk/cmdline-tools
+# unzip commandlinetools-linux-*_latest.zip from developer.android.com here, rename to "latest"
+yes | latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk --licenses
+latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "platforms;android-36" \
+  "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
+```
+
+`Tools/package.sh Android Development --maps MF_TestRange,mf-warehouse` builds an arm64
+APK with ASTC textures (`Saved/Packages/Android-Development/DesktopForces-arm64.apk`,
+443 MB on 2026-10-28). `--maps` limits the map list, but every content folder in
+`DirectoriesToAlwaysCook` is still cooked, the whole Classic plugin included. `ANDROID_HOME`,
+`NDKROOT` and `JAVA_HOME` override `~/Android/Sdk`, its newest NDK, and the JDK of `javac`.
+Install it with `adb install -r <apk>`.
+
+Touch controls are UE's virtual joysticks (left moves, right looks) plus `SDFTouchControls`
+buttons. They appear on touch devices; test them on a desktop with
+`-ini:Input:[/Script/Engine.InputSettings]:bAlwaysShowTouchInterface=True`.
+
 ## Shared checkout or separate copies
 
 For dual boot, put the checkout on a drive both systems can access and optionally

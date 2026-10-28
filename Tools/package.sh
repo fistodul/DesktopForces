@@ -94,6 +94,16 @@ project.write_text(json.dumps(data, indent='\t') + '\n')
 PY
 fi
 
+# content folders differing only in case (a Linux NTFS / ext4 checkout allows them): UE names
+# packages case-insensitively, so one twin hides the other's packages from the cooker, and
+# Windows can't hold both. Merge them (the importer follows the texture folder's spelling).
+TWINS="$(find "$PROJECT_DIR/Content" "$PROJECT_DIR/Plugins" -type d -path '*Content*' 2>/dev/null | awk '{ l = tolower($0); if (seen[l]++) print }')"
+if [ -n "$TWINS" ]; then
+  echo "Content folders that differ only in case:" >&2
+  echo "$TWINS" >&2
+  exit 2
+fi
+
 # every built map (the cooker doesn't take maps from the always-cook folders): the game's own
 # and, unless --public, the content plugins'
 MAPS=""

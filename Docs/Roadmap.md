@@ -159,14 +159,14 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    ported struct and plain defaults with a parent-chain helper in `mflib`.
 4. **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
    in a packaged Windows build is still unchecked.
-5. **Touch controls and an Android build.** Steps:
-   - Install Android Studio, the SDK/NDK versions the engine's `Android_SDK.json` names, and
-     JDK 17, then run `SetupAndroid.sh`.
-   - Package Android (ASTC, OpenGL ES 3.2 or Vulkan; `Performance.md` already caps textures at 512).
-   - Touch: Enhanced Input with a Slate/UMG overlay is preferred over UE's legacy `TouchInterface`
-     (fixed joysticks, no extra buttons). It needs a left move stick, look by dragging the right
-     half, Fire / Alt / Jump / Crouch / Use / Reload / Loadout buttons, a weapon strip, and tap
-     targets for the loadout and menus.
-   - Show it when a touch screen is present (`bAlwaysShowTouchInterface` for desktop testing).
+5. **Android: first run on a phone.** Done (2026-10-28):
+   - The SDK is installed per [Building](Building.md#android).
+   - `Tools/package.sh Android Development --maps ...` builds a 443 MB arm64 APK.
+   - Touch controls: virtual sticks and an action-button overlay, tested on desktop.
+
+   Next:
+   - Install it on a device and check rendering (ES3.1 / Vulkan), touch feel and performance.
+   - Size the buttons by screen DPI, and add tap support to the loadout and menus.
+   - Cook per pack (thread 1) so the APK doesn't carry every classic asset.
 6. **Bots and vehicles**: bots see drivers and follow on foot when their order-giver drives.
    Riding along and using turrets is still untested and partly unhandled.
