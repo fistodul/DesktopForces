@@ -51,6 +51,17 @@
 #define LOCTEXT_NAMESPACE "DFMenu"
 
 namespace {
+	/** No exclusive fullscreen to offer (Linux's SDL: a desktop-sized window; phones: always). */
+	bool FullscreenIsBorderless() {
+#if PLATFORM_ANDROID || PLATFORM_IOS
+		return true;
+#else
+		return FPlatformApplicationMisc::FullscreenSameAsWindowedFullscreen();
+#endif
+	}
+} // namespace
+
+namespace {
 	// MF menu look: dark blue panels with a light border, white text
 	const FLinearColor PanelColor(0.02f, 0.05f, 0.25f, 0.82f);
 	const FLinearColor TitleColor(0.55f, 0.75f, 1.f);
@@ -881,7 +892,7 @@ private:
 		WindowModes = { MakeShared<FString>(TEXT("Borderless window")), MakeShared<FString>(TEXT("Window")) };
 		WindowModeValues = { EWindowMode::WindowedFullscreen, EWindowMode::Windowed };
 		EWindowMode::Type CurrentMode = S.GetFullscreenMode();
-		if (!FPlatformApplicationMisc::FullscreenSameAsWindowedFullscreen()) {
+		if (!FullscreenIsBorderless()) {
 			WindowModes.Insert(MakeShared<FString>(TEXT("Fullscreen")), 0);
 			WindowModeValues.Insert(EWindowMode::Fullscreen, 0);
 		} else if (CurrentMode == EWindowMode::Fullscreen)
@@ -1104,7 +1115,7 @@ bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
 	TestEqual(TEXT("Factory reset restores effects volume"), Menu->EffectsVolume, 1.f);
 	TestEqual(TEXT("Reset keeps selected tab"), Menu->OptionTabs->GetActiveWidgetIndex(), 3);
 	TestTrue(TEXT("Reset keeps Advanced expanded"), Menu->AdvancedArea->IsExpanded());
-	if (FPlatformApplicationMisc::FullscreenSameAsWindowedFullscreen())
+	if (FullscreenIsBorderless())
 		TestFalse(TEXT("No unsupported exclusive fullscreen choice"), Menu->WindowModeValues.Contains(EWindowMode::Fullscreen));
 	for (const FIntPoint& Size : Menu->ResolutionSizes)
 		TestTrue(TEXT("All selectable resolutions are positive"), Size.X > 0 && Size.Y > 0);

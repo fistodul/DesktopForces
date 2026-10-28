@@ -4,6 +4,8 @@
 #   Tools/package.sh                      Linux, Shipping, with your classic content
 #   Tools/package.sh Linux Development    a build with the console and logs
 #   Tools/package.sh --public             without the Classic and Unverified plugins
+#   Tools/package.sh Android Development --maps MF_TestRange,mf-warehouse
+#                                         an arm64 APK (ASTC textures) with two maps
 #
 # Output: Saved/Packages/<Platform>-<Config>/ (run Linux/DesktopForces.sh, or the .exe on
 # Windows; Windows builds: Tools/package.ps1 on a Windows machine). Engine path:
@@ -21,10 +23,18 @@ UE_ROOT="$(python3 "$PROJECT_DIR/Tools/play.py" --engine-root)"
 PLATFORM=Linux
 CONFIG=Shipping
 PUBLIC=0
+ONLY_MAPS=""
+NEXT_MAPS=0
 for A in "$@"; do
+  if [ "$NEXT_MAPS" = 1 ]; then
+    ONLY_MAPS="$A"
+    NEXT_MAPS=0
+    continue
+  fi
   case "$A" in
     --public) PUBLIC=1 ;;
-    Linux|Win64) PLATFORM="$A" ;;
+    --maps) NEXT_MAPS=1 ;;
+    Linux|Win64|Android) PLATFORM="$A" ;;
     Shipping|Development) CONFIG="$A" ;;
     *)
       echo "unknown argument: $A" >&2
@@ -41,6 +51,26 @@ fi
 DEBUGINFO=()
 if [ "$CONFIG" = Shipping ]; then
   DEBUGINFO+=(-nodebuginfo)
+fi
+PLATFORM_ARGS=()
+if [ "$PLATFORM" = Android ]; then
+  # SDK / NDK / JDK from the environment, else where Android Studio or sdkmanager puts them;
+  # the versions are the engine's (Engine/Config/Android/Android_SDK.json)
+  export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+  if [ -z "${NDKROOT:-}" ]; then
+    NDKROOT="$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | sort -V | tail -1)"
+    export NDKROOT
+  fi
+  export NDK_ROOT="$NDKROOT"
+  if [ -z "${JAVA_HOME:-}" ] && command -v javac >/dev/null; then
+    JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
+    export JAVA_HOME
+  fi
+  if [ ! -d "$ANDROID_HOME/platforms" ] || [ -z "$NDKROOT" ] || [ -z "${JAVA_HOME:-}" ]; then
+    echo "Android needs the SDK, NDK and a JDK: see Docs/Building.md (Android)" >&2
+    exit 2
+  fi
+  PLATFORM_ARGS+=(-cookflavor=ASTC -package) # -package: the APK
 fi
 OUT="$PROJECT_DIR/Saved/Packages/$PLATFORM-$CONFIG$SUFFIX"
 
@@ -76,13 +106,19 @@ for D in "$PROJECT_DIR/Content/Maps:/Game/Maps" "$PROJECT_DIR/Content/MF/Maps:/G
     continue
   fi
   for M in "$DIR"/*.umap; do
-    [ -e "$M" ] && MAPS="$MAPS${MAPS:++}$ROOT/$(basename "$M" .umap)"
+    NAME="$(basename "$M" .umap)"
+    if [ -n "$ONLY_MAPS" ] && [[ ",$ONLY_MAPS," != *",$NAME,"* ]]; then
+      continue
+    fi
+    [ -e "$M" ] && MAPS="$MAPS${MAPS:++}$ROOT/$NAME"
   done
 done
+# -NoUBA: UE's build accelerator fails renaming files when the checkout is reached through a
+# symlink (a shared NTFS checkout); play.py builds the same way
 echo "Packaging $PLATFORM $CONFIG$NOTE -> $OUT ($(echo "$MAPS" | tr '+' '\n' | grep -c .) maps)"
 "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun \
   -project="$UPROJECT" -noP4 -utf8output -unattended \
   -platform="$PLATFORM" -clientconfig="$CONFIG" \
-  -build -cook -map="$MAPS" -stage -pak -iostore -compressed -prereqs \
-  -archive -archivedirectory="$OUT" "${DEBUGINFO[@]}"
+  -ubtargs="-NoUBA" -build -cook -map="$MAPS" -stage -pak -iostore -compressed -prereqs \
+  -archive -archivedirectory="$OUT" "${DEBUGINFO[@]}" "${PLATFORM_ARGS[@]}"
 echo "Done: $OUT"
