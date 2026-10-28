@@ -120,6 +120,11 @@ void UDFCheatManager::DFHurtEnemies(int32 N) {
 	}
 }
 
+void UDFCheatManager::DFTouch(FName Action, int32 bPressed) {
+	if (ADFPlayerController* PC = Cast<ADFPlayerController>(GetPlayerController()))
+		PC->TouchAction(Action, bPressed != 0);
+}
+
 void UDFCheatManager::DFFire(int32 Alt, float Seconds) {
 	if (ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn())) {
 		const bool bAlt = Alt != 0;
@@ -501,7 +506,7 @@ bool UDFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UO
 		// views and test helpers stay on this machine (and only where cheats are on: a free
 		// camera sees through walls); everything else changes the game, so the server runs it
 		static const TCHAR* Local[] = { TEXT("DFCam"), TEXT("DFTopView"), TEXT("DFNavTest"), TEXT("DFNavPath"), TEXT("DFNavRelevant"),
-			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFVehicles"),
+			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFTouch"), TEXT("DFVehicles"),
 			TEXT("ViewSelf"), TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
 		const TCHAR* Str = Cmd;
 		FString Name;

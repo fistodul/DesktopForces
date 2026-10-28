@@ -69,6 +69,9 @@ public:
 	/** Developer: N damage from you to every enemy (mode rules apply: Tug converts, Totem saves). */
 	UFUNCTION(Exec)
 	void DFHurtEnemies(int32 N);
+	/** Press (1) / release (0) a touch button's input action, e.g. DFTouch Fire 1 (scripted tests). */
+	UFUNCTION(Exec)
+	void DFTouch(FName Action, int32 bPressed);
 	/** Developer: hold fire for Seconds (scripted tests); DFFire 1 = alt fire. */
 	UFUNCTION(Exec)
 	void DFFire(int32 Alt = 0, float Seconds = 0.1f);

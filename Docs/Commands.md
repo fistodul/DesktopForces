@@ -105,6 +105,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
 | `DFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
 | `DFTeleport X Y Z`, `DFHurt N`, `DFFire [Alt] [Seconds]` | move your pawn (a driven vehicle takes its trailer along), take damage, hold fire (scripted tests; default 0.1 s; `DFFire 1` alt fire) |
+| `DFTouch Action 1\|0` | press / release a touch button's action (`DFTouch Fire 1`) |
 | `DFAimAt X Y Z`, `DFAimAtNearest Class` | turn to a point; to the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
 | `DFTeleportNear Class [Dist]` | move yourself (or what you drive) Dist cm (600) in front of the nearest actor of a class (`DFTeleportNear DFCharacter`: next to a bot) |
 | `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |

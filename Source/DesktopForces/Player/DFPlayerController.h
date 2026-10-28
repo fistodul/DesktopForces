@@ -256,6 +256,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	TSharedPtr<class SDFTouchControls> TouchControls;
 	virtual void PlayerTick(float DeltaTime) override;
 	TWeakObjectPtr<class UAudioComponent> AnnouncerAudio;
 	/** Move keys while driving (sent each frame in PlayerTick). */
@@ -343,6 +345,8 @@ public:
 	static FName AltSlot(FName Action) { return FName(*(Action.ToString() + TEXT("_Alt"))); }
 	/** Re-read the player's keys (after Options > Controls). */
 	void ApplyKeyBindings();
+	/** Touch buttons: hold an input action down / let it go, as its key would. */
+	void TouchAction(FName Action, bool bPressed);
 
 protected:
 	UPROPERTY(Transient)

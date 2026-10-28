@@ -28,6 +28,8 @@
 #include "Player/DFCharacterMovement.h"
 #include "Weapons/DFWeapons.h"
 #include "Loadout/DFLoadout.h"
+#include "UI/DFTouchControls.h"
+#include "GameFramework/InputSettings.h"
 #include "DesktopForces.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -62,6 +64,11 @@ void ADFPlayerController::BeginPlay() {
 		// cheat commands always parse here: the server ones go to the server, which says
 		// whether this player may (UDFCheatManager::ProcessConsoleExec)
 		EnsureCheatManager();
+		// touch screens: buttons beside UE's virtual joysticks (Input settings DefaultTouchInterface)
+		if ((FPlatformMisc::GetUseVirtualJoysticks() || GetDefault<UInputSettings>()->bAlwaysShowTouchInterface) && GEngine && GEngine->GameViewport) {
+			TouchControls = SNew(SDFTouchControls, this);
+			GEngine->GameViewport->AddViewportWidgetContent(TouchControls.ToSharedRef(), 5);
+		}
 		SetInputMode(FInputModeGameOnly());
 		bShowMouseCursor = false;
 		// until we stand somewhere the camera sits wherever the map starts it, textures still
@@ -71,6 +78,24 @@ void ADFPlayerController::BeginPlay() {
 			GetWorldTimerManager().SetTimer(FadeInTimer, this, &ADFPlayerController::FadeIn, 1.f, false); // spectators, waiting
 		}
 	}
+}
+
+void ADFPlayerController::EndPlay(const EEndPlayReason::Type Reason) {
+	if (TouchControls && GEngine && GEngine->GameViewport)
+		GEngine->GameViewport->RemoveViewportWidgetContent(TouchControls.ToSharedRef());
+	TouchControls.Reset();
+	Super::EndPlay(Reason);
+}
+
+void ADFPlayerController::TouchAction(FName Action, bool bPressed) {
+	UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayer() ? GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+	const UInputAction* A = Actions.FindRef(Action);
+	if (!Input || !A)
+		return;
+	if (bPressed)
+		Input->StartContinuousInputInjectionForAction(A, FInputActionValue(true), {}, {});
+	else
+		Input->StopContinuousInputInjectionForAction(A);
 }
 
 void ADFPlayerController::AcknowledgePossession(APawn* P) {
