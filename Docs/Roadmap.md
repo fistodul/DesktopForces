@@ -35,7 +35,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 
 ## Gameplay
 - ✅ Player movement (MF constants), crouch/walk, fall damage, carry-weight speed, recoil
-- ✅ Weapons: knife, pistol, machine gun, shotgun (twin barrels), sniper (charge + variable scope), rocket launcher, grenades (timed/impact), adrenaline, armour
+- ✅ Weapons: knife, pistol, machine gun, shotgun (one barrel or both; `?Boomstick`), sniper (charge + variable scope), rocket launcher, grenades (timed/impact), adrenaline, armour
 - ✅ Heavy machine gun (deploy, spin-up), trip bombs (laser + proximity mine)
 - ✅ Rocket lock-on (SmartRocket), tracers, shell cases
 - ✅ Loadout crates/zones, carry blocks, refill on entering

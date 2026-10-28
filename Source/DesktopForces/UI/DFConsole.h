@@ -15,4 +15,8 @@ class DESKTOPFORCES_API UDFConsole : public UConsole {
 
 public:
 	virtual bool InputKey(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override;
+
+	/** Options > Game "Console": the console key and Tab open it. Off, the console only
+	 *  carries the chat line (Say / TeamSay with no text). */
+	bool bDeveloper = true;
 };

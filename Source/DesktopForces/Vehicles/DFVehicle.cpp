@@ -1234,17 +1234,31 @@ void ADFVehicle::UpdateExpiryWarning() {
 	const bool bWarn = ExpireAt > 0.f && Remaining > 0.f && Remaining <= 30.f && !bBlownUp;
 	if (bWarn != bExpiryOverlay) {
 		bExpiryOverlay = bWarn;
-		BodyMesh->SetOverlayMaterial(bWarn ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_VehicleWarning.M_MF_VehicleWarning")) : nullptr);
+		if (bWarn && !ExpiryMaterial)
+			if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_VehicleWarning.M_MF_VehicleWarning"))) {
+				ExpiryMaterial = UMaterialInstanceDynamic::Create(Base, this);
+				// MF flashes the vehicle's own skin (AmbientGlow 255): a dim warm glow, not a red paint
+				ExpiryMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.55f, 0.12f, 0.05f));
+			}
+		UMaterialInterface* Overlay = bWarn ? ExpiryMaterial.Get() : nullptr;
+		BodyMesh->SetOverlayMaterial(Overlay);
+		for (UStaticMeshComponent* Wheel : WheelMeshes)
+			if (Wheel)
+				Wheel->SetOverlayMaterial(Overlay);
 		NextExpiryPulse = Now;
 	}
 	if (!bWarn)
 		return;
 	if (Now >= NextExpiryPulse) {
 		ExpiryPulseAt = Now;
-		NextExpiryPulse = Now + FMath::Clamp(Remaining * 0.15f, 0.2f, 4.5f);
-		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/TrailerSFX/Warning")), GetActorLocation(), 0.4f, 1200.f);
+		NextExpiryPulse = Now + FMath::Clamp(Remaining * 0.15f, 0.2f, 4.5f); // Vehicle.Timer: DestroyCounter * 0.15
 	}
-	BodyMesh->SetCustomPrimitiveDataFloat(4, FMath::Max(0.f, 1.f - (Now - ExpiryPulseAt) / 0.18f));
+	// MF: AmbientGlow 255 fading by 500 a second (half a second); no warning beep (it read as a bomb)
+	const float Pulse = FMath::Max(0.f, 1.f - (Now - ExpiryPulseAt) / 0.51f);
+	BodyMesh->SetCustomPrimitiveDataFloat(4, Pulse);
+	for (UStaticMeshComponent* Wheel : WheelMeshes)
+		if (Wheel)
+			Wheel->SetCustomPrimitiveDataFloat(4, Pulse);
 }
 
 void ADFVehicle::MulticastExpireFX_Implementation() {

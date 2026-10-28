@@ -212,11 +212,12 @@ void ADFWeapon::UseAmmo(int32 Count) {
 }
 
 bool ADFWeapon::HasInfiniteAmmo() const {
-	if (MaxClips <= 1 && MaxClipAmmo <= 1)
-		return false;
-	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	// ?OPWeapons: everything, single-use items too
+	if (const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>(); GS && GS->bInfiniteAmmo)
+		return true;
+	// a survivor / the cheat: only weapons with more than one use (ZombiePlayer.AddInventory)
 	const ADFCharacter* C = GetOwnerCharacter();
-	return (GS && GS->bInfiniteAmmo) || (C && C->HasInfiniteAmmo());
+	return C && C->HasInfiniteAmmo() && (MaxClips > 1 || MaxClipAmmo > 1);
 }
 
 void ADFWeapon::SetState(EDFWeaponState NewState, float Duration) {

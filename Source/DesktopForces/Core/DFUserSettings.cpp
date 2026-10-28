@@ -1,4 +1,5 @@
 #include "Core/DFUserSettings.h"
+#include "UI/DFConsole.h"
 #include "Engine/Console.h"
 #include "Core/DFContent.h"
 #include "AudioDevice.h"
@@ -45,17 +46,21 @@ void UDFUserSettings::ApplyConsole() const {
 	UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
 	if (!VC || !GEngine->ConsoleClass)
 		return;
-	if (bConsole && !VC->ViewportConsole) {
+	// the console object always exists (shipping builds leave it out): chat types on its line
+	if (!VC->ViewportConsole) {
 		VC->ViewportConsole = NewObject<UConsole>(VC, GEngine->ConsoleClass);
 		GLog->AddOutputDevice(VC->ViewportConsole);
-	} else if (!bConsole && VC->ViewportConsole) {
-		GLog->RemoveOutputDevice(VC->ViewportConsole);
-		VC->ViewportConsole = nullptr;
+	}
+	if (UDFConsole* Console = Cast<UDFConsole>(VC->ViewportConsole)) {
+		Console->bDeveloper = bConsole;
+		if (!bConsole && Console->ConsoleState != NAME_None)
+			Console->FakeGotoState(NAME_None);
 	}
 }
 
 bool UDFUserSettings::IsConsoleEnabled() const {
-	return GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportConsole;
+	const UDFConsole* Console = GEngine && GEngine->GameViewport ? Cast<UDFConsole>(GEngine->GameViewport->ViewportConsole) : nullptr;
+	return Console && Console->bDeveloper;
 }
 
 void UDFUserSettings::UpdateScreenPercentage() {

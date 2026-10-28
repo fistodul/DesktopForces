@@ -577,7 +577,7 @@ void FDFImporter::EnsureVehicleMaterials() {
 	if (bCreated) {
 		UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(Warning);
 		Color->ParameterName = TEXT("Color");
-		Color->DefaultValue = FLinearColor(3.f, 0.02f, 0.01f);
+		Color->DefaultValue = FLinearColor(0.55f, 0.12f, 0.05f); // ADFVehicle sets its own
 		Warning->GetExpressionCollection().AddExpression(Color);
 		UMaterialExpressionScalarParameter* Pulse = NewObject<UMaterialExpressionScalarParameter>(Warning);
 		Pulse->ParameterName = TEXT("Pulse");

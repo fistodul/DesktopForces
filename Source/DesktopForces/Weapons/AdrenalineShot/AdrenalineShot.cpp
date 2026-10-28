@@ -1,4 +1,5 @@
 #include "Weapons/AdrenalineShot/AdrenalineShot.h"
+#include "Game/DFGameMode.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
@@ -17,6 +18,7 @@ AAdrenalineShot::AAdrenalineShot() {
 	InventoryGroup = 10;
 	CarrySize = 1;
 	AutoSwitchPriority = 0.f;
+	AIRating = 0.1f; // inherited from Engine.Weapon
 	MaxClipAmmo = 1;
 	MaxClips = 1;
 	bDestroyWhenEmpty = true;
@@ -41,6 +43,16 @@ bool AAdrenalineShot::TryFire(bool bAlt) {
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFInject), false, Me);
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + GetAimRotation().Vector() * InjectRange, ECC_GameTraceChannel2, Params))
 			Target = Cast<ADFCharacter>(Hit.GetActor());
+		// the mode's own use on an enemy (Zombie: ZombieShot turns them)
+		ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
+		bool bUsed = false;
+		if (GM && Target && Target->IsAlive() && Target->GetTeam() != Me->GetTeam() && GM->InjectEnemy(Me, Target, bUsed)) {
+			if (bUsed) {
+				SetState(EDFWeaponState::Firing, FireTime);
+				UseAmmo();
+			}
+			return true;
+		}
 	}
 	// MF InjectDrug: only used when the target is hurt
 	if (!Target || Target->GetHealth() >= Target->MaxHealth)

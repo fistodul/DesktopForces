@@ -77,6 +77,9 @@ public:
 	virtual bool CanUseLoadout(ADFCharacter* Character) const;
 	/** The weapon a soldier really gets when given WeaponClass (modes with their own variants). */
 	virtual TSubclassOf<ADFWeapon> GetWeaponClassFor(const ADFCharacter* Character, TSubclassOf<ADFWeapon> WeaponClass) const { return WeaponClass; }
+	/** Adrenaline alt-fire on an enemy. True when the mode handles it (Zombie: ZombieShot's
+	 *  InjectDrug turns them); bUsed: a dose was spent. Otherwise MF's injection (it heals). */
+	virtual bool InjectEnemy(ADFCharacter* By, ADFCharacter* Victim, bool& bUsed) { return false; }
 	/** The loadout key was pressed where it can't open (ADFGameState::LoadoutAccess 0). */
 	virtual void LoadoutDenied(APlayerController* PC) const;
 
@@ -92,7 +95,7 @@ public:
 	 *  getting out (DeBall: the ball). */
 	virtual AActor* GetBotDriveTarget(AController* Bot) const { return nullptr; }
 
-	// --- votes (Gregaras' vote mutator: mutate callvote ..., mutate vote y / n) -------------
+	// --- votes (Gregaras' vote mutator, MF "mutate callvote" / "mutate vote": CallVote / Vote) -
 	/** Seconds a vote stays open (votingDuration). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Vote")
 	int32 VoteDuration = 30;
@@ -208,9 +211,10 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bTurboCars = true;
 
-	/** Gregaras' OPWeapons, simplified (?OPWeapons=1): clips never run dry (ADFWeapon::
-	 *  HasInfiniteAmmo) and shots come OPFireRate times as fast (MF: clips of hundreds, fire
-	 *  animations played 10-50 times as fast). Into ADFGameState::bInfiniteAmmo / FireRate. */
+	/** Gregaras' OPWeapons, simplified (?OPWeapons=1): no clip ever runs dry, single-use items
+	 *  too (ADFWeapon::HasInfiniteAmmo), and shots come OPFireRate times as fast (MF: clips of
+	 *  hundreds, fire animations played 10-50 times as fast). Into ADFGameState::bInfiniteAmmo
+	 *  / FireRate. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	bool bOPWeapons = false;
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
@@ -219,6 +223,10 @@ public:
 	 *  (ARocketLauncher). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	bool bImprovedRL = false;
+	/** Shotguns become the boomstick (?Boomstick=1; on in Zombie mode, MF-mods ZombieShotgun):
+	 *  12 pellets x 15, 22 spare clips, a softer kick (AShotgun::ApplyBoomstick). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	bool bBoomstick = false;
 	/** Weapons loadouts don't hand out, by class name, their subclasses too
 	 *  (?NoWeapons=Grenades,RocketLauncher; the FNG mutators NoGrenades, NoRocketLauncher ...). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")

@@ -322,7 +322,7 @@ void ADFPlayerController::SetupInputComponent() {
 	EIC->BindAction(A(TEXT("UseClosest")), ETriggerEvent::Started, this, &ADFPlayerController::UseClosest);
 	EIC->BindAction(A(TEXT("Loadout")), ETriggerEvent::Started, this, &ADFPlayerController::OnLoadout);
 	EIC->BindAction(A(TEXT("LoadoutAlt")), ETriggerEvent::Started, this, &ADFPlayerController::OnLoadout);
-	EIC->BindAction(A(TEXT("Throw")), ETriggerEvent::Started, this, &ADFPlayerController::ThrowWeapon);
+	EIC->BindAction(A(TEXT("Throw")), ETriggerEvent::Started, this, &ADFPlayerController::Drop);
 	EIC->BindAction(A(TEXT("NextWeapon")), ETriggerEvent::Started, this, &ADFPlayerController::OnNextWeapon);
 	EIC->BindAction(A(TEXT("PrevWeapon")), ETriggerEvent::Started, this, &ADFPlayerController::OnPrevWeapon);
 	EIC->BindAction(A(TEXT("NextWeaponKey")), ETriggerEvent::Started, this, &ADFPlayerController::OnNextWeapon);
@@ -905,13 +905,9 @@ void ADFPlayerController::PrevWeapon() {
 	OnPrevWeapon();
 }
 
-void ADFPlayerController::ThrowWeapon() {
+void ADFPlayerController::Drop() {
 	if (!IsLoadoutOpen())
 		ServerDropWeapon();
-}
-
-void ADFPlayerController::Drop() {
-	ThrowWeapon();
 }
 
 void ADFPlayerController::ShowScores() {
@@ -1006,16 +1002,6 @@ void ADFPlayerController::Vote(const FString& Choice) {
 	ServerVote(Choice.StartsWith(TEXT("y"), ESearchCase::IgnoreCase));
 }
 
-void ADFPlayerController::Mutate(const FString& Args) {
-	const FString A = Args.TrimStartAndEnd();
-	if (A.StartsWith(TEXT("callvote"), ESearchCase::IgnoreCase))
-		CallVote(A.Mid(8).TrimStart());
-	else if (A.StartsWith(TEXT("vote "), ESearchCase::IgnoreCase))
-		Vote(A.Mid(5).TrimStart());
-	else
-		ClientMessage(TEXT("mutate callvote <travel <map> [mode] | nextmap | restart | addbots <n> | kickbots | shuffle | balance>, mutate vote y / n"));
-}
-
 void ADFPlayerController::ServerCallVote_Implementation(const FString& Args) {
 	if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>())
 		GM->CallVote(this, Args);
@@ -1051,21 +1037,17 @@ void ADFPlayerController::StartTyping(const TCHAR* Prefix) {
 		LP->ViewportClient->ViewportConsole->StartTyping(Prefix);
 }
 
-void ADFPlayerController::Talk() {
-	StartTyping(TEXT("Say "));
-}
-
-void ADFPlayerController::TeamTalk() {
-	StartTyping(TEXT("TeamSay "));
-}
-
 void ADFPlayerController::Say(const FString& Msg) {
-	if (!Msg.TrimStartAndEnd().IsEmpty())
+	if (Msg.TrimStartAndEnd().IsEmpty())
+		StartTyping(TEXT("Say "));
+	else
 		ServerSay(Msg.Left(128), false);
 }
 
 void ADFPlayerController::TeamSay(const FString& Msg) {
-	if (!Msg.TrimStartAndEnd().IsEmpty())
+	if (Msg.TrimStartAndEnd().IsEmpty())
+		StartTyping(TEXT("TeamSay "));
+	else
 		ServerSay(Msg.Left(128), true);
 }
 
@@ -1147,6 +1129,8 @@ void ADFPlayerController::SetCommandMenuStage(int32 Stage) {
 
 void ADFPlayerController::Type() {
 	// MF Tab = Type: the one-line console (the console key opens the full one, UDFConsole)
+	if (!UDFUserSettings::Get().IsConsoleEnabled())
+		return;
 	if (UGameViewportClient* VC = GetWorld()->GetGameViewport(); VC && VC->ViewportConsole)
 		VC->ViewportConsole->FakeGotoState(FName(TEXT("Typing")));
 }

@@ -108,8 +108,9 @@ public:
 	TMap<FName, FKey> KeyBindings;
 
 	virtual void ApplyNonResolutionSettings() override;
-	/** Create or drop the game viewport's console (bConsole). UE leaves the
-	 *  console out of shipping builds (ALLOW_CONSOLE) but keeps its code. */
+	/** Make sure the game viewport has its console (UE leaves it out of shipping builds,
+	 *  ALLOW_CONSOLE, but keeps the code; chat needs its typing line) and let bConsole decide
+	 *  whether the console keys open it. */
 	void ApplyConsole() const;
 	bool IsConsoleEnabled() const;
 	virtual void SetToDefaults() override;

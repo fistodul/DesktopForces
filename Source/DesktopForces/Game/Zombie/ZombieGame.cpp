@@ -33,6 +33,7 @@ AZombieGame::AZombieGame() {
 	FriendlyFireScale = 0.01f;
 	bScoreTeamKills = false;
 	bKillTransform = false; // ZombieGame: the infected die and come back as zombies
+	bBoomstick = true; // ZombieShotgun
 }
 
 void AZombieGame::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) {
@@ -118,7 +119,7 @@ void AZombieGame::SetPlayerDefaults(APawn* PlayerPawn) {
 	AGameModeBase::SetPlayerDefaults(PlayerPawn);
 	C->GiveWeapon(AZombieKnife::StaticClass(), true);
 	C->GiveWeapon(AZombieArmour::StaticClass());
-	C->GiveWeapon(AZombieShot::StaticClass());
+	C->GiveWeapon(AAdrenalineShot::StaticClass()); // ZombieShot: InjectEnemy
 }
 
 TSubclassOf<ADFWeapon> AZombieGame::GetWeaponClassFor(const ADFCharacter* Character, TSubclassOf<ADFWeapon> W) const {
@@ -130,10 +131,6 @@ TSubclassOf<ADFWeapon> AZombieGame::GetWeaponClassFor(const ADFCharacter* Charac
 		return bZombie ? AZombieKnife::StaticClass() : AKnife::StaticClass();
 	if (W->IsChildOf<AArmour>() && (W == AArmour::StaticClass() || W == AZombieArmour::StaticClass()))
 		return bZombie ? AZombieArmour::StaticClass() : AArmour::StaticClass();
-	if (W == AAdrenalineShot::StaticClass())
-		return AZombieShot::StaticClass();
-	if (W == AShotgun::StaticClass())
-		return AZombieShotgun::StaticClass();
 	return W;
 }
 
@@ -142,7 +139,7 @@ void AZombieGame::TransformItems(ADFCharacter* C) {
 	TArray<ADFWeapon*> Carried(C->GetInventory());
 	for (ADFWeapon* W : Carried) {
 		const TSubclassOf<ADFWeapon> Want = GetWeaponClassFor(C, W->GetClass());
-		const bool bMelee = Want == AZombieKnife::StaticClass() || Want == AZombieArmour::StaticClass() || Want == AZombieShot::StaticClass();
+		const bool bMelee = Want == AZombieKnife::StaticClass() || Want == AZombieArmour::StaticClass() || Want == AAdrenalineShot::StaticClass();
 		if (bMeleeOnly && !bMelee) {
 			C->RemoveWeapon(W); // StripRanged
 		} else if (Want != W->GetClass()) {
@@ -312,6 +309,11 @@ void AZombieGame::Killed(AController* Killer, AController* Victim, ADFCharacter*
 	// Move the infected to the zombies before the round ends (not when run over)
 	if (bInfectActive && !(DamageType && DamageType->IsChildOf<UDFDamage_RunOver>()))
 		MoveToTeam(VPS, KPS);
+}
+
+bool AZombieGame::InjectEnemy(ADFCharacter* By, ADFCharacter* Victim, bool& bUsed) {
+	bUsed = Inject(By, Victim); // ZombieShot.InjectDrug: an enemy at 100 health or less changes sides
+	return true;
 }
 
 bool AZombieGame::Inject(ADFCharacter* By, ADFCharacter* Victim) {

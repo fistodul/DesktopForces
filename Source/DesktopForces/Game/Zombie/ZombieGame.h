@@ -53,6 +53,7 @@ public:
 
 	/** ZombieShot alt fire on an enemy: they join the injector's team (+2). False if it can't. */
 	bool Inject(ADFCharacter* By, ADFCharacter* Victim);
+	virtual bool InjectEnemy(ADFCharacter* By, ADFCharacter* Victim, bool& bUsed) override;
 
 	/** How much stronger zombies get per human (boost = (humans / zombies) ^ this; 0.16 - 0.2). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Zombie")

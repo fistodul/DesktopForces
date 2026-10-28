@@ -13,7 +13,7 @@ where the original had the command; case doesn't matter.
 | `LoadoutNext` / `LoadoutPrev` / `LoadoutSelect` | move the loadout cursor / take or put back (S·W·wheel / Fire·E·Enter) |
 | `SwitchWeapon N` | select group N (1-9, 10 = key 0, 11 = X) |
 | `NextWeapon` / `PrevWeapon` | cycle weapons (wheel down / up, `]` / `[`); zoom the sniper scope out / in |
-| `ThrowWeapon`, `Drop` | drop the held weapon (`;`) |
+| `Drop` | drop the held weapon (`;`; MF ThrowWeapon) |
 | `ShowScores` | toggle the scoreboard (F1 hold) |
 | `Type` | the one-line console (Tab) |
 | `SShot` | screenshot (`Saved/Screenshots/...`) |
@@ -26,10 +26,8 @@ where the original had the command; case doesn't matter.
 | `ListBots` | bots and their skill |
 | `CallVote travel <map> [mode]`, `CallVote nextmap / restart / addbots N / kickbots / shuffle / balance` | call a vote (Gregaras' vote mutator; you vote yes; over half the players saying yes passes it, 30 s) |
 | `Vote yes`, `Vote no` | vote on the running vote |
-| `Mutate callvote ...`, `Mutate vote y / n` | the same, as typed on the MF servers |
 | `ShowCommandMenu` | team orders menu (V); number keys or a mouse click pick the order, then All / a team-mate (the view holds still while it's open) |
-| `Talk` / `TeamTalk` | type a chat line to everyone / your team (T / Y) |
-| `Say Text` / `TeamSay Text` | send a chat line |
+| `Say [Text]` / `TeamSay [Text]` | chat to everyone / your team; without text, type the line first (T / Y; MF Talk / TeamTalk). Works with the console option off |
 | `ViewTeam` | watch the next team-mate (F5); `ViewPlayerNum N`: NumPad1 = yourself, NumPad2.. = team-mates |
 | `CenterView` | level the view (End) |
 | `Reload` | reload (R); Totem: heal yourself over time |

@@ -136,8 +136,13 @@ TArray<FString> DF::FindMaps() {
 	Registry.GetAssets(Filter, Assets);
 	Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
 	TArray<FString> Out;
-	for (const FAssetData& A : Assets)
-		Out.Add(A.PackageName.ToString());
+	for (const FAssetData& A : Assets) {
+		// a packaged game's registry lists every pack it was cooked with; a pack whose pak
+		// was removed is left out here (a lookup in the mounted pak index, no disk scan)
+		const FString Package = A.PackageName.ToString();
+		if (FPackageName::DoesPackageExist(Package))
+			Out.Add(Package);
+	}
 	return Out;
 }
 

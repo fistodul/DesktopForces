@@ -41,7 +41,8 @@ Add to the map: `map?option=value?option=value`.
 | `Teams=N` | number of teams in team modes (MF: 2) |
 | `RespawnWait=s` | seconds before a respawn |
 | `Vehicles=0` | no vehicles; `Vehicles=Buggy` (any vehicle class: `Humvee`, `Jeep`, `Heli` ...) every road generator makes that one, `Vehicles=Random` one of the four stock cars each time; `Trucks=Jeep` / `Trucks=Heli` what the truck generators make; `APCs=ArmedAPC` / `APCs=ArmedAPCRocket` what the APC generators make; `TurboCars=0` no nitro; `AddVehicles=0` none of the server's added vehicles |
-| `OPWeapons=1` | Gregaras' overpowered weapons: clips never run dry (weapons with more than one use, as for zombie survivors), shots 4x as fast (`OPFireRate`) |
+| `OPWeapons=1` | Gregaras' overpowered weapons: no clip ever runs dry, single-use items too (zombie survivors and the `InfiniteAmmo` cheat only get it for weapons with more than one use), shots 4x as fast (`OPFireRate`) |
+| `Boomstick=1` | shotguns are the zombie mode's boomstick: 12 pellets × 15 per barrel, 22 spare clips, less kick (on by default in Zombie mode; `Boomstick=0` turns it off there) |
 | `ImprovedRL=1` | Gian's improved rocket launcher instead of MF's: carry size 3, rockets 1800 uu/s, 140 damage |
 | `NoWeapons=Grenades,RocketLauncher` | weapons loadouts don't hand out, by class name (their variants too: no rocket launchers of any kind) |
 | `Gravity=x` | world gravity times x (`0.2`: FNG's LowGrav) |
@@ -71,6 +72,7 @@ ServerMessageGroup=1
 ;Trucks=Heli
 ;APCs=ArmedAPC
 ;bOPWeapons=True
+;bBoomstick=True
 
 [/Script/DesktopForces.DFGameSettings]
 ; extra vehicles and swaps for this server only (maps already carry the community's ones)

@@ -84,7 +84,7 @@ public:
 	float MouseSensitivity = 1.f;
 
 	/**
-	 * Keys that run console commands, like MF's User.ini (F9=SShot, T=Talk, V=ShowCommandMenu
+	 * Keys that run console commands, like MF's User.ini (F9=SShot, T=Say, V=ShowCommandMenu
 	 * ...). Defaults in DefaultGame.ini; players and mods add or change lines there.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "DF")
@@ -128,9 +128,6 @@ public:
 	void CallVote(const FString& Args);
 	UFUNCTION(Exec)
 	void Vote(const FString& Choice);
-	/** The MF way to say it: "mutate callvote ...", "mutate vote y" / "mutate vote n". */
-	UFUNCTION(Exec)
-	void Mutate(const FString& Args);
 	int32 GetCommandMenuOrder() const { return CommandMenuOrder; }
 	/** Orders offered in this game type (MF RageVoicePack.GetOrderString 0-4). */
 	TArray<FString> GetCommandMenuOrders() const;
@@ -158,9 +155,7 @@ public:
 	void NextWeapon();
 	UFUNCTION(Exec)
 	void PrevWeapon();
-	/** Drop the held weapon (MF ThrowWeapon / Drop). */
-	UFUNCTION(Exec)
-	void ThrowWeapon();
+	/** Drop the held weapon (MF ThrowWeapon). */
 	UFUNCTION(Exec)
 	void Drop();
 	UFUNCTION(Exec)
@@ -186,11 +181,7 @@ public:
 	/** Open / close the orders menu (MF V; C here too). Number keys pick. */
 	UFUNCTION(Exec)
 	void ShowCommandMenu();
-	/** Chat: type a line to everyone / your team (MF T / Y). */
-	UFUNCTION(Exec)
-	void Talk();
-	UFUNCTION(Exec)
-	void TeamTalk();
+	/** Chat to everyone / your team; with no text, type the line first (MF Talk / TeamTalk: T / Y). */
 	UFUNCTION(Exec)
 	void Say(const FString& Msg);
 	UFUNCTION(Exec)

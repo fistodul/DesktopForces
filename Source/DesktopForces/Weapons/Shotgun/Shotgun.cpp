@@ -1,4 +1,5 @@
 #include "Weapons/Shotgun/Shotgun.h"
+#include "Game/DFGameState.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
@@ -41,57 +42,51 @@ AShotgun::AShotgun() {
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");
 }
 
-void AShotgun::StartFire(bool bAlt) {
-	// The other button pressed during the window turns the shot into both barrels
-	if (GetWorldTimerManager().IsTimerActive(WindowTimer) && bAlt != bWindowAlt) {
-		bTwin = true;
-		(bAlt ? bAltFireHeld : bFireHeld) = true;
-		if (GetLocalRole() < ROLE_Authority)
-			ServerStartFire(bAlt);
-		return;
-	}
-	Super::StartFire(bAlt);
+void AShotgun::BeginPlay() {
+	Super::BeginPlay();
+	if (const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>(); GS && GS->bBoomstick)
+		ApplyBoomstick();
+}
+
+void AShotgun::ApplyBoomstick() {
+	DisplayName = LOCTEXT("Boomstick", "Boomstick");
+	Pellets = 12; // ZombieShotgun NumShellFragments
+	HitDamage = 15.f; // ProcessTraceHit: 15 vs 12
+	MaxClips = 22;
+	RecoilPower = 0.15f;
 }
 
 bool AShotgun::TryFire(bool bAlt) {
 	if (!HasAmmoInClip())
 		return Super::TryFire(bAlt);
-	bWindowAlt = bAlt;
-	bTwin = false;
-	State = EDFWeaponState::Firing;
-	GetWorldTimerManager().SetTimer(WindowTimer, this, &AShotgun::FireAfterWindow, TwinFireWindow, false);
+	// alt: both barrels if two shells are loaded (FireShot's "alt" is "both" from here on)
+	const bool bBoth = bAlt && (ClipAmmo >= 2 || HasInfiniteAmmo());
+	SetState(EDFWeaponState::Firing, FireTime);
+	FireShot(bBoth);
 	return true;
 }
 
-void AShotgun::FireAfterWindow() {
-	if (bTwin && ClipAmmo < 2)
-		bTwin = false;
-	SetState(EDFWeaponState::Firing, FireTime);
-	FireShot(bWindowAlt);
-}
-
-void AShotgun::FireShot(bool bAlt) {
-	const int32 Barrels = bTwin ? 2 : 1;
+void AShotgun::FireShot(bool bBoth) {
+	const int32 Barrels = bBoth ? 2 : 1;
 	UseAmmo(Barrels);
-	bLastShotAlt = bAlt;
+	bLastShotAlt = bBoth;
 	if (HasAuthority()) {
 		++BurstCounter;
-		TraceFire(bAlt ? AltAccuracy : Accuracy, Pellets * Barrels, bAlt);
+		TraceFire(bBoth ? AltAccuracy : Accuracy, Pellets * Barrels, bBoth);
 	}
 	if (IsLocallyControlled() || GetNetMode() == NM_Standalone)
-		PlayFireEffects(bAlt);
-	bTwin = false;
+		PlayFireEffects(bBoth);
 }
 
-void AShotgun::PlayFireEffects(bool bAlt) {
-	if (!bTwin) {
-		Super::PlayFireEffects(bAlt);
+void AShotgun::PlayFireEffects(bool bBoth) {
+	if (!bBoth) {
+		Super::PlayFireEffects(false);
 		return;
 	}
 	// both barrels: TwinFireSound
 	const TObjectPtr<USoundBase> Single = FireSound;
 	FireSound = nullptr;
-	Super::PlayFireEffects(bAlt);
+	Super::PlayFireEffects(true);
 	FireSound = Single;
 	PlayMFSound(TEXT("WeaponSFX_Shotgun.FireBoth"));
 }

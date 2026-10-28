@@ -392,6 +392,8 @@ protected:
 	float NextExpiryPulse = 0.f;
 	float ExpiryPulseAt = -10.f;
 	bool bExpiryOverlay = false;
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInstanceDynamic> ExpiryMaterial;
 	void UpdateExpiryWarning();
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastExpireFX();

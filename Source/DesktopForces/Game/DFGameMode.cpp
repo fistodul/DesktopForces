@@ -65,6 +65,7 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	bTurboCars = UGameplayStatics::GetIntOption(Options, TEXT("TurboCars"), bTurboCars ? 1 : 0) != 0;
 	bOPWeapons = UGameplayStatics::GetIntOption(Options, TEXT("OPWeapons"), bOPWeapons ? 1 : 0) != 0;
 	bImprovedRL = UGameplayStatics::GetIntOption(Options, TEXT("ImprovedRL"), bImprovedRL ? 1 : 0) != 0;
+	bBoomstick = UGameplayStatics::GetIntOption(Options, TEXT("Boomstick"), bBoomstick ? 1 : 0) != 0;
 	if (const FString Banned = UGameplayStatics::ParseOption(Options, TEXT("NoWeapons")); !Banned.IsEmpty())
 		Banned.ParseIntoArray(NoWeapons, TEXT(","));
 	if (const FString G = UGameplayStatics::ParseOption(Options, TEXT("Gravity")); !G.IsEmpty())
@@ -90,6 +91,7 @@ void ADFGameMode::InitGameState() {
 		GS->FireRate = bOPWeapons ? FMath::Clamp(OPFireRate, 0.1f, 20.f) : 1.f;
 		GS->bInfiniteAmmo = bOPWeapons;
 		GS->bImprovedRL = bImprovedRL;
+		GS->bBoomstick = bBoomstick;
 		for (const FString& Name : NoWeapons) {
 			UClass* C = UClass::TryFindTypeSlow<UClass>(Name.TrimStartAndEnd());
 			if (C && C->IsChildOf<ADFWeapon>())

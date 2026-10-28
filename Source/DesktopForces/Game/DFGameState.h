@@ -91,6 +91,9 @@ public:
 	float FireRate = 1.f;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	bool bInfiniteAmmo = false;
+	/** Shotguns are the boomstick (ADFGameMode::bBoomstick, ?Boomstick=1). */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	bool bBoomstick = false;
 	/** Rocket launchers are Gian's improved one (ADFGameMode::bImprovedRL, ?ImprovedRL=1). */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	bool bImprovedRL = false;

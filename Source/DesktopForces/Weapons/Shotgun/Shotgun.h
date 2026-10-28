@@ -5,24 +5,23 @@
 #include "Shotgun.generated.h"
 
 /**
- * Shotgun: two barrels of 10 pellets x 12 dmg. Fire = left barrel, alt = right barrel,
- * both buttons within 0.1 s = both barrels (MF WaitingFire/WaitingAltFire states).
+ * Shotgun: two barrels of 10 pellets x 12 dmg. Fire = one barrel, alt = both (two shells; one
+ * when only one is left). MF fired a barrel per button and both when the buttons came within
+ * 0.1 s; its barrel bookkeeping capped the clip at two, which is why ZombieGame had its own
+ * shotgun. Here any clip works (infinite clips too) and the boomstick is an option
+ * (?Boomstick, ADFGameState::bBoomstick).
  */
 UCLASS()
 class DESKTOPFORCES_API AShotgun : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AShotgun();
-	virtual void StartFire(bool bAlt) override;
 
 protected:
+	virtual void BeginPlay() override;
 	virtual bool TryFire(bool bAlt) override;
 	virtual void FireShot(bool bAlt) override;
 	virtual void PlayFireEffects(bool bAlt) override;
-	void FireAfterWindow();
-	FTimerHandle WindowTimer;
-	bool bWindowAlt = false;
-	bool bTwin = false;
-	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float TwinFireWindow = 0.1f;
+	/** MF-mods ZombieShotgun ("Zombie Boomstick"): 12 pellets x 15, 22 clips, less kick. */
+	void ApplyBoomstick();
 };

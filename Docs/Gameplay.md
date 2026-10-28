@@ -207,9 +207,10 @@ scopes hide the arms (the scope mask covers the view).
   (1 - 1.253): speed × (min(1.55 boost, 2.2) − 0.2), health 333 × boost, jump × min(1.45 boost, 3),
   falls hurt less, accel / step × 1.15, two carry blocks fewer, run-over damage ÷ 10. Zombies
   spawn at neutral starts away from both bases and carry the zombie knife (67, 95 uu; nemesis
-  ×2), zombie armour (120 charge, 80 %) and the zombie shot (alt on an enemy with ≤ 100 health:
-  they change sides, +2); below `?ZombieWeapons=2` they keep nothing ranged, below 3 / 4 no crates
-  / zones. Shotguns become the Zombie Boomstick (one 12 × 15 blast per button) for everyone.
+  ×2), zombie armour (120 charge, 80 %) and the adrenaline shot, whose alt fire on an enemy
+  with ≤ 100 health makes them change sides (+2, MF ZombieShot); below `?ZombieWeapons=2` they keep nothing ranged, below 3 / 4 no crates
+  / zones. Shotguns are the boomstick (`?Boomstick`, on by default here: 12 pellets × 15 per barrel,
+  22 spare clips, less kick; MF's separate ZombieShotgun, one blast per button).
   A human killed by a zombie turns (the killer heals up to MaxHealth / 11, less with distance);
   no humans left = zombies take the round, any human alive at the end of the 8 minutes = humans
   take it; 3 rounds, original teams each round. A lone zombie against 5+ humans is a
@@ -232,13 +233,13 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 | Knife | 1 | 0 | — | 30 slash (range 90) | — | ~0.55 s | — | alt: throw, 60 (head 250); sticks in walls, bounces off floors; walk over it to take it back, else back 6 s after it stops |
 | Pistol | 2 | 1 | 8 × 6 | 26 (head 40) | 0.4 / 0.05 | 0.342 s | 1.55 s | alt: aim 1.5× |
 | Machine gun | 3 | 2 | 48 × 5 | 20 | 0.7 / 0.1 | 0.117 s | 2.25 s | alt: aim 2× (single shots, 0.333 s) |
-| Shotgun | 4 | 2 | 2 × 20 | 10 pellets × 12 per barrel | 0.8 / 1.0 | 0.472 s | 0.867 s | fire = left, alt = right, both within 0.1 s = both; range 5000 |
+| Shotgun | 4 | 2 | 2 × 20 | 10 pellets × 12 per barrel | 0.8 / 1.0 | 0.472 s | 0.867 s | fire = one barrel, alt = both (one if only one is loaded; MF: a barrel per button, both buttons within 0.1 s = both); any clip size works; `?Boomstick` 12 × 15, 22 clips; range 5000 |
 | Sniper rifle | 5 | 3 | 4 × 4 | 20 × power (1–10), head ×3 | 0.3 / 0 | 0.55 s | 1.383 s | power +2/s; scope 3×–30× (wheel); range 20000 |
 | HMG | 6 | 4 | 900 × 1 | 45 | 0.6 / 1.2 | — | — | must deploy (alt, standing on the ground): then no walking, jumping or loadout until packed up (MF PHYS_Gunnery) |
 | Rocket launcher | 7 | 4 | 1 × 11 | 135, radius 400 | — | 0.79 s | 3.38 s | rocket 1200 uu/s; alt: scope 4×; scoped, the same enemy (soldier or manned vehicle) within ~22° on two 1.25 s checks locks on (beep; another beep when it's lost) and the next rocket steers at it while it's ahead (SmartRocket) |
 | Grenades | 8 | 1 (max 3) | 3 | 160 r400 (timed 3 s) / 120 impact | — | 0.333 s | — | throw power 1.5–10 (+8/s), speed power × 150 uu/s, +210 up |
 | Trip bombs | 9 | 1 (max 3) | 2 | — | — | — | — | laser 1024 uu; alt: proximity mine (TODO) |
-| Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90) |
+| Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90); Zombie mode: an enemy at ≤ 100 health changes sides |
 | Armour | 11 | 1 | — | absorbs 75% | — | — | — | 100 charge; falling/drowning bypass |
 
 Mod items (MF-mods, part of the game, in every crate): **Totem of Undying** (group 10:

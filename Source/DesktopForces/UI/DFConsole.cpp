@@ -4,7 +4,9 @@
 
 bool UDFConsole::InputKey(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad) {
 	const FModifierKeysState Mods = FSlateApplication::Get().GetModifierKeys();
-	if (Event == IE_Pressed && !Mods.AnyModifiersDown() && GetDefault<UInputSettings>()->ConsoleKeys.Contains(Key)) {
+	if (!bDeveloper && ConsoleState == NAME_None && GetDefault<UInputSettings>()->ConsoleKeys.Contains(Key))
+		return false; // the key goes to the game
+	if (bDeveloper && Event == IE_Pressed && !Mods.AnyModifiersDown() && GetDefault<UInputSettings>()->ConsoleKeys.Contains(Key)) {
 		FakeGotoState(ConsoleState == NAME_None ? FName(TEXT("Open")) : FName(NAME_None));
 		bCaptureKeyInput = true; // no console key character in the input line
 		return true;
