@@ -143,9 +143,11 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
 2. ✅ **First-person rig accuracy** (2026-10-28): RotOrigin applied as UE1 does after the .psk Y
    flip (the pitch cants the gun about its barrel instead of raising it), MF's weapon roll ×
    Hand (`ArmsRoll`), and CalcDrawOffset's 0.9 / FOV offset scale.
-3. **Audit ported defaults for inherited values**: decompiled defaults omit what equals the
-   parent's value (see AGENTS.md). PlayerViewOffset is fixed (f505a4d, 6b67cb3); re-check other
-   ported struct and plain defaults with a parent-chain helper in `mflib`.
+3. **Audit ported defaults for inherited values**: `mfport.py defaults <Class> [Prop...]` prints the
+   effective values down the parent chain (2026-10-28). Weapon audit: view offset, scale and roll
+   all match. AIRating differs (ours / MF): knife 0.5 / 0.1, Deagle 0.5 / 0.45, grenade launcher
+   0.55 / 0.45, Molotov, seeker mines and trip lasers 0.5 / 0.4. Check bot weapon choice before
+   adopting MF's values; other properties are unaudited.
 4. **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
    in a packaged Windows build is still unchecked.
 5. **Android: first runs on a Pixel 9a** (2026-10-28, wireless adb).

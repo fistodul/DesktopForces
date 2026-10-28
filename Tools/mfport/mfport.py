@@ -18,6 +18,8 @@ Steps (run alone or chained with `all`):
   all <map...>         map + textures + effects + sounds + import + light
   remaining            resume missing playable maps; --limit N bounds the batch
   repair-lightmass     repair the verified Linux 5.8.4 Lightmass startup assertion (backup kept)
+  defaults <Class> [Prop...]  a class's effective default properties down its parent chain
+                       (exports omit what equals the parent's: see Docs/Pipeline.md)
 
 Examples:
   python3 Tools/mfport/mfport.py all mf-warehouse
@@ -116,7 +118,7 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining', 'repair-lightmass'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining', 'repair-lightmass', 'defaults'])
     ap.add_argument('names', nargs='*')
     ap.add_argument('--steps', default='art,textures,props,effects,skeletal,sounds,music,maps', help='importer steps for `import`')
     ap.add_argument('--limit', type=int, default=0, help='maximum maps for a remaining batch (0: all)')
@@ -126,6 +128,12 @@ def main():
 
     if a.step == 'repair-lightmass':
         sys.exit(ue.repair_lightmass(cfg))
+
+    if a.step == 'defaults':
+        from mflib.ucdefaults import show
+        if not a.names:
+            ap.error('defaults needs a class name')
+        sys.exit(show(cfg.game_dir, a.names[0], a.names[1:]))
 
     if a.step == 'remaining':
         from mflib.remaining import run
