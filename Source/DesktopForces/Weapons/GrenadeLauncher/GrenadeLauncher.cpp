@@ -67,7 +67,7 @@ AGrenadeLauncher::AGrenadeLauncher() {
 	ViewMesh = TEXT("grenLaunch/grenLaunchPickupCarryMesh");
 	ArmsMesh = TEXT("grenLaunchPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
-	ArmsOffset = FVector(0.f, 0.25f, -3.5f);
+	ArmsOffset = FVector(3.f, 0.25f, -3.5f); // (Y=0.25,Z=-3.5); X inherited from Pistol (exports omit inherited values)
 	HUDIcon = TEXT("Textures/grenLaunch/Skins/grenLaunchimage");
 	HUDIconRect = FIntRect(0, 196, 128, 266); // WeaponIcon Y=196 W=128 H=70
 	bAddToLoadout = true;
