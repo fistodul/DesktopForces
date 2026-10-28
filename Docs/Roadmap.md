@@ -167,5 +167,12 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      tap-to-fire on the right half as an option.
    - Options pages (sliders, combos) still need checking with fingers.
    - Cook per pack (thread 1): the APK is 443 MB, carrying every classic asset.
-6. **Bots and vehicles**: bots see drivers and follow on foot when their order-giver drives.
-   Riding along and using turrets is still untested and partly unhandled.
+6. **Bots and vehicles** (2026-10-29):
+   - Fixed: covering bots no longer pick their own vehicles, drop a vehicle they were walking to
+     when given an order, and drive to the leader if already driving (1cbb8ac).
+   - Untested: a full ride-along. On mf-Tropics the bots headed for the player's Humvee, but
+     navmesh gaps and the fighting got in the way.
+   - Test recipe: `-LogCmds="LogDF Verbose"`; DFTeleportNear Buggy 150 (DFEnterSeat needs to be
+     right next to a vehicle; don't `DFLoadout` on maps that don't start in it); DFOrder 3 after
+     the bots spawn; KillEnemy every few seconds.
+   - Turret seats are not looked at yet.
