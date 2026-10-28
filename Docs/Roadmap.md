@@ -127,3 +127,43 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - Saved model/team preferences; team balance remains authoritative.
 - Remaining playable maps have a resumable conversion/import/lighting queue. Completion
   is recorded in `Tools/mfport/work/remaining/progress.json`; queued does not mean finished.
+
+## Open threads (handoff, 2026-10-28)
+
+Each item is sized for one focused conversation. Read `AGENTS.md`, then the linked doc.
+
+1. **Content packs as separate paks** ([Pipeline](Pipeline.md#content-packs)). A packaged build
+   is one `pakchunk0` because chunking is off. Plan:
+   - Packs: core (our code and art, `/Game/MF` minus Community), community (`/Game/Maps/<agreed
+     maps>`, `/Game/MF/Community`), unverified (`/MobileForcesUnverified`), classic
+     (`/MobileForcesClassic`, local builds only).
+   - The importer writes one `PrimaryAssetLabel` per pack root (`bLabelAssetsInMyDirectory`,
+     `CookRule=AlwaysCook`, ChunkId core 0 / community 1 / unverified 2 / classic 3; priority
+     decides which chunk a shared asset lands in). Then drop the pack's `DirectoriesToAlwaysCook`
+     entry and set `bGenerateChunks=True` under `[/Script/UnrealEd.ProjectPackagingSettings]`.
+   - The output is `pakchunkN-<Platform>.pak/.utoc/.ucas`. UE mounts every pak in
+     `Content/Paks` at start, so adding or removing a pack's files adds or removes the pack.
+   - Runtime: the cooked asset registry lists every chunk's maps, so `DF::FindMaps` must also
+     skip packages whose pak is absent (`FPackageName::DoesPackageExist`). Plugins stay enabled,
+     so `IsValidPath` alone no longer tells.
+   - Community maps that still borrow retail textures (`mfport.py packs`) need the classic pak
+     until their replacements exist.
+   - Test: cook, delete one chunk, check the map list and that a community map loads.
+   - Mods made after release are a separate step: DLC cooks (`-DLCName`,
+     `-BasedOnReleaseVersion`) and a `Mods/` folder ([Modding](Modding.md#content-after-release)).
+2. **First-person rig accuracy** ([Pipeline](Pipeline.md#how-the-original-data-is-read)):
+   - The half-depth squash is applied after RotOrigin's pitch, which doubles the pitch: MG
+     −1536 = 8.4° comes out ≈16°; also the pistol (−1280), sniper rifle and RL (−1024). Fix:
+     export with yaw and mirror only, and give the arms component the pitch as relative rotation.
+     A UE component scales before it rotates, which is MF's order.
+   - MF also rolls the weapon by `Default.Rotation.Roll × Hand` (−1536 for most stock weapons;
+     0 for the shotgun and Deagle; centre −2×) and scales the offset by 0.9/FOV with FOV 100.
+     Neither is applied yet.
+   - The Predator still uses a carry model.
+3. **Audit ported defaults for inherited values**: decompiled defaults omit what equals the
+   parent's value (see AGENTS.md). PlayerViewOffset is fixed (f505a4d, 6b67cb3); re-check other
+   ported struct and plain defaults with a parent-chain helper in `mflib`.
+4. **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
+   in a packaged Windows build is still unchecked.
+5. **Bots and vehicles**: bots see drivers and follow on foot when their order-giver drives.
+   Riding along and using turrets is still untested and partly unhandled.

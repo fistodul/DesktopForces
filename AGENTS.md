@@ -69,6 +69,9 @@ see `Docs/Building.md` for public builds and platform requirements.
   through server logic/RPCs; keep prediction and replication consistent.
 - Preserve original gameplay values and comments identifying their source. Check
   `Docs/Gameplay.md` before tuning; the pipeline uses `UU_TO_CM = 2.25` for MF units.
+- Decompiled `.uc` defaults omit any value (or struct field) equal to the parent class's,
+  so a missing field is inherited, not zero. Resolve the parent chain before porting
+  ([Pipeline](Docs/Pipeline.md#reading-a-mods-code)).
 - Follow `Docs/Performance.md`: forward rendering, baked lighting and navigation,
   small textures, and timers instead of unnecessary actor ticks. Avoid per-frame
   world scans and introducing expensive rendering features.
@@ -134,3 +137,10 @@ Report what was checked and any checks blocked by missing engine, content, or di
   for settled vehicles must not bypass the righting timer or torque.
 - Let newly registered physics components enter the scene before testing collision. An immediate
   same-frame query can miss valid geometry; defer fixture queries at least one physics tick.
+
+## Working in focused sessions
+
+Keep one conversation per problem. `Docs/Roadmap.md` "Open threads" lists the current
+hand-off items with their plans. Several agents may share this working tree: check
+`git status` first, don't commit staged work that isn't yours (`git commit -- <your paths>`),
+and record new findings in the relevant doc rather than in chat.

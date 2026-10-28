@@ -98,6 +98,12 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   skeleton: its rest is left for the mesh component (`UDFMeshScaleData` on the asset). Repeated
   bone names are numbered. Animations become glTF animations (keys are seconds; looping
   sequences get a closing key back to the first frame).
+  Known error: the squash is applied after RotOrigin's pitch, so first-person rigs with a
+  pitched origin (MG, pistol, sniper rifle, RL) come out tilted about twice MF's angle. MF
+  scales first, then turns ([Roadmap](Roadmap.md#open-threads-handoff-2026-10-28)).
+  When checking view models against MF footage, check the gun's skin first: the community
+  servers mostly run weapon mods (an orange-wood AK74 instead of the stock M16-style MG, a black
+  Glock/MAC-10 instead of the silver 1911), so footage of the stock weapons is rare.
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
   triangles have position, normal and normalised UV.
 - **Animations** (`mflib/anims.py`): `MeshAnimation` objects parse fully (bones, motion
@@ -274,6 +280,11 @@ from pathlib import Path
 from mflib import config, ucc
 ucc.batch_export(config.load(), 'System/improvedRL.u', 'Class', 'uc', Path('work/uc/improvedRL'))
 ```
+
+Class defaults in the export list **only values that differ from the parent class**, per
+struct field too: `PlayerViewOffset=(X=3,Y=-1)` under Weapon's `(X=30,Z=-5)` means Z = −5,
+and `grenLaunch`'s `(Y=0.25,Z=-3.5)` under Pistol means X = 3. Walk the parent chain to get
+the effective value before porting a number.
 
 That is how the servers' mods (improvedRL, OPWeapons, BoxPhysics, FNG ...) were read for porting;
 code is ported only with its author's agreement (`packs.toml`, [CREDITS.md](../CREDITS.md)).
