@@ -150,8 +150,6 @@ public:
 	/** Jump velocity in cm/s (default 731 = MF JumpZ 325). */
 	UFUNCTION(Exec)
 	void SetJumpZ(float Velocity);
-	UFUNCTION(Exec)
-	void ViewMe();
 
 	/** Log navmesh paths from the pawn to every player start, objective and ladder link. */
 	UFUNCTION(Exec)

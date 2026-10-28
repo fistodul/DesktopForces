@@ -393,10 +393,6 @@ void UDFCheatManager::SetJumpZ(float Velocity) {
 		C->GetCharacterMovement()->JumpZVelocity = Velocity;
 }
 
-void UDFCheatManager::ViewMe() {
-	ViewSelf();
-}
-
 void UDFCheatManager::DFAimAt(float X, float Y, float Z) {
 	APlayerController* PC = GetPlayerController();
 	APawn* P = PC ? PC->GetPawn() : nullptr;
@@ -505,8 +501,8 @@ bool UDFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UO
 		// views and test helpers stay on this machine (and only where cheats are on: a free
 		// camera sees through walls); everything else changes the game, so the server runs it
 		static const TCHAR* Local[] = { TEXT("DFCam"), TEXT("DFTopView"), TEXT("DFNavTest"), TEXT("DFNavPath"), TEXT("DFNavRelevant"),
-			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFVehicles"), TEXT("ViewMe"),
-			TEXT("ViewSelf") /* UE's; ViewMe */, TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
+			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFVehicles"),
+			TEXT("ViewSelf"), TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
 		const TCHAR* Str = Cmd;
 		FString Name;
 		if (FParse::Token(Str, Name, true)) {

@@ -95,7 +95,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `Slomo X` | game speed (UE) |
 | `Summon Class` | spawn an actor in front of you by its class name (UE), e.g. `summon Buggy`, `summon WoodenBox` |
 | `Teleport` | to where you aim (UE) |
-| `ViewMe` | camera back to yourself (MF; UE's `ViewSelf` does the same) |
+| `ViewSelf` | camera back to yourself (UE; MF's ViewMe) |
 
 ## Developer / test
 
