@@ -817,7 +817,8 @@ void ADFWeapon::ApplyHand() {
 		const float Hand1 = Hand == EDFWeaponHand::Left ? 1.f : Hand == EDFWeaponHand::Center ? -2.f
 																							  : -1.f;
 		Arms->SetRelativeRotation(FRotator(0.f, 0.f, ArmsRoll * Hand1 * 360.f / 65536.f));
-		Arms->SetRelativeLocation(Offset * 2.25f);
+		// Inventory.CalcDrawOffset: 0.9 / FOVAngle x the offset (x 100 by setHand): 0.9 uu per unit at FOV 100
+		Arms->SetRelativeLocation(Offset * 2.25f * 90.f / FMath::Max(UDFUserSettings::Get().FieldOfView, 1.f));
 		Arms->SetRelativeScale3D(ArmsScale3D * Mirror);
 	}
 	if (bHasViewMesh && !bDropped) {

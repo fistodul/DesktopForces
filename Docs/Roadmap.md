@@ -153,7 +153,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      `-BasedOnReleaseVersion`) and a `Mods/` folder ([Modding](Modding.md#content-after-release)).
 2. ✅ **First-person rig accuracy** (2026-10-28): RotOrigin applied as UE1 does after the .psk Y
    flip (the pitch cants the gun about its barrel instead of raising it), MF's weapon roll ×
-   Hand (`ArmsRoll`). Left: a 0.9 / FOV 100 offset scale isn't applied (we use FOV 90 → 1.0).
+   Hand (`ArmsRoll`), and CalcDrawOffset's 0.9 / FOV offset scale.
 3. **Audit ported defaults for inherited values**: decompiled defaults omit what equals the
    parent's value (see AGENTS.md). PlayerViewOffset is fixed (f505a4d, 6b67cb3); re-check other
    ported struct and plain defaults with a parent-chain helper in `mflib`.

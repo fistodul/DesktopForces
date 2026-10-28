@@ -307,7 +307,7 @@ public:
 	/** MF PlayerViewScale. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float ArmsScale = 0.2f;
-	/** MF PlayerViewOffset (x 100 by Weapon.setHand, x 0.9 / FOV 90 by CalcDrawOffset: uu off the eye). */
+	/** MF PlayerViewOffset (x 100 by Weapon.setHand, x 0.9 / FOV by CalcDrawOffset: uu off the eye). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FVector ArmsOffset = FVector::ZeroVector;
 	/** MF Rotation.Roll (65536ths): Weapon.RenderOverlays rolls the held model by it x Hand
