@@ -24,10 +24,4 @@ void AZombieKnife::GetThrowDamage(float& Body, float& Head) const {
 	Head = Body * 3.f;
 }
 
-AZombieArmour::AZombieArmour() {
-	DisplayName = LOCTEXT("ZombieArmour", "Zombie Armour");
-	MaxCharge = 120;
-	ArmorAbsorption = 80;
-}
-
 #undef LOCTEXT_NAMESPACE

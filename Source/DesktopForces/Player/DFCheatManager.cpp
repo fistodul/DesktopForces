@@ -506,7 +506,7 @@ bool UDFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UO
 		// camera sees through walls); everything else changes the game, so the server runs it
 		static const TCHAR* Local[] = { TEXT("DFCam"), TEXT("DFTopView"), TEXT("DFNavTest"), TEXT("DFNavPath"), TEXT("DFNavRelevant"),
 			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFVehicles"), TEXT("ViewMe"),
-			TEXT("ViewSelf"), TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
+			TEXT("ViewSelf") /* UE's; ViewMe */, TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
 		const TCHAR* Str = Cmd;
 		FString Name;
 		if (FParse::Token(Str, Name, true)) {
@@ -700,13 +700,6 @@ void UDFCheatManager::BecomeNemesis() {
 	AZombieGame* GM = GetWorld()->GetAuthGameMode<AZombieGame>();
 	if (ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn()); GM && C)
 		GM->BecomeZombie(C, true);
-}
-
-void UDFCheatManager::InfiniteAmmo() {
-	if (ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn())) {
-		C->SetInfiniteAmmo(!C->HasInfiniteAmmo());
-		GetPlayerController()->ClientMessage(C->HasInfiniteAmmo() ? TEXT("Infinite ammo on") : TEXT("Infinite ammo off"));
-	}
 }
 
 void UDFCheatManager::Kick(const FString& PlayerName) {

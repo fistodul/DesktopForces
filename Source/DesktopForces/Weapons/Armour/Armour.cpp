@@ -29,6 +29,16 @@ void AArmour::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
 	DOREPLIFETIME(AArmour, Charge);
 }
 
+void AArmour::SetReinforced(bool bOn) {
+	const int32 NewMax = bOn ? 120 : 100; // ZombieArmour Charge 120, ArmorAbsorption 80
+	if (NewMax == MaxCharge)
+		return;
+	MaxCharge = NewMax;
+	ArmorAbsorption = bOn ? 80 : 75;
+	DisplayName = bOn ? LOCTEXT("ZombieArmour", "Zombie Armour") : GetDefault<AArmour>(GetClass())->DisplayName;
+	GiveFullAmmo();
+}
+
 void AArmour::GiveFullAmmo() {
 	Super::GiveFullAmmo();
 	Charge = MaxCharge;

@@ -4,7 +4,8 @@
 #include "Weapons/DFWeapon.h"
 #include "Armour.generated.h"
 
-/** Body armour: passive, absorbs 75% of damage until its 100 charge is used up. */
+/** Body armour: passive, absorbs 75% of damage until its 100 charge is used up; reinforced
+ *  (MF-mods ZombieArmour: Zombie mode's zombies, ?ReinforcedArmour) 80% of 120. */
 UCLASS()
 class DESKTOPFORCES_API AArmour : public ADFWeapon {
 	GENERATED_BODY()
@@ -14,6 +15,9 @@ public:
 	virtual int32 AbsorbDamage(int32 Damage, const UDFDamageType* Type) override;
 	virtual int32 GetAbsorbPriority() const override { return 10; }
 	int32 GetCharge() const { return Charge; }
+	/** Server: ZombieArmour's numbers or the stock ones; a change hands over a full one, as
+	 *  MF's item swap did. */
+	void SetReinforced(bool bOn);
 
 protected:
 	virtual bool TryFire(bool bAlt) override { return false; }

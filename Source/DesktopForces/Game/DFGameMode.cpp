@@ -66,6 +66,7 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	bOPWeapons = UGameplayStatics::GetIntOption(Options, TEXT("OPWeapons"), bOPWeapons ? 1 : 0) != 0;
 	bImprovedRL = UGameplayStatics::GetIntOption(Options, TEXT("ImprovedRL"), bImprovedRL ? 1 : 0) != 0;
 	bBoomstick = UGameplayStatics::GetIntOption(Options, TEXT("Boomstick"), bBoomstick ? 1 : 0) != 0;
+	bReinforcedArmour = UGameplayStatics::GetIntOption(Options, TEXT("ReinforcedArmour"), bReinforcedArmour ? 1 : 0) != 0;
 	if (const FString Banned = UGameplayStatics::ParseOption(Options, TEXT("NoWeapons")); !Banned.IsEmpty())
 		Banned.ParseIntoArray(NoWeapons, TEXT(","));
 	if (const FString G = UGameplayStatics::ParseOption(Options, TEXT("Gravity")); !G.IsEmpty())

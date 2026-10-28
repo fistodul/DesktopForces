@@ -207,7 +207,7 @@ scopes hide the arms (the scope mask covers the view).
   (1 - 1.253): speed × (min(1.55 boost, 2.2) − 0.2), health 333 × boost, jump × min(1.45 boost, 3),
   falls hurt less, accel / step × 1.15, two carry blocks fewer, run-over damage ÷ 10. Zombies
   spawn at neutral starts away from both bases and carry the zombie knife (67, 95 uu; nemesis
-  ×2), zombie armour (120 charge, 80 %) and the adrenaline shot, whose alt fire on an enemy
+  ×2), reinforced armour (120 charge, 80 %; `?ReinforcedArmour` gives it to everyone) and the adrenaline shot, whose alt fire on an enemy
   with ≤ 100 health makes them change sides (+2, MF ZombieShot); below `?ZombieWeapons=2` they keep nothing ranged, below 3 / 4 no crates
   / zones. Shotguns are the boomstick (`?Boomstick`, on by default here: 12 pellets × 15 per barrel,
   22 spare clips, less kick; MF's separate ZombieShotgun, one blast per button).

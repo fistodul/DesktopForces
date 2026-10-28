@@ -70,7 +70,6 @@ Game.ini, or `-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=...` on
 | `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
 | `TeleportTo Name` | next to a player (ZombieGame's `Teleport`; UE's `Teleport` goes where you aim) |
 | `BecomeHuman` / `BecomeSurvivor` / `BecomeZombie` / `BecomeNemesis` | Zombie mode: that side's stats on you (not a team change) |
-| `InfiniteAmmo` | your clips never run dry (weapons with more than one use; again: off) |
 
 ## Cheats
 
@@ -96,7 +95,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `Slomo X` | game speed (UE) |
 | `Summon Class` | spawn an actor in front of you by its class name (UE), e.g. `summon Buggy`, `summon WoodenBox` |
 | `Teleport` | to where you aim (UE) |
-| `ViewMe` / `ViewSelf` | camera back to yourself |
+| `ViewMe` | camera back to yourself (MF; UE's `ViewSelf` does the same) |
 
 ## Developer / test
 

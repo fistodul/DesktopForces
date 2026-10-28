@@ -113,7 +113,7 @@ public:
 	int32 MaxCarry = 6;
 
 	/** Server: this soldier's clips never run dry (ADFWeapon::HasInfiniteAmmo: weapons with more
-	 *  than one use). Zombie survivors; the InfiniteAmmo cheat. Turning it on fills them up. */
+	 *  than one use). Zombie survivors. Turning it on fills them up. */
 	void SetInfiniteAmmo(bool bOn);
 	bool HasInfiniteAmmo() const { return bInfiniteAmmo; }
 

@@ -6,8 +6,9 @@
 
 /*
  * Zombie mode's item variants (MF-mods ZombieGame by Animeman). The mode swaps them in for the
- * stock items (ADFGameMode::GetWeaponClassFor); small tweaks of the stock classes. Its shotgun
- * and adrenaline shot are options of the stock ones now (?Boomstick, ADFGameMode::InjectEnemy).
+ * stock items (ADFGameMode::GetWeaponClassFor); small tweaks of the stock classes. Its shotgun,
+ * adrenaline shot and armour are options of the stock ones now (?Boomstick,
+ * ADFGameMode::InjectEnemy, AArmour::SetReinforced).
  */
 
 /** ZombieKnife: slash 67 at 95 uu (a nemesis slashes twice as hard). */
@@ -26,12 +27,4 @@ protected:
 	virtual void GetThrowDamage(float& Body, float& Head) const override;
 	/** MyDamageType RageWeaponsDOTRocketLauncher: it blows vehicles up like a rocket. */
 	virtual TSubclassOf<UDamageType> GetThrowDamageType() const override { return UDFDamage_Explosion::StaticClass(); }
-};
-
-/** ZombieArmour: 120 charge, absorbs 80%. */
-UCLASS()
-class DESKTOPFORCES_API AZombieArmour : public AArmour {
-	GENERATED_BODY()
-public:
-	AZombieArmour();
 };

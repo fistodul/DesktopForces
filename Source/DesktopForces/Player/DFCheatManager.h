@@ -50,9 +50,6 @@ public:
 	void BecomeZombie();
 	UFUNCTION(Exec)
 	void BecomeNemesis();
-	/** Your clips never run dry (weapons with more than one use; again: off). */
-	UFUNCTION(Exec)
-	void InfiniteAmmo();
 	/** Admins: throw a player out; change the map (SwitchMap mf-warehouse?game=ctf). */
 	UFUNCTION(Exec)
 	void Kick(const FString& PlayerName);

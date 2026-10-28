@@ -80,6 +80,8 @@ public:
 	/** Adrenaline alt-fire on an enemy. True when the mode handles it (Zombie: ZombieShot's
 	 *  InjectDrug turns them); bUsed: a dose was spent. Otherwise MF's injection (it heals). */
 	virtual bool InjectEnemy(ADFCharacter* By, ADFCharacter* Victim, bool& bUsed) { return false; }
+	/** Whether this soldier's body armour is reinforced (bReinforcedArmour; Zombie: zombies). */
+	virtual bool IsArmourReinforced(const ADFCharacter* Character) const { return bReinforcedArmour; }
 	/** The loadout key was pressed where it can't open (ADFGameState::LoadoutAccess 0). */
 	virtual void LoadoutDenied(APlayerController* PC) const;
 
@@ -227,6 +229,10 @@ public:
 	 *  12 pellets x 15, 22 spare clips, a softer kick (AShotgun::ApplyBoomstick). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	bool bBoomstick = false;
+	/** Everyone's body armour is reinforced (?ReinforcedArmour=1, MF-mods ZombieArmour: absorbs
+	 *  80% of 120); Zombie mode gives it to the zombies. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
+	bool bReinforcedArmour = false;
 	/** Weapons loadouts don't hand out, by class name, their subclasses too
 	 *  (?NoWeapons=Grenades,RocketLauncher; the FNG mutators NoGrenades, NoRocketLauncher ...). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")

@@ -136,7 +136,7 @@ public:
 	/** Take Count from the clip (nothing while HasInfiniteAmmo). */
 	void UseAmmo(int32 Count = 1);
 	/** Clips that never run dry: the game's (?OPWeapons: every item, single-use ones too) or
-	 *  the holder's (a zombie survivor, the cheat: weapons with more than one use). */
+	 *  the holder's (a zombie survivor: weapons with more than one use). */
 	bool HasInfiniteAmmo() const;
 	bool CanReload() const { return TotalAmmo > 0 && ClipAmmo < MaxClipAmmo; }
 	bool HasAnyAmmo() const { return GetAmmoCount() > 0; }

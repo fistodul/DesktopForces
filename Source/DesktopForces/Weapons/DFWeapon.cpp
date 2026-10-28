@@ -215,7 +215,7 @@ bool ADFWeapon::HasInfiniteAmmo() const {
 	// ?OPWeapons: everything, single-use items too
 	if (const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>(); GS && GS->bInfiniteAmmo)
 		return true;
-	// a survivor / the cheat: only weapons with more than one use (ZombiePlayer.AddInventory)
+	// a zombie survivor: only weapons with more than one use (ZombiePlayer.AddInventory)
 	const ADFCharacter* C = GetOwnerCharacter();
 	return C && C->HasInfiniteAmmo() && (MaxClips > 1 || MaxClipAmmo > 1);
 }

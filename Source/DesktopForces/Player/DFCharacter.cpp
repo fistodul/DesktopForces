@@ -616,6 +616,8 @@ ADFWeapon* ADFCharacter::GiveWeapon(TSubclassOf<ADFWeapon> WeaponClass, bool bEq
 	if (!W)
 		return nullptr;
 	W->OnGiven(this);
+	if (AArmour* Armour = Cast<AArmour>(W); Armour && GetWorld()->GetAuthGameMode<ADFGameMode>())
+		Armour->SetReinforced(GetWorld()->GetAuthGameMode<ADFGameMode>()->IsArmourReinforced(this));
 	Inventory.Add(W);
 	UpdateCarrySpeed();
 	OnInventoryChanged.Broadcast(this);
