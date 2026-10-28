@@ -93,6 +93,8 @@ protected:
 	float SelectedTime = -100.f;
 
 	float UIScale = 1.f;
+	/** MF pixel fonts (DFText) drawn this many times their size: 1.5 on touch screens. */
+	float TextScale = 1.f;
 
 	// --- MF art (RageHUD atlases from the original game; plain shapes without them) -----
 	bool LoadMFArt();

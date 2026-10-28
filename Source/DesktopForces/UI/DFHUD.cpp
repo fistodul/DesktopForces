@@ -88,7 +88,7 @@ UFont* ADFHUD::DFFont(int32 Kind) {
 FVector2D ADFHUD::DFTextSize(const FString& S, int32 Kind) {
 	float W = 0.f, H = 0.f;
 	if (UFont* F = DFFont(Kind))
-		Canvas->TextSize(F, S, W, H);
+		Canvas->TextSize(F, S, W, H, TextScale, TextScale);
 	else
 		Canvas->TextSize(Font, S, W, H, UIScale, UIScale);
 	return FVector2D(W, H);
@@ -102,6 +102,7 @@ void ADFHUD::DFText(const FString& S, float X, float Y, const FLinearColor& Colo
 	}
 	FCanvasTextItem Item(FVector2D(FMath::RoundToFloat(X), FMath::RoundToFloat(Y)), FText::FromString(S), F, Color);
 	Item.BlendMode = SE_BLEND_Translucent;
+	Item.Scale = FVector2D(TextScale);
 	Canvas->DrawItem(Item);
 }
 
@@ -136,6 +137,8 @@ void ADFHUD::DrawHUD() {
 	if (!Canvas)
 		return;
 	UIScale = FMath::Max(0.75f, Canvas->ClipY / 720.f);
+	// phones: MF's pixel fonts at a readable size (the blocks can't grow: the loadout must fit)
+	TextScale = PlayerOwner && Cast<ADFPlayerController>(PlayerOwner) && Cast<ADFPlayerController>(PlayerOwner)->UsesTouch() ? 1.5f : 1.f;
 	if (!Font)
 		Font = GEngine->GetMediumFont();
 	ADFPlayerController* PC = Cast<ADFPlayerController>(PlayerOwner);
@@ -623,15 +626,15 @@ void ADFHUD::DrawScoreboardMF(ADFGameState* GS) {
 	const FString Title = GS->HasMatchEnded() ? GS->WinnerText : GS->GameName;
 	FVector2D TS = DFTextSize(Title, 2);
 	DFText(Title, (CW - TS.X) * 0.5f, CH * 0.088f - TS.Y * 0.5f, FLinearColor::White, 2);
-	// bottom band: "<Game> in <Map>", remaining time
-	const float BandY = CH * 0.953f;
-	Box(0.f, BandY, CW, CH - BandY, Band);
+	// bottom band: "<Game> in <Map>", remaining time (at least the two lines high: bigger text on phones)
 	const FString Where = FString::Printf(TEXT("%s in %s"), *GS->GameName, MapInfo && !MapInfo->Title.IsEmpty() ? *MapInfo->Title : *GetWorld()->GetMapName());
 	const int32 Left = FMath::Max(0, GS->GetRemainingTime());
 	const FString Time = FString::Printf(TEXT("Remaining Time:  %02d:%02d"), Left / 60, Left % 60);
 	TS = DFTextSize(Where, 0);
-	DFText(Where, (CW - TS.X) * 0.5f, BandY + 2.f, FLinearColor::White, 0);
 	const FVector2D TT = DFTextSize(Time, 0);
+	const float BandY = FMath::Min(CH * 0.953f, CH - TS.Y - TT.Y - 4.f);
+	Box(0.f, BandY, CW, CH - BandY, Band);
+	DFText(Where, (CW - TS.X) * 0.5f, BandY + 2.f, FLinearColor::White, 0);
 	DFText(Time, (CW - TT.X) * 0.5f, BandY + 2.f + TS.Y, FLinearColor::White, 0);
 	if (GS->HasMatchEnded()) {
 		const FString Over = TEXT("The match is over.  Hit [Fire] to continue!");
