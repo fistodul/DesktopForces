@@ -105,6 +105,27 @@ APK with ASTC textures (`Saved/Packages/Android-Development/DesktopForces-arm64.
 `NDKROOT` and `JAVA_HOME` override `~/Android/Sdk`, its newest NDK, and the JDK of `javac`.
 Install it with `adb install -r <apk>`.
 
+Testing on a phone (adb is `~/Android/Sdk/platform-tools/adb`; enable Wireless debugging on the
+phone, and "Stay awake" so it doesn't lock between runs):
+
+```bash
+adb pair <ip>:<pairing port> <code>      # once; then the phone shows up by itself:
+adb mdns services && adb devices
+adb install -r Saved/Packages/Android-Development/DesktopForces-arm64.apk
+# start straight into a map with scripted commands (Development builds read this file):
+echo '../../../DesktopForces/DesktopForces.uproject /MobileForcesClassic/Maps/mf-warehouse?game=dm?Bots=6 -DFExec="@6:DFLoadout|@7:stat unit"' > UECommandLine.txt
+adb push UECommandLine.txt /sdcard/Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/
+adb shell monkey -p com.fistodul.desktopforces -c android.intent.category.LAUNCHER 1
+adb exec-out screencap -p > shot.png    # look
+adb shell input tap X Y                 # touch (swipe X1 Y1 X2 Y2 ms holds a stick)
+adb shell am force-stop com.fistodul.desktopforces   # always, after a test
+```
+
+Phones default to 30 FPS with VSync and a 75 % render scale
+(`Config/Android/AndroidGameUserSettings.ini`). Uncapped, the game starved the phone until
+System UI stopped responding. `adb shell pm clear com.fistodul.desktopforces` resets saved
+settings.
+
 Touch controls are UE's virtual joysticks (left moves, right looks) plus `SDFTouchControls`
 buttons. They appear on touch devices; test them on a desktop with
 `-ini:Input:[/Script/Engine.InputSettings]:bAlwaysShowTouchInterface=True`.

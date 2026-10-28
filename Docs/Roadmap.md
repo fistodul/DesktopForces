@@ -160,14 +160,22 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    ported struct and plain defaults with a parent-chain helper in `mflib`.
 4. **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
    in a packaged Windows build is still unchecked.
-5. **Android: first run on a phone.** Done (2026-10-28):
-   - The SDK is installed per [Building](Building.md#android).
-   - `Tools/package.sh Android Development --maps ...` builds a 443 MB arm64 APK.
-   - Touch controls: virtual sticks and an action-button overlay, tested on desktop.
+5. **Android: first runs on a Pixel 9a** (2026-10-28, wireless adb).
+   Works:
+   - Menu (moved clear of the camera hole and enlarged on touch screens), and starting a match.
+   - Tapping loadout items and the LOADOUT button.
+   - Both sticks, FIRE (a bot kill).
+   - 30 FPS cap: game thread 15 ms, draw 12 ms, GPU 6.5 ms, about 850 MB in mf-warehouse
+     with 6 bots.
 
-   Next:
-   - Install it on a device and check rendering (ES3.1 / Vulkan), touch feel and performance.
-   - Size the buttons by screen DPI, and add tap support to the loadout and menus.
-   - Cook per pack (thread 1) so the APK doesn't carry every classic asset.
+   Proposals:
+   - The HUD canvas (loadout list, minimap, kill messages) ignores the safe zone and sits under
+     the camera hole in landscape. Offset it by the safe-zone padding, and scale HUD text for
+     phone DPI (kill messages are tiny).
+   - Offer 60 FPS: the 9a has roughly half its 33 ms frame budget to spare.
+   - Button icons instead of words, a layout editor (MF-style), touch-look sensitivity, and
+     tap-to-fire on the right half as an option.
+   - Options pages (sliders, combos) still need checking with fingers.
+   - Cook per pack (thread 1): the APK is 443 MB, carrying every classic asset.
 6. **Bots and vehicles**: bots see drivers and follow on foot when their order-giver drives.
    Riding along and using turrets is still untested and partly unhandled.
