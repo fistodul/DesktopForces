@@ -72,8 +72,14 @@ void UDFUserSettings::UpdateScreenPercentage() {
 
 void UDFUserSettings::SetToDefaults() {
 	Super::SetToDefaults();
+#if PLATFORM_ANDROID || PLATFORM_IOS
+	// phones: leave the system room (Config/Android/AndroidGameUserSettings.ini)
+	SetFrameRateLimit(30.f);
+	SetVSyncEnabled(true);
+#else
 	SetFrameRateLimit(120.f);
 	SetVSyncEnabled(false);
+#endif
 	ScalabilityQuality.SetFromSingleQualityLevel(0);
 	ScalabilityQuality.ResolutionQuality = 100.f;
 	PreferredModel = -1;
@@ -82,7 +88,7 @@ void UDFUserSettings::SetToDefaults() {
 	MouseSensitivity = 1.f;
 	bInvertMouse = false;
 	FieldOfView = 100.f;
-	RenderScale = 1.f;
+	RenderScale = PLATFORM_ANDROID || PLATFORM_IOS ? 0.75f : 1.f;
 	DecalQuality = 2;
 	MasterVolume = 1.f;
 	MusicVolume = 1.f;
