@@ -813,6 +813,10 @@ void ADFWeapon::ApplyHand() {
 	else if (Hand != EDFWeaponHand::Left)
 		Offset.Y = -Offset.Y;
 	if (Arms) {
+		// Roll x Hand; the mirrored left hand turns it round as MF's left hand (+1) did
+		const float Hand1 = Hand == EDFWeaponHand::Left ? 1.f : Hand == EDFWeaponHand::Center ? -2.f
+																							  : -1.f;
+		Arms->SetRelativeRotation(FRotator(0.f, 0.f, ArmsRoll * Hand1 * 360.f / 65536.f));
 		Arms->SetRelativeLocation(Offset * 2.25f);
 		Arms->SetRelativeScale3D(ArmsScale3D * Mirror);
 	}

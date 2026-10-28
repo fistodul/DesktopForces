@@ -151,15 +151,9 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    - Test: cook, delete one chunk, check the map list and that a community map loads.
    - Mods made after release are a separate step: DLC cooks (`-DLCName`,
      `-BasedOnReleaseVersion`) and a `Mods/` folder ([Modding](Modding.md#content-after-release)).
-2. **First-person rig accuracy** ([Pipeline](Pipeline.md#how-the-original-data-is-read)):
-   - The half-depth squash is applied after RotOrigin's pitch, which doubles the pitch: MG
-     −1536 = 8.4° comes out ≈16°; also the pistol (−1280), sniper rifle and RL (−1024). Fix:
-     export with yaw and mirror only, and give the arms component the pitch as relative rotation.
-     A UE component scales before it rotates, which is MF's order.
-   - MF also rolls the weapon by `Default.Rotation.Roll × Hand` (−1536 for most stock weapons;
-     0 for the shotgun and Deagle; centre −2×) and scales the offset by 0.9/FOV with FOV 100.
-     Neither is applied yet.
-   - The Predator still uses a carry model.
+2. ✅ **First-person rig accuracy** (2026-10-28): RotOrigin applied as UE1 does after the .psk Y
+   flip (the pitch cants the gun about its barrel instead of raising it), MF's weapon roll ×
+   Hand (`ArmsRoll`). Left: a 0.9 / FOV 100 offset scale isn't applied (we use FOV 90 → 1.0).
 3. **Audit ported defaults for inherited values**: decompiled defaults omit what equals the
    parent's value (see AGENTS.md). PlayerViewOffset is fixed (f505a4d, 6b67cb3); re-check other
    ported struct and plain defaults with a parent-chain helper in `mflib`.

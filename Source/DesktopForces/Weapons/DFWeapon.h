@@ -310,6 +310,11 @@ public:
 	/** MF PlayerViewOffset (x 100 by Weapon.setHand, x 0.9 / FOV 90 by CalcDrawOffset: uu off the eye). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FVector ArmsOffset = FVector::ZeroVector;
+	/** MF Rotation.Roll (65536ths): Weapon.RenderOverlays rolls the held model by it x Hand
+	 *  (right-handed -1, centred -2). -1536 on nearly every RageWeapon; the arms mesh's
+	 *  RotOrigin pitch cants it back (skelmesh._Space). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	int32 ArmsRoll = -1536;
 	UPROPERTY(Transient)
 	TObjectPtr<class USkeletalMeshComponent> Arms;
 	/** The arms' component scale before the hand (MF draw scale x the mesh's own). */

@@ -155,18 +155,20 @@ def rotator_quat(pitch: int, yaw: int, roll: int):
 class _Space:
     """MF mesh space -> UE actor space (cm), and UE -> glTF (Y up, metres).
 
+    Skeletal meshes come from .psk files (right-handed), so their Y is flipped against UE1
+    space; RotOrigin then turns them the way it turns every UE1 mesh (roll, pitch, yaw, as
+    `lodmesh._rotate`). Soldiers (yaw only) face along X with the weapon in the right hand;
+    a first-person rig's pitch turns about its own Y, the barrel, so it cants the gun (and
+    nearly cancels the weapon's Rotation.Roll, ADFWeapon::ArmsRoll).
     A non-uniform MESHMAP SCALE (the first-person weapons are squashed to half depth: 1, 0.5,
     1) can't live in a skeleton: the glTF gets the X scale everywhere and `component_scale`
-    is the rest, in UE axes, for the mesh component (exact while RotOrigin turns about the
-    squashed axis only, which holds for every MF mesh)."""
+    is the rest, in UE axes, for the mesh component. That is exact because the squashed axis
+    is the one pitch turns about and yaw only swaps axes (every MF mesh)."""
 
     def __init__(self, mesh: SkeletalMesh):
         if mesh.rot[2]:
             raise ValueError(f'{mesh.name}: RotOrigin roll is not handled')
-        # UE1 turns skeletal meshes by the inverse of their RotOrigin, and they are mirrored
-        # (Y) against their .psk: only that way do the soldiers face along X with the weapon
-        # in the right hand, and the first-person arms reach forward
-        self.rot = qconj(rotator_quat(*mesh.rot))
+        self.rot = rotator_quat(*mesh.rot)
         self.s = mesh.scale[0] * UU_TO_CM
         self.origin = mesh.origin
         rest = (1.0, mesh.scale[1] / mesh.scale[0], mesh.scale[2] / mesh.scale[0])
@@ -174,15 +176,13 @@ class _Space:
         self.component_scale = (rest[1], rest[0], rest[2]) if quarter else rest
 
     def point(self, p):
-        x, y, z = qrot(self.rot, tuple((p[i] - self.origin[i]) * self.s for i in range(3)))
-        return x, -y, z
+        return qrot(self.rot, ((p[0] - self.origin[0]) * self.s, -(p[1] - self.origin[1]) * self.s, (p[2] - self.origin[2]) * self.s))
 
     def bone(self, index, q, p):
-        """A bone's (rotation, translation) relative to its parent, in UE space (mirrored in Y:
-        M R M for the rotation)."""
+        """A bone's (rotation, translation) relative to its parent, in UE space (Y flipped:
+        M R M for a rotation; the root also takes RotOrigin)."""
         if index == 0:
-            r = qnorm(qmul(self.rot, q))
-            return (-r[0], r[1], -r[2], r[3]), self.point(p)
+            return qnorm(qmul(self.rot, (-q[0], q[1], -q[2], q[3]))), self.point(p)
         r = qnorm(qconj(q))
         return (-r[0], r[1], -r[2], r[3]), (p[0] * self.s, -p[1] * self.s, p[2] * self.s)
 

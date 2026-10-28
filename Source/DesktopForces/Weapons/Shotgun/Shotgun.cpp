@@ -17,6 +17,7 @@ AShotgun::AShotgun() {
 	ArmsMesh = TEXT("ShotgunPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(1.f, -3.9f, -5.8f);
+	ArmsRoll = 0; // shotgun.uc sets no Rotation
 	HUDIconRect = FIntRect(160, 128, 256, 192); // WeaponIcon X=160 Y=128 W=96 H=64
 	DisplayName = LOCTEXT("Shotgun", "Shotgun");
 	InventoryGroup = 4;

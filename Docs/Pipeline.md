@@ -92,15 +92,16 @@ Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPOR
   points from the bones matches to 0.006 uu, which pins the conventions down. Written as glTF
   (`.glb`) in actor space, cm (glTF is metres, Y up: the exporter does the inverse of
   Interchange's axis swap), with the mesh's ORIGIN baked in the way UE1 draws skeletal meshes:
-  turned by the *inverse* RotOrigin and mirrored in Y against the .psk (only so do soldiers
-  face where they walk with the gun in the right hand, and the first-person arms reach
-  forward). A non-uniform MESHMAP SCALE (first-person weapons: 1, 0.5, 1) can't live in a
-  skeleton: its rest is left for the mesh component (`UDFMeshScaleData` on the asset). Repeated
+  Y flipped (the .psk is right-handed), then turned by RotOrigin like every UE1 mesh (roll,
+  pitch, yaw: `lodmesh._rotate`). So soldiers face where they walk with the gun in the right
+  hand, and a first-person rig's RotOrigin pitch turns about its own Y - the barrel - and cants
+  the gun, nearly cancelling the weapon's `Rotation.Roll` (`ADFWeapon::ArmsRoll`). (Until
+  2026-10-28 the export used the inverse RotOrigin with the flip after it: the same for yaw-only
+  soldiers, but it pitched those rigs' guns up.) A non-uniform MESHMAP SCALE (first-person
+  weapons: 1, 0.5, 1) can't live in a skeleton: its rest is left for the mesh component
+  (`UDFMeshScaleData` on the asset); exact, as the squashed axis is the one pitch turns about. Repeated
   bone names are numbered. Animations become glTF animations (keys are seconds; looping
   sequences get a closing key back to the first frame).
-  Known error: the squash is applied after RotOrigin's pitch, so first-person rigs with a
-  pitched origin (MG, pistol, sniper rifle, RL) come out tilted about twice MF's angle. MF
-  scales first, then turns ([Roadmap](Roadmap.md#open-threads-handoff-2026-10-28)).
   When checking view models against MF footage, check the gun's skin first: the community
   servers mostly run weapon mods (an orange-wood AK74 instead of the stock M16-style MG, a black
   Glock/MAC-10 instead of the silver 1911), so footage of the stock weapons is rare.
