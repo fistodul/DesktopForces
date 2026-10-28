@@ -29,6 +29,8 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Engine/PrimaryAssetLabel.h"
+#include "EditorFramework/AssetImportData.h"
+#include "Misc/SecureHash.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -151,6 +153,9 @@ void FDFImporter::RepointCoreMaterials() {
 			if (!Tex || !A.AssetName.ToString().StartsWith(TEXT("MI_") + Name + TEXT("_"), ESearchCase::IgnoreCase))
 				continue;
 			if (UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(A.GetAsset())) {
+				UTexture* Current = nullptr;
+				if (MIC->GetTextureParameterValue(FMaterialParameterInfo(TEXT("Texture")), Current) && Current == Tex)
+					continue; // already there: no re-save (every save rewrites the package's bytes)
 				MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Tex);
 				MIC->PostEditChange();
 				Count += SaveAsset(MIC) ? 1 : 0;
@@ -188,27 +193,48 @@ bool FDFImporter::ImportTextures() {
 		bool bReplacement;
 	};
 	TArray<FTexKey> Keys;
+	// a texture already imported from the same file (AssetImportData keeps its MD5) isn't imported
+	// again: a re-import and save rewrites the package's bytes, so unchanged art would show up as
+	// changed in git after every batch
+	TArray<FTexKey> Unchanged;
+	auto IsUpToDate = [](const FString& AssetPath, const FString& File) {
+		const UTexture2D* Old = LoadObject<UTexture2D>(nullptr, *AssetPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Old || !Old->AssetImportData || Old->AssetImportData->SourceData.SourceFiles.Num() != 1)
+			return false;
+		const FMD5Hash Hash = FMD5Hash::HashFile(*File);
+		return Hash.IsValid() && Hash == Old->AssetImportData->SourceData.SourceFiles[0].FileHash;
+	};
 	for (const auto& Pair : Manifest->Values) {
 		const TSharedPtr<FJsonObject> Info = Pair.Value->AsObject();
 		FString Dir, Name;
 		const FString Key(Pair.Key);
 		SplitKey(Key, Dir, Name);
-		UAssetImportTask* Task = NewObject<UAssetImportTask>();
-		Task->Filename = FPaths::ConvertRelativePathToFull(WorkDir / Info->GetStringField(TEXT("file")));
-		Task->DestinationPath = FString::Printf(TEXT("%s/Textures/%s"), *Packs.TextureRoot(Key), *Dir);
-		Task->DestinationName = Name;
-		Task->bAutomated = true;
-		Task->bReplaceExisting = true;
-		Task->bSave = false;
-		Tasks.Add(Task);
 		bool bUI = false;
 		if (!Info->TryGetBoolField(TEXT("ui"), bUI))
 			bUI = IsUITexture(Key); // manifests from before the "ui" flag
-		Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false });
+		const FString File = FPaths::ConvertRelativePathToFull(WorkDir / Info->GetStringField(TEXT("file")));
+		if (IsUpToDate(TextureAssetPath(Key), File)) {
+			Unchanged.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false });
+		} else {
+			UAssetImportTask* Task = NewObject<UAssetImportTask>();
+			Task->Filename = File;
+			Task->DestinationPath = FString::Printf(TEXT("%s/Textures/%s"), *Packs.TextureRoot(Key), *Dir);
+			Task->DestinationName = Name;
+			Task->bAutomated = true;
+			Task->bReplaceExisting = true;
+			Task->bSave = false;
+			Tasks.Add(Task);
+			Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false });
+		}
 		FString Replacement;
 		if (Info->TryGetStringField(TEXT("replacement"), Replacement)) {
+			const FString RepFile = FPaths::ConvertRelativePathToFull(WorkDir / Replacement);
+			if (IsUpToDate(ReplacementAssetPath(Key), RepFile)) {
+				Unchanged.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, true });
+				continue;
+			}
 			UAssetImportTask* Rep = NewObject<UAssetImportTask>();
-			Rep->Filename = FPaths::ConvertRelativePathToFull(WorkDir / Replacement);
+			Rep->Filename = RepFile;
 			Rep->DestinationPath = FString::Printf(TEXT("%s/Textures/%s"), *Packs.ReplacedRoot, *Dir);
 			Rep->DestinationName = Name;
 			Rep->bAutomated = true;
@@ -218,40 +244,48 @@ bool FDFImporter::ImportTextures() {
 			Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, true });
 		}
 	}
-	UE_LOG(LogDFEditor, Display, TEXT("Importing %d textures"), Tasks.Num());
-	AssetTools.ImportAssetTasks(Tasks);
+	const int32 NumImported = Keys.Num();
+	Keys.Append(Unchanged);
+	UE_LOG(LogDFEditor, Display, TEXT("Importing %d textures (%d unchanged)"), Tasks.Num(), Unchanged.Num());
+	if (!Tasks.IsEmpty())
+		AssetTools.ImportAssetTasks(Tasks);
 
-	int32 Ok = 0;
-	for (int32 i = 0; i < Tasks.Num(); ++i) {
+	int32 Ok = 0, Failed = 0;
+	for (int32 i = 0; i < Keys.Num(); ++i) {
 		const FString Path = Keys[i].bReplacement ? ReplacementAssetPath(Keys[i].Key) : TextureAssetPath(Keys[i].Key);
 		UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 		if (!Tex) {
 			UE_LOG(LogDFEditor, Warning, TEXT("Texture import failed: %s"), *Keys[i].Key);
+			++Failed;
 			continue;
 		}
 		// Mobile-friendly: world group, never streamed (they're tiny), no alpha channel unless masked
-		Tex->LODGroup = TEXTUREGROUP_World;
+		const bool bUI = Keys[i].bUI;
+		const TextureGroup Group = bUI ? TEXTUREGROUP_UI : TEXTUREGROUP_World;
+		const TextureCompressionSettings Compression = bUI ? TC_EditorIcon : TC_Default;
+		const TextureMipGenSettings Mips = bUI ? TMGS_NoMipmaps : TMGS_FromTextureGroup;
+		// HUD art and bitmap fonts: uncompressed, never mipped; fonts point sampled (crisp glyphs),
+		// the art filtered like MF's canvas (soft palette-alpha glows when scaled)
+		const TextureFilter Filter = !bUI ? TF_Default : Keys[i].Key.StartsWith(TEXT("MobileForceFonts."), ESearchCase::IgnoreCase) ? TF_Nearest
+																																	: TF_Bilinear;
+		const bool bSettled = i >= NumImported && Tex->LODGroup == Group && Tex->NeverStream && Tex->SRGB && Tex->CompressionSettings == Compression &&
+			Tex->CompressionNoAlpha == !Keys[i].bAlpha && Tex->Filter == Filter && Tex->MipGenSettings == Mips;
+		if (bSettled)
+			continue; // same file, same settings: leave the package alone
+		Tex->LODGroup = Group;
 		Tex->NeverStream = true;
 		Tex->SRGB = true;
-		Tex->CompressionSettings = TC_Default;
+		Tex->CompressionSettings = Compression;
 		Tex->CompressionNoAlpha = !Keys[i].bAlpha;
-		Tex->Filter = TF_Default;
-		Tex->MipGenSettings = TMGS_FromTextureGroup;
-		if (Keys[i].bUI) {
-			// HUD art and bitmap fonts: uncompressed, never mipped; fonts point sampled (crisp
-			// glyphs), the art filtered like MF's canvas (soft palette-alpha glows when scaled)
-			Tex->LODGroup = TEXTUREGROUP_UI;
-			Tex->CompressionSettings = TC_EditorIcon;
-			Tex->MipGenSettings = TMGS_NoMipmaps;
-			Tex->Filter = Keys[i].Key.StartsWith(TEXT("MobileForceFonts."), ESearchCase::IgnoreCase) ? TF_Nearest : TF_Bilinear;
-		}
+		Tex->Filter = Filter;
+		Tex->MipGenSettings = Mips;
 		Tex->PostEditChange();
 		Ok += SaveAsset(Tex) ? 1 : 0;
 	}
-	UE_LOG(LogDFEditor, Display, TEXT("Textures: %d / %d imported"), Ok, Tasks.Num());
+	UE_LOG(LogDFEditor, Display, TEXT("Textures: %d saved, %d unchanged, %d failed"), Ok, Keys.Num() - Ok - Failed, Failed);
 	RepointCoreMaterials();
 	ImportFonts();
-	return Ok > 0;
+	return Failed < Keys.Num(); // something there: unchanged textures count
 }
 
 bool FDFImporter::IsUITexture(const FString& Key) {
