@@ -263,7 +263,14 @@ void ADFPlayerController::MapKeys() {
 	Map(A(TEXT("LookKey")), EKeys::Delete);
 	if (FEnhancedActionKeyMapping* M = Map(A(TEXT("LookKey")), EKeys::PageDown))
 		M->Modifiers.Add(NewObject<UInputModifierNegate>(this));
-	Map(A(TEXT("Move")), EKeys::Gamepad_Left2D);
+	// sticks per axis (Y swizzled into the action's Y): a gamepad's 2D stick keys are built from
+	// these, and the touch screen's virtual joysticks send only these
+	auto MapStick = [&](UInputAction* Action, const FKey& X, const FKey& Y) {
+		Map(Action, X);
+		if (FEnhancedActionKeyMapping* M = Map(Action, Y))
+			M->Modifiers.Add(NewObject<UInputModifierSwizzleAxis>(this)); // default order YXZ
+	};
+	MapStick(A(TEXT("Move")), EKeys::Gamepad_LeftX, EKeys::Gamepad_LeftY);
 	if (FEnhancedActionKeyMapping* M = Map(A(TEXT("Look")), EKeys::Mouse2D)) {
 		UInputModifierNegate* N = NewObject<UInputModifierNegate>(this);
 		N->bX = false;
@@ -271,7 +278,7 @@ void ADFPlayerController::MapKeys() {
 		N->bZ = false;
 		M->Modifiers.Add(N);
 	}
-	Map(A(TEXT("Look")), EKeys::Gamepad_Right2D);
+	MapStick(A(TEXT("Look")), EKeys::Gamepad_RightX, EKeys::Gamepad_RightY);
 
 	// the player's keys (MF default controls, Manual.pdf "Controls"), then the fixed extras
 	for (const TPair<FName, FKey>& K : Keys)
