@@ -14,15 +14,20 @@ namespace {
 ADFTracer::ADFTracer() {
 	PrimaryActorTick.bCanEverTick = true;
 	SetReplicates(false);
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Plane(TEXT("/Engine/BasicShapes/Plane.Plane"));
 	Streak = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Streak"));
-	Streak->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Streak->SetCastShadow(false);
-	Streak->SetCanEverAffectNavigation(false);
-	Streak->SetRelativeScale3D(FVector(0.9f, 0.02f, 0.02f)); // 90 cm x 2 cm
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (Cube.Succeeded())
-		Streak->SetStaticMesh(Cube.Object);
-	RootComponent = Streak;
+	CrossStreak = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CrossStreak"));
+	for (UStaticMeshComponent* Part : { Streak.Get(), CrossStreak.Get() }) {
+		Part->SetupAttachment(RootComponent);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetCastShadow(false);
+		Part->SetCanEverAffectNavigation(false);
+		Part->SetRelativeScale3D(FVector(0.9f, 0.04f, 1.f)); // 90 cm x 4 cm, with soft edges
+		if (Plane.Succeeded())
+			Part->SetStaticMesh(Plane.Object);
+	}
+	CrossStreak->SetRelativeRotation(FRotator(0.f, 0.f, 90.f));
 }
 
 void ADFTracer::Fire(UWorld* World, const FVector& Start, const FVector& End) {
@@ -41,8 +46,10 @@ void ADFTracer::Fire(UWorld* World, const FVector& Start, const FVector& End) {
 		static TWeakObjectPtr<UMaterialInterface> Cached;
 		if (!Cached.IsValid())
 			Cached = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Tracer.M_MF_Tracer"), nullptr, LOAD_NoWarn | LOAD_Quiet);
-		if (UMaterialInterface* Material = Cached.Get())
+		if (UMaterialInterface* Material = Cached.Get()) {
 			T->Streak->SetMaterial(0, Material);
+			T->CrossStreak->SetMaterial(0, Material);
+		}
 		T->Velocity = Dir * TracerSpeed;
 		T->SetLifeSpan(FMath::Min(2.f, Len / TracerSpeed)); // FMin(2, Len / 3000)
 	}

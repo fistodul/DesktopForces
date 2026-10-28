@@ -54,6 +54,12 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		for (const FString& Map : MapList)
 			Importer.PatchMapData(Map);
 	}
+	if (Steps.Contains(TEXT("collision"))) {
+		TArray<FString> MapList;
+		Maps.ParseIntoArray(MapList, TEXT(","));
+		for (const FString& Map : MapList)
+			Errors += Importer.RefreshMapCollision(Map) ? 0 : 1;
+	}
 	if (Steps.Contains(TEXT("maps"))) {
 		TArray<FString> MapList;
 		if (Maps.IsEmpty()) {

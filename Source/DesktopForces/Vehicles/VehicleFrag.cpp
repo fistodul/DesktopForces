@@ -73,18 +73,20 @@ void AVehicleFrag::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity
 	PlayHitSound(V.Size() / 2.25f); // uu / s
 }
 
-void AVehicleFrag::Burst(UWorld* World, const FVector& Location) {
+void AVehicleFrag::Burst(UWorld* World, const FVector& Location, bool bExpiring) {
 	if (!World || World->GetNetMode() == NM_DedicatedServer)
 		return;
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	int32 TrailFXC = 4; // "Max num of flamming bits"
+	int32 TrailFXC = bExpiring ? 0 : 4; // "Max num of flamming bits"
 	for (int32 I = 0; I < 16; ++I) {
 		// WheelPos = Location + (Rand(128) - 64, Rand(128) - 64, 48 + Rand(64)); Velocity = Force * 7
 		const FVector At = Location + FVector(FMath::RandRange(-64, 63), FMath::RandRange(-64, 63), 48 + FMath::RandRange(0, 63)) * 2.25f;
 		const FVector Force(FMath::RandRange(-64, 63), FMath::RandRange(-64, 63), 64 + FMath::RandRange(0, 63));
 		if (AVehicleFrag* Frag = World->SpawnActor<AVehicleFrag>(At, FRotator(FMath::FRand() * 360.f, FMath::FRand() * 360.f, 0.f), SP)) {
-			Frag->Movement->Velocity = Force * 7.f * 2.25f;
+			Frag->Movement->Velocity = Force * (bExpiring ? 2.f : 7.f) * 2.25f;
+			if (bExpiring)
+				Frag->SetLifeSpan(3.f);
 			if (TrailFXC > 0 && FMath::FRand() < 0.4f) {
 				--TrailFXC;
 				Fire(World, Frag->GetRootComponent(), At);

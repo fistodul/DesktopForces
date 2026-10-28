@@ -122,10 +122,15 @@ Report what was checked and any checks blocked by missing engine, content, or di
 - Keep seated occupants queryable for weapon hits. Disable physical responses selectively;
   disabling all actor collision also makes exposed drivers invulnerable to traces.
 - Check original MF door/seat and near-driver metadata before changing seat selection.
-  Front-seat driver preference and deliberate passenger-only entry are separate behaviors.
+  Front-seat driver preference and unredirected closest-seat entry are separate behaviors.
 - Bot input bookkeeping must follow StopFire, reload, and weapon changes. Exercise a second
   magazine, not just initial firing, when checking combat behavior.
 - Use absolute artifact paths outside the project. This checkout resolves through a Windows
   drive symlink, so a shell's `../tests` can resolve somewhere different from its logical path.
 - No weekly quota meter is exposed through the current tools. Do not claim a precise remaining
   percentage. Keep a progress checkpoint and report any actual quota/approval rejection.
+
+- Sleeping rigid bodies still need gameplay recovery checks when overturned. An early return
+  for settled vehicles must not bypass the righting timer or torque.
+- Let newly registered physics components enter the scene before testing collision. An immediate
+  same-frame query can miss valid geometry; defer fixture queries at least one physics tick.

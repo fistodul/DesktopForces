@@ -305,8 +305,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 | Armadillo APC | 2300 kg | 30 mph | 4x4 | 0.84 | 2 |
 
 - E (TryEnterExit) near a vehicle selects the nearest free seat. Paired front seats use an
-  empty driver seat, matching MF aSeatNearDrivers; rear seats stay passengers. Shift+E
-  (or `EnterPassenger`) skips the driver seat, allowing a hidden passenger to wait for a driver.
+  empty driver seat, matching MF aSeatNearDrivers; rear seats stay passengers. Right Alt
+  (`UseClosest`) uses the nearest free seat including the driver, without front-seat redirection.
+  It also selects loadout items, so it can replace E through Controls.
   E again exits through a clear door. Drivers drive (WASD, Space
   handbrake, mouse orbits the camera) and can't shoot; passengers ride standing or sitting at
   their seat, look around and use their own weapons (MF InCarState).
@@ -355,13 +356,16 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   up (150, 900 cm) and kills everyone inside. Hitting someone at KillSpeed 8 m/s or more runs
   them over. Pawn contacts apply a small one-time speed loss rather than a rigid-body stop;
   a separate query shell keeps walking soldiers outside the body. Upside down and slow
-  for 3 s: back on its wheels.
+  for 3 s: controlled torque rolls the body upright through normal floor contact. Tyre traction
+  retains 35% of its overturning lever arm; suspension forces still act at the contact points.
 - Exiting keeps collision disabled until the soldier is outside and possession is restored.
   For one second, that vehicle cannot run over its exiting occupant; other damage still applies.
   Drivers remain hittable through mesh openings, as passengers do.
 - Empty generated vehicles recycle after 45 seconds if moved more than 450 cm horizontally
   or damaged. Occupying the vehicle cancels the timer. This includes deliberate passengers;
   pristine vehicles at their generator remain available. Locked objective vehicles are excluded.
+  During the last 30 seconds, a red overlay pulses increasingly quickly. Expiry plays a smoke
+  puff and fragment sound with low-energy debris that lasts three seconds; it causes no blast damage.
 - Generators: the map's Buggy/Humvee/Truck/ArmadilloGenerator actors make one each and a new one
   5 s after it's gone; VehicleGenerators with a VehicleClass too (boat.boat, jeep.jeep,
   Rage.*). `?Vehicles=0` turns them off.
@@ -432,3 +436,13 @@ capsule, holds MF's DeathEnd pose, hides the weapon, and drops a carried flag. M
 firing are blocked, but damage and gravity remain active. Bots stop selecting the apparent
 corpse as a new target. Alt, Fire, Alt Fire, or Jump gets up after the initial 0.7-second pose;
 the wake-up press does not also shoot or jump, and the weapon uses its normal equip delay.
+
+### Player preferences
+
+Options > Game offers Auto, Helmet, and Balaclava models. Model changes replicate to other
+players. Preferred team applies on joining a match and remains subject to mode and balance
+rules. Auto preserves automatic assignment. The classic loadout now shows each owned weapon
+instance’s live ammunition rather than the shop’s default quantities.
+
+Truck turbo uses the existing server `TurboCars` option and nitro input, like other eligible
+vehicles. Vehicle flags use the original MF team emblems on a two-sided masked material.

@@ -1007,7 +1007,9 @@ void ADFHUD::DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC) {
 			Y += Block;
 		}
 		const int32 Set = i == PC->LoadoutCursor ? 2 : (!C->CanCarry(Items[i]) ? 3 : TeamSet());
-		DrawWeapIconMF(CDO, X, Y, Set, AmmoText(CDO, false), ADFWeapon::SlotKeyName(Key));
+		const ADFWeapon* Owned = C->FindWeaponOfClass(Items[i]);
+		const ADFWeapon* Shown = Owned ? Owned : CDO;
+		DrawWeapIconMF(Shown, X, Y, Set, AmmoText(Shown, Owned != nullptr), ADFWeapon::SlotKeyName(Key));
 		if (Key == OpenSlot)
 			Text(FString::FromInt(InRow % 10), X + W - 16.f * RS, Y + 2.f, Yellow, RS);
 		X += W;

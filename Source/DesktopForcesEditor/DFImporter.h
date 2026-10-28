@@ -59,6 +59,7 @@ public:
 	class USoundAttenuation* EnsureSoundAttenuation();
 	bool ImportSounds(const FString& SubDir = TEXT("Sounds"), bool bLooping = false);
 	bool BuildMap(const FString& MapName);
+	bool RefreshMapCollision(const FString& MapName);
 
 	/** M_MF_TeamTint: unlit, colour from custom primitive data 0-3 (UDFGameSettings::TeamTintMaterial). */
 	void EnsureTeamTintMaterial();
@@ -90,6 +91,7 @@ public:
 	void EnsureGoalAssets();
 	/** M_MF_Tracer: bullet tracers (ADFTracer). */
 	void EnsureTracerMaterial();
+	void EnsureVehicleMaterials();
 	/** M_MF_MuzzleFlash: the guns' flash quad (classic FlashYellow). */
 	void EnsureMuzzleFlashMaterial();
 

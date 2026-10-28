@@ -64,7 +64,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Generated art of our own (`Tools/artgen`): loadout crates with team stencil
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px
 - ✅ First-person weapons: MF's arms models (PlayerViewMesh) with their select / fire / reload / zoom animations, MF PlayerViewScale / PlayerViewOffset; ⬜ per-weapon extras (shotgun barrel-state animations, grenade pin pull wind-up, knife catch; HMG deploy done), weapon bob
-- ✅ Third-person soldiers: MF helmet / balaclava models, team and captain skins, MF's animation choice (Pawn.uc Get*Anim: weapon sets, zoomed poses, strafes, crouch, swim, jump / land, throws, deaths), carry meshes in hand, drivers and seated passengers; ⬜ player model choice (now one of the two per player), ragdolls
+- ✅ Third-person soldiers: MF helmet / balaclava models, team and captain skins, MF's animation choice (Pawn.uc Get*Anim: weapon sets, zoomed poses, strafes, crouch, swim, jump / land, throws, deaths), carry meshes in hand, drivers and seated passengers; ✅ saved player model and preferred team choice; ⬜ ragdolls
 - 🟡 Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, damage smoke, rocket/Predator fire trails, wall hits, blood, map emitters; ✅ tracers, shell cases, bullet holes and scorch marks (decals), smoke grenades; ⬜ muzzle flashes, water rings, bubbles
 - 🟡 Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ⬜ server browser (333networks master server protocol)
 - ⬜ Touch controls (mobile)
@@ -90,12 +90,12 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - Console checkbox follows viewport creation; crosshair visible bounds normalized; mouse settings moved to Controls.
 - Linux display-mode detection uses ApplicationCore; window resolution is checked against the actual viewport.
 - Effects and Announcer audio controls; Full scorch marks conform to surfaces without DBuffer.
-- Humvee: MF front-seat driver preference, rear-seat proximity, and explicit passenger-only entry; parachute threshold raised by 25 cm/s.
+- Humvee: MF front-seat driver preference, rear-seat proximity, and explicit closest-seat entry; parachute threshold raised by 25 cm/s.
 - Platform paths in the example TOML live only under `[linux]` and `[windows]`.
 - Validation results and remaining platform limits are recorded in the dated tests report.
 
 ## Vehicle and effect follow-up (2026-10-27)
-- Manual entry uses nearby seats with MF's front-seat driver preference; Shift+Use forces a passenger seat.
+- Manual entry uses nearby seats with MF's front-seat driver preference; Right Alt uses the closest free seat, including the driver.
 - Suspension support follows the ground normal. Wheel queries block soldiers, while pawn
   contacts no longer act as immovable physics obstacles to the chassis.
 - Vehicle health controls smoke density and opacity. Rocket and Predator flight effects
@@ -110,9 +110,20 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
   vehicle smoke also stop on EndPlay, including direct removal and timeouts.
 - Vehicle exits restore position and possession before collision; dead pawns never resume
   falling movement. Exiting occupants get one second of immunity to that vehicle only.
-- Front-seat driver preference follows MF's near-driver rule. Shift+Use and EnterPassenger
-  support waiting in an interior passenger seat with no driver.
+- Front-seat driver preference follows MF's near-driver rule. Right Alt / UseClosest
+  selects any closest free seat, including an interior passenger seat with no driver.
 - Empty moved/damaged generated vehicles recycle; drivers remain weapon-query targets.
 - Bot reloads reset held-fire bookkeeping, verified beyond the first magazine.
 - Feign death uses a replicated, damageable stance and existing MF DeathEnd animation;
   Left Alt toggles it, with a rebindable Controls entry.
+
+## Vehicle and content polish follow-up
+
+- Closest-seat Use is a remappable action on Right Alt; normal Use keeps MF front-seat priority.
+- Physical rollover recovery, reduced traction-induced roll, truck turbo, accelerating expiry
+  pulses, short-lived expiry debris, and two-sided original team-emblem flags.
+- Soft crossed-quad tracers and live owned-ammo counts in the classic loadout.
+- Space-station double-sided grating collision refreshed without rebuilding its lighting.
+- Saved model/team preferences; team balance remains authoritative.
+- Remaining playable maps have a resumable conversion/import/lighting queue. Completion
+  is recorded in `Tools/mfport/work/remaining/progress.json`; queued does not mean finished.

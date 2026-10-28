@@ -113,10 +113,10 @@ public:
 	float AIRating = 0.5f;
 
 	// --- ammo -----------------------------------------------------------------------
-	UPROPERTY(EditDefaultsOnly, Category = "DF|Ammo")
+	UPROPERTY(Replicated, EditDefaultsOnly, Category = "DF|Ammo")
 	int32 MaxClipAmmo = 1;
 
-	UPROPERTY(EditDefaultsOnly, Category = "DF|Ammo")
+	UPROPERTY(Replicated, EditDefaultsOnly, Category = "DF|Ammo")
 	int32 MaxClips = 1;
 
 	/** Remove from inventory once the last round is used (grenades, trip bombs, adrenaline). */

@@ -122,11 +122,12 @@ bool FDFOptionsTest::RunTest(const FString& Parameters) {
 	AAIController* DriverController = World->SpawnActor<AAIController>();
 	DriverController->Possess(Driver);
 	Driver->SetInLoadout(false);
-	for (const auto& Seat : TArray<TPair<int32, FVector>>{ { 1, FVector(35, 200, 0) }, { 2, FVector(-240, -160, 100) }, { 3, FVector(-240, 160, 100) } }) {
+	for (const auto& Seat : TArray<TPair<int32, FVector>>{ { 0, FVector(35, -200, 0) }, { 1, FVector(35, 200, 0) }, { 2, FVector(-240, -160, 100) }, { 3, FVector(-240, 160, 100) } }) {
 		Driver->SetActorLocation(Location + Seat.Value);
-		TestTrue(TEXT("Solo passenger entry"), Humvee->TryEnter(Driver, true));
-		TestEqual(TEXT("Nearest passenger seat without a driver"), Humvee->GetSeatOf(Driver), Seat.Key);
-		TestNull(TEXT("Passenger entry does not fill the driver seat"), Humvee->GetDriver());
+		TestTrue(TEXT("Closest-seat entry"), Humvee->TryEnter(Driver, true));
+		TestEqual(TEXT("Nearest physical seat without front-seat redirection"), Humvee->GetSeatOf(Driver), Seat.Key);
+		if (Seat.Key != 0)
+			TestNull(TEXT("Passenger entry does not fill the driver seat"), Humvee->GetDriver());
 		Humvee->ExitAll();
 	}
 	Driver->SetActorLocation(Location + FVector(35, 200, 0));

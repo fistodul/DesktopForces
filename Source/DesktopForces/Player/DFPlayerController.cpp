@@ -75,6 +75,8 @@ void ADFPlayerController::BeginPlay() {
 
 void ADFPlayerController::AcknowledgePossession(APawn* P) {
 	Super::AcknowledgePossession(P);
+	if (!GetWorld()->URL.HasOption(TEXT("Model=")))
+		ServerSetPreferredModel(UDFUserSettings::Get().PreferredModel);
 	FadeInSoon(P);
 }
 
@@ -126,7 +128,7 @@ TArray<FDFBinding> ADFPlayerController::GetBindings() {
 		{ TEXT("Crouch"), LOCTEXT("KCrouch", "Crouch"), EKeys::LeftControl, EKeys::C },
 		{ TEXT("Walk"), LOCTEXT("KWalk", "Walk"), EKeys::LeftShift },
 		{ TEXT("FeignDeath"), LOCTEXT("KFeignDeath", "Feign death / stand up"), EKeys::LeftAlt },
-		{ TEXT("EnterPassenger"), LOCTEXT("KEnterPassenger", "Enter passenger seat"), EKeys::Invalid },
+		{ TEXT("UseClosest"), LOCTEXT("KUseClosest", "Use / enter closest seat"), EKeys::RightAlt },
 		{ TEXT("Reload"), LOCTEXT("KReload", "Reload"), EKeys::R },
 		{ TEXT("Loadout"), LOCTEXT("KLoadout", "Loadout"), EKeys::Q, EKeys::BackSpace },
 		{ TEXT("Use"), LOCTEXT("KUse", "Use / get in or out"), EKeys::E, EKeys::Enter },
@@ -169,7 +171,7 @@ void ADFPlayerController::BuildInput() {
 	// MF Delete = LookUp, PageDown = LookDown (aLookUp, held)
 	Make(TEXT("LookKey"), EInputActionValueType::Axis1D);
 	for (const TCHAR* Name : { TEXT("Fire"), TEXT("AltFire"), TEXT("Jump"), TEXT("Crouch"), TEXT("CrouchAlt"), TEXT("Walk"),
-			 TEXT("Reload"), TEXT("Loadout"), TEXT("Use"), TEXT("FeignDeath"), TEXT("EnterPassenger"), TEXT("NextWeapon"), TEXT("PrevWeapon"), TEXT("NextWeaponKey"),
+			 TEXT("Reload"), TEXT("Loadout"), TEXT("Use"), TEXT("FeignDeath"), TEXT("UseClosest"), TEXT("NextWeapon"), TEXT("PrevWeapon"), TEXT("NextWeaponKey"),
 			 TEXT("PrevWeaponKey"), TEXT("Throw"), TEXT("LoadoutAlt"), TEXT("Scores"), TEXT("MenuUp"), TEXT("MenuDown"), TEXT("MenuSelect") })
 		Make(Name, EInputActionValueType::Boolean);
 	for (int32 i = 1; i <= 11; ++i)
@@ -317,7 +319,7 @@ void ADFPlayerController::SetupInputComponent() {
 	EIC->BindAction(A(TEXT("AltFire")), ETriggerEvent::Completed, this, &ADFPlayerController::OnAltFireReleased);
 	EIC->BindAction(A(TEXT("Reload")), ETriggerEvent::Started, this, &ADFPlayerController::OnReload);
 	EIC->BindAction(A(TEXT("FeignDeath")), ETriggerEvent::Started, this, &ADFPlayerController::FeignDeath);
-	EIC->BindAction(A(TEXT("EnterPassenger")), ETriggerEvent::Started, this, &ADFPlayerController::EnterPassenger);
+	EIC->BindAction(A(TEXT("UseClosest")), ETriggerEvent::Started, this, &ADFPlayerController::UseClosest);
 	EIC->BindAction(A(TEXT("Loadout")), ETriggerEvent::Started, this, &ADFPlayerController::OnLoadout);
 	EIC->BindAction(A(TEXT("LoadoutAlt")), ETriggerEvent::Started, this, &ADFPlayerController::OnLoadout);
 	EIC->BindAction(A(TEXT("Throw")), ETriggerEvent::Started, this, &ADFPlayerController::ThrowWeapon);
@@ -660,10 +662,10 @@ void ADFPlayerController::OnMenuSelect() {
 }
 
 void ADFPlayerController::TryEnterExit() {
-	ServerTryEnterExit(IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift));
+	ServerTryEnterExit(false);
 }
 
-void ADFPlayerController::ServerTryEnterExit_Implementation(bool bPassengerOnly) {
+void ADFPlayerController::ServerTryEnterExit_Implementation(bool bClosestSeat) {
 	if (ADFVehicle* V = Cast<ADFVehicle>(GetPawn())) {
 		V->Exit();
 		return;
@@ -686,7 +688,7 @@ void ADFPlayerController::ServerTryEnterExit_Implementation(bool bPassengerOnly)
 		}
 	}
 	if (Best)
-		Best->TryEnter(C, bPassengerOnly);
+		Best->TryEnter(C, bClosestSeat);
 }
 
 TArray<ADFWeapon*> ADFPlayerController::GetLoadoutInventory() const {
@@ -1241,7 +1243,14 @@ void ADFPlayerController::RenderScale(float Value) {
 	ClientMessage(FString::Printf(TEXT("Render scale %d%%"), FMath::RoundToInt(S.RenderScale * 100.f)));
 }
 
+void ADFPlayerController::ServerSetPreferredModel_Implementation(int32 Model) {
+	if (ADFPlayerState* PS = GetPlayerState<ADFPlayerState>())
+		PS->PreferredModel = FMath::Clamp(Model, -1, 1);
+}
+
 void ADFPlayerController::DFApplyUserSettings() {
+	if (IsLocalController())
+		ServerSetPreferredModel(UDFUserSettings::Get().PreferredModel);
 	if (ADFCharacter* C = GetMFCharacter())
 		C->ApplyUserSettings();
 	ApplyKeyBindings();
@@ -1317,4 +1326,11 @@ void ADFPlayerController::ServerDropWeapon_Implementation() {
 void ADFPlayerController::FeignDeath() {
 	if (ADFCharacter* C = GetMFCharacter())
 		C->ServerSetFeignDeath(!C->IsFeigningDeath());
+}
+
+void ADFPlayerController::UseClosest() {
+	if (IsLoadoutOpen())
+		LoadoutSelect();
+	else
+		ServerTryEnterExit(true);
 }

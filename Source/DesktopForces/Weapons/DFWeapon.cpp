@@ -69,6 +69,8 @@ ADFWeapon::ADFWeapon() {
 
 void ADFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(ADFWeapon, MaxClipAmmo, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(ADFWeapon, MaxClips, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ADFWeapon, ClipAmmo, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ADFWeapon, TotalAmmo, COND_OwnerOnly);
 	DOREPLIFETIME(ADFWeapon, ZoomLevel);

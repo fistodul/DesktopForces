@@ -1,5 +1,7 @@
 #include "Vehicles/DFVehicle.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Texture2D.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Game/DFGameState.h"
 #include "Vehicles/DFVehicles.h"
@@ -96,6 +98,7 @@ ADFVehicle::ADFVehicle() {
 void ADFVehicle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFVehicle, Health);
+	DOREPLIFETIME(ADFVehicle, ExpireAt);
 	DOREPLIFETIME(ADFVehicle, Driver);
 	DOREPLIFETIME(ADFVehicle, BlownWheels);
 	DOREPLIFETIME(ADFVehicle, Passengers);
@@ -245,6 +248,7 @@ void ADFVehicle::Tick(float DeltaSeconds) {
 	if (GetNetMode() != NM_DedicatedServer) {
 		UpdateWheelVisuals(DeltaSeconds);
 		UpdateEngineSound();
+		UpdateExpiryWarning();
 	}
 	// controllers send input only while keys are held: let go of everything otherwise
 	if (!Driver || bLocked || GetWorld()->GetTimeSeconds() - LastInputTime > 0.15f) {
@@ -281,7 +285,7 @@ void ADFVehicle::ApplyWater(float Dt) {
 
 void ADFVehicle::SimulateWheels(float Dt) {
 	ApplyWater(Dt);
-	if (!Driver && !Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle))
+	if (!Driver && !Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle) && Body->GetUpVector().Z > 0.95f)
 		return; // parked and settled: no traces, no forces
 	const FTransform T = Body->GetComponentTransform();
 	const FVector Up = T.GetUnitAxis(EAxis::Z);
@@ -357,7 +361,11 @@ void ADFVehicle::SimulateWheels(float Dt) {
 			FLong += DriveForce / Driven * (bFlat ? 0.5f : 1.f);
 		}
 		FLong = FMath::Clamp(FLong, -MaxFriction * 1.2f, MaxFriction * 1.2f);
-		Body->AddForceAtLocation(GroundNormal * Fz + WRight * FLat + WFwd * FLong, Contact);
+		Body->AddForceAtLocation(GroundNormal * Fz, Contact);
+		// Keep tyre grip, but reduce its overturning leverage. Suspension still loads
+		// each wheel at the ground; traction acts partway towards the centre of mass.
+		const float Height = FMath::Max(0.f, FVector::DotProduct(Body->GetCenterOfMass() - Contact, Up));
+		Body->AddForceAtLocation(WRight * FLat + WFwd * FLong, Contact + Up * Height * (1.f - TractionRollInfluence));
 		WheelSpin[i] += VLong / FMath::Max(W.Radius, 1.f) * Dt;
 	}
 	SimulateDrive(Dt);
@@ -371,18 +379,18 @@ void ADFVehicle::SimulateWheels(float Dt) {
 	Body->AddForce(-Vel * Vel.Size() * DragK);
 	if (Grounded > 0)
 		Body->AddForce(-Up * Vel.SizeSquared() * DragK * 0.5f);
-	// stuck on its side or roof: back on its wheels after 3 s (MF UpRightingForce)
-	if (Up.Z < 0.3f && Vel.Size() < 150.f) {
+	// MF exposes UpRightingForce to its native physics. Recover through torque rather
+	// than teleporting the body upright, so contact with the floor remains physical.
+	if (Up.Z < 0.3f && Vel.Size() < 150.f)
 		UpsideDownTime += Dt;
-		if (UpsideDownTime > 3.f) {
-			UpsideDownTime = 0.f;
-			const FRotator Rot(0.f, GetActorRotation().Yaw, 0.f);
-			Body->SetWorldLocationAndRotation(GetActorLocation() + FVector(0.f, 0.f, 120.f), Rot, false, nullptr, ETeleportType::TeleportPhysics);
-			Body->SetPhysicsLinearVelocity(FVector::ZeroVector);
-			Body->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-		}
-	} else {
+	else if (Up.Z > 0.95f || (UpsideDownTime <= 3.f && Vel.Size() >= 150.f))
 		UpsideDownTime = 0.f;
+	if (UpsideDownTime > 3.f) {
+		FVector Axis = FVector::CrossProduct(Up, FVector::UpVector).GetSafeNormal();
+		if (Axis.IsNearlyZero())
+			Axis = Fwd;
+		const float Angle = FMath::Acos(FMath::Clamp(Up.Z, -1.f, 1.f));
+		Body->AddTorqueInRadians(Axis * Angle * 24.f - Body->GetPhysicsAngularVelocityInRadians() * 8.f, NAME_None, true);
 	}
 }
 
@@ -530,7 +538,7 @@ bool ADFVehicle::EnterSeat(ADFCharacter* C, int32 Seat) {
 	return true;
 }
 
-bool ADFVehicle::TryEnter(ADFCharacter* C, bool bPassengerOnly) {
+bool ADFVehicle::TryEnter(ADFCharacter* C, bool bClosestSeat) {
 	if (!HasAuthority() || bBlownUp || bLocked || !C || !C->IsAlive() || !IsNear(C) || C->IsInLoadout() || C->IsFeigningDeath() || GetSeatOf(C) != INDEX_NONE)
 		return false;
 	Passengers.SetNum(FMath::Max(Passengers.Num(), SeatPositions.Num()));
@@ -545,11 +553,11 @@ bool ADFVehicle::TryEnter(ADFCharacter* C, bool bPassengerOnly) {
 			ApproachDistance = D;
 		}
 	}
-	if (!bPassengerOnly && !Driver && bDriveable && (Approach == 0 || SeatsNearDriver.Contains(Approach)))
+	if (!bClosestSeat && !Driver && bDriveable && (Approach == 0 || SeatsNearDriver.Contains(Approach)))
 		return EnterSeat(C, 0);
 	int32 Nearest = INDEX_NONE;
 	float Distance = TNumericLimits<float>::Max();
-	for (int32 Seat = bPassengerOnly ? 1 : 0; Seat < SeatPositions.Num(); ++Seat) {
+	for (int32 Seat = 0; Seat < SeatPositions.Num(); ++Seat) {
 		if (Seat == 0 ? (!bDriveable || Driver != nullptr) : Passengers[Seat] != nullptr)
 			continue;
 		const float D = FVector::DistSquared(C->GetPawnViewLocation(), GetActorTransform().TransformPosition(SeatPositions[Seat] - BoxCenter));
@@ -1094,15 +1102,15 @@ void ADFVehicle::UpdateFlag() {
 		FlagCloth->SetRelativeLocation(FlagPosition - BoxCenter + FVector(-25.f, 0.f, 100.f));
 		FlagCloth->SetRelativeRotation(FRotator(0.f, 0.f, 90.f)); // upright, along the car
 		FlagCloth->SetRelativeScale3D(FVector(0.5f, 0.32f, 1.f)); // 50 x 32 cm
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-			FlagCloth->SetMaterial(0, M);
+		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_VehicleFlag.M_MF_VehicleFlag")))
+			FlagCloth->CreateDynamicMaterialInstance(0, M);
 	}
 	const bool bShow = Team != DF::NoTeam;
 	FlagPole->SetVisibility(bShow);
 	FlagCloth->SetVisibility(bShow);
 	if (bShow) {
-		const FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
-		FlagCloth->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+		if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(FlagCloth->GetMaterial(0)))
+			M->SetTextureParameterValue(TEXT("Texture"), DF::LoadClassic<UTexture2D>(FString::Printf(TEXT("Textures/Rage/Skins/VehicleFlagTex%d"), Team % 2)));
 	}
 }
 
@@ -1202,11 +1210,48 @@ void ADFVehicle::CheckAbandonment() {
 		FVector::DistSquared2D(GetActorLocation(), Generator->GetActorLocation()) > FMath::Square(450.f);
 	if (bOccupied || !bUsed) {
 		AbandonedSince = -1.f;
+		ExpireAt = 0.f;
 		return;
 	}
 	const float Now = GetWorld()->GetTimeSeconds();
-	if (AbandonedSince < 0.f)
+	if (AbandonedSince < 0.f) {
 		AbandonedSince = Now;
-	else if (Now - AbandonedSince >= AbandonedLifetime)
-		Destroy(); // MF SilentDestroy; the generator schedules the replacement
+		ExpireAt = Now + AbandonedLifetime;
+		ForceNetUpdate();
+	} else if (Now >= ExpireAt) {
+		bBlownUp = true;
+		MulticastExpireFX();
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+		SetLifeSpan(0.2f); // allow the cosmetic multicast to reach clients before removal
+	}
+}
+
+void ADFVehicle::UpdateExpiryWarning() {
+	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
+	const float Now = GS ? GS->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds();
+	const float Remaining = ExpireAt - Now;
+	const bool bWarn = ExpireAt > 0.f && Remaining > 0.f && Remaining <= 30.f && !bBlownUp;
+	if (bWarn != bExpiryOverlay) {
+		bExpiryOverlay = bWarn;
+		BodyMesh->SetOverlayMaterial(bWarn ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_VehicleWarning.M_MF_VehicleWarning")) : nullptr);
+		NextExpiryPulse = Now;
+	}
+	if (!bWarn)
+		return;
+	if (Now >= NextExpiryPulse) {
+		ExpiryPulseAt = Now;
+		NextExpiryPulse = Now + FMath::Clamp(Remaining * 0.15f, 0.2f, 4.5f);
+		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/TrailerSFX/Warning")), GetActorLocation(), 0.4f, 1200.f);
+	}
+	BodyMesh->SetCustomPrimitiveDataFloat(4, FMath::Max(0.f, 1.f - (Now - ExpiryPulseAt) / 0.18f));
+}
+
+void ADFVehicle::MulticastExpireFX_Implementation() {
+	if (GetNetMode() == NM_DedicatedServer)
+		return;
+	// MF SilentDestroy: low-energy debris, a smoke puff and FragHit1, without blast damage.
+	AVehicleFrag::Burst(GetWorld(), GetActorLocation(), true);
+	DF::SpawnEffect(this, TEXT("SmokePuff"), GetActorLocation());
+	DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/VehicleFragSFX/FragHit1")), GetActorLocation(), 2.5f, 2000.f);
 }

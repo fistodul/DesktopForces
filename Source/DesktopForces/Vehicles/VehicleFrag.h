@@ -23,7 +23,7 @@ public:
 
 	/** Vehicle.BlowUp: 16 frags flying out of a vehicle at Location, up to 4 of them burning
 	 *  (EffectsFix.VehicleFragBurning, 2 in 5 while TrailFXC lasts). */
-	static void Burst(UWorld* World, const FVector& Location);
+	static void Burst(UWorld* World, const FVector& Location, bool bExpiring = false);
 
 	/** RageEffects.VehicleExplosion at DrawScale Scale: the fireball (Effects/P_VehicleExplosion)
 	 *  and 2-4 ExplosionFires where the ground is under it. */

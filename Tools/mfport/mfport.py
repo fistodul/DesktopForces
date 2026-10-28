@@ -16,6 +16,7 @@ Steps (run alone or chained with `all`):
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=DFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + effects + sounds + import + light
+  remaining            resume missing playable maps; --limit N bounds the batch
 
 Examples:
   python3 Tools/mfport/mfport.py all mf-warehouse
@@ -114,12 +115,17 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining'])
     ap.add_argument('names', nargs='*')
     ap.add_argument('--steps', default='art,textures,props,effects,skeletal,sounds,music,maps', help='importer steps for `import`')
+    ap.add_argument('--limit', type=int, default=0, help='maximum maps for a remaining batch (0: all)')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
+
+    if a.step == 'remaining':
+        from mflib.remaining import run
+        sys.exit(run(cfg, a.limit))
 
     if a.step in ('map', 'all'):
         cmd_map(cfg, a.names or ['mf-warehouse'])

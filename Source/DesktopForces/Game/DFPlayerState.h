@@ -31,6 +31,12 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	int32 Kills = 0;
 
+	UPROPERTY(Replicated)
+	int32 PreferredModel = -1;
+
+	/** Requested on join; the game mode still enforces its team rules. */
+	uint8 PreferredTeam = DF::NoTeam;
+
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	int32 Deaths = 0;
 

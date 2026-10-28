@@ -106,8 +106,8 @@ public:
 	void ServerSetNitro(bool bOn);
 
 	// --- seats -------------------------------------------------------------------------------
-	/** Server: enter the nearest free seat, including passengers when no driver is present. */
-	bool TryEnter(ADFCharacter* C, bool bPassengerOnly = false);
+	/** Server: enter a nearby free seat; bClosestSeat skips MF front-seat redirection. */
+	bool TryEnter(ADFCharacter* C, bool bClosestSeat = false);
 	/** Where the team flag stands (MF FlagPos, MF body space, cm); zero: no flag. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicle")
 	FVector FlagPosition = FVector::ZeroVector;
@@ -281,6 +281,9 @@ protected:
 	/** Sideways grip (fraction of the slide cancelled per second-ish). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float Grip = 6.f;
+	/** Fraction of tyre-force roll leverage retained (0 at centre of mass, 1 at road). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float TractionRollInfluence = 0.35f;
 
 	/** TurboCars nitro: push forward at this many cm/s^2 up to NitroMaxSpeed (cm/s). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
@@ -384,6 +387,14 @@ protected:
 	void CheckAbandonment();
 	FTimerHandle AbandonmentTimer;
 	float AbandonedSince = -1.f;
+	UPROPERTY(Replicated)
+	float ExpireAt = 0.f;
+	float NextExpiryPulse = 0.f;
+	float ExpiryPulseAt = -10.f;
+	bool bExpiryOverlay = false;
+	void UpdateExpiryWarning();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastExpireFX();
 	bool FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const;
 
 	TWeakObjectPtr<ADFCharacter> LastDriver;

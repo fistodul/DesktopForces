@@ -11,6 +11,9 @@
 #include "Materials/Material.h"
 #include "MaterialShared.h"
 #include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionCustom.h"
+#include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionDecalLifetimeOpacity.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
@@ -444,6 +447,7 @@ bool FDFImporter::ImportArt() {
 	EnsureDecalMaterials();
 	EnsureGoalAssets();
 	EnsureTracerMaterial();
+	EnsureVehicleMaterials();
 	EnsureMuzzleFlashMaterial();
 	return true;
 }
@@ -520,23 +524,75 @@ void FDFImporter::EnsureDecalMaterials() {
 }
 
 void FDFImporter::EnsureTracerMaterial() {
-	// ADFTracer's streak: unlit, additive, a warm white
 	bool bCreated = false;
 	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_Tracer"), bCreated);
-	if (!bCreated)
-		return;
 	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
-	UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(M);
-	Color->ParameterName = TEXT("Color");
-	Color->DefaultValue = FLinearColor(6.f, 4.5f, 2.2f);
-	M->GetExpressionCollection().AddExpression(Color);
-	E->EmissiveColor.Connect(0, Color);
+	if (!bCreated && E->Opacity.Expression)
+		return;
+	if (bCreated) {
+		UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(M);
+		Color->ParameterName = TEXT("Color");
+		Color->DefaultValue = FLinearColor(6.f, 4.5f, 2.2f);
+		M->GetExpressionCollection().AddExpression(Color);
+		E->EmissiveColor.Connect(0, Color);
+	}
+	UMaterialExpressionTextureCoordinate* UV = NewObject<UMaterialExpressionTextureCoordinate>(M);
+	M->GetExpressionCollection().AddExpression(UV);
+	UMaterialExpressionCustom* Fade = NewObject<UMaterialExpressionCustom>(M);
+	Fade->Description = TEXT("Soft tracer edges and tips");
+	Fade->Code = TEXT("float2 d = saturate(1 - abs(UV * 2 - 1)); return d.x * d.x * d.y * d.y;");
+	Fade->OutputType = CMOT_Float1;
+	Fade->Inputs.Reset();
+	FCustomInput& Input = Fade->Inputs.AddDefaulted_GetRef();
+	Input.InputName = TEXT("UV");
+	Input.Input.Connect(0, UV);
+	M->GetExpressionCollection().AddExpression(Fade);
+	E->Opacity.Connect(0, Fade);
 	M->SetShadingModel(MSM_Unlit);
 	M->BlendMode = BLEND_Additive;
+	M->TwoSided = true;
 	M->PreEditChange(nullptr);
 	M->PostEditChange();
 	SaveAsset(M);
-	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_Tracer"));
+}
+
+void FDFImporter::EnsureVehicleMaterials() {
+	bool bCreated = false;
+	UMaterial* Flag = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_VehicleFlag"), bCreated);
+	if (bCreated) {
+		UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(Flag);
+		T->ParameterName = TEXT("Texture");
+		T->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+		Flag->GetExpressionCollection().AddExpression(T);
+		Flag->GetEditorOnlyData()->EmissiveColor.Connect(0, T);
+		Flag->GetEditorOnlyData()->OpacityMask.Connect(4, T);
+		Flag->SetShadingModel(MSM_Unlit);
+		Flag->BlendMode = BLEND_Masked;
+		Flag->TwoSided = true;
+		Flag->PreEditChange(nullptr);
+		Flag->PostEditChange();
+		SaveAsset(Flag);
+	}
+	UMaterial* Warning = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_VehicleWarning"), bCreated);
+	if (bCreated) {
+		UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(Warning);
+		Color->ParameterName = TEXT("Color");
+		Color->DefaultValue = FLinearColor(3.f, 0.02f, 0.01f);
+		Warning->GetExpressionCollection().AddExpression(Color);
+		UMaterialExpressionScalarParameter* Pulse = NewObject<UMaterialExpressionScalarParameter>(Warning);
+		Pulse->ParameterName = TEXT("Pulse");
+		Pulse->DefaultValue = 0.f;
+		Pulse->bUseCustomPrimitiveData = true;
+		Pulse->PrimitiveDataIndex = 4;
+		Warning->GetExpressionCollection().AddExpression(Pulse);
+		Warning->GetEditorOnlyData()->EmissiveColor.Connect(0, Color);
+		Warning->GetEditorOnlyData()->Opacity.Connect(0, Pulse);
+		Warning->SetShadingModel(MSM_Unlit);
+		Warning->BlendMode = BLEND_Additive;
+		Warning->PreEditChange(nullptr);
+		Warning->PostEditChange();
+		SaveAsset(Warning);
+	}
 }
 
 void FDFImporter::EnsureMuzzleFlashMaterial() {
@@ -1091,6 +1147,11 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	SM->CreateBodySetup();
 	UBodySetup* Body = SM->GetBodySetup();
 	Body->CollisionTraceFlag = Collision == TEXT("complex") ? CTF_UseComplexAsSimple : CTF_UseDefault;
+	// MF thin two-sided surfaces (notably grating platforms) must also collide from
+	// either side. Render culling alone does not affect Chaos triangle collision.
+	Body->bDoubleSidedGeometry = Collision == TEXT("complex") && Materials.ContainsByPredicate([](const TSharedPtr<FJsonValue>& Value) {
+		return Value->AsString().Contains(TEXT("_2s"));
+	});
 	if (Collision == TEXT("none"))
 		Body->bNeverNeedsCookedCollisionData = true;
 	SM->Build(true);
@@ -1110,4 +1171,44 @@ UStaticMesh* FDFImporter::LoadOrBuildMesh(const FString& MapDir, const FString& 
 	UStaticMesh* SM = BuildStaticMesh(MapDir / (MeshRel + TEXT(".mfmesh.json")), AssetPath);
 	MeshCache.Add(CacheKey, SM);
 	return SM;
+}
+
+bool FDFImporter::RefreshMapCollision(const FString& MapName) {
+	const FString MapDir = WorkDir / TEXT("Maps") / MapName;
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *MapDir, TEXT("*.mfmesh.json"), true, false);
+	int32 Errors = 0, Updated = 0;
+	for (const FString& File : Files) {
+		const TSharedPtr<FJsonObject> J = LoadJson(File);
+		if (!J) {
+			++Errors;
+			continue;
+		}
+		FString Collision;
+		J->TryGetStringField(TEXT("collision"), Collision);
+		if (Collision != TEXT("complex"))
+			continue;
+		const TArray<TSharedPtr<FJsonValue>>& Materials = J->GetArrayField(TEXT("materials"));
+		const bool bDoubleSided = Materials.ContainsByPredicate([](const TSharedPtr<FJsonValue>& V) { return V->AsString().Contains(TEXT("_2s")); });
+		FString Rel = File;
+		FPaths::MakePathRelativeTo(Rel, *(MapDir + TEXT("/")));
+		const FString Folder = Rel.StartsWith(TEXT("geo/")) ? TEXT("Geo") : TEXT("Meshes");
+		const FString Name = SafeName(FPaths::GetCleanFilename(File).LeftChop(12)); // .mfmesh.json
+		const FString Path = Packs.MapDataRoot(MapName) / Folder / Name;
+		UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *(Path + TEXT(".") + Name));
+		if (!Mesh || !Mesh->GetBodySetup()) {
+			++Errors;
+			continue;
+		}
+		UBodySetup* Body = Mesh->GetBodySetup();
+		if (Body->bDoubleSidedGeometry == bDoubleSided)
+			continue;
+		Body->bDoubleSidedGeometry = bDoubleSided;
+		Body->InvalidatePhysicsData();
+		Body->CreatePhysicsMeshes();
+		SaveAsset(Mesh);
+		++Updated;
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("Collision %s: %d updated, %d errors"), *MapName, Updated, Errors);
+	return Errors == 0 && Files.Num() > 0;
 }

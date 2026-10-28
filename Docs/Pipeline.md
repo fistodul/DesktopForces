@@ -291,3 +291,16 @@ complete object path, not as `Palette25`. The latter selects an unrelated opaque
 in RageEffects and makes blood appear as hard-edged dark blocks. Regenerate `effects`
 and import `--steps effects` after updating the converter. Other texture conversions use
 the same fixed lookup when regenerated; existing non-effect assets are not rewritten.
+
+## Resuming remaining maps
+
+After initializing shared gameplay assets with `mfport.py all <map>`, run
+`python3 Tools/mfport/mfport.py remaining --limit 3` for a bounded batch, or omit
+`--limit` to process the queue. This inventories missing playable `.umf` maps, excluding
+`entry` and `intro`, and keeps per-stage logs and an atomic checkpoint under
+`Tools/mfport/work/remaining/`. Failed imports and lighting remain pending on the next run.
+Original and uncleared maps stay in the local Classic plugin under existing pack rules.
+
+`mfport.py import <map> --steps collision` refreshes complex mesh collision sidedness
+from converted material metadata without rebuilding render geometry or invalidating lighting.
+Two-sided surfaces block queries from either side; non-solid surfaces remain non-solid.

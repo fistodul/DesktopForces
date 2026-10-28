@@ -129,9 +129,8 @@ void ADFCharacter::UpdateSoldier() {
 	if (!PS || !IsAlive())
 		return;
 	// MF: the helmet soldier (RagePlayerHelmet: RagePlayer1Mesh, MFTeamA skins) or the
-	// balaclava one (RagePlayerBalaclava: RagePlayer2Mesh, MFTeamB); every player gets one of
-	// the two until player setup offers the choice
-	const int32 Model = PS->GetPlayerId() & 1;
+	// balaclava one (RagePlayerBalaclava: RagePlayer2Mesh, MFTeamB). Auto alternates models.
+	const int32 Model = PS->PreferredModel >= 0 ? FMath::Clamp(PS->PreferredModel, 0, 1) : PS->GetPlayerId() & 1;
 	USkeletalMeshComponent* Body = GetMesh();
 	if (Model != SoldierModel) {
 		const FString Name = FString::Printf(TEXT("RagePlayer%dMesh"), Model + 1);

@@ -140,8 +140,9 @@ unavailable. `Summon` uses a loaded/cooked actor class, e.g. `/Script/DesktopFor
 ### Vehicle entry and feign death
 
 - `TryEnterExit`: normal vehicle entry/exit. Front seats redirect to an empty driver seat;
-  rear seats retain passenger selection. Holding Shift requests passenger-only entry.
-- `EnterPassenger`: deliberately enter the nearest free passenger seat, even without a driver.
-  It also exits the current seat. A separate binding can be assigned in Controls.
+  rear seats retain passenger selection.
+- `UseClosest`: use/select a loadout item, or enter the nearest free vehicle seat, including
+  the driver. It exits the current seat too. Default: Right Alt; remap it to E in Controls
+  to replace normal Use. This is a standalone action, not a modifier chord.
 - `FeignDeath`: toggle the low, damageable fake-death pose. Default key: Left Alt.
   Fire or Jump also requests getting up without performing that action on the same press.

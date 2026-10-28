@@ -4,6 +4,7 @@
 void ADFPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFPlayerState, Team);
+	DOREPLIFETIME(ADFPlayerState, PreferredModel);
 	DOREPLIFETIME(ADFPlayerState, Kills);
 	DOREPLIFETIME(ADFPlayerState, Deaths);
 	DOREPLIFETIME(ADFPlayerState, bCaptain);
@@ -15,6 +16,8 @@ void ADFPlayerState::CopyProperties(APlayerState* PlayerState) {
 	Super::CopyProperties(PlayerState);
 	if (ADFPlayerState* PS = Cast<ADFPlayerState>(PlayerState)) {
 		PS->Team = Team;
+		PS->PreferredModel = PreferredModel;
+		PS->PreferredTeam = PreferredTeam;
 		PS->Kills = Kills;
 		PS->Deaths = Deaths;
 	}

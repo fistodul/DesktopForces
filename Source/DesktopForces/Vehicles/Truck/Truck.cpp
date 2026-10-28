@@ -6,7 +6,7 @@ ATruck::ATruck() {
 	EngineSounds = TEXT("TruckSFX"); // EngineSound / EngineStartSound / EngineStopSound
 	PetrolCapPosition = FVector(63.f, -163.7f, -128.25f); // PetrolCapPos (28, -72.75, -57), PetrolCapRadius 12
 	PetrolCapRadius = 27.f;
-	NitroAccel = 0.f; // TurboTruck (nitroScale 0.11, 40 m/s) wasn't on the servers: no nitro
+	NitroAccel = 660.f; // TurboTruck nitroScale 0.11, evaluated at MF's 60 Hz
 	NitroMaxSpeed = 4000.f;
 	DisplayName = LOCTEXT("Truck", "Truck");
 	BodyMeshName = TEXT("Rage/TruckMesh");

@@ -207,9 +207,9 @@ public:
 	UFUNCTION(Exec)
 	void TryEnterExit();
 	UFUNCTION(Server, Reliable)
-	void ServerTryEnterExit(bool bPassengerOnly = false);
+	void ServerTryEnterExit(bool bClosestSeat = false);
 	UFUNCTION(Exec)
-	void EnterPassenger() { ServerTryEnterExit(true); }
+	void UseClosest();
 	UFUNCTION(Exec)
 	void FeignDeath();
 	/** MF Reload (R). */
@@ -233,6 +233,8 @@ public:
 	/** Re-read UDFUserSettings (field of view; the menu calls it after Apply). */
 	UFUNCTION(Exec)
 	void DFApplyUserSettings();
+	UFUNCTION(Server, Reliable)
+	void ServerSetPreferredModel(int32 Model);
 
 	// --- console commands (also used by automated smoke tests via -DFExec) ---
 	/** Take loadout item N (0-based, menu order). */

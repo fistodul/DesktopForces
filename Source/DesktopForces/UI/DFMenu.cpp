@@ -245,6 +245,8 @@ private:
 
 	// options
 	FString PlayerName;
+	TArray<TSharedPtr<FString>> Models, PreferredTeams;
+	TSharedPtr<FString> SelectedModel, SelectedTeam;
 	TArray<TSharedPtr<FString>> Resolutions;
 	TArray<FIntPoint> ResolutionSizes; // what each Resolutions entry says
 	TSharedPtr<FString> SelectedResolution;
@@ -575,8 +577,13 @@ private:
 			SNew(SEditableTextBox).Text(FText::FromString(PlayerName)).Font(Font(13))
 			.OnTextChanged_Lambda([this](const FText& T) { PlayerName = T.ToString().Left(20); })
 		];
-		Game->AddSlot(0, 1)[Label(LOCTEXT("Crosshair", "Crosshair"))];
-		Game->AddSlot(1, 1).Padding(2.f)
+		Game->AddSlot(0, 1)[Label(LOCTEXT("PlayerModel", "Player model"))];
+		Game->AddSlot(1, 1).Padding(2.f)[Combo(Models, SelectedModel)];
+		Game->AddSlot(0, 2)[Label(LOCTEXT("PreferredTeam", "Preferred team"))];
+		Game->AddSlot(1, 2).Padding(2.f)
+		[SNew(SBox).ToolTipText(LOCTEXT("PreferredTeamHint", "Used when joining a match. Server team balance and mode rules take priority."))[Combo(PreferredTeams, SelectedTeam)]];
+		Game->AddSlot(0, 3)[Label(LOCTEXT("Crosshair", "Crosshair"))];
+		Game->AddSlot(1, 3).Padding(2.f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(LOCTEXT("Prev", "<"), [this]() { StepCrosshair(-1); })]
@@ -590,17 +597,17 @@ private:
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(LOCTEXT("Next", ">"), [this]() { StepCrosshair(1); })]
 		];
-		Game->AddSlot(0, 2)[Label(LOCTEXT("CrosshairSize", "Crosshair size"))];
-		Game->AddSlot(1, 2).Padding(2.f)[Slider(CrosshairSize, 0.25f, 2.f, TEXT("percent"), 0.25f)];
-		Game->AddSlot(0, 3)[Label(LOCTEXT("HUDSize", "HUD size"))];
-		Game->AddSlot(1, 3).Padding(2.f)[Slider(HUDSize, 0.f, 4.f, TEXT("int"), 1.f)];
-		Game->AddSlot(0, 4)[Label(LOCTEXT("Hand", "Weapon position"))];
-		Game->AddSlot(1, 4).Padding(2.f)
+		Game->AddSlot(0, 4)[Label(LOCTEXT("CrosshairSize", "Crosshair size"))];
+		Game->AddSlot(1, 4).Padding(2.f)[Slider(CrosshairSize, 0.25f, 2.f, TEXT("percent"), 0.25f)];
+		Game->AddSlot(0, 5)[Label(LOCTEXT("HUDSize", "HUD size"))];
+		Game->AddSlot(1, 5).Padding(2.f)[Slider(HUDSize, 0.f, 4.f, TEXT("int"), 1.f)];
+		Game->AddSlot(0, 6)[Label(LOCTEXT("Hand", "Weapon position"))];
+		Game->AddSlot(1, 6).Padding(2.f)
 		[
 			SNew(SBox).ToolTipText(LOCTEXT("HandHint", "First-person view only: right, mirrored left, classic centered view, or hidden. Aiming is unchanged."))[Combo(Hands, SelectedHand)]
 		];
-		Game->AddSlot(0, 5)[Label(LOCTEXT("Console", "Console (~, Tab)"))];
-		Game->AddSlot(1, 5).Padding(2.f).HAlign(HAlign_Left)
+		Game->AddSlot(0, 7)[Label(LOCTEXT("Console", "Console (~, Tab)"))];
+		Game->AddSlot(1, 7).Padding(2.f).HAlign(HAlign_Left)
 		[
 			SAssignNew(ConsoleCheck, SCheckBox).IsChecked_Lambda([this]() {
 				return (bConsoleEdited ? bConsole : UDFUserSettings::Get().IsConsoleEnabled()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -674,6 +681,8 @@ private:
 		TStrongObjectPtr<UDFUserSettings> Defaults(NewObject<UDFUserSettings>());
 		Defaults->SetToDefaults(); // the CDO can contain saved config; do not use it as factory defaults
 		const UDFUserSettings* D = Defaults.Get();
+		SelectedModel = Models[0];
+		SelectedTeam = PreferredTeams[0];
 		Brightness = D->Brightness;
 		Sensitivity = D->MouseSensitivity;
 		bInvert = D->bInvertMouse;
@@ -812,6 +821,12 @@ private:
 	void LoadOptions() {
 		const UDFUserSettings& S = UDFUserSettings::Get();
 		PlayerName = S.PlayerName.IsEmpty() ? FString(TEXT("Player")) : S.PlayerName;
+		Models = { MakeShared<FString>(TEXT("Auto")), MakeShared<FString>(TEXT("Helmet")), MakeShared<FString>(TEXT("Balaclava")) };
+		SelectedModel = Models[FMath::Clamp(S.PreferredModel + 1, 0, Models.Num() - 1)];
+		PreferredTeams = { MakeShared<FString>(TEXT("Auto")) };
+		for (int32 Team = 0; Team < UDFGameSettings::Get().Teams.Num(); ++Team)
+			PreferredTeams.Add(MakeShared<FString>(UDFGameSettings::Get().GetTeamName(Team).ToString()));
+		SelectedTeam = PreferredTeams[FMath::Clamp(S.PreferredTeam + 1, 0, PreferredTeams.Num() - 1)];
 		Brightness = S.Brightness;
 		Sensitivity = S.MouseSensitivity;
 		bInvert = S.bInvertMouse;
@@ -888,18 +903,22 @@ private:
 	}
 
 	FString NameOption() const {
-		return TEXT("?Name=") + PlayerName.Replace(TEXT("?"), TEXT("")).Replace(TEXT(" "), TEXT("_"));
+		return TEXT("?Name=") + PlayerName.Replace(TEXT("?"), TEXT("")).Replace(TEXT(" "), TEXT("_")) + FString::Printf(TEXT("?Model=%d?Team=%d"), IndexOf(Models, SelectedModel) - 1, IndexOf(PreferredTeams, SelectedTeam) - 1);
 	}
 
 	void SaveName() {
 		UDFUserSettings& S = UDFUserSettings::Get();
 		S.PlayerName = PlayerName;
+		S.PreferredModel = IndexOf(Models, SelectedModel) - 1;
+		S.PreferredTeam = IndexOf(PreferredTeams, SelectedTeam) - 1;
 		S.SaveSettings();
 	}
 
 	void ApplyOptions() {
 		UDFUserSettings& S = UDFUserSettings::Get();
 		S.PlayerName = PlayerName;
+		S.PreferredModel = IndexOf(Models, SelectedModel) - 1;
+		S.PreferredTeam = IndexOf(PreferredTeams, SelectedTeam) - 1;
 		S.Brightness = Brightness;
 		S.MouseSensitivity = Sensitivity;
 		S.bInvertMouse = bInvert;

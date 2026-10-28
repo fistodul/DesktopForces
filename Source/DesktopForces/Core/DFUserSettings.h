@@ -33,6 +33,12 @@ public:
 	UPROPERTY(Config)
 	FString PlayerName;
 
+	/** -1 selects the automatic model/team. Team preference applies when joining a match. */
+	UPROPERTY(Config)
+	int32 PreferredModel = -1;
+	UPROPERTY(Config)
+	int32 PreferredTeam = -1;
+
 	/** MF Brightness (F11): scales the unshadowed ambient floor, 0.5 - 2. */
 	UPROPERTY(Config)
 	float Brightness = 1.f;

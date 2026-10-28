@@ -103,9 +103,20 @@ void ADFGameMode::InitGameState() {
 	}
 }
 
+FString ADFGameMode::InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal) {
+	const FString Error = Super::InitNewPlayer(NewPlayerController, UniqueId, Options, Portal);
+	if (Error.IsEmpty())
+		if (ADFPlayerState* PS = NewPlayerController->GetPlayerState<ADFPlayerState>()) {
+			PS->PreferredModel = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("Model"), -1), -1, 1);
+			const int32 Team = UGameplayStatics::GetIntOption(Options, TEXT("Team"), -1);
+			PS->PreferredTeam = Team >= 0 && Team < NumTeams ? uint8(Team) : DF::NoTeam;
+		}
+	return Error;
+}
+
 void ADFGameMode::PostLogin(APlayerController* NewPlayer) {
 	if (ADFPlayerState* PS = NewPlayer ? NewPlayer->GetPlayerState<ADFPlayerState>() : nullptr) {
-		PS->SetTeam(IsTeamGame() ? ChooseTeam(NewPlayer, DF::NoTeam) : DF::NoTeam);
+		PS->SetTeam(IsTeamGame() ? ChooseTeam(NewPlayer, PS->PreferredTeam) : DF::NoTeam);
 		// the one playing on this machine runs the game: single player, a listen server's host
 		PS->bAdmin = NewPlayer->IsLocalController();
 	}

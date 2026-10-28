@@ -71,6 +71,8 @@ void UDFUserSettings::SetToDefaults() {
 	SetVSyncEnabled(false);
 	ScalabilityQuality.SetFromSingleQualityLevel(0);
 	ScalabilityQuality.ResolutionQuality = 100.f;
+	PreferredModel = -1;
+	PreferredTeam = -1;
 	Brightness = 1.f;
 	MouseSensitivity = 1.f;
 	bInvertMouse = false;

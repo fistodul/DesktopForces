@@ -31,6 +31,8 @@ GENERATED_DIR = TOOL_DIR / 'work' / 'generated' / 'textures'
 
 # Textures the game code uses directly (HUD), converted even if no map references them.
 UI_TEXTURES = {
+    'rage.skins.vehicleflagtex0': {'masked'},
+    'rage.skins.vehicleflagtex1': {'masked'},
     'rageweapons.weaponicons': {'masked', 'ui'},       # weapon icon sheet (RageWeapon.WeaponIcon rects)
     'deagle.icons.deagleicon': {'masked', 'ui'},       # MF-mods weapon icons
     'grenlaunch.skins.grenlaunchimage': {'masked', 'ui'},
