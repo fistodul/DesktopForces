@@ -82,3 +82,39 @@ def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> in
                              watch=('Lightmass crashed', 'Assertion failed', 'Lighting build failed',
                                     'Failed to build lighting'))
     return rc
+
+
+def repair_lightmass(cfg: Config) -> int:
+    """Apply the verified Linux 5.8.4 Lightmass startup workaround, retaining the original.
+
+    Only the bad static-init thread-tag assertion branch is removed. This is a local
+    engine-tool workaround, not a runtime/game patch. Refuse every unverified build.
+    """
+    import hashlib
+    import shutil
+
+    library = cfg.ue_root / 'Engine/Binaries/Linux/libUnrealLightmass-Core.so'
+    original_hash = 'fd45844f90b3bdcddee93f0d99727abff3e54652d9553d80d337b7be3911f74d'
+    offset = 0x91BCF1  # FTaskTagScope ctor VA 0x91CCF1 minus ELF LOAD bias 0x1000
+    expected = bytes.fromhex('0f853f010000')
+    data = bytearray(library.read_bytes())
+    backup = library.with_suffix('.so.orig')
+    if data[offset:offset + 6] == b'\x90' * 6:
+        restored = data[:]
+        restored[offset:offset + 6] = expected
+        if hashlib.sha256(restored).hexdigest() == original_hash:
+            print(f'Lightmass workaround already applied: {library}')
+            return 0
+    if hashlib.sha256(data).hexdigest() != original_hash or data[offset:offset + 6] != expected:
+        raise RuntimeError('Unverified Lightmass build; refusing to patch it.')
+    if backup.exists() and hashlib.sha256(backup.read_bytes()).hexdigest() != original_hash:
+        raise RuntimeError(f'Backup does not match this build: {backup}')
+    if not backup.exists():
+        shutil.copy2(library, backup)
+    data[offset:offset + 6] = b'\x90' * 6
+    temporary = library.with_suffix('.so.patched')
+    shutil.copy2(library, temporary)
+    temporary.write_bytes(data)
+    temporary.replace(library)
+    print(f'Repaired {library}; undo by restoring {backup}')
+    return 0

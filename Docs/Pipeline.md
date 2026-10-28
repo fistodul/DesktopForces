@@ -181,6 +181,26 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
 - Check a map's lights in game: `getall PointLightComponent Intensity`; what the view looks
   at (meshes, materials, lightmap coefficients): `DFTraceMat`.
 
+### Baking on Linux (UE 5.8.4)
+
+The installed Linux 5.8.4 Lightmass tool still has the static-init thread-tag assertion
+reported below for 5.8.3. Its binary layout changed, so the old byte offset is invalid.
+From the project root, run the explicit repair once:
+
+```bash
+python3 Tools/mfport/mfport.py repair-lightmass
+```
+
+The repair verifies the complete SHA-256 of the known 5.8.4 library, checks the exact
+assertion branch, and preserves `libUnrealLightmass-Core.so.orig` before replacing six
+bytes. It refuses unknown builds and mismatched backups; repeating it is a no-op.
+Only the local Lightmass tool changes. To undo, restore the `.so.orig` backup beside
+`<UE>/Engine/Binaries/Linux/libUnrealLightmass-Core.so`.
+
+This restored successful bakes for DM-AbandonedMine-KF, DM-Asylum, and DM-Cathedral.
+Resume the remaining-map queue with `mfport.py remaining --limit 3`; completed geometry
+imports are retained when only lighting needs retrying.
+
 ### Baking on Linux (UE 5.8.3)
 Only whoever bakes needs this; players get the baked result inside the map.
 

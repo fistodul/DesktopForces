@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-28 — Map imports and Linux Lightmass repair
+
+- Finish conversion, import, navigation, and lighting for DM-AbandonedMine-KF, DM-Asylum,
+  and DM-Cathedral in the local Classic pack. The remaining-map queue has 52 pending maps.
+- Add explicit `mfport.py repair-lightmass` for the verified UE 5.8.4 Linux startup assertion.
+  Verify the complete library hash and branch bytes, retain the original backup, replace
+  atomically, and refuse unverified builds. The old 5.8.3 offset does not apply.
+- Preserve the intervening weapon, touch-control, Android, graphics, and expiry-glow updates.
+- Validate the combined Linux build with all five gameplay suites, 16 Python checks, map
+  smoke runs, and a live standing test on the repaired space-station grating.
+
+
 ## 2026-10-28 — Vehicle and content follow-up
 
 - Replace passenger-only entry with `UseClosest` on Right Alt. It selects the nearest free

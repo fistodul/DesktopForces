@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
-from mfport.mflib import config
+from mfport.mflib import config, ue
 import play
 spec = importlib.util.spec_from_file_location('df_setup', TOOLS / 'setup.py')
 setup = importlib.util.module_from_spec(spec)
@@ -18,6 +18,20 @@ spec.loader.exec_module(setup)
 
 
 class ToolsTests(unittest.TestCase):
+    def test_lightmass_repair_rejects_unknown_binary_without_writing(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            library = root / 'Engine/Binaries/Linux/libUnrealLightmass-Core.so'
+            library.parent.mkdir(parents=True)
+            original = b'An unverified engine library'
+            library.write_bytes(original)
+            with self.assertRaisesRegex(RuntimeError, 'Unverified Lightmass build'):
+                ue.repair_lightmass(SimpleNamespace(ue_root=root))
+            self.assertEqual(library.read_bytes(), original)
+            self.assertFalse(library.with_suffix('.so.orig').exists())
+            self.assertFalse(library.with_suffix('.so.patched').exists())
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

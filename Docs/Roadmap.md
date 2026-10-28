@@ -14,7 +14,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Package reader (v83), BSP world geometry, static meshes, actors, lights, textures, sounds
 - ✅ UE importer commandlet, map builder, Lightmass bake step
 - ✅ Override folders for clean replacement textures/sounds
-- ✅ Lightmass on Linux (UE 5.8.3): 6-byte patch of the shipped library (once per machine) + `-messaging` for the bake commandlet ([Pipeline.md](Pipeline.md#baking-on-linux-ue-583))
+- ✅ Lightmass on Linux 5.8.4: hash-guarded `mfport.py repair-lightmass`, original library backup, and `-messaging` for bakes ([Pipeline.md](Pipeline.md#baking-on-linux-ue-584)). The 5.8.3 byte offset differs.
 - ✅ Lighting: UE1 light values (intensity ≈ π), sky windows transparent to light, 2 Lightmass bounces, soft light radii, small unshadowed floor from each zone's ambient (world vertex colour, `MPC_MF`) - all baked
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ✅ Skeletal meshes + animations: `mflib/skelmesh.py` (SkeletalMesh + MeshAnimation -> glTF, Interchange import; `mfport.py skeletal`, importer step `skeletal`): the soldiers and every first-person weapon (stock and mods)
@@ -127,6 +127,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - Saved model/team preferences; team balance remains authoritative.
 - Remaining playable maps have a resumable conversion/import/lighting queue. Completion
   is recorded in `Tools/mfport/work/remaining/progress.json`; queued does not mean finished.
+  DM-AbandonedMine-KF, DM-Asylum, and DM-Cathedral are imported and baked; 52 maps remain in that queue.
 
 ## Open threads (handoff, 2026-10-28)
 
