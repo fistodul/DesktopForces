@@ -133,25 +133,13 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 
 Each item is sized for one focused conversation. Read `AGENTS.md`, then the linked doc.
 
-1. **Content packs as separate paks** ([Pipeline](Pipeline.md#content-packs)). A packaged build
-   is one `pakchunk0` because chunking is off. Plan:
-   - Packs: core (our code and art, `/Game/MF` minus Community), community (`/Game/Maps/<agreed
-     maps>`, `/Game/MF/Community`), unverified (`/MobileForcesUnverified`), classic
-     (`/MobileForcesClassic`, local builds only).
-   - The importer writes one `PrimaryAssetLabel` per pack root (`bLabelAssetsInMyDirectory`,
-     `CookRule=AlwaysCook`, ChunkId core 0 / community 1 / unverified 2 / classic 3; priority
-     decides which chunk a shared asset lands in). Then drop the pack's `DirectoriesToAlwaysCook`
-     entry and set `bGenerateChunks=True` under `[/Script/UnrealEd.ProjectPackagingSettings]`.
-   - The output is `pakchunkN-<Platform>.pak/.utoc/.ucas`. UE mounts every pak in
-     `Content/Paks` at start, so adding or removing a pack's files adds or removes the pack.
-   - Runtime: the cooked asset registry lists every chunk's maps, so `DF::FindMaps` must also
-     skip packages whose pak is absent (`FPackageName::DoesPackageExist`). Plugins stay enabled,
-     so `IsValidPath` alone no longer tells.
-   - Community maps that still borrow retail textures (`mfport.py packs`) need the classic pak
-     until their replacements exist.
-   - Test: cook, delete one chunk, check the map list and that a community map loads.
-   - Mods made after release are a separate step: DLC cooks (`-DLCName`,
-     `-BasedOnReleaseVersion`) and a `Mods/` folder ([Modding](Modding.md#content-after-release)).
+1. ✅ **Content packs as separate paks** (2026-10-28): one pak per pack, labelled by the importer,
+   dropped in or out of `Content/Paks` ([Building](Building.md#package)). Tested on Linux:
+   without the classic pak, community maps still load and classic maps leave the map list.
+   Still open:
+   - DLC-style mod paks made after release (`-DLCName`, a `Mods/` folder;
+     [Modding](Modding.md#content-after-release)).
+   - Android's APK still embeds every chunk (`bPackageDataInsideApk`).
 2. ✅ **First-person rig accuracy** (2026-10-28): RotOrigin applied as UE1 does after the .psk Y
    flip (the pitch cants the gun about its barrel instead of raising it), MF's weapon roll ×
    Hand (`ArmsRoll`), and CalcDrawOffset's 0.9 / FOV offset scale.

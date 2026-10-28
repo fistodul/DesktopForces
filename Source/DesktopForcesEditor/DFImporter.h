@@ -94,6 +94,13 @@ public:
 	void EnsureVehicleMaterials();
 	/** M_MF_MuzzleFlash: the guns' flash quad (classic FlashYellow). */
 	void EnsureMuzzleFlashMaterial();
+	/**
+	 * Content packs as separate paks (bGenerateChunks): a PrimaryAssetLabel in each pack root
+	 * puts everything in its folder into the pack's chunk. Core (/Game/MF, the engine's, all
+	 * unlabelled) = 0, community (/Game/Maps, /Game/MF/Community) = 1, unverified = 2,
+	 * classic = 3. Not recursive: an asset another pack uses stays in its own pack's pak.
+	 */
+	void EnsurePackLabels();
 
 	/**
 	 * MF sprite particles (DFEffectsImport.cpp, work/out/Effects from mfport.py effects):

@@ -78,6 +78,23 @@ The Windows script also checks the Windows toolchain, builds editor modules and
 can produce a ZIP. It uses the launcher's engine discovery unless `-UePath` is given.
 Outputs: `Saved/Packages/<platform>-<config>/` on Linux; `Build/Windows/` on Windows.
 
+Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<Platform>`):
+
+| Chunk | Pack | Content | Size (3-map Linux build) |
+|---|---|---|---|
+| 0 | core | the game: `/Game/MF`, engine content, anything unlabelled | 51 MB |
+| 1 | community | `/Game/Maps`, `/Game/MF/Community` (agreed authors) | 225 MB |
+| 2 | unverified | `/MobileForcesUnverified` | 5 MB |
+| 3 | classic | `/MobileForcesClassic` (from your MF install: never share it) | 442 MB |
+
+A pack is just its three files (`.pak`, `.ucas`, `.utoc`). Drop them into `Content/Paks` to add the
+pack, or remove them to drop it; the menu and votes list only the maps whose pak is there. The
+packagers write a `PrimaryAssetLabel` (`PAL_<Pack>`) into each pack root before cooking
+(`UnrealEditor-Cmd <uproject> -run=DFImport -steps=packs`). A label tags its own folder only,
+so an asset stays in its pack's pak even when another pack uses it: community maps that borrow
+classic textures show them only while the classic pak is installed. The packagers empty the
+output folder first, so paks from an earlier build aren't mounted with the new ones.
+
 `--public` / `-Public` disables the Classic and Unverified content plugins for that
 build, restoring the project file afterward. Maps still borrowing their textures
 will need replacements (`mfport.py packs`). Builds containing original game content

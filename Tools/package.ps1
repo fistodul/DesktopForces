@@ -170,6 +170,14 @@ Write-Host ""
 Write-Host "[*] Cooking and Packaging game for Windows ($Config)..." -ForegroundColor Cyan
 Write-Host "    Output directory: $OutputDir" -ForegroundColor Cyan
 
+# content packs -> their own paks (bGenerateChunks): label each pack root (cheap once they exist)
+$EditorCmd = Join-Path $FoundUe "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+$Code = Invoke-Tool $EditorCmd @($Uproject, "-run=DFImport", "-steps=packs", "-unattended", "-nopause", "-nosplash")
+if ($Code -ne 0) {
+    Write-Host "[!] Labelling the content packs failed with exit code $Code" -ForegroundColor Red
+    exit $Code
+}
+
 # every built map: the game's own and, unless -Public, the content plugins'
 $MapDirs = @(
     @{ Dir = "Content/Maps"; Root = "/Game/Maps" },

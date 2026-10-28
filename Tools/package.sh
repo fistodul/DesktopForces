@@ -104,6 +104,18 @@ if [ -n "$TWINS" ]; then
   exit 2
 fi
 
+# a fresh output folder: paks left from an earlier build (the single pak before chunking, a
+# pack since dropped) would be mounted too
+rm -rf "$OUT"
+
+# content packs -> their own paks (bGenerateChunks): label each pack root (cheap once they exist)
+mkdir -p "$PROJECT_DIR/Saved/Logs"
+if ! "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor-Cmd" "$UPROJECT" -run=DFImport -steps=packs \
+    -unattended -nopause -nosplash > "$PROJECT_DIR/Saved/Logs/PackLabels.log" 2>&1; then
+  echo "Labelling the content packs failed: Saved/Logs/PackLabels.log" >&2
+  exit 2
+fi
+
 # every built map (the cooker doesn't take maps from the always-cook folders): the game's own
 # and, unless --public, the content plugins'
 MAPS=""

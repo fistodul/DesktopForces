@@ -38,6 +38,8 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		Importer.ImportProps();
 	if (Steps.Contains(TEXT("art")))
 		Importer.ImportArt();
+	if (Steps.Contains(TEXT("packs")))
+		Importer.EnsurePackLabels();
 	if (Steps.Contains(TEXT("effects")))
 		Importer.ImportEffects();
 	if (Steps.Contains(TEXT("skeletal")) || Steps.Contains(TEXT("soldiers")))

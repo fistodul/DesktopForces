@@ -28,6 +28,7 @@
 #include "Engine/Font.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
+#include "Engine/PrimaryAssetLabel.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -592,6 +593,38 @@ void FDFImporter::EnsureVehicleMaterials() {
 		Warning->PreEditChange(nullptr);
 		Warning->PostEditChange();
 		SaveAsset(Warning);
+	}
+}
+
+void FDFImporter::EnsurePackLabels() {
+	struct FPack {
+		FString Root;
+		const TCHAR* Name;
+		int32 Chunk;
+	};
+	const FPack Packs_[] = {
+		{ Packs.CoreMapsRoot, TEXT("PAL_Community"), 1 },
+		{ Packs.CoreRoot, TEXT("PAL_Community"), 1 },
+		{ Packs.UnverifiedRoot, TEXT("PAL_Unverified"), 2 },
+		{ Packs.ClassicRoot, TEXT("PAL_Classic"), 3 },
+	};
+	for (const FPack& P : Packs_) {
+		FString Dir;
+		if (!FPackageName::TryConvertLongPackageNameToFilename(P.Root / TEXT("X"), Dir) || !IFileManager::Get().DirectoryExists(*FPaths::GetPath(Dir)))
+			continue; // a pack that isn't here (no classic content converted, a public checkout)
+		bool bCreated = false;
+		UPrimaryAssetLabel* Label = FindOrCreateAsset<UPrimaryAssetLabel>(P.Root, P.Name, bCreated);
+		const bool bChanged = bCreated || Label->Rules.ChunkId != P.Chunk || !Label->bLabelAssetsInMyDirectory || Label->Rules.bApplyRecursively;
+		if (!bChanged)
+			continue;
+		Label->bLabelAssetsInMyDirectory = true;
+		Label->bIsRuntimeLabel = false;
+		Label->Rules.ChunkId = P.Chunk;
+		Label->Rules.Priority = 1;
+		Label->Rules.bApplyRecursively = false; // other packs' assets this one uses stay in theirs
+		Label->MarkPackageDirty();
+		SaveAsset(Label);
+		UE_LOG(LogDFEditor, Display, TEXT("Pack label %s/%s: chunk %d"), *P.Root, P.Name, P.Chunk);
 	}
 }
 
