@@ -63,7 +63,13 @@ def run(cfg: Config, *args: str, log=None) -> str:
     out = proc.stdout
     if log:
         log.write(out)
-    if 'Exiting due to error' in out or proc.returncode not in (0, 1):
+    failed = 'Exiting due to error' in out or proc.returncode not in (0, 1)
+    # UCC can crash while shutting down after the command itself finished (mf-nc:
+    # "Unhashed name ..." after "Success - 0 error(s)"): the command's own verdict stands
+    done = out.rfind('Success - 0 error(s)')
+    if failed and done >= 0 and 'Exiting due to error' in out[done:]:
+        failed = False
+    if failed:
         raise RuntimeError(f'UCC failed ({proc.returncode}): {" ".join(args)}\n{out[-2000:]}')
     return out
 
