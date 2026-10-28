@@ -258,6 +258,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	TSharedPtr<class SDFTouchControls> TouchControls;
+	bool bSticksShown = true;
 	virtual void PlayerTick(float DeltaTime) override;
 	TWeakObjectPtr<class UAudioComponent> AnnouncerAudio;
 	/** Move keys while driving (sent each frame in PlayerTick). */
@@ -347,6 +348,10 @@ public:
 	void ApplyKeyBindings();
 	/** Touch buttons: hold an input action down / let it go, as its key would. */
 	void TouchAction(FName Action, bool bPressed);
+	/** The touch controls are up (touch screens, or bAlwaysShowTouchInterface). */
+	bool UsesTouch() const { return TouchControls.IsValid(); }
+	/** Taps on the loadout pick items (ADFHUD::LoadoutItemAt). */
+	virtual bool InputTouch(const FTouchId TouchId, const ETouchType::Type Type, const FVector2D& TouchLocation, const float Force, const uint64 Timestamp) override;
 
 protected:
 	UPROPERTY(Transient)

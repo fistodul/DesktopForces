@@ -1,4 +1,7 @@
 #include "UI/DFMenu.h"
+#include "Widgets/Layout/SSafeZone.h"
+#include "Widgets/Layout/SDPIScaler.h"
+#include "GameFramework/InputSettings.h"
 #include "UI/DFCrosshairs.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DesktopForces.h"
@@ -51,6 +54,11 @@
 #define LOCTEXT_NAMESPACE "DFMenu"
 
 namespace {
+	/** Touch screens (or bAlwaysShowTouchInterface): bigger menu, clear of screen edges. */
+	bool TouchUI() {
+		return FPlatformMisc::GetUseVirtualJoysticks() || GetDefault<UInputSettings>()->bAlwaysShowTouchInterface;
+	}
+
 	/** No exclusive fullscreen to offer (Linux's SDL: a desktop-sized window; phones: always). */
 	bool FullscreenIsBorderless() {
 #if PLATFORM_ANDROID || PLATFORM_IOS
@@ -128,39 +136,49 @@ public:
 				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, bInGame ? 0.5f : 0.25f))
 			]
-			+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(56.f, 40.f)
+			+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()
+				SNew(SSafeZone) // phones: clear of the camera hole and rounded corners (desktop: 0)
 				[
-					SNew(STextBlock).Text(LOCTEXT("Title", "DESKTOP FORCES")).Font(Font(44, TEXT("Bold")))
-					.ColorAndOpacity(FLinearColor::White).ShadowOffset(FVector2D(3.f, 3.f)).ShadowColorAndOpacity(FLinearColor(0.02f, 0.08f, 0.35f, 0.9f))
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 0.f)
-				[
-					SNew(STextBlock).Text(LOCTEXT("Subtitle", "Revival")).Font(Font(15, TEXT("Italic")))
-					.ColorAndOpacity(TitleColor).ShadowOffset(FVector2D(1.f, 1.f))
-				]
-			]
-			+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center).Padding(56.f, 120.f, 56.f, 48.f)
-			[
-				SNew(SBorder).BorderImage(&PanelBrush).Padding(22.f)
-				[
-					SNew(SBox).MinDesiredWidth(470.f).MaxDesiredWidth(580.f)
+					SNew(SOverlay)
+					+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(TouchUI() ? 150.f : 56.f, 40.f)
 					[
-						SAssignNew(Switcher, SWidgetSwitcher)
-						+ SWidgetSwitcher::Slot()[MakeMain()]
-						+ SWidgetSwitcher::Slot()[MakePlay()]
-						+ SWidgetSwitcher::Slot()[MakeJoin()]
-						+ SWidgetSwitcher::Slot()[SAssignNew(OptionsHost, SBox)[MakeOptions()]]
-						+ SWidgetSwitcher::Slot()[MakeCredits()]
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							SNew(STextBlock).Text(LOCTEXT("Title", "DESKTOP FORCES")).Font(Font(44, TEXT("Bold")))
+							.ColorAndOpacity(FLinearColor::White).ShadowOffset(FVector2D(3.f, 3.f)).ShadowColorAndOpacity(FLinearColor(0.02f, 0.08f, 0.35f, 0.9f))
+						]
+						+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 0.f)
+						[
+							SNew(STextBlock).Text(LOCTEXT("Subtitle", "Revival")).Font(Font(15, TEXT("Italic")))
+							.ColorAndOpacity(TitleColor).ShadowOffset(FVector2D(1.f, 1.f))
+						]
+					]
+					+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center).Padding(TouchUI() ? 150.f : 56.f, 120.f, 56.f, 48.f)
+					[
+						SNew(SDPIScaler).DPIScale(TouchUI() ? 1.35f : 1.f) // finger-sized on phones
+						[
+						SNew(SBorder).BorderImage(&PanelBrush).Padding(22.f)
+						[
+							SNew(SBox).MinDesiredWidth(470.f).MaxDesiredWidth(580.f)
+							[
+								SAssignNew(Switcher, SWidgetSwitcher)
+								+ SWidgetSwitcher::Slot()[MakeMain()]
+								+ SWidgetSwitcher::Slot()[MakePlay()]
+								+ SWidgetSwitcher::Slot()[MakeJoin()]
+								+ SWidgetSwitcher::Slot()[SAssignNew(OptionsHost, SBox)[MakeOptions()]]
+								+ SWidgetSwitcher::Slot()[MakeCredits()]
+							]
+						]
+					]
+						]
+					+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(24.f, 16.f)
+					[
+						SNew(STextBlock).Font(Font(10)).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f)).ShadowOffset(FVector2D(1.f, 1.f))
+						.Text(LOCTEXT("Footer", "for the world's gamers - a fan project, not affiliated with Mobile Forces"))
 					]
 				]
-			]
-			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(24.f, 16.f)
-			[
-				SNew(STextBlock).Font(Font(10)).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f)).ShadowOffset(FVector2D(1.f, 1.f))
-				.Text(LOCTEXT("Footer", "for the world's gamers - a fan project, not affiliated with Mobile Forces"))
 			]
 		];
 	}

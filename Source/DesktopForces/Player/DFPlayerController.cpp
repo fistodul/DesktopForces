@@ -29,6 +29,8 @@
 #include "Weapons/DFWeapons.h"
 #include "Loadout/DFLoadout.h"
 #include "UI/DFTouchControls.h"
+#include "InputKeyEventArgs.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "GameFramework/InputSettings.h"
 #include "DesktopForces.h"
 #include "EnhancedInputComponent.h"
@@ -88,14 +90,34 @@ void ADFPlayerController::EndPlay(const EEndPlayReason::Type Reason) {
 }
 
 void ADFPlayerController::TouchAction(FName Action, bool bPressed) {
-	UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayer() ? GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+	// a key the action is mapped to (the gamepad's: never rebound), pressed / let go through the
+	// normal key input, so it works in every state and a tap within one frame still counts
 	const UInputAction* A = Actions.FindRef(Action);
-	if (!Input || !A)
+	if (!A || !MappingContext)
 		return;
-	if (bPressed)
-		Input->StartContinuousInputInjectionForAction(A, FInputActionValue(true), {}, {});
-	else
-		Input->StopContinuousInputInjectionForAction(A);
+	FKey Key;
+	for (const FEnhancedActionKeyMapping& M : MappingContext->GetMappings())
+		if (M.Action == A && (!Key.IsValid() || M.Key.IsGamepadKey()))
+			Key = M.Key;
+	if (!Key.IsValid())
+		return;
+	FViewport* Viewport = GetLocalPlayer() && GetLocalPlayer()->ViewportClient ? GetLocalPlayer()->ViewportClient->Viewport : nullptr;
+	InputKey(FInputKeyEventArgs(Viewport, IPlatformInputDeviceMapper::Get().GetDefaultInputDevice(), Key, bPressed ? IE_Pressed : IE_Released, 1.f, false, FPlatformTime::Cycles64()));
+}
+
+bool ADFPlayerController::InputTouch(const FTouchId TouchId, const ETouchType::Type Type, const FVector2D& TouchLocation, const float Force, const uint64 Timestamp) {
+	if (Type == ETouchType::Began && IsLoadoutOpen())
+		if (const ADFHUD* HUD = GetHUD<ADFHUD>()) {
+			const TArray<TSubclassOf<ADFWeapon>> Items = GetLoadoutItems();
+			const int32 i = HUD->LoadoutItemAt(TouchLocation);
+			if (Items.IsValidIndex(i)) {
+				LoadoutCursor = i;
+				LoadoutOpenSlot = 0;
+				ServerLoadoutPick(Items[i]); // takes it, or puts it back when carried
+				return true;
+			}
+		}
+	return Super::InputTouch(TouchId, Type, TouchLocation, Force, Timestamp);
 }
 
 void ADFPlayerController::AcknowledgePossession(APawn* P) {
@@ -833,6 +855,11 @@ void ADFPlayerController::PlayerTick(float DeltaTime) {
 	Super::PlayerTick(DeltaTime);
 	if (IsLocalController()) {
 		TellTime();
+		// no walking in the loadout: the sticks make room for tapping its items
+		if (const bool bSticks = !IsLoadoutOpen(); TouchControls && bSticks != bSticksShown) {
+			bSticksShown = bSticks;
+			SetVirtualJoystickVisibility(bSticks);
+		}
 		// driving: forward = throttle, strafe = steer, jump = handbrake (the heli climbs on it),
 		// every frame while held (vehicles let go after 0.15 s without input)
 		if (ADFVehicle* V = Cast<ADFVehicle>(GetPawn()); V && (!DriveMove.IsNearlyZero() || bVehicleHandbrake) && ForcedMoveUntil <= 0.f)

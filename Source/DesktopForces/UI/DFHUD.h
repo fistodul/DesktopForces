@@ -106,6 +106,14 @@ protected:
 	void DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC);
 	void DrawHealthMF(ADFCharacter* C);
 	void DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC);
+	/** Where each loadout item was drawn last (screen pixels -> its index): taps pick them. */
+	TArray<TPair<FBox2D, int32>> LoadoutHits;
+
+public:
+	/** The loadout item drawn at a screen point, or INDEX_NONE. */
+	int32 LoadoutItemAt(const FVector2D& Point) const;
+
+protected:
 	void DrawPainMF();
 	/** RageHUD.DrawMiniMap: map around the player top left, team border, team-mates, objectives. */
 	void DrawMiniMapMF(ADFCharacter* C);

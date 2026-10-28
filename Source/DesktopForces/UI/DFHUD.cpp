@@ -581,6 +581,7 @@ void ADFHUD::DrawLoadout(ADFCharacter* C, ADFPlayerController* PC) {
 	// opened with their key; then the item's number (shown in yellow) picks it.
 	const TArray<TSubclassOf<ADFWeapon>> Items = PC->GetLoadoutItems();
 	const int32 OpenSlot = PC->GetLoadoutOpenSlot();
+	LoadoutHits.Reset();
 	const float CellH = 34.f * UIScale, RowH = CellH + 20.f * UIScale, Gap = 4.f * UIScale;
 	const float X0 = 10.f * UIScale;
 	float Y = 10.f * UIScale, X = X0;
@@ -601,15 +602,16 @@ void ADFHUD::DrawLoadout(ADFCharacter* C, ADFPlayerController* PC) {
 		const FIntRect& R = CDO->HUDIconRect;
 		const float CellW = FMath::Max(CellH * 1.25f, FMath::Min(CellH * 4.f, CellH * float(R.Width()) / FMath::Max(1, R.Height())));
 		DrawItemCell(CDO, X, Y, CellW, CellH, State, AmmoText(Have ? Have : CDO, Have != nullptr), ADFWeapon::SlotKeyName(Key));
+		LoadoutHits.Emplace(FBox2D(FVector2D(X, Y), FVector2D(X + CellW, Y + CellH)), i);
 		if (Key == OpenSlot)
 			Text(FString::FromInt(InRow % 10), X + CellW - 14.f * UIScale, Y, Yellow, 1.1f);
 		if (i == PC->LoadoutCursor)
 			Frame(X - 2.f, Y - 2.f, CellW + 4.f, CellH + 4.f, FLinearColor::Transparent, Yellow);
 		X += CellW + Gap;
 	}
-	const FString Hint = OpenSlot
-		? FString::Printf(TEXT("Row %s: press the item's number"), *ADFWeapon::SlotKeyName(OpenSlot))
-		: TEXT("Press Q to exit loadout   -   1-0 / X pick a row, again for an item   -   Up/Down + Fire also work");
+	const FString Hint = PC->UsesTouch() ? TEXT("Tap an item to take it or put it back   -   LOADOUT to leave")
+		: OpenSlot                       ? FString::Printf(TEXT("Row %s: press the item's number"), *ADFWeapon::SlotKeyName(OpenSlot))
+										 : TEXT("Press Q to exit loadout   -   1-0 / X pick a row, again for an item   -   Up/Down + Fire also work");
 	Text(Hint, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.72f, White, 1.f, true);
 }
 
@@ -810,6 +812,13 @@ void ADFHUD::DrawPainMF() {
 	}
 }
 
+int32 ADFHUD::LoadoutItemAt(const FVector2D& Point) const {
+	for (const TPair<FBox2D, int32>& Hit : LoadoutHits)
+		if (Hit.Key.IsInside(Point))
+			return Hit.Value;
+	return INDEX_NONE;
+}
+
 FString ADFHUD::LoadoutKeyName() {
 	// the player's Loadout key (Options > Controls), upper case like MF's hint
 	for (const FDFBinding& B : ADFPlayerController::GetBindings())
@@ -989,6 +998,7 @@ void ADFHUD::DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC) {
 	// Store rows from the top left: one row per key, items side by side (RageHUD.DrawLoadout)
 	const TArray<TSubclassOf<ADFWeapon>> Items = PC->GetLoadoutItems();
 	const int32 OpenSlot = PC->GetLoadoutOpenSlot();
+	LoadoutHits.Reset();
 	float Y = 16.f - Block, X = 0.f;
 	int32 RowKey = -1, InRow = 0;
 	for (int32 i = 0; i < Items.Num(); ++i) {
@@ -1010,13 +1020,14 @@ void ADFHUD::DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC) {
 		const ADFWeapon* Owned = C->FindWeaponOfClass(Items[i]);
 		const ADFWeapon* Shown = Owned ? Owned : CDO;
 		DrawWeapIconMF(Shown, X, Y, Set, AmmoText(Shown, Owned != nullptr), ADFWeapon::SlotKeyName(Key));
+		LoadoutHits.Emplace(FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + Block)), i);
 		if (Key == OpenSlot)
 			Text(FString::FromInt(InRow % 10), X + W - 16.f * RS, Y + 2.f, Yellow, RS);
 		X += W;
 	}
-	const FString Msg = OpenSlot
-		? FString::Printf(TEXT("Row %s: press the item's number"), *ADFWeapon::SlotKeyName(OpenSlot))
-		: FString::Printf(TEXT("Press BACKSPACE or %s to Exit Loadout"), *LoadoutKeyName()); // RagePlayer loadout hint
+	const FString Msg = PC->UsesTouch() ? FString(TEXT("Tap an item to take it or put it back - LOADOUT to leave"))
+		: OpenSlot                      ? FString::Printf(TEXT("Row %s: press the item's number"), *ADFWeapon::SlotKeyName(OpenSlot))
+										: FString::Printf(TEXT("Press BACKSPACE or %s to Exit Loadout"), *LoadoutKeyName()); // RagePlayer loadout hint
 	const FVector2D MS = DFTextSize(Msg, 1);
 	DFText(Msg, (Canvas->ClipX - MS.X) * 0.5f, Canvas->ClipY - Block * 4.f, White, 1);
 }
