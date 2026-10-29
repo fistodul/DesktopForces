@@ -65,6 +65,8 @@ def main(argv: list[str]) -> None:
     if len(argv) != 5:
         sys.exit(__doc__)
     paks, lists, out, build_id, platform = argv
+    if not all(argv):
+        sys.exit(f'empty argument: {argv}')
     upload = split(Path(paks), Path(lists), Path(out), build_id, platform)
     print(f'Downloads: {upload}')
 

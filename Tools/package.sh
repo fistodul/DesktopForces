@@ -142,17 +142,32 @@ if grep -q "duplicate PrimaryAssetID" "$PROJECT_DIR/Saved/Logs/PackLabels.log"; 
   exit 2
 fi
 
-# every built map (the cooker doesn't take maps from the always-cook folders): the game's own
-# and, unless --public, the content plugins'
-MAPS=""
-for D in "$PROJECT_DIR/Content/Maps:/Game/Maps" "$PROJECT_DIR/Content/MF/Maps:/Game/MF/Maps" \
-         "$PROJECT_DIR/Plugins/MobileForcesClassic/Content/Maps:/MobileForcesClassic/Maps" \
-         "$PROJECT_DIR/Plugins/MobileForcesUnverified/Content/Maps:/MobileForcesUnverified/Maps"; do
-  DIR="${D%%:*}"
-  ROOT="${D##*:}"
-  if [ "$PUBLIC" = 1 ] && [[ "$ROOT" == /MobileForces* ]]; then
+# the pack plugins (Plugins/<Name>/Content; --public leaves out the MobileForces* ones): their maps
+# are cooked by name; every other folder of theirs must be always cooked (DefaultGame.ini: content
+# loaded by path at run time), Maps not (a map's data and lightmaps come with the map)
+PACK_ROOTS=()
+for C in "$PROJECT_DIR"/Plugins/*/Content; do
+  [ -d "$C" ] || continue
+  P="$(basename "$(dirname "$C")")"
+  for F in "$C"/*/; do
+    F="$(basename "$F")"
+    if [ "$F" != Maps ] && ! grep -q "^+DirectoriesToAlwaysCook=(Path=\"/$P/$F\")" "$PROJECT_DIR/Config/DefaultGame.ini"; then
+      echo "Config/DefaultGame.ini: add +DirectoriesToAlwaysCook=(Path=\"/$P/$F\")" >&2
+      exit 2
+    fi
+  done
+  if [ "$PUBLIC" = 1 ] && [[ "$P" == MobileForces* ]]; then
     continue
   fi
+  PACK_ROOTS+=("$C/Maps:/$P/Maps")
+done
+
+# every built map (the cooker doesn't take maps from the always-cook folders): the game's own
+# and the pack plugins'
+MAPS=""
+for D in "$PROJECT_DIR/Content/Maps:/Game/Maps" "$PROJECT_DIR/Content/MF/Maps:/Game/MF/Maps" "${PACK_ROOTS[@]}"; do
+  DIR="${D%%:*}"
+  ROOT="${D##*:}"
   for M in "$DIR"/*.umap; do
     NAME="$(basename "$M" .umap)"
     if [ -n "$ONLY_MAPS" ] && [[ ",$ONLY_MAPS," != *",$NAME,"* ]]; then

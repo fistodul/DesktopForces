@@ -188,16 +188,26 @@ if (-not $DryRun -and (Select-String -Path $LabelLog -Pattern "duplicate Primary
     exit 1
 }
 
-# every built map: the game's own and, unless -Public, the content plugins'
+# the pack plugins (Plugins/<Name>/Content; -Public leaves out the MobileForces* ones): their maps
+# are cooked by name; every other folder of theirs must be always cooked (DefaultGame.ini), Maps
+# not (a map's data and lightmaps come with the map)
 $MapDirs = @(
     @{ Dir = "Content/Maps"; Root = "/Game/Maps" },
-    @{ Dir = "Content/MF/Maps"; Root = "/Game/MF/Maps" },
-    @{ Dir = "Plugins/MobileForcesClassic/Content/Maps"; Root = "/MobileForcesClassic/Maps" },
-    @{ Dir = "Plugins/MobileForcesUnverified/Content/Maps"; Root = "/MobileForcesUnverified/Maps" }
+    @{ Dir = "Content/MF/Maps"; Root = "/Game/MF/Maps" }
 )
+$GameIni = Get-Content (Join-Path $ProjectDir "Config\DefaultGame.ini")
+foreach ($Plugin in @(Get-ChildItem (Join-Path $ProjectDir "Plugins") -Directory -ErrorAction SilentlyContinue)) {
+    $Content = Join-Path $Plugin.FullName "Content"
+    if (-not (Test-Path $Content)) { continue }
+    foreach ($Folder in @(Get-ChildItem $Content -Directory | Where-Object { $_.Name -ne "Maps" })) {
+        $Line = "+DirectoriesToAlwaysCook=(Path=`"/$($Plugin.Name)/$($Folder.Name)`")"
+        if ($GameIni -notcontains $Line) { throw "Config/DefaultGame.ini: add $Line" }
+    }
+    if ($Public -and $Plugin.Name -like "MobileForces*") { continue }
+    $MapDirs += @{ Dir = "Plugins/$($Plugin.Name)/Content/Maps"; Root = "/$($Plugin.Name)/Maps" }
+}
 $Maps = @()
 foreach ($m in $MapDirs) {
-    if ($Public -and $m.Root -like "/MobileForces*") { continue }
     $Full = Join-Path $ProjectDir $m.Dir
     if (Test-Path $Full) {
         Get-ChildItem $Full -Filter *.umap | Sort-Object Name | ForEach-Object { $Maps += "$($m.Root)/$($_.BaseName)" }

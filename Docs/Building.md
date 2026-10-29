@@ -179,8 +179,10 @@ latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "platforms;a
 add `Development` for the console and logs). The game data goes in a separate
 `main.<version>.com.fistodul.desktopforces.obb` next to `DesktopForces-arm64.apk` in
 `Saved/Packages/Android-<Config>/` (`bPackageDataInsideApk=False`; past 4 GB the rest spills into
-patch / overflow OBBs). `--maps MF_TestRange,mf-warehouse` limits the map list, but every
-content folder in `DirectoriesToAlwaysCook` is still cooked, the whole Classic plugin included.
+patch / overflow OBBs). `--maps MF_TestRange,mf-warehouse` limits the map list: the pack plugins'
+folders other than `Maps` are still always cooked (`DirectoriesToAlwaysCook`, content loaded by
+path at run time), the other maps' data and lightmaps not. The packagers stop when a pack folder
+has no `DirectoriesToAlwaysCook` line.
 `ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` override `~/Android/Sdk`, its newest NDK, and the
 JDK of `javac`. Install with the generated `Install_DesktopForces-arm64.sh` (APK + OBBs; it
 uninstalls first, wiping `UECommandLine.txt`), or by hand: `adb install -r` the APK and
