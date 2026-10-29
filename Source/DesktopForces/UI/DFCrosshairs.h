@@ -3,10 +3,12 @@
 #include "CoreMinimal.h"
 
 namespace DF {
-	/** Alpha bounds of the original 32px CrossHairA..X textures. Normalize visible size, not padding. */
+	/** Alpha bounds of the original 32px CrossHairA..X textures. Normalize visible size, not padding;
+	 *  except the dot (A, 2 px): drawn from its whole tile it stays a dot (cropped, it filled the
+	 *  crosshair size as a big square). */
 	inline FIntRect CrosshairBounds(int32 Shape) {
 		static const FIntRect Bounds[] = {
-			FIntRect(15, 15, 17, 17),
+			FIntRect(0, 0, 32, 32),
 			FIntRect(1, 1, 32, 32),
 			FIntRect(4, 4, 28, 28),
 			FIntRect(4, 4, 29, 29),
