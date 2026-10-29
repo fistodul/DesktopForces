@@ -218,3 +218,16 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     geometry (`rage_warehouse.wood.ware_wood_*`), so likely a brush that lost faces in conversion
     (or a one-sided face). Not in the red loadout room (11100, 8600) or the red trailer yard
     (9600, 3600). Find it with `DFCam` (hide the HUD), then `DFTraceMat` on it.
+12. **Optional dynamic lighting for strong PCs: "Lumen Light" and Lumen scalability** (Filip,
+    2026-10-29). Today every map is baked (Lightmass) and Lumen is off
+    (`r.DynamicGlobalIlluminationMethod=0`, `r.ReflectionMethod=0` in `DefaultEngine.ini`), per
+    the 4 GB VRAM / phone budget. Explore an Options > Video > Advanced choice that turns on
+    Lumen GI / reflections at run time, defaulting to baked:
+    - find what UE 5.8's "Lumen Light" is (no cvar of that name in the 5.8.4 renderer source:
+      check the release notes; it may be a preset or a later version);
+    - Lumen's cost controls: software tracing only (no hardware RT), `r.Lumen.*` quality and
+      update-rate cvars, scalability groups (GI / reflection quality), screen-traces only, lower
+      resolution; per-platform off on Android;
+    - our maps are BSP + baked lightmaps: Lumen needs mesh distance fields or screen traces, and
+      lightmaps must not double the light - measure on mf-warehouse (desktop low end and high end)
+      against the baked look before offering it.
