@@ -140,7 +140,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    Still open:
    - DLC-style mod paks made after release (`-DLCName`, a `Mods/` folder;
      [Modding](Modding.md#content-after-release)).
-   - Android's APK still embeds every chunk (`bPackageDataInsideApk`).
+   - Android: game data now in an OBB beside the APK (2026-10-29), every pack still inside;
+     downloads per pack are thread 7.
 2. ✅ **First-person rig accuracy** (2026-10-28): RotOrigin applied as UE1 does after the .psk Y
    flip (the pitch cants the gun about its barrel instead of raising it), MF's weapon roll ×
    Hand (`ArmsRoll`), and CalcDrawOffset's 0.9 / FOV offset scale.
@@ -161,13 +162,15 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
 
    Proposals:
    - The HUD canvas (loadout list, minimap, kill messages) ignores the safe zone and sits under
-     the camera hole in landscape. Offset it by the safe-zone padding, and scale HUD text for
-     phone DPI (kill messages are tiny).
+     the camera hole in landscape. Offset it by the safe-zone padding. HUD text is 1.5× on touch
+     screens (10c57c2, 4757ce0; checked on the 9a).
    - Offer 60 FPS: the 9a has roughly half its 33 ms frame budget to spare.
    - Button icons instead of words, a layout editor (MF-style), touch-look sensitivity, and
      tap-to-fire on the right half as an option.
    - Options pages (sliders, combos) still need checking with fingers.
-   - Cook per pack (thread 1): the APK is 443 MB, carrying every classic asset.
+   - Since 2026-10-29 the data is in an OBB: a 103 MB APK and a 1.39 GB OBB for two maps
+     (classic 1.22 GB of it). It runs from the OBB on the 9a. Install with the generated
+     `Install_DesktopForces-arm64.sh` ([Building](Building.md#android)).
 6. **Bots and vehicles** (2026-10-29):
    - Fixed: covering bots no longer pick their own vehicles, drop a vehicle they were walking to
      when given an order, and drive to the leader if already driving (1cbb8ac).
@@ -177,3 +180,24 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      right next to a vehicle; don't `DFLoadout` on maps that don't start in it); DFOrder 3 after
      the bots spawn; KillEnemy every few seconds.
    - Turret seats are not looked at yet.
+7. **Downloadable content packs** (Android first, the same code for desktop mods). Today every
+   pack is in the OBB and players can't choose. Goal: the APK carries the code and the core
+   pack; the game offers the others as downloads from `https://mf.nofisto.com/android_download/`
+   (the "modded" set: community + unverified), with no adb pushes.
+   - Use UE's ChunkDownloader plugin: it reads a manifest (`BuildManifest-<Platform>.txt`, made
+     by the cook with chunk ids 1 and 2), downloads missing pakchunks into the app's own storage
+     over HTTP(S), checks them, and mounts them; maps then appear through `DFContent::FindMaps`.
+   - Packaging: cook as now, but keep only chunk 0 in the OBB/APK (UAT `-manifests` and
+     `-createchunkinstall` with `-chunkinstalldirectory` / `-chunkinstallversion`, or exclude
+     chunks from the OBB) and copy the other chunks + manifest to an upload folder per version.
+     `Tools/package.sh` grows a `--downloads` option that does this.
+   - Game side: a Downloads page in the menu (pack, size, Download / Delete), progress, retry,
+     Wi-Fi-only hint; downloads mount without a restart.
+   - Classic stays off public URLs (converted from each player's own copy). Options: a
+     password-protected folder for the team, or the player copies a classic pak made from their
+     own install into the app's folder (any pak there already mounts).
+   - Google Play Asset Delivery only matters if the app is published on Play (US$25 developer
+     account, `.aab` upload); Play would only carry the public packs. Not needed for the
+     self-hosted route.
+   - Test: a local HTTP server (`python3 -m http.server`) on the LAN, phone over wireless adb;
+     download, kill the app mid-download, resume, delete, check the map list each time.

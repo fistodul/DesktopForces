@@ -115,12 +115,16 @@ latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "platforms;a
   "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 ```
 
-`Tools/package.sh Android Development --maps MF_TestRange,mf-warehouse` builds an arm64
-APK with ASTC textures (`Saved/Packages/Android-Development/DesktopForces-arm64.apk`,
-443 MB on 2026-10-28). `--maps` limits the map list, but every content folder in
-`DirectoriesToAlwaysCook` is still cooked, the whole Classic plugin included. `ANDROID_HOME`,
-`NDKROOT` and `JAVA_HOME` override `~/Android/Sdk`, its newest NDK, and the JDK of `javac`.
-Install it with `adb install -r <apk>`.
+`Tools/package.sh Android` builds an arm64 APK with ASTC textures and every map (Shipping;
+add `Development` for the console and logs). The game data goes in a separate
+`main.<version>.com.fistodul.desktopforces.obb` next to `DesktopForces-arm64.apk` in
+`Saved/Packages/Android-<Config>/` (`bPackageDataInsideApk=False`; past 4 GB the rest spills into
+patch / overflow OBBs). `--maps MF_TestRange,mf-warehouse` limits the map list, but every
+content folder in `DirectoriesToAlwaysCook` is still cooked, the whole Classic plugin included.
+`ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` override `~/Android/Sdk`, its newest NDK, and the
+JDK of `javac`. Install with the generated `Install_DesktopForces-arm64.sh` (APK + OBBs; it
+uninstalls first, wiping `UECommandLine.txt`), or by hand: `adb install -r` the APK and
+`adb push` each `.obb` to `/sdcard/Android/obb/com.fistodul.desktopforces/`.
 
 Testing on a phone (adb is `~/Android/Sdk/platform-tools/adb`; enable Wireless debugging on the
 phone, and "Stay awake" so it doesn't lock between runs):
@@ -128,7 +132,7 @@ phone, and "Stay awake" so it doesn't lock between runs):
 ```bash
 adb pair <ip>:<pairing port> <code>      # once; then the phone shows up by itself:
 adb mdns services && adb devices
-adb install -r Saved/Packages/Android-Development/DesktopForces-arm64.apk
+Saved/Packages/Android-Development/Install_DesktopForces-arm64.sh   # APK + OBB
 # start straight into a map with scripted commands (Development builds read this file):
 echo '../../../DesktopForces/DesktopForces.uproject /MobileForcesClassic/Maps/mf-warehouse?game=dm?Bots=6 -DFExec="@6:DFLoadout|@7:stat unit"' > UECommandLine.txt
 adb push UECommandLine.txt /sdcard/Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/
