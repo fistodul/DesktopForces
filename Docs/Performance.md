@@ -95,3 +95,80 @@ quality, so damage and incoming-projectile cues remain visible. A heavily damage
 holds at most about 32 smoke sprites; a rocket or Predator holds about 38 trail sprites.
 Other effects still use Unreal's global particle scalability. Smoke parameters update four
 times per second from replicated health, with no smoke emitter on an undamaged vehicle.
+
+
+## Template and plugin audit (2026-10-29)
+
+All 55 queued maps are converted, imported, and baked. Their remaining work is playtesting,
+not another bulk import. The active roadmap still includes borrowed-classic replacement art,
+vehicle ride-along/navigation tests, the flat warehouse crate, and Android HUD safe zones.
+
+The importer now compares source-file MD5 and texture settings before reimporting/saving
+(`DFImporter.cpp`, commit `e296d89`). Equal source hashes explain redundant reserialization;
+they do not prove that differently named assets or material instances are interchangeable.
+Do not delete packages by hash without checking references, settings, and pack ownership.
+
+### Templates and Starter Content
+
+| Content | Recommendation for this project |
+|---|---|
+| Starter Content | Use selected simple props, surface textures, and suitable sounds as replacement-art candidates. Test in a scratch project and migrate only selected assets and dependencies. It is not a complete replacement for MF-specific signs, team art, or weapon sounds. |
+| Third Person template | Keep as a reference or isolated animation/ragdoll prototype. Both it and DFCharacter already derive from ACharacter; the game already uses CharacterMovement and Enhanced Input. Its mannequin animations do not directly fit the imported MF skeletons. Importing its pawn/game mode/input assets would add parallel systems. |
+| Vehicle template | Use an isolated handling benchmark if needed. It uses AWheeledVehiclePawn/UChaosWheeledVehicleMovementComponent; DF uses a custom rigid body with raycast suspension, MF handling, seats, wheel damage, and replication. Migration is a substantial gameplay rewrite, with no demonstrated performance advantage. |
+
+Unreferenced source assets on disk do not inherently increase GPU work. Assets that are used,
+cooked, or retained by broad cook rules can add rendering work, shader variants, or download
+size. Keep replacement materials on the existing inexpensive forward-rendered material path;
+avoid importing a whole material/effect library to replace one surface.
+
+### Plugin candidates
+
+The project already explicitly disables 80 plugins. The enabled list in the project file is
+not the complete effective set: engine defaults and dependency chains enable others.
+
+- **StateTree + GameplayStateTree:** first removal candidate. The source references found are
+  the two Build.cs dependencies; bots use their own timed Think logic. Remove those module
+  dependencies together with the plugin entries only after an asset-reference check, then
+  rebuild/cook and run the bot/lifecycle tests. Expected gains are build/load footprint,
+  not a demonstrated reduction in steady-state GPU time.
+- **Keep EnhancedInput, ProceduralMeshComponent, and ChunkDownloader:** live input,
+  surface-conforming scorch marks, and downloadable packs use them.
+- **Keep the import toolchain:** skeletal imports use Interchange/glTF; the editor module
+  explicitly links EditorScriptingUtilities. Modeling Tools is already Editor-only and can
+  help inspect/repair the reported geometry. Disabling it would not remove a shipped viewport
+  rendering cost. Python/editor utilities should be judged by actual tooling use.
+- **Do not independently disable Niagara, ControlRig, or IK Rig just because DF source lacks
+  direct calls.** In the installed engine, Interchange requires HairStrands/GeometryCache,
+  which require Niagara. IK Rig requires ControlRig and FullBodyIK. Test an editor-versus-game
+  dependency split in an isolated configuration before pruning these chains. A plugin name
+  in a build receipt is not evidence that all its editor modules run in a shipped game.
+- **Animation Budget Allocator / Animation Sharing:** candidates only if profiling many bots
+  identifies animation CPU cost. Budget allocation needs budgeted mesh components and can
+  reduce update rates; sharing needs compatible animation-state setup. Neither is a free
+  checkbox improvement. DF already enables update-rate optimization and skips offscreen poses.
+
+### Performance work with the best evidence
+
+1. Profile packaged CPU, draw-thread, and GPU time before changing features. The roadmap's
+   Pixel 9a result is about 15 ms game, 12 ms draw, and 6.5 ms GPU at a 30 FPS cap. Those are
+   parallel pipeline timings, not numbers to add. A 60 FPS target has only 16.7 ms per frame,
+   so game-thread headroom is much smaller than the GPU result alone suggests.
+2. Test ISM/HISM grouping for repeated static props with matching meshes/materials. The map
+   builder currently creates separate StaticMeshActors. Preserve collision, lightmaps,
+   material variation, and independently interactive objects. This can reduce draw overhead
+   without reducing geometry quality, but needs rebaking and measured results.
+3. Test texture streaming on the largest maps if memory/loading is a problem. It is disabled
+   globally and imported textures are NeverStream, so changing only r.TextureStreaming does
+   not address those assets. Keep UI/font textures resident. Streaming can reduce residency;
+   it also adds management work and can show lower mips while loading, so it is not a guaranteed
+   quality-neutral FPS improvement.
+4. Keep Lumen, Nanite, virtual shadow maps, and ray tracing off for this baseline. The current
+   small meshes, baked lighting, SM5/mobile targets, and simple materials do not establish a
+   reason to enable them. Mesh/animation LOD changes also need quality comparison, not blanket
+   enabling of a reduction plugin.
+
+This was a read-only code/configuration assessment, not a benchmark of proposed changes.
+Primary evidence came from the installed UE 5.8.4 template sources and .uplugin descriptors,
+DF module dependencies, DFCharacter, DFVehicle, DFLevelBuilder, and DFImporter. Online Epic
+documentation was unavailable during the audit (search connector errors and HTTP 403).
+No runtime configuration or asset content was changed for this assessment.
