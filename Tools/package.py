@@ -228,7 +228,13 @@ def package(a: argparse.Namespace) -> None:
         uat.append('-nodebuginfo')
     if a.platform == 'Android':
         uat.append('-cookflavor=ASTC')
-    package_args = ['-package'] if a.platform == 'Android' else []  # the APK
+    package_args = []
+    if a.platform == 'Android':
+        package_args.append('-package')  # the APK
+        if a.downloads:
+            # core alone is small: in the APK, one file to install (an OBB needs adb or a file
+            # manager allowed into Android/obb); a build with every pack keeps the OBB (2 GB APK limit)
+            package_args.append('-forcepackagedata')
     cook = ['-ubtargs=-NoUBA', '-build', '-cook', '-stage', '-prereqs'] + ([f'-map={"+".join(maps)}'] if maps else [])
 
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'

@@ -169,7 +169,8 @@ latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "platforms;a
 ```
 
 `python3 Tools/package.py Android` builds an arm64 APK with ASTC textures and every map (Shipping;
-add `Development` for the console and logs). The game data goes in a separate
+add `Development` for the console and logs). With `--downloads` the game data (the core pack,
+~50 MB) is inside the APK: one file for players to install. Otherwise it goes in a separate
 `main.<version>.com.fistodul.desktopforces.obb` next to `DesktopForces-arm64.apk` in
 `Saved/Packages/Android-<Config>/` (`bPackageDataInsideApk=False`; past 4 GB the rest spills into
 patch / overflow OBBs). `--maps MF_TestRange,mf-warehouse` limits the map list: the pack plugins'
