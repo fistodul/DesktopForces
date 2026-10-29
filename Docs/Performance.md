@@ -167,8 +167,145 @@ not the complete effective set: engine defaults and dependency chains enable oth
    reason to enable them. Mesh/animation LOD changes also need quality comparison, not blanket
    enabling of a reduction plugin.
 
-This was a read-only code/configuration assessment, not a benchmark of proposed changes.
+The initial audit above was a read-only code/configuration assessment, not a benchmark of proposed changes.
 Primary evidence came from the installed UE 5.8.4 template sources and .uplugin descriptors,
 DF module dependencies, DFCharacter, DFVehicle, DFLevelBuilder, and DFImporter. Online Epic
 documentation was unavailable during the audit (search connector errors and HTTP 403).
 No runtime configuration or asset content was changed for this assessment.
+
+
+## Systems follow-up (2026-10-29)
+
+This follow-up inspects the supplied `VehicleProject`, local Starter Content, UE 5.8.4
+source and converted map manifests. It does not establish runtime performance gains.
+Engine work is paused at the user's request while another agent owns the Android build
+lane. No plugin or runtime behavior changed in this follow-up.
+
+### Bots: retain Unreal navigation; do not migrate for an assumed speed gain
+
+`DFBotController` already uses `AAIController`, navigation/path following, focus and timers.
+Its main decision loop runs every 0.2 seconds. Enemy selection scans characters and performs
+visibility traces; vehicle steering still updates each frame. StateTree would organize these
+behaviors but would not replace their sensing, weapon, objective or steering implementations.
+The only project source dependencies found are the two StateTree module entries in Build.cs.
+
+The installed StateTree component supports scheduled ticks, enabled by default through
+`StateTree.Component.ScheduledTickEnabled`. It is not inherently a per-frame polling system.
+Its visual state organization and debugger may help larger behavior sets, but a performance
+claim requires equivalent behavior and measurements. See Epic's
+[StateTree overview](https://dev.epicgames.com/documentation/en-us/unreal-engine/state-tree-in-unreal-engine).
+
+Recommendation: retain the current controller and profile its sensing first. Before removing
+StateTree/GameplayStateTree, check asset references, then remove both project plugin/module
+dependencies together and validate a build, cook and multi-magazine bot combat run. Those
+checks remain pending; ChunkDownloader must remain enabled. Expected removal benefit is
+build/load footprint, not a demonstrated frame-time improvement.
+
+### Animation: prepare an opt-in integration, not just a plugin checkbox
+
+Soldiers already use `OnlyTickPoseWhenRendered` and update-rate optimization (URO).
+An allocator integration needs `USkeletalMeshComponentBudgeted`; enabling the plugin alone
+would not budget the current components. Registration takes ownership of tick scheduling
+and disables URO. Budgeting can lower animation update frequency, so compare visible poses
+and gameplay before selecting a default. See Epic's
+[Animation Budget Allocator guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-budget-allocator-in-unreal-engine).
+
+Integration plan, not implemented yet:
+
+1. Use the budgeted component for third-person soldier meshes; leave first-person arms alone.
+2. Default the experiment off. Preserve existing URO when off, and do not register dedicated
+   server meshes. Coordinate the world allocator state with `a.Budget.Enabled`.
+3. Register/unregister through the existing 0.5-second soldier update, after model changes.
+   Restore normal ticking/URO on disable. Do not treat `IsLocallyControlled()` alone as a
+   human-player check: authority-side AI can also be locally controlled.
+4. Compare 6, 24 and 48 visible bots with the same camera and animation workload. Check
+   off/on/off toggling, death, seated poses, weapon attachments and network clients. Confirm
+   skipped animation updates do not drive authoritative gameplay events.
+
+### Vehicles: a useful suspension reference, not a drop-in pawn replacement
+
+The supplied template uses `AWheeledVehiclePawn` and `UChaosWheeledVehicleMovementComponent`.
+Its sports car has torque/gear curves and Ackermann steering. DF already uses Chaos rigid
+bodies, but implements wheel raycasts, spring/damper forces, tyre forces and drivetrain logic
+in `DFVehicle::SimulateWheels`. That custom force model is the meaningful comparison target.
+
+Chaos Vehicles supports runtime wheel radius, friction, engine contribution and suspension
+changes (`SetWheelRadius`, `SetWheelFrictionMultiplier`, `SetAffectedByEngine`,
+`SetSuspensionParams`). Wheel damage is therefore not an inherent blocker. Migration still
+needs a skeletal vehicle/physics rig and validation of MF seats, damage, nitro, weapons and
+network behavior. Boats and helicopters need separate treatment. Epic's
+[vehicle setup guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/how-to-set-up-vehicles-in-unreal-engine)
+describes the asset requirements.
+
+DF applies wheel forces from game-thread Tick and clamps the supplied timestep to 0.05 s.
+Test acceleration, braking, bumps and rollover recovery at 30/60/120 FPS before changing it.
+Compare matched mass, gravity, wheel geometry and terrain: MF gravity is -2137.5 cm/s², while
+the template uses the usual -980 baseline. Comparing their raw FPS or handling on unrelated
+maps would not isolate vehicle simulation. A physics-thread suspension experiment is worth
+considering if the current force model proves frame-rate-sensitive. No migration is justified
+by the source comparison alone; the template build and runtime comparison remain pending.
+
+### Repeated static props: concrete candidates, not measured draw savings
+
+The importer currently creates one StaticMeshActor per static-prop entry. An ISM/HISM
+component can store many placements of a matching mesh/material, reducing component overhead
+and potentially draw submissions while keeping the geometry. Interactive objects, movers and
+independently destructible actors stay separate.
+
+Offline counts group converted entries by mesh and collision flag. These groups are candidate
+sets; material, lighting, transform and culling compatibility still need checking:
+
+| Map | Static prop actors | Actors in groups of at least four | Example group |
+|---|---:|---:|---|
+| mf-Pobojowisko_VerII | 4,388 | 4,312 | kempaA: 1,169, no collision |
+| mf-Tajga | 2,786 | 2,752 | iglakA: 586, collision |
+| mf-Treasure_Finders | 2,720 | 2,590 | grassaw: 817 |
+
+Unreal already merges compatible mesh draws; actor count is not draw-call count. Lightmap
+bindings and per-component data can prevent merging. Use
+`r.MeshDrawCommands.LogDynamicInstancingStats 1` with `stat RHI`, `stat SceneRendering` and
+CPU/GPU captures to establish the baseline. See Epic's
+[mesh drawing pipeline](https://dev.epicgames.com/documentation/en-us/unreal-engine/mesh-drawing-pipeline-in-unreal-engine).
+
+Start with spatial groups of the non-colliding grass in one map. Preserve negative scales,
+lighting, material variation and culling; rebake and compare the same camera path. Measure
+render-thread time, draw submissions, scene/component memory and load time. No mass conversion
+has been made.
+
+### Replacement art: selective candidates for roadmap thread 9
+
+Nine local Starter Content base-colour textures were exported in a scratch project before
+the pause. Source sizes were 1024–2048 px; the staging tool produced a 512 px concrete sample.
+`T_Concrete_Poured_D` is a candidate for `rage_warehouse.concrete.ware_concrete_9`, but brightness,
+colour and tiling still need an in-scene comparison. The sample is outside active overrides
+so another agent's conversion cannot silently apply an unreviewed texture.
+
+Do not substitute by name alone: `rage_urban.brck07S` has transparent pixels that opaque
+Starter brick would erase, and `rage_dock.ground.dock_ground_7` is a metal grate, not gravel.
+Generic surfaces cannot replace signs, team symbols and foliage silhouettes indiscriminately.
+
+Quixel's [Concrete Floor](https://www.fab.com/listings/f4b85cb0-9e15-42b5-997e-604cd09cbcd0)
+listing was free when checked on 2026-10-29 and includes a base-colour texture. It is a candidate,
+not an acquired or scene-tested asset. Download only a suitable source image after checking
+the account's acquisition terms; do not import its full displacement/PBR material setup.
+See [selected texture staging](Pipeline.md#selected-starter-content-or-acquired-textures)
+for the local-only provenance workflow and 512 px cap. Imported replacement assets belong
+under `/Game/MF/Replacements`, labelled community.
+
+Evidence artifacts are outside the repository in
+`/home/mrs/Documents/Unreal Projects/tests/20261029-systems-review/`:
+`prop-candidates.json`, `missing-community-textures.json`, `texture-review.png`, the Starter
+texture inventory/previews, and Python test output. The 34 unreplaced texture keys found in
+converted community-map manifests are not a count of all remaining cooked classic dependencies.
+
+After the build lane is released, first capture the existing baseline, then test one change
+at a time. A bounded CPU capture can use:
+
+```bash
+python3 Tools/play.py mf-warehouse tdm 24 -nullrhi -nosound -unattended -trace=cpu,frame,bookmark -statnamedevents -DFQuitAfter=45
+```
+
+Repeat at 6 and 48 bots. NullRHI helps isolate CPU work but cannot assess visible animation or
+GPU cost; repeat with `-RenderOffscreen` instead of `-nullrhi` for rendered tests. Warm assets,
+keep camera/map settings fixed, and report game/render/GPU timings separately. These commands
+are a test plan and have not been run during the paused build lane.

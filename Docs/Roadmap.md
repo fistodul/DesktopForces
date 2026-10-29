@@ -212,12 +212,24 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    textures and play no ambient sounds (mf-Tropics on the 9a). `mfport.py packs` lists them;
    `Tools/artgen/lookalike.py` overrides can replace the textures in the community pack (or
    another generator); sounds need free/CC0 or team-made replacements.
+   - Selected Starter/Fab image staging is available through `mfport.py replacements`:
+     local-only provenance, maximum 512 px, and rejection of opaque replacements for holes.
+     One Starter concrete sample passed staging, but no replacement was applied to game assets.
+     Scene review remains pending; see [systems follow-up](Performance.md#systems-follow-up-2026-10-29).
 10. **Flat crate in mf-warehouse** (Filip's phone screenshot `Screenshot_20261028-224646.webp`,
     not in the repo: it shows classic textures): outdoors under the sunset sky,
     a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP
     geometry (`rage_warehouse.wood.ware_wood_*`), so likely a brush that lost faces in conversion
     (or a one-sided face). Not in the red loadout room (11100, 8600) or the red trailer yard
     (9600, 3600). Find it with `DFCam` (hide the HUD), then `DFTraceMat` on it.
+
+11. **Systems performance follow-up** (2026-10-29): source/template review complete; Unreal
+    execution remains paused while another agent owns the Android build lane. Check StateTree
+    asset references before removing its unused module/plugin pair. Profile existing bot
+    sensing; prepare an opt-in animation allocator using budgeted meshes, not just a plugin
+    switch. Compare custom wheel forces with the supplied VehicleProject at 30/60/120 FPS.
+    Prototype spatial instancing for repeated non-colliding grass after measuring existing
+    dynamic batching. Plans and evidence: [Performance](Performance.md#systems-follow-up-2026-10-29).
 12. **Optional dynamic lighting for strong PCs: Lumen / "Lumen Lite"** (Filip, 2026-10-29). Today
     every map is baked (Lightmass) and Lumen is off at project level
     (`r.DynamicGlobalIlluminationMethod=0`, `r.ReflectionMethod=0` in `DefaultEngine.ini`).

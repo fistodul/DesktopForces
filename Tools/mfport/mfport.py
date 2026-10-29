@@ -17,6 +17,7 @@ Steps (run alone or chained with `all`):
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=DFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + effects + sounds + import + light
+  replacements <json>  stage selected local source textures, at most 512 px
   remaining            resume missing playable maps; --limit N bounds the batch
   repair-lightmass     repair the verified Linux 5.8.4 Lightmass startup assertion (backup kept)
   defaults <Class> [Prop...]  a class's effective default properties down its parent chain
@@ -119,7 +120,7 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining', 'repair-lightmass', 'defaults'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining', 'repair-lightmass', 'defaults', 'replacements'])
     ap.add_argument('names', nargs='*')
     ap.add_argument('--steps', default='art,textures,props,effects,skeletal,sounds,music,maps', help='importer steps for `import`')
     ap.add_argument('--limit', type=int, default=0, help='maximum maps for a remaining batch (0: all)')
@@ -129,6 +130,13 @@ def main():
 
     if a.step == 'repair-lightmass':
         sys.exit(ue.repair_lightmass(cfg))
+
+    if a.step == 'replacements':
+        from mflib.replacements import stage
+        if len(a.names) != 1:
+            ap.error('replacements needs one JSON selection manifest')
+        stage(cfg, Path(a.names[0]))
+        return
 
     if a.step == 'defaults':
         from mflib.ucdefaults import show

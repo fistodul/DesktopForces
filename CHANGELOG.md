@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-29 — Selected replacement textures and systems review
+
+- Add `mfport.py replacements <selection.json>` to stage chosen local source images at no
+  more than 512 px. Keep provenance and acquired images outside source control, preserve
+  aspect ratio/alpha, and reject duplicate targets or opaque replacements for transparent art.
+- Document the StateTree, animation allocator and Chaos Vehicle comparison, concrete repeated
+  prop candidates, and selective Starter/Fab workflow for the community replacement pack.
+- Keep runtime/plugin changes and asset application pending coordinated Unreal validation.
+  The concrete sample passed offline staging only; no game assets changed.
+- Validation: 25 Python tests pass, including six replacement staging checks.
+
 ## 2026-10-29 — Downloadable packs, pack reshuffle, one packager
 
 - In-game downloads of content packs (menu > Downloads, ChunkDownloader): a `--downloads` build

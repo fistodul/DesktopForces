@@ -26,6 +26,8 @@ from .config import Config, TOOL_DIR
 from .upkg import Package, Reader
 
 OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
+# Acquired source art is local-only; do not publish standalone licensed images.
+LICENSED_DIR = TOOL_DIR / 'overrides' / 'licensed'
 # procedural replacement art from Tools/artgen/lookalike.py (git-ignored; hand-made overrides win)
 GENERATED_DIR = TOOL_DIR / 'work' / 'generated' / 'textures'
 
@@ -137,6 +139,8 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
         dst.parent.mkdir(parents=True, exist_ok=True)
         needs_alpha = bool(modes & {'masked', 'lumalpha', 'fontalpha'}) or info['masked']
         override = OVERRIDE_DIR / rel.with_suffix('.png')
+        if not override.exists():
+            override = LICENSED_DIR / rel.with_suffix('.png')
         if not override.exists():
             override = GENERATED_DIR / rel.with_suffix('.png')
         replacement = None

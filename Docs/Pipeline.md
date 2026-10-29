@@ -272,9 +272,53 @@ The way out of depending on the original art:
   resolution; UVs always use the original size).
 - `Tools/mfport/overrides/sounds/<package>/<name>.wav` replaces that sound.
 
-Overrides are committed and become core content (`/Game/MF/Replacements`). Prefer CC0 sources
-(ambientCG, Poly Haven, Kenney, freesound CC0) and note the source/licence in
-`overrides/CREDITS.md`.
+Author-cleared overrides can be committed and become community content
+(`/Game/MF/Replacements`). Prefer CC0 sources (ambientCG, Poly Haven, Kenney,
+freesound CC0) and note the source/licence in `overrides/CREDITS.md`.
+
+### Selected Starter Content or acquired textures
+
+Use `replacements` to stage only chosen source images, without copying a whole pack or
+launching Unreal. The converted `work/out/textures.json` must already contain each target.
+A selection JSON uses original texture keys, with source paths relative to that JSON:
+
+```json
+[
+  {
+    "target": "rage_warehouse.concrete.ware_concrete_9",
+    "source": "starter/T_Concrete_Poured_D.tga",
+    "source_url": "https://dev.epicgames.com/documentation/en-us/unreal-engine/starter-content-in-unreal-engine",
+    "license": "Epic Starter Content supplied with Unreal Engine; retained locally"
+  }
+]
+```
+
+```bash
+python3 Tools/mfport/mfport.py replacements /absolute/path/selection.json
+```
+
+This writes PNGs under ignored `Tools/mfport/overrides/licensed/`, with local provenance
+(source, URL, licence label, SHA256 and output size). The longest side is capped at 512 px,
+or the configured `max_texture_size` if smaller. Aspect ratio and alpha are retained;
+the source file is unchanged. Duplicate targets and opaque replacements for transparent
+originals are rejected before any images are written. This is a basic alpha check, not a
+substitute for reviewing holes, edge coverage, tiling, colour and UV scale in the scene.
+The licence label records provenance; the tool does not verify acquisition rights.
+
+Staged images take effect on the next `textures` conversion. Priority is committed
+`overrides/textures`, then local `overrides/licensed`, then generated stand-ins. Review a
+small selection first; remove a staged PNG to fall back to the next source, then reconvert
+and reimport. The usual `textures` / `import --steps textures` steps update replacements
+and material references. Coordinate the import with anyone using the shared Unreal build
+lane. Neither staging nor its Python tests run Unreal.
+
+Use only the base-colour image initially, through the existing inexpensive material.
+Imported `.uasset` textures bypass this image staging step: set and verify their per-texture
+maximum size and cooked platform settings separately. Do not publish acquired source images
+as standalone downloads or public source files; check each asset's acquired terms. Fab's
+[Standard License summary](https://www.fab.com/eula) permits assets incorporated in projects
+but prohibits standalone redistribution. Do not assume every Megascans asset is free or
+that a reference-only acquisition includes source images.
 
 **Generated stand-ins** (`Tools/artgen/lookalike.py`): for every texture core maps still borrow,
 a procedural replacement - bricks, planks, corrugated sheet, siding, tiles, panels, plaster /

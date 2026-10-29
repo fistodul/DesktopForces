@@ -130,6 +130,9 @@ Report what was checked and any checks blocked by missing engine, content, or di
   magazine, not just initial firing, when checking combat behavior.
 - Use absolute artifact paths outside the project. This checkout resolves through a Windows
   drive symlink, so a shell's `../tests` can resolve somewhere different from its logical path.
+- Coordinate a single Unreal execution lane across agents: builds/UAT share locks, and starting
+  another editor or commandlet can restart Zen during a cook. An idle process list does not
+  revoke an explicit request to keep Unreal work paused; wait for the lane owner to release it.
 - No weekly quota meter is exposed through the current tools. Do not claim a precise remaining
   percentage. Keep a progress checkpoint and report any actual quota/approval rejection.
 
