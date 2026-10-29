@@ -1,6 +1,8 @@
 # Desktop Forces C++ style (clang-format 18): braces on the same line, no braces around a single
-# statement, tabs, lines left as long as they are written. Run Tools/format.sh (or your editor's
-# clang-format) before committing; Tools/format.sh --check lists what isn't formatted.
+# statement, tabs, lines left as long as they are written. Run `clang-format -i <files>` (or your
+# editor's) before committing; `clang-format --dry-run --Werror <files>` lists what isn't formatted.
+# RemoveBracesLLVM also removes braces around a macro that expands to a block: write
+# `if (x) Foo(); else UE_LOG(...);`, never `if (x) UE_LOG(...); else ...`.
 Language: Cpp
 Standard: c++20
 BasedOnStyle: LLVM
