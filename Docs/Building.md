@@ -83,8 +83,8 @@ Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<P
 | Chunk | Pack | Content | Size (3-map Linux build) |
 |---|---|---|---|
 | 0 | core | the game: `/Game/MF`, engine content, anything unlabelled | 51 MB |
-| 1 | community | `/Game/Maps`, `/Game/MF/Community` (agreed authors) | 225 MB |
-| 2 | unverified | `/MobileForcesUnverified` | 5 MB |
+| 1 | community | `/Game/Maps`, `/Game/MF/Community`, `/Game/MF/Replacements` (agreed authors) | 225 MB |
+| 2 | unverified | `/MobileForcesUnverified` (custom maps and mods not cleared yet) | 5 MB |
 | 3 | classic | `/MobileForcesClassic` (from your MF install: never share it) | 442 MB |
 
 A pack is just its three files (`.pak`, `.ucas`, `.utoc`). Drop them into `Content/Paks` to add the

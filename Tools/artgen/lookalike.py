@@ -696,7 +696,7 @@ def needed_textures() -> dict[str, set[str]]:
     p = packs.load()
     need: dict[str, set[str]] = {}
     for lj in (cfg.out_dir / 'Maps').glob('*/level.json'):
-        if packs.map_pack(p, lj.parent.name) != 'core':
+        if packs.map_pack(p, lj.parent.name) != 'community':
             continue
         for key, modes in json.loads(lj.read_text())['texture_usage'].items():
             pkg = key.split('.')[0]

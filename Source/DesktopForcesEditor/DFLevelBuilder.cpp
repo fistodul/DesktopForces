@@ -375,8 +375,8 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 		return false;
 	}
 
-	const FString PackageName = Packs.MapPackage(MapName); // core: /Game/Maps, else the classic plugin
-	TGuardValue<bool> CoreMaterials(bBuildingCoreMap, Packs.IsCoreMap(MapName));
+	const FString PackageName = Packs.MapPackage(MapName); // community: /Game/Maps, else the classic or unverified plugin
+	TGuardValue<bool> CommunityMaterials(bBuildingCommunityMap, Packs.IsCommunityMap(MapName));
 	DeleteOldMap(PackageName);
 	UPackage* Pkg = CreatePackage(*PackageName);
 	Pkg->SetPackageFlags(PKG_ContainsMap);

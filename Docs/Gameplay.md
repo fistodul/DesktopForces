@@ -261,9 +261,8 @@ nearest enemy).
 guns (not under 128 uu). **Cases** (EjectBrass): spent cases fly out right and up, bounce up
 to three times with a tink and lie there a few seconds.
 
-**The servers' weapon mods** (their authors / model sources still being checked: models, icons
-and sounds come from the *Mobile Forces Unverified* pack and the guns are only offered where
-it's installed; `Weapons/<Name>/`):
+**The servers' weapon mods** (Gian, Gregaras or Marcin; models, icons and sounds come from the
+community pack and the guns are only offered where it's installed; `Weapons/<Name>/`):
 
 | Weapon | Group | Carry | Clip × clips | Damage (head) | Spread (Acc / zoomed) | Fire / zoomed | Reload | Notes |
 |---|---|---|---|---|---|---|---|---|

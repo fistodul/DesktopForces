@@ -53,7 +53,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, DeBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
 - ✅ More MF-mods: heli + heliHmg, piper / piperTs (plane), vote, mutPack replaceVehicles / addVehicles; jeep gun model (UE1 vertex Mesh reader)
-- ✅ server weapon mods (AK-74, M4A1, FAMAS, G36, SC-20K, Ultimax, MAC-10, Glock, Desert Eagle, M24, WA 2000, M1887, M18 smoke; Unverified pack), parachutes; improvedRL (Gian: `?ImprovedRL=1`), OPWeapons (`?OPWeapons=1`), BoxPhysics (`WoodenBox`), Desert Eagle moved to core (2026-10-22); FNG's server mutators as options (map rotation, server messages, NoWeapons, AllVehicles, LowGrav; [Hosting.md](Hosting.md)); ⬜ player skins (Serious, SwatSkin: unverified)
+- ✅ server weapon mods (AK-74, M4A1, FAMAS, G36, SC-20K, Ultimax, MAC-10, Glock, Desert Eagle, M24, WA 2000, M1887, M18 smoke; community pack since 2026-10-29), parachutes; improvedRL (Gian: `?ImprovedRL=1`), OPWeapons (`?OPWeapons=1`), BoxPhysics (`WoodenBox`), Desert Eagle moved to core (2026-10-22); FNG's server mutators as options (map rotation, server messages, NoWeapons, AllVehicles, LowGrav; [Hosting.md](Hosting.md)); ⬜ player skins (Serious, SwatSkin: unverified)
 - ✅ Mine generator runtime and map-marker hookup (`World/MineGenerator.cpp`, `DFGameMode::HandleMatchHasStarted`): proximity mines, five-second rearm, vehicle triggers and splash-only river generators. Converted mf-Pobojowisko_VerII contains the markers. Runtime/marker conversion is regression-tested; full map playtesting remains separate.
 - ✅ Water (swimming, drowning, pain / heal zones, currents, floating vehicles)
 
@@ -201,7 +201,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    - Still open: upload a build to `https://mf.nofisto.com/download/` and test over HTTPS;
      `package.ps1 -Downloads` only dry-run on Linux so far; old build folders on the server need
      keeping while those builds are around.
-8. **Replacement art for borrowed classic assets** (user idea, 2026-10-29): community maps still
+8. ✅ **Packs reshuffled** (2026-10-29): classic is the retail game only (+ `[classic]`: custom
+   maps' music, often taken from other games); `packs.toml`'s "core" is now "community" (core =
+   the game's own pak); the servers' weapon mods, the MF-mods vehicles / Desert Eagle / grenade
+   launcher art and the community maps' own sound packages moved to community; the 51 custom maps
+   by authors not asked yet and their packages to unverified (a public download now). Done in
+   place by `mfport.py import --steps repack` (no re-bake).
+9. **Replacement art for borrowed classic assets** (user idea, 2026-10-29): community maps still
    use ~300 classic packages (textures in `aq`, `Mio`, `rage_*`, `car_park`, `Dam` ...; sounds in
    `levelSFX`, `TropicsSFX`, `Aquarius` ...), so without the classic pack they show missing
    textures and play no ambient sounds (mf-Tropics on the 9a). `mfport.py packs` lists them;

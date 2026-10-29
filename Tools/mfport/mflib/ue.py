@@ -54,14 +54,17 @@ def run_importer(cfg: Config, steps: str = 'art,textures,props,sounds,music,maps
 
 def map_package(cfg: Config, name: str) -> tuple[str, Path]:
     """Long package name and .umap file of a map: our own (MF_*) in /Game/MF/Maps, cleared
-    community maps in /Game/Maps, everything else in the MobileForcesClassic plugin."""
+    community maps in /Game/Maps, retail ones in the MobileForcesClassic plugin, other custom
+    maps in MobileForcesUnverified (packs.toml)."""
     root = cfg.uproject.parent
     if name.startswith('MF_'):
         return f'/Game/MF/Maps/{name}', root / 'Content' / 'MF' / 'Maps' / f'{name}.umap'
     from . import packs
-    if packs.map_pack(packs.load(), name) == 'core':
+    pack = packs.map_pack(packs.load(), name)
+    if pack == 'community':
         return f'/Game/Maps/{name}', root / 'Content' / 'Maps' / f'{name}.umap'
-    return f'/MobileForcesClassic/Maps/{name}', root / 'Plugins' / 'MobileForcesClassic' / 'Content' / 'Maps' / f'{name}.umap'
+    plugin = 'MobileForcesUnverified' if pack == 'unverified' else 'MobileForcesClassic'
+    return f'/{plugin}/Maps/{name}', root / 'Plugins' / plugin / 'Content' / 'Maps' / f'{name}.umap'
 
 
 def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> int:

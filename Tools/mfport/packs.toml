@@ -1,19 +1,24 @@
-# Content packs: which converted content belongs to Desktop Forces itself ("core"), which stays
-# in the Mobile Forces Classic plugin ("classic", /MobileForcesClassic/...: needs the player's
-# own copy of the original game, never distributed with Desktop Forces) and which is community
-# content nobody has vouched for yet ("unverified", the Mobile Forces Unverified plugin,
-# /MobileForcesUnverified/...: generated locally like classic, never committed or shipped
-# until its authors and its assets' sources are known; then it moves to [core.packages]).
+# Content packs: which converted content is community content whose authors agreed ("community":
+# offered with Desktop Forces, the community pack), which stays
+# in the Mobile Forces Classic plugin ("classic", /MobileForcesClassic/...: the retail game,
+# converted from the player's own copy, never distributed) and which is community content whose
+# authors haven't agreed yet ("unverified", the Mobile Forces Unverified plugin,
+# /MobileForcesUnverified/...: the custom maps and mods of the community servers; offered as an
+# in-game download, not committed; once its authors agree it moves to [community]).
+# (The game's own content, /Game/MF, is "core": the pak every build carries; not listed here.)
 #
 # Rules (mflib/packs.py):
 #   - everything from the retail game is classic, whatever this file says
-#   - a converted map is classic unless it is listed under [core.maps]
-#   - a texture / sound / music package is classic unless it is listed under [core.packages]
-#     or it is a core map's own package (textures saved inside the map file)
-#   - replacement art (overrides/textures/...) is core: /Game/MF/Replacements; core maps use it,
+#   - a map / package listed under [community.maps] / [community.packages] is community, as is a
+#     community map's own
+#     package (textures saved inside the map file)
+#   - a package listed under [classic] stays classic (local only) though it isn't retail
+#   - everything else is unverified (2026-10-29, Filip: custom maps by authors not asked yet,
+#     before that they were classic)
+#   - replacement art (overrides/textures/...) is community: /Game/MF/Replacements; community maps use it,
 #     classic maps keep the original texture unless remaster_classic = true
 #
-# A core map can still use classic textures; `mfport.py packs` lists what each core map still
+# A community map can still use classic textures; `mfport.py packs` lists what each one still
 # needs from the original game (the backlog for replacement art).
 #
 # Authors who agreed so far (Filip, 2026-10-20 / 21): AKVARI (Akvarinja: MF-Filip, MF-Stuck,
@@ -23,12 +28,12 @@
 # copy of ZM-SpaceZombura: left out.
 # Ask before adding anyone else.
 
-core_root = "/Game/MF/Community"      # core textures, sounds, music of community content
-core_maps_root = "/Game/Maps"         # core maps: /Game/Maps/<map>, data in <map>_Data
+community_root = "/Game/MF/Community" # textures, sounds, music of community content
+community_maps_root = "/Game/Maps"    # community maps: /Game/Maps/<map>, data in <map>_Data
 classic_root = "/MobileForcesClassic" # the plugin (Plugins/MobileForcesClassic)
 remaster_classic = false              # true: classic maps use replacement art too
 
-[core.maps]
+[community.maps]
 "COOP-CoopOneUpdate" = "AKVARI (Akvarinja)"
 "MF-Filip" = "AKVARI (Akvarinja)"
 "ZM-SpaceZombura" = "AKVARI (Akvarinja)"
@@ -52,7 +57,7 @@ remaster_classic = false              # true: classic maps use replacement art t
 "mf-Tropics" = "Marcinbydg"
 "mf-Worlds_Peak" = "Marcin"
 
-[core.packages]
+[community.packages]
 "parachute" = "Gregaras (model, textures, sound: CC0, sources listed in parachute.uc)"
 # texture packages made for those maps (names differ from every retail texture; the art
 # itself has not been checked texture by texture)
@@ -73,8 +78,41 @@ remaster_classic = false              # true: classic maps use replacement art t
 "holidaztown" = "Marcin (dm-HolidayTown)"
 "WarriorDwarfe" = "Marcin (mf-BraveDwarfes)"
 "CoopOne" = "AKVARI (COOP-CoopOneUpdate)"
+"aq" = "Gian (MF-Aquarius)"
+# the community maps' own sound packages (named after their maps; were classic until 2026-10-29)
+"Aquarius" = "Gian (MF-Aquarius)"
+"PobVerII" = "Marcin (mf-Pobojowisko_VerII)"
+"TaigaSFX" = "Marcin (mf-Tajga)"
+"Treasure_Finders" = "Marcin (mf-Treasure_Finders)"
+"TropicsSFX" = "Marcinbydg (mf-Tropics)"
+"WarriorDwarfes" = "Marcin (mf-BraveDwarfes)"
 # MF-mods code packages with their own art
 "battleRoyale" = "Gregaras (Battle Royale: crate, tower, platform, safe zone models and metal textures CC0; ammoBox CC0 pxhere.com/en/photo/673938)"
+# MF-mods art (vehicles: Marcin, Gregaras - models CC0; Desert Eagle; Gian's grenade launcher)
+"deagle" = "the servers' Desert Eagle (textures, first-person arms)"
+"deagleSFX" = "the servers' Desert Eagle (sounds)"
+"grenLaunch" = "Gian (grenade launcher model, textures)"
+"gren" = "Gian (grenade launcher sounds)"
+"boat" = "Gregaras (boat)"
+"jeep" = "Marcin, Gregaras (jeep)"
+"heli" = "Marcin, Gregaras (helicopter)"
+"piper" = "Gregaras (piper plane)"
+# the community servers' weapon mods: Gian, Gregaras or Marcin (Filip, 2026-10-29; who made
+# which and any Sketchfab model credits still to be listed in CREDITS.md)
+"ak74" = "Gian / Gregaras / Marcin"
+"m4a1" = "Gian / Gregaras / Marcin"
+"F2000" = "Gian / Gregaras / Marcin"
+"SC20K" = "Gian / Gregaras / Marcin"
+"mac10" = "Gian / Gregaras / Marcin"
+"m24" = "Gian / Gregaras / Marcin"
+"m18" = "Gian / Gregaras / Marcin"
+"m87" = "Gian / Gregaras / Marcin"
+"famas" = "Gian / Gregaras / Marcin"
+"g36" = "Gian / Gregaras / Marcin"
+"glock" = "Gian / Gregaras / Marcin"
+"ultimax" = "Gian / Gregaras / Marcin"
+"wa2000" = "Gian / Gregaras / Marcin"
+"m871" = "Gian / Gregaras / Marcin"
 # the community servers' mods, cleared by Filip 2026-10-22
 "desert" = "the servers' Desert Eagle (desert.u: model, arms, icon, sounds)"
 "improvedRL" = "Gian (improved rocket launcher: lighter, faster rockets)"
@@ -82,13 +120,17 @@ remaster_classic = false              # true: classic maps use replacement art t
 "OPWeapons" = "Gregaras (overpowered weapons)"
 "BoxPhysics" = "Gregaras (breakable wooden boxes)"
 
-[unverified]
-# Mod packages the community servers run whose authors / asset sources are still being
-# checked (2026-10-21: the team is looking them up; models often come from free Sketchfab
-# assets, which need their CC licence and author credited). Their code may be ported into the
-# game; their models, textures and sounds land here.
-root = "/MobileForcesUnverified"
+[classic]
+# Not retail, but kept local like classic content (never offered for download): custom maps'
+# music, which is often taken from other games (move a track to [community.packages] once its
+# source is known to allow it).
 packages = [
-  "ak74", "m4a1", "F2000", "SC20K", "mac10", "m24", "m18", "m87", "famas", "g36", "glock",
-  "ultimax", "wa2000", "Serious", "SwatSkin", "SwatGfx", "m871",
+  "2000", "AfterTheRain", "DSPTestTrack", "Doom", "GearheadVault", "LastCave", "Nyque", "Payday2",
+  "Survivor", "Target", "TestDrive", "TheDarkEmpire", "xAttack", "xRocker", "xRocker-M",
 ]
+
+[unverified]
+# Everything that is neither retail, community nor [classic] lands here; this list only documents
+# what is known to wait for its authors (player skins of the community servers).
+root = "/MobileForcesUnverified"
+packages = ["Serious", "SwatSkin", "SwatGfx"]

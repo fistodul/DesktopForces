@@ -29,6 +29,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "MeshDescription.h"
 #include "Engine/PrimaryAssetLabel.h"
+#include "FileHelpers.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/SecureHash.h"
 #include "Misc/FileHelper.h"
@@ -54,34 +55,44 @@ void FDFPacks::Load(const FString& File) {
 		return;
 	}
 	J->TryGetStringField(TEXT("classic_root"), ClassicRoot);
-	J->TryGetStringField(TEXT("core_root"), CoreRoot);
-	J->TryGetStringField(TEXT("core_maps_root"), CoreMapsRoot);
+	J->TryGetStringField(TEXT("community_root"), CommunityRoot);
+	J->TryGetStringField(TEXT("community_maps_root"), CommunityMapsRoot);
 	J->TryGetStringField(TEXT("replaced_root"), ReplacedRoot);
 	J->TryGetBoolField(TEXT("remaster_classic"), bRemasterClassic);
 	J->TryGetStringField(TEXT("unverified_root"), UnverifiedRoot);
-	CoreMaps.Reset();
-	CorePackages.Reset();
+	CommunityMaps.Reset();
+	CommunityPackages.Reset();
 	UnverifiedPackages.Reset();
 	if (const TArray<TSharedPtr<FJsonValue>>* Unverified; J->TryGetArrayField(TEXT("unverified_packages"), Unverified))
 		for (const TSharedPtr<FJsonValue>& V : *Unverified)
 			UnverifiedPackages.Add(V->AsString().ToLower());
+	ClassicPackages.Reset();
+	if (const TArray<TSharedPtr<FJsonValue>>* Classic; J->TryGetArrayField(TEXT("classic_packages"), Classic))
+		for (const TSharedPtr<FJsonValue>& V : *Classic)
+			ClassicPackages.Add(V->AsString().ToLower());
+	UnverifiedMaps.Reset();
 	Replaced.Reset();
 	if (const TSharedPtr<FJsonObject>* Maps; J->TryGetObjectField(TEXT("maps"), Maps)) {
 		for (const auto& Pair : (*Maps)->Values)
-			if (Pair.Value->AsString() == TEXT("core"))
-				CoreMaps.Add(FString(Pair.Key).ToLower());
+			if (Pair.Value->AsString() == TEXT("community"))
+				CommunityMaps.Add(FString(Pair.Key).ToLower());
+			else if (Pair.Value->AsString() == TEXT("unverified"))
+				UnverifiedMaps.Add(FString(Pair.Key).ToLower());
 	}
-	for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("core_packages")))
-		CorePackages.Add(V->AsString().ToLower());
+	for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("community_packages")))
+		CommunityPackages.Add(V->AsString().ToLower());
 	for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("replaced")))
 		Replaced.Add(V->AsString().ToLower());
-	UE_LOG(LogDFEditor, Display, TEXT("Packs: %d core maps, %d core packages, %d replaced textures"), CoreMaps.Num(), CorePackages.Num(), Replaced.Num());
+	UE_LOG(LogDFEditor, Display, TEXT("Packs: %d community maps, %d community packages, %d replaced textures"), CommunityMaps.Num(), CommunityPackages.Num(), Replaced.Num());
 }
 
 FString FDFPacks::PackageRoot(const FString& Package) const {
 	const FString P = Package.ToLower();
-	return CorePackages.Contains(P) ? CoreRoot : UnverifiedPackages.Contains(P) ? UnverifiedRoot
-																				: ClassicRoot;
+	if (CommunityPackages.Contains(P))
+		return CommunityRoot;
+	if (ClassicPackages.IsEmpty()) // a packs.json from before 2026-10-29: unverified only if listed
+		return UnverifiedPackages.Contains(P) ? UnverifiedRoot : ClassicRoot;
+	return ClassicPackages.Contains(P) ? ClassicRoot : UnverifiedRoot;
 }
 
 FString FDFPacks::TextureRoot(const FString& Key) const {
@@ -90,7 +101,10 @@ FString FDFPacks::TextureRoot(const FString& Key) const {
 }
 
 FString FDFPacks::MapPackage(const FString& Map) const {
-	return (CoreMaps.Contains(Map.ToLower()) ? CoreMapsRoot : ClassicRoot / TEXT("Maps")) / Map;
+	const FString M = Map.ToLower();
+	return (CommunityMaps.Contains(M) ? CommunityMapsRoot : UnverifiedMaps.Contains(M) ? UnverifiedRoot / TEXT("Maps")
+																					   : ClassicRoot / TEXT("Maps")) /
+		Map;
 }
 
 FDFImporter::FDFImporter(const FString& InWorkDir)
@@ -131,23 +145,23 @@ UTexture2D* FDFImporter::FindTexture(const FString& Key) const {
 	return Tex || !Packs.HasReplacement(Key) ? Tex : LoadObject<UTexture2D>(nullptr, *ReplacementAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet);
 }
 
-UTexture2D* FDFImporter::FindTextureFor(const FString& Key, bool bCoreMap) const {
-	if ((bCoreMap || Packs.bRemasterClassic) && Packs.HasReplacement(Key)) {
+UTexture2D* FDFImporter::FindTextureFor(const FString& Key, bool bCommunityMap) const {
+	if ((bCommunityMap || Packs.bRemasterClassic) && Packs.HasReplacement(Key)) {
 		if (UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *ReplacementAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet))
 			return Tex;
 	}
 	return FindTexture(Key);
 }
 
-void FDFImporter::RepointCoreMaterials() {
+void FDFImporter::RepointCommunityMaterials() {
 	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	AR.ScanPathsSynchronous({ Packs.CoreRoot / TEXT("Materials") }, true);
+	AR.ScanPathsSynchronous({ Packs.CommunityRoot / TEXT("Materials") }, true);
 	int32 Count = 0;
 	for (const FString& Key : Packs.Replaced) {
 		FString Dir, Name;
 		SplitKey(Key, Dir, Name);
 		TArray<FAssetData> Assets;
-		AR.GetAssetsByPath(FName(*(Packs.CoreRoot / TEXT("Materials") / Dir)), Assets, false);
+		AR.GetAssetsByPath(FName(*(Packs.CommunityRoot / TEXT("Materials") / Dir)), Assets, false);
 		UTexture2D* Tex = FindTextureFor(Key, true);
 		for (const FAssetData& A : Assets) {
 			if (!Tex || !A.AssetName.ToString().StartsWith(TEXT("MI_") + Name + TEXT("_"), ESearchCase::IgnoreCase))
@@ -162,7 +176,7 @@ void FDFImporter::RepointCoreMaterials() {
 			}
 		}
 	}
-	UE_LOG(LogDFEditor, Display, TEXT("Replacement art: %d core material instances point at it"), Count);
+	UE_LOG(LogDFEditor, Display, TEXT("Replacement art: %d community material instances point at it"), Count);
 }
 
 USoundWave* FDFImporter::FindSound(const FString& DFPath) const {
@@ -283,7 +297,7 @@ bool FDFImporter::ImportTextures() {
 		Ok += SaveAsset(Tex) ? 1 : 0;
 	}
 	UE_LOG(LogDFEditor, Display, TEXT("Textures: %d saved, %d unchanged, %d failed"), Ok, Keys.Num() - Ok - Failed, Failed);
-	RepointCoreMaterials();
+	RepointCommunityMaterials();
 	ImportFonts();
 	return Failed < Keys.Num(); // something there: unchanged textures count
 }
@@ -639,8 +653,8 @@ void FDFImporter::EnsurePackLabels() {
 	const FPack Packs_[] = {
 		// names must differ: a label is a primary asset, its id is "PrimaryAssetLabel:<name>" and a
 		// second label of the same name is ignored (its folder then lands in chunk 0)
-		{ Packs.CoreMapsRoot, TEXT("PAL_Community"), 1 },
-		{ Packs.CoreRoot, TEXT("PAL_CommunityArt"), 1 },
+		{ Packs.CommunityMapsRoot, TEXT("PAL_Community"), 1 },
+		{ Packs.CommunityRoot, TEXT("PAL_CommunityArt"), 1 },
 		{ Packs.ReplacedRoot, TEXT("PAL_Replacements"), 1 }, // replacement art: the community maps use it
 		{ Packs.UnverifiedRoot, TEXT("PAL_Unverified"), 2 },
 		{ Packs.ClassicRoot, TEXT("PAL_Classic"), 3 },
@@ -663,6 +677,145 @@ void FDFImporter::EnsurePackLabels() {
 		SaveAsset(Label);
 		UE_LOG(LogDFEditor, Display, TEXT("Pack label %s/%s: chunk %d"), *P.Root, P.Name, P.Chunk);
 	}
+}
+
+bool FDFImporter::Repack(bool bPlanOnly) {
+	// which pack each imported asset belongs to: maps (<maps folder>/<map>, <map>_Data/...) by
+	// name, <root>/<Kind>/<package>/... by package, the skinned meshes (Weapons/<mesh>,
+	// Soldiers/<mesh>) by the package skeletal.json names; anything else stays where it is
+	if (Packs.ClassicPackages.IsEmpty()) {
+		UE_LOG(LogDFEditor, Error, TEXT("Repack: packs.json has no classic_packages (run mfport.py packs first)"));
+		return false;
+	}
+	TMap<FString, FString> MeshPackages;
+	if (TSharedPtr<FJsonObject> J = LoadJson(WorkDir / TEXT("Skeletal/skeletal.json")))
+		for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("meshes")))
+			MeshPackages.Add(V->AsObject()->GetStringField(TEXT("name")), V->AsObject()->GetStringField(TEXT("package")));
+	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	const TArray<FString> PackRoots = { Packs.ClassicRoot, Packs.UnverifiedRoot, Packs.CommunityRoot };
+	const TArray<FString> MapFolders = { Packs.CommunityMapsRoot, Packs.ClassicRoot / TEXT("Maps"), Packs.UnverifiedRoot / TEXT("Maps") };
+	AR.ScanPathsSynchronous(PackRoots, true);
+	AR.ScanPathsSynchronous({ Packs.CommunityMapsRoot }, true);
+	TSet<FString> Maps;
+	for (const FString& Folder : MapFolders) {
+		TArray<FAssetData> Worlds;
+		AR.GetAssetsByPath(FName(*Folder), Worlds, false);
+		for (const FAssetData& W : Worlds)
+			if (W.AssetClassPath == UWorld::StaticClass()->GetClassPathName())
+				Maps.Add(W.AssetName.ToString());
+	}
+	TArray<FAssetRenameData> Renames;
+	TMap<FString, int32> Moves; // "from -> to": count, for the log
+	auto Move = [&](const FAssetData& A, const FString& From, const FString& To, const FString& RelDir) {
+		if (!bPlanOnly)
+			Renames.Emplace(A.GetAsset(), RelDir.IsEmpty() ? To : To / RelDir, A.AssetName.ToString());
+		// the log: per pack and folder (Textures/<package>, <map>)
+		TArray<FString> Parts;
+		RelDir.ParseIntoArray(Parts, TEXT("/"));
+		const FString What = Parts.Num() >= 2 && From != Packs.CommunityMapsRoot && !From.EndsWith(TEXT("/Maps")) ? Parts[0] / Parts[1] : Parts.Num() ? Parts[0]
+																																					  : A.AssetName.ToString();
+		Moves.FindOrAdd(From + TEXT(" -> ") + To + TEXT(": ") + What)++;
+	};
+	TArray<FString> Roots = PackRoots;
+	Roots.Add(Packs.CommunityMapsRoot);
+	for (const FString& Root : Roots) {
+		TArray<FAssetData> Assets;
+		AR.GetAssetsByPath(FName(*Root), Assets, true);
+		for (const FAssetData& A : Assets) {
+			if (A.IsRedirector())
+				continue; // fixed up below
+			const FString Dir = A.PackagePath.ToString();
+			// a map's: <maps folder>/<map>, <maps folder>/<map>_Data/... (its _BuiltData moves with the map)
+			const FString* MapFolder = MapFolders.FindByPredicate([&Dir](const FString& F) { return Dir == F || Dir.StartsWith(F + TEXT("/")); });
+			if (MapFolder) {
+				const FString RelDir = Dir.Mid(MapFolder->Len()).TrimChar(TEXT('/'));
+				FString Map = RelDir.IsEmpty() ? A.AssetName.ToString() : RelDir.Left(RelDir.Find(TEXT("/")) == INDEX_NONE ? RelDir.Len() : RelDir.Find(TEXT("/")));
+				if (Map.EndsWith(TEXT("_BuiltData")))
+					continue;
+				Map.RemoveFromEnd(TEXT("_Data"));
+				if (!Maps.Contains(Map))
+					continue; // labels and the like
+				const FString Target = Packs.MapRoot(Map);
+				if (Target != *MapFolder)
+					Move(A, *MapFolder, Target, RelDir);
+				continue;
+			}
+			if (Root == Packs.CommunityMapsRoot)
+				continue;
+			const FString RelDir = Dir.Mid(Root.Len()).TrimChar(TEXT('/'));
+			TArray<FString> Parts;
+			RelDir.ParseIntoArray(Parts, TEXT("/"));
+			FString Package;
+			// community maps' material instances are theirs, whatever texture they show: they stay
+			if (Root == Packs.CommunityRoot && (Parts.Num() && (Parts[0] == TEXT("Materials") || Parts[0] == TEXT("Effects"))))
+				continue;
+			if (Parts.Num() >= 2 && (Parts[0] == TEXT("Textures") || Parts[0] == TEXT("Materials") || Parts[0] == TEXT("Sounds") || Parts[0] == TEXT("Music") || Parts[0] == TEXT("Props")))
+				Package = Parts[1];
+			else if (Parts.Num() >= 3 && Parts[0] == TEXT("Effects") && (Parts[1] == TEXT("Textures") || Parts[1] == TEXT("Materials")))
+				Package = Parts[2];
+			else if (Parts.Num() >= 2 && (Parts[0] == TEXT("Weapons") || Parts[0] == TEXT("Soldiers")))
+				if (const FString* P = MeshPackages.Find(Parts[1]))
+					Package = *P;
+			if (Package.IsEmpty())
+				continue;
+			const FString Target = Packs.PackageRoot(Package);
+			if (Target != Root)
+				Move(A, Root, Target, RelDir);
+		}
+	}
+	for (const TPair<FString, int32>& M : Moves)
+		UE_LOG(LogDFEditor, Display, TEXT("Repack: %s: %d assets"), *M.Key, M.Value);
+	IAssetTools& Tools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	auto SaveDirty = [this]() {
+		TArray<UPackage*> Dirty;
+		FEditorFileUtils::GetDirtyContentPackages(Dirty);
+		FEditorFileUtils::GetDirtyWorldPackages(Dirty);
+		for (UPackage* Pkg : Dirty)
+			if (UObject* Asset = Pkg->FindAssetInPackage())
+				SaveAsset(Asset);
+		return Dirty.Num();
+	};
+	bool bOk = true;
+	int32 Saved = 0;
+	if (!bPlanOnly && !Renames.IsEmpty()) {
+		bOk = Tools.RenameAssets(Renames); // loads and fixes the referencers
+		Saved += SaveDirty();
+	}
+	// a referencer the rename didn't re-save leaves a redirector where the asset was: load the
+	// referencers (that follows the redirector), save them (now pointing at the new place), delete
+	// the redirector (AssetTools' FixupReferencers wants Slate: not in a commandlet)
+	TArray<FAssetData> Redirectors;
+	TArray<FString> RedirectorRoots = PackRoots;
+	RedirectorRoots.Add(Packs.CommunityMapsRoot);
+	AR.ScanPathsSynchronous(RedirectorRoots, true);
+	for (const FString& Root : RedirectorRoots) {
+		TArray<FAssetData> Assets;
+		AR.GetAssetsByPath(FName(*Root), Assets, true);
+		for (const FAssetData& A : Assets)
+			if (A.IsRedirector())
+				Redirectors.Add(A);
+	}
+	for (const FAssetData& R : Redirectors) {
+		TArray<FName> Referencers;
+		AR.GetReferencers(R.PackageName, Referencers);
+		UE_LOG(LogDFEditor, Display, TEXT("Repack: redirector %s, %d referencers"), *R.PackageName.ToString(), Referencers.Num());
+		if (bPlanOnly)
+			continue;
+		for (const FName& Ref : Referencers)
+			if (UPackage* Pkg = LoadPackage(nullptr, *Ref.ToString(), LOAD_None))
+				if (UObject* Asset = Pkg->FindAssetInPackage())
+					Saved += SaveAsset(Asset) ? 1 : 0;
+	}
+	if (!bPlanOnly && !Redirectors.IsEmpty()) {
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+		for (const FAssetData& R : Redirectors) {
+			FString File;
+			if (FPackageName::TryConvertLongPackageNameToFilename(R.PackageName.ToString(), File, FPackageName::GetAssetPackageExtension()))
+				IFileManager::Get().Delete(*File, false, true, true);
+		}
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("Repack: %d assets moved%s, %d redirectors removed, %d packages saved"), Renames.Num(), bOk ? TEXT("") : TEXT(" (with errors)"), bPlanOnly ? 0 : Redirectors.Num(), Saved);
+	return bOk;
 }
 
 void FDFImporter::EnsureMuzzleFlashMaterial() {
@@ -1039,9 +1192,9 @@ bool FDFImporter::AddAmbientFloor(UMaterial* M) {
 }
 
 UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
-	// core maps get their own instances (/Game/MF/Community/Materials): they point at the
+	// community maps get their own instances (/Game/MF/Community/Materials): they point at the
 	// original texture until replacement art exists, and re-pointing them needs no map rebuild
-	const FString CacheKey = (bBuildingCoreMap ? TEXT("core:") : TEXT("")) + InKey;
+	const FString CacheKey = (bBuildingCommunityMap ? TEXT("community:") : TEXT("")) + InKey;
 	if (UMaterialInterface** Found = MaterialCache.Find(CacheKey))
 		return *Found;
 	const FString& Key = InKey;
@@ -1084,7 +1237,7 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 		MaterialCache.Add(CacheKey, M);
 		return M;
 	}
-	UTexture2D* Tex = FindTextureFor(TexKey, bBuildingCoreMap);
+	UTexture2D* Tex = FindTextureFor(TexKey, bBuildingCommunityMap);
 	if (Tex) {
 		// the texture's own folder spelling: maps name packages in any case (UE1 didn't care:
 		// "Train.Ammocount" and "train.Ammocount"), and case twins of a folder hide each other's
@@ -1097,7 +1250,7 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 	const FString MIName = FString::Printf(TEXT("MI_%s_%s"), *Name, *Mode);
 	bool bCreated = false;
 	UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(
-		FString::Printf(TEXT("%s/Materials/%s"), bBuildingCoreMap ? *Packs.CoreRoot : *Packs.TextureRoot(TexKey), *Dir), MIName, bCreated);
+		FString::Printf(TEXT("%s/Materials/%s"), bBuildingCommunityMap ? *Packs.CommunityRoot : *Packs.TextureRoot(TexKey), *Dir), MIName, bCreated);
 	MIC->SetParentEditorOnly(GetMasterMaterial(Master));
 	if (Tex)
 		MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Tex);

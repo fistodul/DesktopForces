@@ -1,4 +1,4 @@
-"""Content packs: core (part of Desktop Forces), classic (Mobile Forces Classic plugin) or
+"""Content packs: community (agreed authors, offered with Desktop Forces), classic (Mobile Forces Classic plugin) or
 unverified (Mobile Forces Unverified plugin: community content not vouched for yet).
 
 Decisions live in Tools/mfport/packs.toml (see the rules there). This module applies them and
@@ -7,9 +7,10 @@ root:
 
   classic  /MobileForcesClassic/Textures|Materials|Sounds|Music|Fonts|Props/...,
            /MobileForcesClassic/Maps/<map> (+ <map>_Data)
-  core     /Game/MF/Community/Textures|Materials|Sounds|Music/..., /Game/Maps/<map> (+ <map>_Data)
+  community /Game/MF/Community/Textures|Materials|Sounds|Music/..., /Game/Maps/<map> (+ <map>_Data)
   replaced /Game/MF/Replacements/Textures|Materials/... (own art from overrides/textures)
-  unverified /MobileForcesUnverified/Textures|Sounds|Props/... ([unverified] packages)
+  unverified /MobileForcesUnverified/Textures|Materials|Sounds|Music|Props/...,
+           /MobileForcesUnverified/Maps/<map> (+ <map>_Data): whatever isn't retail or community
 """
 from __future__ import annotations
 
@@ -48,30 +49,34 @@ RETAIL_PACKAGES = {p.lower() for p in (
 
 def load() -> dict:
     data = tomllib.loads(PACKS_FILE.read_text())
-    core = data.get('core', {})
-    maps = {m.lower(): m for m in core.get('maps', {}) if m.lower() not in RETAIL_PACKAGES}
-    packages = {p.lower() for p in core.get('packages', {}) if p.lower() not in RETAIL_PACKAGES}
+    community = data.get('community', {})
+    maps = {m.lower(): m for m in community.get('maps', {}) if m.lower() not in RETAIL_PACKAGES}
+    packages = {p.lower() for p in community.get('packages', {}) if p.lower() not in RETAIL_PACKAGES}
     unverified = data.get('unverified', {})
+    keep = {p.lower() for p in data.get('classic', {}).get('packages', [])}
     return {
         'unverified_root': unverified.get('root', '/MobileForcesUnverified'),
         'unverified_packages': {p.lower() for p in unverified.get('packages', []) if p.lower() not in RETAIL_PACKAGES},
         'classic_root': data.get('classic_root', '/MobileForcesClassic'),
-        'core_root': data.get('core_root', '/Game/MF/Community'),
-        'core_maps_root': data.get('core_maps_root', '/Game/Maps'),
+        'community_root': data.get('community_root', '/Game/MF/Community'),
+        'community_maps_root': data.get('community_maps_root', '/Game/Maps'),
         'remaster_classic': bool(data.get('remaster_classic', False)),
-        'core_maps': maps,
-        'core_packages': packages | set(maps),   # a core map's own embedded textures
+        'community_maps': maps,
+        'community_packages': packages | set(maps),   # a community map's own embedded textures
+        'classic_packages': RETAIL_PACKAGES | (keep - packages),
     }
 
 
 def map_pack(packs: dict, name: str) -> str:
-    return 'core' if name.lower() in packs['core_maps'] else 'classic'
+    if name.lower() in packs['community_maps']:
+        return 'community'
+    return 'classic' if name.lower() in packs['classic_packages'] else 'unverified'
 
 
 def package_pack(packs: dict, package: str) -> str:
-    if package.lower() in packs['core_packages']:
-        return 'core'
-    return 'unverified' if package.lower() in packs['unverified_packages'] else 'classic'
+    if package.lower() in packs['community_packages']:
+        return 'community'
+    return 'classic' if package.lower() in packs['classic_packages'] else 'unverified'
 
 
 def write_manifest(cfg: Config) -> Path:
@@ -83,14 +88,16 @@ def write_manifest(cfg: Config) -> Path:
         replaced = sorted(k.lower() for k, v in json.loads(tex.read_text()).items() if v.get('override'))
     out = {
         'classic_root': packs['classic_root'],
-        'core_root': packs['core_root'],
-        'core_maps_root': packs['core_maps_root'],
+        'community_root': packs['community_root'],
+        'community_maps_root': packs['community_maps_root'],
         'replaced_root': '/Game/MF/Replacements',
         'remaster_classic': packs['remaster_classic'],
         'maps': {m: map_pack(packs, m) for m in maps},
-        'core_packages': sorted(packs['core_packages']),
+        'community_packages': sorted(packs['community_packages']),
         'unverified_root': packs['unverified_root'],
         'unverified_packages': sorted(packs['unverified_packages']),
+        # the importer's rule: community_packages -> community, these -> classic, anything else -> unverified
+        'classic_packages': sorted(packs['classic_packages']),
         'replaced': replaced,
     }
     path = cfg.out_dir / 'packs.json'
@@ -99,7 +106,7 @@ def write_manifest(cfg: Config) -> Path:
 
 
 def report(cfg: Config) -> None:
-    """Per converted map: its pack, and for core maps the classic textures it still uses."""
+    """Per converted map: its pack, and for community / unverified maps the classic textures they still use."""
     packs = load()
     replaced = set()
     tex = cfg.out_dir / 'textures.json'
@@ -120,5 +127,5 @@ def report(cfg: Config) -> None:
             if key.lower() not in replaced and package_pack(packs, pkg) == 'classic' and pkg.lower() != 'engine':
                 need[pkg].append(key)
         total = sum(len(v) for v in need.values())
-        print(f'{name:28s} core, {len(usage)} textures, {total} still from the original game'
+        print(f'{name:28s} {pack}, {len(usage)} textures, {total} still from the original game'
               + (': ' + ', '.join(f'{p} {len(v)}' for p, v in sorted(need.items())) if total else ''))

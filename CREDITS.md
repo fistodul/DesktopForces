@@ -19,7 +19,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | Improved rocket launcher (improvedRL: `?ImprovedRL=1`), minefields (mineGenerator) | Gian |
 | Overpowered weapons (OPWeapons: `?OPWeapons=1`), breakable boxes (BoxPhysics: model, wood texture) | Edgaras "Gregaras" Ziaugra |
 | Desert Eagle (the servers' desert.u: model, arms, icon, sounds) | the MF community servers' mods (cleared for the game 22 October 2026) |
-| The servers' other weapon mods (Unverified pack: not in this repository, not shipped) | being checked - so far: assault rifles (AK-74, M4A1, FAMAS, G36, SC-20K) and the grenade launcher mostly Gian, the Deagle, the long shotgun (M1887) and maybe the assault HMG (Ultimax) Gregaras; models self-made or free Sketchfab assets whose authors still need crediting |
+| The servers' other weapon mods (community pack since 29 October 2026; which author made which still to be listed) | Gian, Edgaras "Gregaras" Ziaugra or Marcin - so far: assault rifles (AK-74, M4A1, FAMAS, G36, SC-20K) and the grenade launcher mostly Gian, the Deagle, the long shotgun (M1887) and maybe the assault HMG (Ultimax) Gregaras; models self-made or free Sketchfab assets whose authors still need crediting |
 
 ## Art and music in this repository
 

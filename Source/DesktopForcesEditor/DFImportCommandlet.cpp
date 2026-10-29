@@ -38,6 +38,8 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		Importer.ImportProps();
 	if (Steps.Contains(TEXT("art")))
 		Importer.ImportArt();
+	if (Steps.Contains(TEXT("repack")) && !Importer.Repack(Steps.Contains(TEXT("repackplan"))))
+		return 1; // "repackplan": only log what would move
 	if (Steps.Contains(TEXT("packs")))
 		Importer.EnsurePackLabels();
 	if (Steps.Contains(TEXT("effects")))

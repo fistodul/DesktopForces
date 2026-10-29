@@ -78,12 +78,14 @@ def command(cfg: Config, args: list[str], system: str) -> list[str]:
     bots = positional[2] if len(positional) > 2 else '0'
     if name.startswith('/'):
         map_path = name
-    elif name.startswith('MF_'):
-        map_path = '/Game/MF/Maps/' + name
-    elif (cfg.uproject.parent / 'Content/Maps' / (name + '.umap')).is_file():
-        map_path = '/Game/Maps/' + name
     else:
-        map_path = '/MobileForcesClassic/Maps/' + name
+        # wherever the map file is: the game's folders, then any content plugin (a pack)
+        root = cfg.uproject.parent
+        folders = [(root / 'Content/MF/Maps', '/Game/MF/Maps'), (root / 'Content/Maps', '/Game/Maps')]
+        folders += [(d, f'/{d.parent.parent.name}/Maps') for d in sorted(root.glob('Plugins/*/Content/Maps'))]
+        found = [mount for folder, mount in folders if (folder / (name + '.umap')).is_file()]
+        fallback = '/Game/MF/Maps' if name.startswith('MF_') else '/MobileForcesClassic/Maps' # not converted here
+        map_path = (found[0] if found else fallback) + '/' + name
     url = f'{map_path}?game={mode}?Bots={bots}' + os.environ.get('DF_OPTS', '')
     return [str(editor), project, url, '-game', *extra]
 

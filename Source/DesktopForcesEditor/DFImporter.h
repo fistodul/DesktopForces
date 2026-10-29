@@ -24,20 +24,22 @@ class UWorld;
  *   <Root>/Sounds|Music/<package>/<name>                    SoundWave
  *   /MobileForcesClassic/Fonts, /MobileForcesClassic/Props  MF fonts, gameplay meshes
  *   <MapRoot>/<map>, <MapRoot>/<map>_Data/Geo|Meshes/<name> the level and its meshes
- *     (MapRoot: /Game/Maps for core maps, /MobileForcesClassic/Maps for the rest)
+ *     (MapRoot: /Game/Maps for community maps, /MobileForces{Classic,Unverified}/Maps for the rest)
  * Master materials (our own content, committed): /Game/MF/Materials/M_MF_<Mode>.
  */
 
 /** Where converted assets go: Tools/mfport/mflib/packs.py (work/out/packs.json). */
 struct FDFPacks {
 	FString ClassicRoot = TEXT("/MobileForcesClassic");
-	FString CoreRoot = TEXT("/Game/MF/Community");
-	FString CoreMapsRoot = TEXT("/Game/Maps");
+	FString CommunityRoot = TEXT("/Game/MF/Community");
+	FString CommunityMapsRoot = TEXT("/Game/Maps");
 	FString ReplacedRoot = TEXT("/Game/MF/Replacements");
 	FString UnverifiedRoot = TEXT("/MobileForcesUnverified");
-	TSet<FString> CoreMaps; // lower case
-	TSet<FString> CorePackages; // lower case
+	TSet<FString> CommunityMaps; // lower case
+	TSet<FString> CommunityPackages; // lower case
 	TSet<FString> UnverifiedPackages; // lower case: community mods not vouched for yet
+	TSet<FString> ClassicPackages; // lower case: retail and [classic]; anything not community or classic is unverified
+	TSet<FString> UnverifiedMaps; // lower case
 	TSet<FString> Replaced; // lower case texture keys with replacement art
 	bool bRemasterClassic = false; // classic maps use replacement art too
 
@@ -48,7 +50,9 @@ struct FDFPacks {
 	bool HasReplacement(const FString& Key) const { return Replaced.Contains(Key.ToLower()); }
 	FString MapPackage(const FString& Map) const;
 	FString MapDataRoot(const FString& Map) const { return MapPackage(Map) + TEXT("_Data"); }
-	bool IsCoreMap(const FString& Map) const { return CoreMaps.Contains(Map.ToLower()); }
+	/** The folder a map's package is in (its pack's Maps folder). */
+	FString MapRoot(const FString& Map) const { return FPackageName::GetLongPackagePath(MapPackage(Map)); }
+	bool IsCommunityMap(const FString& Map) const { return CommunityMaps.Contains(Map.ToLower()); }
 };
 class FDFImporter {
 public:
@@ -101,6 +105,9 @@ public:
 	 * classic = 3. Not recursive: an asset another pack uses stays in its own pack's pak.
 	 */
 	void EnsurePackLabels();
+	/** Move imported assets whose pack changed (packs.toml) to their pack's root, references fixed
+	 *  (bPlanOnly: log what would move). */
+	bool Repack(bool bPlanOnly);
 
 	/**
 	 * MF sprite particles (DFEffectsImport.cpp, work/out/Effects from mfport.py effects):
@@ -128,10 +135,10 @@ public:
 	USoundWave* FindSound(const FString& DFPath) const;
 	/** The original texture (its replacement if the original is missing). */
 	UTexture2D* FindTexture(const FString& Key) const;
-	/** What a map of that pack shows: core maps prefer replacement art. */
-	UTexture2D* FindTextureFor(const FString& Key, bool bCoreMap) const;
-	/** Point existing core material instances at replacement art (no map rebuild needed). */
-	void RepointCoreMaterials();
+	/** What a map of that pack shows: community maps prefer replacement art. */
+	UTexture2D* FindTextureFor(const FString& Key, bool bCommunityMap) const;
+	/** Point existing community material instances at replacement art (no map rebuild needed). */
+	void RepointCommunityMaterials();
 
 	static bool SaveAsset(UObject* Asset);
 	static FString TextureAssetPath(const FString& Key);
@@ -155,8 +162,8 @@ private:
 	UStaticMesh* LoadOrBuildMesh(const FString& MapDir, const FString& MeshRel, const FString& MapName);
 
 	FString WorkDir;
-	/** BuildMap of a core map: materials go to the core root (see GetMaterial). */
-	bool bBuildingCoreMap = false;
+	/** BuildMap of a community map: materials go to the community root (see GetMaterial). */
+	bool bBuildingCommunityMap = false;
 	TMap<FString, UMaterialInterface*> MaterialCache;
 	TMap<FString, UMaterialInterface*> MasterCache;
 	TMap<FString, UStaticMesh*> MeshCache;
