@@ -212,3 +212,9 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    textures and play no ambient sounds (mf-Tropics on the 9a). `mfport.py packs` lists them;
    `Tools/artgen/lookalike.py` overrides can replace the textures in the community pack (or
    another generator); sounds need free/CC0 or team-made replacements.
+10. **Flat crate in mf-warehouse** (Filip's phone screenshot `Screenshot_20261028-224646.webp`,
+    not in the repo: it shows classic textures): outdoors under the sunset sky,
+    a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP
+    geometry (`rage_warehouse.wood.ware_wood_*`), so likely a brush that lost faces in conversion
+    (or a one-sided face). Not in the red loadout room (11100, 8600) or the red trailer yard
+    (9600, 3600). Find it with `DFCam` (hide the HUD), then `DFTraceMat` on it.
