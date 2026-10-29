@@ -100,7 +100,7 @@ number the item in it. Map URL options: `?game=/Script/DesktopForces.TeamDeathMa
 
 ## Licence
 
-Code, tools and docs: Mozilla Public License 2.0 - see [LICENSE.md](LICENSE.md). Art and music
+Code, tools and docs: Mozilla Public License 2.0 - see [LICENSE.md](LICENSE.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) (sign off your commits). Art and music
 in `SourceArt/` belong to their authors ([CREDITS.md](CREDITS.md)).
 
 Mobile Forces is © Rage Software and its current rights holders. Desktop Forces is a fan-made
