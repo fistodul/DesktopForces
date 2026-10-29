@@ -19,7 +19,7 @@ namespace DF {
 	inline const TCHAR* ContentRoots[] = { TEXT("/Game/MF/Community"), ClassicRoot, UnverifiedRoot };
 
 	/** Every playable map's package, by name: the game's own, the cleared community maps (core), the
-	 *  classic and unverified packs' when installed (the folders Tools/package.sh cooks). */
+	 *  classic and unverified packs' when installed (the folders Tools/package.py cooks). */
 	DESKTOPFORCES_API TArray<FString> FindMaps();
 
 	/** Rel ("Sounds/AK74/AK74Fire") from the first content root that has it; a package path

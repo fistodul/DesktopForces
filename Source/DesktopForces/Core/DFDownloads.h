@@ -23,7 +23,7 @@ struct FDFPackStatus {
 };
 
 /**
- * Content packs downloaded in game: a build made with `Tools/package.sh --downloads` carries the
+ * Content packs downloaded in game: a build made with `Tools/package.py --downloads` carries the
  * core pack only and a content build id (Content/Downloads/ContentBuildId.txt); the other packs'
  * paks (pakchunk1, 2 ...) and BuildManifest-<Platform>.txt are on the server under
  * <server>/<Platform>/<build id>/ (the player's UDFUserSettings::DownloadServer, else UDFGameSettings').

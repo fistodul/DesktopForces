@@ -56,7 +56,7 @@ python3 Tools/play.py mf-warehouse tdm 8
 <UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/DesktopForces.uproject" -game
 ```
 
-On Windows: `Tools\package.ps1` builds and packages, and the pipeline runs with `py -3`
+On Windows: `py -3 Tools\package.py` builds and packages, and the pipeline runs with `py -3`
 instead of Wine - [Docs/Building.md](Docs/Building.md#windows), also for dual boot (one
 checkout shared by Linux and Windows).
 

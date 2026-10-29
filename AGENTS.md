@@ -43,14 +43,14 @@ checkout may be shared with Windows through a symlink, so verify resolved paths.
 Windows compile command (PowerShell):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File Tools/package.ps1 -Config Development -Package:$false
+py -3 Tools/package.py Win64 Development --compile-only
 ```
 
 Pipeline prerequisites are Python 3.11+, Pillow, numpy, ffmpeg, and a local Mobile
 Forces installation; Linux conversion also uses Wine. A focused conversion is
 `python3 Tools/mfport/mfport.py all mf-warehouse`. Prefer the specific conversion
 and import steps described in `Docs/Pipeline.md` when only part of the output changes.
-For packaging, use `Tools/package.sh Linux Development` or the Windows script;
+For packaging, use `python3 Tools/package.py Linux Development` (Windows: `py -3 Tools/package.py`);
 see `Docs/Building.md` for public builds and platform requirements.
 
 ## Implementation conventions

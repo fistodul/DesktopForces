@@ -39,7 +39,7 @@ UDFDownloads* UDFDownloads::Get(const UObject* WorldContext) {
 
 void UDFDownloads::Initialize(FSubsystemCollectionBase& Collection) {
 	Super::Initialize(Collection);
-	// written by Tools/package.sh --downloads: the paks on the server must come from the same cook
+	// written by Tools/package.py --downloads: the paks on the server must come from the same cook
 	FString Id;
 	if (FFileHelper::LoadFileToString(Id, *(FPaths::ProjectContentDir() / TEXT("Downloads/ContentBuildId.txt"))))
 		Id.TrimStartAndEndInline();

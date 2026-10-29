@@ -1,4 +1,4 @@
-"""Tools/downloads.py: which packs go to the server, the manifest ChunkDownloader reads."""
+"""Tools/package.py --downloads: which packs go to the server, the manifest ChunkDownloader reads."""
 import hashlib
 from pathlib import Path
 import sys
@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import downloads
+import package
 
 
 class DownloadsTests(unittest.TestCase):
@@ -27,7 +27,7 @@ class DownloadsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             paks, lists = self.make(root, '..\\DesktopForces\\Content\\Maps\\mf-Tropics\n')
-            upload = downloads.split(paks, lists, root / 'Out', 'b1', 'Android')
+            upload = package.split_downloads(paks, lists, root / 'Out', 'b1', 'Android')
             self.assertEqual(upload, root / 'Out/Downloads/Android/b1')
             self.assertEqual(sorted(p.name for p in paks.iterdir()), [f'pakchunk0-Android_ASTC{e}' for e in ('.pak', '.ucas', '.utoc')])
             self.assertEqual(sorted(p.name for p in (root / 'Out/Sideload').iterdir()), [f'pakchunk3-Android_ASTC{e}' for e in ('.pak', '.ucas', '.utoc')])
@@ -41,7 +41,7 @@ class DownloadsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             paks, lists = self.make(root, '..\\Plugins\\MobileForcesClassic\\Content\\Sounds\\levelSFX\\Seagulls1\n')
-            upload = downloads.split(paks, lists, root / 'Out', 'b1', 'Android')
+            upload = package.split_downloads(paks, lists, root / 'Out', 'b1', 'Android')
             self.assertFalse(any('pakchunk1' in p.name for p in upload.iterdir()))
             self.assertIn('pakchunk1-Android_ASTC_s1.ucas', [p.name for p in (root / 'Out/Sideload').iterdir()])
 
@@ -50,8 +50,8 @@ class DownloadsTests(unittest.TestCase):
             root = Path(folder)
             paks, lists = self.make(root, '')
             (lists / 'pakchunk3.txt').unlink(missing_ok=True)
-            with self.assertRaises(SystemExit):
-                downloads.split(paks, lists, root / 'Out', 'b1', 'Android')
+            with self.assertRaises(package.Fail):
+                package.split_downloads(paks, lists, root / 'Out', 'b1', 'Android')
             self.assertEqual(len(list(paks.iterdir())), 13)
 
 

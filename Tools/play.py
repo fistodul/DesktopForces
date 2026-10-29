@@ -38,7 +38,7 @@ def windows_build_prefix(root: Path) -> list[str]:
     """Installed-engine UBT, with Epic's bundled runtime and no cmd.exe interpolation."""
     ubt = root / 'Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll'
     if not ubt.is_file():
-        raise FileNotFoundError(f'{ubt} missing; use Tools/package.ps1 to build the engine tools.')
+        raise FileNotFoundError(f'{ubt} missing; repair the engine install (Epic Games Launcher: Verify).')
     if os.environ.get('UE_USE_SYSTEM_DOTNET') == '1':
         dotnet = shutil.which('dotnet')
     else:

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-29 — Downloadable packs, pack reshuffle, one packager
+
+- In-game downloads of content packs (menu > Downloads, ChunkDownloader): a `--downloads` build
+  carries the core pack only; community and unverified packs come from
+  `https://mf.nofisto.com/download/<Platform>/<build>/` (Options > Game can point elsewhere),
+  mount without a restart and at every start. Tested on a Pixel 9a and packaged Linux.
+- Classic is the retail game only: the 51 custom maps by authors not asked yet and their
+  packages are the unverified pack (a download now); the servers' weapon mods, MF-mods art and
+  the community maps' own sounds are community content. `packs.toml`'s "core" is "community";
+  "core" is the game's own pak. `mfport.py import --steps repack` moved the imported assets.
+- Chunking: maps no longer pull other packs' assets into their pak (classic textures were in the
+  community pak); unique pack label names; `--maps` builds no longer cook every map's data.
+- `Tools/package.py` replaces `package.sh` and `package.ps1`; `mfport.py packs` shows what the
+  last cook put in each pak.
+
 ## 2026-10-28 — Map imports and Linux Lightmass repair
 
 - Finish conversion, import, navigation, and lighting for DM-AbandonedMine-KF, DM-Asylum,

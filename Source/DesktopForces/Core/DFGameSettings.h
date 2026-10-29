@@ -59,7 +59,7 @@ struct FDFVehicleSwap {
 };
 
 /** A named bot: who it is and what it takes from the loadout (MF RageBotA-P, BonusBotA-P). */
-/** A content pack offered for download (Tools/package.sh --downloads): its chunk id, as the
+/** A content pack offered for download (Tools/package.py --downloads): its chunk id, as the
  *  importer labels the packs (1 community, 2 unverified; 3 classic is never offered). */
 USTRUCT()
 struct FDFDownloadPack {
@@ -150,7 +150,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Menu")
 	TSoftObjectPtr<class USoundBase> MenuMusic;
 
-	/** Where downloadable packs are (Tools/package.sh --downloads uploads): <server>/<content build id>/...
+	/** Where downloadable packs are (Tools/package.py --downloads uploads): <server>/<content build id>/...
 	 *  A player's own choice (UDFUserSettings::DownloadServer) wins. */
 	UPROPERTY(Config, EditAnywhere, Category = "Menu")
 	FString DownloadServer;

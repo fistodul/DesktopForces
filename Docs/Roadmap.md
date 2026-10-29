@@ -76,7 +76,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ⬜ Add Mobile Forces Source features onto it by hand (secrets, `func_breakable` doors and passages, props) — the automatic geometry merge was tried and dropped: seams, holes and misaligned pieces ([WarehouseMerge.md](WarehouseMerge.md); the alignment and prop converter stay useful for placing MFS pieces)
 
 ## Options and tooling follow-up
-- ✅ One Python build/play launcher; platform packagers named `package.sh` / `package.ps1`.
+- ✅ One Python build/play launcher (`play.py`) and one packager (`package.py`, 2026-10-29; was `package.sh` / `package.ps1`).
 - ✅ Commit-preserving public sync without checking out the asset branch; tested conflict stops.
 - ✅ Advanced FPS/VSync/render-scale controls, platform-aware display modes, crosshair size.
 - ✅ One `ScoreLimit` rule; parachute server option, jump-deployment guard and vehicle closure.
@@ -180,9 +180,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      right next to a vehicle; don't `DFLoadout` on maps that don't start in it); DFOrder 3 after
      the bots spawn; KillEnemy every few seconds.
    - Turret seats are not looked at yet.
-7. ✅ **Downloadable content packs** (2026-10-29): `Tools/package.sh <Platform> --downloads` /
-   `package.ps1 -Downloads` put only the core pack in the build (Android OBB 50 MB instead of
-   1.34 GB with three maps); community and unverified go to `Downloads/<Platform>/<content build
+7. ✅ **Downloadable content packs** (2026-10-29): `Tools/package.py <Platform> --downloads` puts
+   only the core pack in the build (Android OBB 50 MB instead of 1.34 GB with three maps); community and unverified go to `Downloads/<Platform>/<content build
    id>/` for `https://mf.nofisto.com/download/` (Options > Game can point elsewhere), classic to
    `Sideload/` ([Building](Building.md#downloadable-packs)). Menu > Downloads lists the
    packs (Download / Cancel / Delete, progress); a finished pack mounts at once and its maps join
@@ -199,7 +198,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    - Cooking is deterministic: unchanged packs keep their SHA1 between builds (players don't
      download them again; the server can hardlink them).
    - Still open: upload a build to `https://mf.nofisto.com/download/` and test over HTTPS;
-     `package.ps1 -Downloads` only dry-run on Linux so far; old build folders on the server need
+     the Windows packaging path only dry-run on Linux so far; old build folders on the server need
      keeping while those builds are around.
 8. ✅ **Packs reshuffled** (2026-10-29): classic is the retail game only (+ `[classic]`: custom
    maps' music, often taken from other games); `packs.toml`'s "core" is now "community" (core =

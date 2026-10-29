@@ -3,7 +3,7 @@
 Use Python 3.11+ and Unreal Engine 5.8. The asset pipeline also needs Pillow, numpy,
 ffmpeg, a Mobile Forces installation, and Wine on Linux. Windows C++ builds need
 Visual Studio's C++ workload, a compatible Windows SDK and .NET Framework SDK;
-`package.ps1` checks these before packaging.
+`package.py` checks these before packaging.
 
 ## Build and play
 
@@ -59,24 +59,21 @@ patches. There is no need to change the project association to a patch number.
 
 ## Package
 
-The scripts have the same basename and platform-appropriate extensions:
+`Tools/package.py` packages on Linux and Windows (`py -3` instead of `python3` on Windows);
+`--help` lists every option:
 
 ```bash
-bash Tools/package.sh Linux Development
-bash Tools/package.sh --public
+python3 Tools/package.py Linux Development
+python3 Tools/package.py --public
+python3 Tools/package.py Win64 Development --zip      # on Windows
+python3 Tools/package.py Win64 Development --compile-only
+python3 Tools/package.py --dry-run Win64
 ```
 
-```powershell
-powershell -ExecutionPolicy Bypass -File Tools/package.ps1 -Config Development -Zip
-powershell -ExecutionPolicy Bypass -File Tools/package.ps1 -Public
-powershell -ExecutionPolicy Bypass -File Tools/package.ps1 -Package:$false
-pwsh Tools/package.ps1 -DryRun
-```
-
-Both run Unreal's BuildCookRun and include the map list, compressed paks and iostore.
-The Windows script also checks the Windows toolchain, builds editor modules and
-can produce a ZIP. It uses the launcher's engine discovery unless `-UePath` is given.
-Outputs: `Saved/Packages/<platform>-<config>/` on Linux; `Build/Windows/` on Windows.
+It builds the editor modules (as `play.py build`), labels the packs, runs Unreal's BuildCookRun
+with the map list, compressed paks and iostore, and on Windows first checks the toolchain. The
+engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs: `Saved/Packages/<platform>-<config>/`;
+`Build/Windows/` for Win64.
 
 Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<Platform>`):
 
@@ -104,19 +101,15 @@ the cooker's lists `Saved/Cooked/<Platform>/DesktopForces/Metadata/ChunkManifest
 
 ### Downloadable packs
 
-`--downloads` (Windows: `-Downloads`) makes a build that carries the core pack (chunk 0) only and
+`--downloads` makes a build that carries the core pack (chunk 0) only and
 fetches the others in game (menu > Downloads; UE's ChunkDownloader plugin, `Core/DFDownloads`):
 
 ```bash
-bash Tools/package.sh Android --downloads
-bash Tools/package.sh Linux --downloads
+python3 Tools/package.py Android --downloads
+python3 Tools/package.py Linux --downloads
 ```
 
-```powershell
-powershell -ExecutionPolicy Bypass -File Tools/package.ps1 -Downloads
-```
-
-It cooks and stages as usual, then `Tools/downloads.py` moves `pakchunk1`/`2` (community,
+It cooks and stages as usual, then moves `pakchunk1`/`2` (community,
 unverified) out of the staged build into `<output>-downloads/Downloads/<Platform>/<content build
 id>/` with a `BuildManifest-<Platform>.txt` (file, size, SHA1, chunk) and `pakchunk3` (classic)
 into `<output>-downloads/Sideload/`, and the packager archives what's left. Copy the contents of
@@ -155,7 +148,7 @@ cd Saved/Packages/Android-Development-downloads/Downloads && python3 -m http.ser
 Menu commands for scripted tests: `DFMenuPage 5`, `DFPacks`, `DFPackDownload N`,
 `DFPackCancel N`, `DFPackDelete N` ([Commands](Commands.md)).
 
-`--public` / `-Public` disables the Classic and Unverified content plugins for that
+`--public` disables the Classic and Unverified content plugins for that
 build, restoring the project file afterward. Maps still borrowing their textures
 will need replacements (`mfport.py packs`). Builds containing original game content
 are for the team; do not publish that content with the public source.
@@ -175,7 +168,7 @@ latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "platforms;a
   "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 ```
 
-`Tools/package.sh Android` builds an arm64 APK with ASTC textures and every map (Shipping;
+`python3 Tools/package.py Android` builds an arm64 APK with ASTC textures and every map (Shipping;
 add `Development` for the console and logs). The game data goes in a separate
 `main.<version>.com.fistodul.desktopforces.obb` next to `DesktopForces-arm64.apk` in
 `Saved/Packages/Android-<Config>/` (`bPackageDataInsideApk=False`; past 4 GB the rest spills into
