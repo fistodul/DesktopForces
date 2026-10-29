@@ -33,6 +33,10 @@ public:
 	UPROPERTY(Config)
 	FString PlayerName;
 
+	/** Download server for content packs (Options > Game); empty: UDFGameSettings::DownloadServer. */
+	UPROPERTY(Config)
+	FString DownloadServer;
+
 	/** -1 selects the automatic model/team. Team preference applies when joining a match. */
 	UPROPERTY(Config)
 	int32 PreferredModel = -1;

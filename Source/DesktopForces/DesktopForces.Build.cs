@@ -28,6 +28,9 @@ public class DesktopForces : ModuleRules
 			"EngineSettings"
 		});
 
+		// in-game pack downloads (Core/DFDownloads)
+		PrivateDependencyModuleNames.Add("ChunkDownloader");
+
 		PublicIncludePaths.Add(ModuleDirectory);
 	}
 }

@@ -90,10 +90,68 @@ Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<P
 A pack is just its three files (`.pak`, `.ucas`, `.utoc`). Drop them into `Content/Paks` to add the
 pack, or remove them to drop it; the menu and votes list only the maps whose pak is there. The
 packagers write a `PrimaryAssetLabel` (`PAL_<Pack>`) into each pack root before cooking
-(`UnrealEditor-Cmd <uproject> -run=DFImport -steps=packs`). A label tags its own folder only,
-so an asset stays in its pack's pak even when another pack uses it: community maps that borrow
-classic textures show them only while the classic pak is installed. The packagers empty the
-output folder first, so paks from an earlier build aren't mounted with the new ones.
+(`UnrealEditor-Cmd <uproject> -run=DFImport -steps=packs`); `/Game/MF/Replacements` (replacement
+art the community maps use) is labelled community. Every label needs its own name (`PAL_Community`,
+`PAL_CommunityArt`, `PAL_Replacements` ...): a label's primary asset id is its name, a second one of
+the same name is ignored and its folder falls into chunk 0; the packagers stop on that warning. A label tags its own folder only, and maps
+don't claim what they use (the `Map` asset type is non-recursive in `DefaultGame.ini`), so an
+asset stays in its pack's pak even when another pack uses it: community maps that borrow classic
+textures show them only while the classic pak is installed. (Until 2026-10-29 maps were recursive
+and the community pak carried copies of the ~300 classic textures and sounds its maps borrow. The
+cooker's list of each pak is `Saved/Cooked/<Platform>/DesktopForces/Metadata/ChunkManifest/pakchunkN.txt`.)
+
+### Downloadable packs
+
+`--downloads` (Windows: `-Downloads`) makes a build that carries the core pack (chunk 0) only and
+fetches the others in game (menu > Downloads; UE's ChunkDownloader plugin, `Core/DFDownloads`):
+
+```bash
+bash Tools/package.sh Android --downloads
+bash Tools/package.sh Linux --downloads
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/package.ps1 -Downloads
+```
+
+It cooks and stages as usual, then `Tools/downloads.py` moves `pakchunk1`/`2` (community,
+unverified) out of the staged build into `<output>-downloads/Downloads/<Platform>/<content build
+id>/` with a `BuildManifest-<Platform>.txt` (file, size, SHA1, chunk) and `pakchunk3` (classic)
+into `<output>-downloads/Sideload/`, and the packager archives what's left. Copy the contents of
+`Downloads/` to the server, `https://mf.nofisto.com/download/` (`DownloadServer` in
+`DefaultGame.ini`; players can set another in Options > Game): the game asks
+`<server>/<Platform>/<content build id>/`, e.g. `download/Android/20261029-125729-94671c9/`.
+Each build has its own content build id (`<UTC time>-<git commit>`, in
+`Content/Downloads/ContentBuildId.txt` while packaging): a game only downloads paks cooked with it,
+so keep the folders of builds players still have. A player can also take a build's paks from there
+by hand and drop them into `Saved/Paks/`.
+
+Cooking is deterministic: a pack whose content didn't change comes out byte for byte the same in
+the next build, so players keep it across updates (ChunkDownloader keeps a file whose SHA1 is
+unchanged) and the server can hardlink it between build folders
+(`rsync --link-dest=<previous build> ...`). Platforms can't share paks: each carries its
+platform's cooked data and shaders (Android: ASTC textures, mobile shaders).
+
+The packager refuses to put a chunk into `Downloads/` whose cooker list names a classic package.
+**Classic content never goes on a public server.** For your own devices, copy the `Sideload/`
+files into the game's `Saved/Paks/` (mounted at start; on Android
+`/sdcard/Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/DesktopForces/Saved/Paks/`).
+
+In game, downloads go to the app's own storage (`PersistentDownloadDir/PakCache`), one file at a
+time, each checked against its SHA1; a stopped download goes on from the last whole file
+(containers are split into 64 MB parts, `MaxIoStorePartitionSizeMB`, because ChunkDownloader holds
+the file it is downloading in memory). A finished pack mounts at once and its maps join the map
+list; installed packs mount at every start. Delete unmounts the pack and removes its files. Test
+against a LAN server:
+
+```bash
+cd Saved/Packages/Android-Development-downloads/Downloads && python3 -m http.server 8000
+# the game pointed at it: Options > Game > Download server, or (UECommandLine.txt on a phone)
+... -ini:Game:[/Script/DesktopForces.DFGameSettings]:DownloadServer=http://<this PC's LAN IP>:8000
+```
+
+Menu commands for scripted tests: `DFMenuPage 5`, `DFPacks`, `DFPackDownload N`,
+`DFPackCancel N`, `DFPackDelete N` ([Commands](Commands.md)).
 
 `--public` / `-Public` disables the Classic and Unverified content plugins for that
 build, restoring the project file afterward. Maps still borrowing their textures

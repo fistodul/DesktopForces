@@ -180,24 +180,30 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      right next to a vehicle; don't `DFLoadout` on maps that don't start in it); DFOrder 3 after
      the bots spawn; KillEnemy every few seconds.
    - Turret seats are not looked at yet.
-7. **Downloadable content packs** (Android first, the same code for desktop mods). Today every
-   pack is in the OBB and players can't choose. Goal: the APK carries the code and the core
-   pack; the game offers the others as downloads from `https://mf.nofisto.com/android_download/`
-   (the "modded" set: community + unverified), with no adb pushes.
-   - Use UE's ChunkDownloader plugin: it reads a manifest (`BuildManifest-<Platform>.txt`, made
-     by the cook with chunk ids 1 and 2), downloads missing pakchunks into the app's own storage
-     over HTTP(S), checks them, and mounts them; maps then appear through `DFContent::FindMaps`.
-   - Packaging: cook as now, but keep only chunk 0 in the OBB/APK (UAT `-manifests` and
-     `-createchunkinstall` with `-chunkinstalldirectory` / `-chunkinstallversion`, or exclude
-     chunks from the OBB) and copy the other chunks + manifest to an upload folder per version.
-     `Tools/package.sh` grows a `--downloads` option that does this.
-   - Game side: a Downloads page in the menu (pack, size, Download / Delete), progress, retry,
-     Wi-Fi-only hint; downloads mount without a restart.
-   - Classic stays off public URLs (converted from each player's own copy). Options: a
-     password-protected folder for the team, or the player copies a classic pak made from their
-     own install into the app's folder (any pak there already mounts).
-   - Google Play Asset Delivery only matters if the app is published on Play (US$25 developer
-     account, `.aab` upload); Play would only carry the public packs. Not needed for the
-     self-hosted route.
-   - Test: a local HTTP server (`python3 -m http.server`) on the LAN, phone over wireless adb;
-     download, kill the app mid-download, resume, delete, check the map list each time.
+7. ✅ **Downloadable content packs** (2026-10-29): `Tools/package.sh <Platform> --downloads` /
+   `package.ps1 -Downloads` put only the core pack in the build (Android OBB 50 MB instead of
+   1.34 GB with three maps); community and unverified go to `Downloads/<Platform>/<content build
+   id>/` for `https://mf.nofisto.com/download/` (Options > Game can point elsewhere), classic to
+   `Sideload/` ([Building](Building.md#downloadable-packs)). Menu > Downloads lists the
+   packs (Download / Cancel / Delete, progress); a finished pack mounts at once and its maps join
+   the list; installed packs mount at start (`Core/DFDownloads`). Tested on the Pixel 9a against a
+   LAN `http.server`: download, play mf-Tropics from the downloaded pak, restart, delete, kill
+   mid-download and resume.
+   - Found on the way: maps claimed what they use, so ~300 classic textures and sounds borrowed
+     by community maps were cooked into the community pak too (Map type now non-recursive), and
+     the three community labels shared one name (only one counted). Classic stays off the server:
+     the packager checks the cooker's chunk lists.
+   - Stock ChunkDownloader quirks worked around: it would mount `.utoc`/`.ucas` as paks (we mount
+     the `.pak`), holds a whole file in memory (64 MB container parts on Android), and records
+     finished files only when a chunk download starts (we write its `LocalManifest.txt`).
+   - Cooking is deterministic: unchanged packs keep their SHA1 between builds (players don't
+     download them again; the server can hardlink them).
+   - Still open: upload a build to `https://mf.nofisto.com/download/` and test over HTTPS;
+     `package.ps1 -Downloads` only dry-run on Linux so far; old build folders on the server need
+     keeping while those builds are around.
+8. **Replacement art for borrowed classic assets** (user idea, 2026-10-29): community maps still
+   use ~300 classic packages (textures in `aq`, `Mio`, `rage_*`, `car_park`, `Dam` ...; sounds in
+   `levelSFX`, `TropicsSFX`, `Aquarius` ...), so without the classic pack they show missing
+   textures and play no ambient sounds (mf-Tropics on the 9a). `mfport.py packs` lists them;
+   `Tools/artgen/lookalike.py` overrides can replace the textures in the community pack (or
+   another generator); sounds need free/CC0 or team-made replacements.

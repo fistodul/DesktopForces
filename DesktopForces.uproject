@@ -149,7 +149,7 @@
 		},
 		{
 			"Name": "ChunkDownloader",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "CodeLiteSourceCodeAccess",

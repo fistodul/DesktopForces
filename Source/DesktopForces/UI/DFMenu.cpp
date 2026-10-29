@@ -25,6 +25,7 @@
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Core/DFGameSettings.h"
 #include "Core/DFContent.h"
+#include "Core/DFDownloads.h"
 #include "Engine/Texture2D.h"
 #include "Sound/SoundBase.h"
 #include "UObject/StrongObjectPtr.h"
@@ -46,6 +47,7 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWeakWidget.h"
@@ -97,6 +99,12 @@ public:
 	{
 		bInGame = Args._bInGame;
 		Owner = Args._Owner;
+		if (UDFDownloads* D = bInGame ? nullptr : UDFDownloads::Get(Owner.Get()); D && D->IsAvailable())
+		{
+			Downloads = D;
+			D->OnPacksChanged.AddSP(this, &SMFMenu::RebuildPackRows);
+			D->OnContentChanged.AddSP(this, &SMFMenu::RefreshMaps);
+		}
 		FindMaps();
 		FindModes();
 		LoadOptions();
@@ -169,6 +177,7 @@ public:
 								+ SWidgetSwitcher::Slot()[MakeJoin()]
 								+ SWidgetSwitcher::Slot()[SAssignNew(OptionsHost, SBox)[MakeOptions()]]
 								+ SWidgetSwitcher::Slot()[MakeCredits()]
+								+ SWidgetSwitcher::Slot()[MakeDownloads()]
 							]
 						]
 					]
@@ -206,9 +215,9 @@ public:
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	/** 0-4 pages; 10-13: the Options tabs. */
+	/** 0-5 pages; 10-13: the Options tabs. */
 	void ShowPage(int32 Page) {
-		Switcher->SetActiveWidgetIndex(Page >= 10 ? 3 : FMath::Clamp(Page, 0, 4));
+		Switcher->SetActiveWidgetIndex(Page >= 10 ? 3 : FMath::Clamp(Page, 0, 5));
 		if (Page >= 10 && OptionTabs.IsValid())
 			OptionTabs->SetActiveWidgetIndex(FMath::Clamp(Page - 10, 0, 3));
 	}
@@ -254,6 +263,10 @@ private:
 	bool bInGame = false;
 	TWeakObjectPtr<APlayerController> Owner;
 	TSharedPtr<SWidgetSwitcher> Switcher;
+	/** Pack downloads (title screen only: a pack in use can't be deleted). */
+	TWeakObjectPtr<UDFDownloads> Downloads;
+	TSharedPtr<SVerticalBox> PackRows;
+	TSharedPtr<STextComboBox> MapCombo;
 	TStrongObjectPtr<UTexture2D> Background;
 	FSlateBrush BackgroundBrush;
 	FSlateBrush PanelBrush;
@@ -274,6 +287,7 @@ private:
 
 	// options
 	FString PlayerName;
+	FString DownloadServer; // empty: the game's (UDFGameSettings::DownloadServer)
 	TArray<TSharedPtr<FString>> Models, PreferredTeams;
 	TSharedPtr<FString> SelectedModel, SelectedTeam;
 	TArray<TSharedPtr<FString>> Resolutions;
@@ -390,6 +404,10 @@ private:
 		Box->AddSlot().AutoHeight()[Button(bInGame ? LOCTEXT("NewGame", "New Game") : LOCTEXT("Play", "Play"), [this]() { Switcher->SetActiveWidgetIndex(1); })];
 		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Join", "Join Game"), [this]() { Switcher->SetActiveWidgetIndex(2); })];
 		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Options", "Options"), [this]() { Switcher->SetActiveWidgetIndex(3); })];
+		if (Downloads.IsValid())
+		{
+			Box->AddSlot().AutoHeight()[Button(LOCTEXT("Downloads", "Downloads"), [this]() { Switcher->SetActiveWidgetIndex(5); })];
+		}
 		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Credits", "Credits"), [this]() { Switcher->SetActiveWidgetIndex(4); })];
 		if (bInGame)
 		{
@@ -412,7 +430,11 @@ private:
 			[
 				SNew(SGridPanel).FillColumn(1, 1.f)
 				+ SGridPanel::Slot(0, 0)[Label(LOCTEXT("Map", "Map"))]
-				+ SGridPanel::Slot(1, 0).Padding(2.f)[Combo(MapNames, SelectedMap)]
+				+ SGridPanel::Slot(1, 0).Padding(2.f)
+				[
+					SAssignNew(MapCombo, STextComboBox).OptionsSource(&MapNames).InitiallySelectedItem(SelectedMap)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type) { if (Item) { SelectedMap = Item; } })
+				]
 				+ SGridPanel::Slot(0, 1)[Label(LOCTEXT("Mode", "Game type"))]
 				+ SGridPanel::Slot(1, 1).Padding(2.f)[Combo(ModeNames, SelectedMode)]
 				+ SGridPanel::Slot(0, 2)[Label(LOCTEXT("Bots", "Bots"))]
@@ -643,6 +665,16 @@ private:
 			})
 			.OnCheckStateChanged_Lambda([this](ECheckBoxState State) { bConsole = State == ECheckBoxState::Checked; bConsoleEdited = true; })
 		];
+		Game->AddSlot(0, 8)[Label(LOCTEXT("DlServer", "Download server"))];
+		Game->AddSlot(1, 8).Padding(2.f)
+		[
+			SNew(SBox).ToolTipText(LOCTEXT("DlServerHint", "Where the Downloads page gets content packs. Empty: the game's own server."))
+			[
+				SNew(SEditableTextBox).Text(FText::FromString(DownloadServer)).Font(Font(12))
+				.HintText(FText::FromString(UDFGameSettings::Get().DownloadServer))
+				.OnTextChanged_Lambda([this](const FText& T) { DownloadServer = T.ToString().TrimStartAndEnd(); })
+			]
+		];
 
 		auto Tab = [this](const FText& Text, int32 Index)
 		{
@@ -730,6 +762,7 @@ private:
 		Crosshair = D->Crosshair;
 		CrosshairSize = D->CrosshairSize;
 		HUDSize = D->HUDSize;
+		DownloadServer = D->DownloadServer;
 		PendingKeys.Reset();
 		Capturing = NAME_None;
 		const int32 Tab = OptionTabs.IsValid() ? OptionTabs->GetActiveWidgetIndex() : 0;
@@ -802,7 +835,148 @@ private:
 				Button(LOCTEXT("Back4", "Back"), [this]() { Switcher->SetActiveWidgetIndex(0); })
 			];
 	}
+	TSharedRef<SWidget> MakeDownloads()
+	{
+		const FLinearColor Hint(0.75f, 0.8f, 0.95f);
+		TSharedRef<SWidget> Page = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Heading(LOCTEXT("DlHead", "Downloads"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
+			[
+				SNew(STextBlock).Font(Font(11)).AutoWrapText(true).ColorAndOpacity(Hint).Text_Lambda([this]()
+				{
+					const UDFDownloads* D = Downloads.Get();
+					if (D && !D->HasManifest())
+					{
+						const FText Error = D->GetError();
+						return Error.IsEmpty() ? LOCTEXT("DlAsking", "Contacting the download server...")
+							: FText::Format(LOCTEXT("DlAskingErr", "Contacting the download server... {0}"), Error);
+					}
+					return FPlatformMisc::GetNetworkConnectionType() == ENetworkConnectionType::Cell
+						? LOCTEXT("DlCell", "You are on mobile data: packs are hundreds of MB, Wi-Fi is better.")
+						: LOCTEXT("DlHint", "Extra content packs. Downloaded packs are added to the map list straight away.");
+				})
+			]
+			+ SVerticalBox::Slot().MaxHeight(380.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(PackRows, SVerticalBox)]]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
+			[
+				SNew(STextBlock).Font(Font(10)).AutoWrapText(true).ColorAndOpacity(Hint)
+				.Text(LOCTEXT("DlClassic", "Classic Mobile Forces maps aren't offered: they are converted from your own copy of the original game."))
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
+			[
+				Button(LOCTEXT("Back5", "Back"), [this]() { Switcher->SetActiveWidgetIndex(0); })
+			];
+		RebuildPackRows();
+		return Page;
+	}
+
+	/** One row per pack: name, size / progress, Download / Cancel / Delete. */
+	void RebuildPackRows()
+	{
+		const UDFDownloads* D = Downloads.Get();
+		if (!PackRows.IsValid() || !D)
+		{
+			return;
+		}
+		PackRows->ClearChildren();
+		for (const FDFPackStatus& Pack : D->GetPacks())
+		{
+			const int32 Chunk = Pack.Chunk;
+			auto Status = [this, Chunk]() -> const FDFPackStatus* { return Downloads.IsValid() ? Downloads->FindPack(Chunk) : nullptr; };
+			PackRows->AddSlot().AutoHeight().Padding(0.f, 4.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(Pack.Name).Font(Font(14, TEXT("Bold")))]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						SNew(STextBlock).Font(Font(11)).AutoWrapText(true).ColorAndOpacity(FLinearColor(0.85f, 0.9f, 1.f))
+						.Visibility(Pack.Description.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible).Text(Pack.Description)
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
+					[
+						SNew(SProgressBar)
+						.Visibility_Lambda([Status]() { const FDFPackStatus* S = Status(); return S && S->State == EDFPackState::Downloading ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Percent_Lambda([Status]() -> TOptional<float> { const FDFPackStatus* S = Status(); return S && S->Size ? float(double(S->Downloaded) / double(S->Size)) : 0.f; })
+					]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						SNew(STextBlock).Font(Font(11)).ColorAndOpacity(TitleColor).Text_Lambda([this, Status]() { return PackStatusText(Status()); })
+					]
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f, 0.f, 0.f)
+				[
+					SNew(SBox).MinDesiredWidth(130.f)
+					[
+						SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(10.f, 6.f))
+						.OnClicked_Lambda([this, Chunk]() { PackAction(Chunk); return FReply::Handled(); })
+						[
+							SNew(STextBlock).Font(Font(14, TEXT("Bold"))).Text_Lambda([Status]()
+							{
+								const FDFPackStatus* S = Status();
+								const EDFPackState State = S ? S->State : EDFPackState::NotInstalled;
+								return State == EDFPackState::Installed ? LOCTEXT("DlDelete", "Delete")
+									: State == EDFPackState::Downloading || State == EDFPackState::Queued ? LOCTEXT("DlCancel", "Cancel")
+									: State == EDFPackState::Failed ? LOCTEXT("DlRetry", "Retry")
+									: LOCTEXT("DlDownload", "Download");
+							})
+						]
+					]
+				]
+			];
+		}
+	}
 	// clang-format on
+
+	FText PackStatusText(const FDFPackStatus* S) const {
+		if (!S)
+			return FText();
+		FNumberFormattingOptions Digits;
+		Digits.MaximumFractionalDigits = 1;
+		const FText Size = FText::AsMemory(S->Size, &Digits, nullptr, EMemoryUnitStandard::SI);
+		const FText Done = FText::AsMemory(S->Downloaded, &Digits, nullptr, EMemoryUnitStandard::SI);
+		switch (S->State) {
+		case EDFPackState::Installed:
+			return FText::Format(LOCTEXT("DlInstalled", "Installed ({0})"), Size);
+		case EDFPackState::Downloading:
+			return FText::Format(LOCTEXT("DlProgress", "{0} of {1}"), Done, Size);
+		case EDFPackState::Queued:
+			return FText::Format(LOCTEXT("DlQueued", "Waiting ({0})"), Size);
+		case EDFPackState::Failed:
+			return FText::Format(LOCTEXT("DlFailed", "Download failed: {0}"), Downloads.IsValid() ? Downloads->GetError() : FText());
+		default:
+			return S->Downloaded > 0 ? FText::Format(LOCTEXT("DlPartial", "{0} of {1} downloaded"), Done, Size) : Size;
+		}
+	}
+
+	void PackAction(int32 Chunk) {
+		UDFDownloads* D = Downloads.Get();
+		const FDFPackStatus* S = D ? D->FindPack(Chunk) : nullptr;
+		if (!S)
+			return;
+		if (S->State == EDFPackState::Installed)
+			D->Delete(Chunk);
+		else if (S->State == EDFPackState::Downloading || S->State == EDFPackState::Queued)
+			D->Cancel(Chunk);
+		else
+			D->Download(Chunk);
+	}
+
+	/** A pack was mounted or deleted: the map list again, keeping the choice. */
+	void RefreshMaps() {
+		const FString Selected = SelectedMap.IsValid() ? *SelectedMap : FString();
+		MapPaths.Reset();
+		MapNames.Reset();
+		FindMaps();
+		if (const TSharedPtr<FString>* Same = MapNames.FindByPredicate([&Selected](const TSharedPtr<FString>& N) { return *N == Selected; }))
+			SelectedMap = *Same;
+		if (MapCombo.IsValid()) {
+			MapCombo->RefreshOptions();
+			MapCombo->SetSelectedItem(SelectedMap);
+		}
+	}
 
 	// --- data ---------------------------------------------------------------------------
 	void FindMaps() {
@@ -850,6 +1024,7 @@ private:
 	void LoadOptions() {
 		const UDFUserSettings& S = UDFUserSettings::Get();
 		PlayerName = S.PlayerName.IsEmpty() ? FString(TEXT("Player")) : S.PlayerName;
+		DownloadServer = S.DownloadServer;
 		Models = { MakeShared<FString>(TEXT("Auto")), MakeShared<FString>(TEXT("Helmet")), MakeShared<FString>(TEXT("Balaclava")) };
 		SelectedModel = Models[FMath::Clamp(S.PreferredModel + 1, 0, Models.Num() - 1)];
 		PreferredTeams = { MakeShared<FString>(TEXT("Auto")) };
@@ -966,6 +1141,11 @@ private:
 		S.AnnouncerVolume = AnnouncerVolume;
 		S.Crosshair = Crosshair;
 		S.CrosshairSize = CrosshairSize;
+		if (S.DownloadServer != DownloadServer) {
+			S.DownloadServer = DownloadServer;
+			if (UDFDownloads* D = UDFDownloads::Get(Owner.Get()))
+				D->UseServer(DownloadServer);
+		}
 		S.HUDSize = FMath::RoundToInt(HUDSize);
 		// only what differs from MF's defaults is kept
 		S.KeyBindings.Reset();
@@ -1088,6 +1268,33 @@ void ADFMenuPlayerController::BeginPlay() {
 			DF::PlayMusic(this, Music, 0.8f);
 		}
 	}
+}
+
+void ADFMenuPlayerController::DFPackDownload(int32 Chunk) {
+	if (UDFDownloads* D = UDFDownloads::Get(this))
+		D->Download(Chunk);
+}
+
+void ADFMenuPlayerController::DFPackCancel(int32 Chunk) {
+	if (UDFDownloads* D = UDFDownloads::Get(this))
+		D->Cancel(Chunk);
+}
+
+void ADFMenuPlayerController::DFPackDelete(int32 Chunk) {
+	if (UDFDownloads* D = UDFDownloads::Get(this))
+		D->Delete(Chunk);
+}
+
+void ADFMenuPlayerController::DFPacks() {
+	const UDFDownloads* D = UDFDownloads::Get(this);
+	if (!D || !D->IsAvailable()) {
+		UE_LOG(LogDF, Display, TEXT("Packs: downloads off in this build"));
+		return;
+	}
+	UE_LOG(LogDF, Display, TEXT("Packs: build %s, manifest %s %s"), *D->GetBuildId(), D->HasManifest() ? TEXT("here") : TEXT("not yet"), *D->GetError().ToString());
+	for (const FDFPackStatus& P : D->GetPacks())
+		UE_LOG(LogDF, Display, TEXT("Pack %d %s: state %d, %llu / %llu bytes"), P.Chunk, *P.Name.ToString(), int32(P.State), P.Downloaded, P.Size);
+	UE_LOG(LogDF, Display, TEXT("Packs: %d maps"), DF::FindMaps().Num());
 }
 
 void ADFMenuPlayerController::EndPlay(const EEndPlayReason::Type Reason) {

@@ -637,8 +637,11 @@ void FDFImporter::EnsurePackLabels() {
 		int32 Chunk;
 	};
 	const FPack Packs_[] = {
+		// names must differ: a label is a primary asset, its id is "PrimaryAssetLabel:<name>" and a
+		// second label of the same name is ignored (its folder then lands in chunk 0)
 		{ Packs.CoreMapsRoot, TEXT("PAL_Community"), 1 },
-		{ Packs.CoreRoot, TEXT("PAL_Community"), 1 },
+		{ Packs.CoreRoot, TEXT("PAL_CommunityArt"), 1 },
+		{ Packs.ReplacedRoot, TEXT("PAL_Replacements"), 1 }, // replacement art: the community maps use it
 		{ Packs.UnverifiedRoot, TEXT("PAL_Unverified"), 2 },
 		{ Packs.ClassicRoot, TEXT("PAL_Classic"), 3 },
 	};

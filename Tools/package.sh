@@ -6,6 +6,9 @@
 #   Tools/package.sh --public             without the Classic and Unverified plugins
 #   Tools/package.sh Android Development --maps MF_TestRange,mf-warehouse
 #                                         an arm64 APK (ASTC textures) with two maps
+#   Tools/package.sh Android --downloads  the APK / OBB with the core pack only; the community and
+#                                         unverified packs go to <output>-downloads/Downloads/ for
+#                                         the server, classic to .../Sideload/ (never upload it)
 #
 # Output: Saved/Packages/<Platform>-<Config>/ (run Linux/DesktopForces.sh, or the .exe on
 # Windows; Windows builds: Tools/package.ps1 on a Windows machine). Engine path:
@@ -23,6 +26,7 @@ UE_ROOT="$(python3 "$PROJECT_DIR/Tools/play.py" --engine-root)"
 PLATFORM=Linux
 CONFIG=Shipping
 PUBLIC=0
+DOWNLOADS=0
 ONLY_MAPS=""
 NEXT_MAPS=0
 for A in "$@"; do
@@ -33,6 +37,7 @@ for A in "$@"; do
   fi
   case "$A" in
     --public) PUBLIC=1 ;;
+    --downloads) DOWNLOADS=1 ;;
     --maps) NEXT_MAPS=1 ;;
     Linux|Win64|Android) PLATFORM="$A" ;;
     Shipping|Development) CONFIG="$A" ;;
@@ -53,6 +58,7 @@ if [ "$CONFIG" = Shipping ]; then
   DEBUGINFO+=(-nodebuginfo)
 fi
 PLATFORM_ARGS=()
+PACKAGE_ARGS=()
 if [ "$PLATFORM" = Android ]; then
   # SDK / NDK / JDK from the environment, else where Android Studio or sdkmanager puts them;
   # the versions are the engine's (Engine/Config/Android/Android_SDK.json)
@@ -70,15 +76,30 @@ if [ "$PLATFORM" = Android ]; then
     echo "Android needs the SDK, NDK and a JDK: see Docs/Building.md (Android)" >&2
     exit 2
   fi
-  PLATFORM_ARGS+=(-cookflavor=ASTC -package) # -package: the APK
+  PLATFORM_ARGS+=(-cookflavor=ASTC)
+  PACKAGE_ARGS=(-package) # the APK
 fi
 OUT="$PROJECT_DIR/Saved/Packages/$PLATFORM-$CONFIG$SUFFIX"
+
+# the content build id (UDFDownloads): only in a --downloads build, only while it's made - the
+# paks on the server must come from the same cook as the game asking for them
+BUILD_ID_FILE="$PROJECT_DIR/Content/Downloads/ContentBuildId.txt"
+mkdir -p "$(dirname "$BUILD_ID_FILE")" # staged as UFS (DefaultGame.ini), empty unless --downloads
+rm -f "$BUILD_ID_FILE"
+PROJECT_BACKUP=""
+cleanup() {
+  rm -f "$BUILD_ID_FILE"
+  if [ -n "$PROJECT_BACKUP" ]; then
+    cp "$PROJECT_BACKUP" "$UPROJECT"
+    rm -f "$PROJECT_BACKUP"
+  fi
+}
+trap cleanup EXIT
 
 if [ $PUBLIC = 1 ]; then
   # switch the plugin off in the project for this build only, back on whatever happens
   PROJECT_BACKUP="$(mktemp)"
   cp "$UPROJECT" "$PROJECT_BACKUP"
-  trap 'cp "$PROJECT_BACKUP" "$UPROJECT"; rm -f "$PROJECT_BACKUP"' EXIT
   python3 - "$UPROJECT" <<'PY'
 import json
 import sys
@@ -115,6 +136,11 @@ if ! "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor-Cmd" "$UPROJECT" -run=DFImport
   echo "Labelling the content packs failed: Saved/Logs/PackLabels.log" >&2
   exit 2
 fi
+if grep -q "duplicate PrimaryAssetID" "$PROJECT_DIR/Saved/Logs/PackLabels.log"; then
+  # only one of two same-named labels counts: the other's folder would fall into the core pak
+  grep "duplicate PrimaryAssetID" "$PROJECT_DIR/Saved/Logs/PackLabels.log" | sort -u >&2
+  exit 2
+fi
 
 # every built map (the cooker doesn't take maps from the always-cook folders): the game's own
 # and, unless --public, the content plugins'
@@ -138,9 +164,33 @@ done
 # -NoUBA: UE's build accelerator fails renaming files when the checkout is reached through a
 # symlink (a shared NTFS checkout); play.py builds the same way
 echo "Packaging $PLATFORM $CONFIG$NOTE -> $OUT ($(echo "$MAPS" | tr '+' '\n' | grep -c .) maps)"
-"$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun \
-  -project="$UPROJECT" -noP4 -utf8output -unattended \
-  -platform="$PLATFORM" -clientconfig="$CONFIG" \
-  -ubtargs="-NoUBA" -build -cook -map="$MAPS" -stage -pak -iostore -compressed -prereqs \
-  -archive -archivedirectory="$OUT" "${DEBUGINFO[@]}" "${PLATFORM_ARGS[@]}"
-echo "Done: $OUT"
+UAT=("$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun
+  -project="$UPROJECT" -noP4 -utf8output -unattended
+  -platform="$PLATFORM" -clientconfig="$CONFIG" -pak -iostore -compressed
+  "${DEBUGINFO[@]}" "${PLATFORM_ARGS[@]}")
+if [ "$DOWNLOADS" = 0 ]; then
+  "${UAT[@]}" -ubtargs="-NoUBA" -build -cook -map="$MAPS" -stage -prereqs \
+    -archive -archivedirectory="$OUT" "${PACKAGE_ARGS[@]}"
+  echo "Done: $OUT"
+  exit 0
+fi
+
+# --downloads: cook and stage, take the packs other than core (chunk 0) out of the staged build
+# (Tools/downloads.py: community / unverified to Downloads/, classic to Sideload/), then package /
+# archive what's left
+case "$PLATFORM" in
+  Android) STAGE_NAME=Android_ASTC MANIFEST_PLATFORM=Android ;;
+  Win64) STAGE_NAME=Windows MANIFEST_PLATFORM=Windows ;;
+  *) STAGE_NAME="$PLATFORM" MANIFEST_PLATFORM="$PLATFORM" ;;
+esac
+BUILD_ID="$(date -u +%Y%m%d-%H%M%S)-$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo local)"
+echo "$BUILD_ID" > "$BUILD_ID_FILE"
+STAGE="$PROJECT_DIR/Saved/StagedBuilds/$STAGE_NAME"
+rm -f "$STAGE".obb "$STAGE".*.obb # else the OBB of an earlier build, with every pack, is reused
+"${UAT[@]}" -ubtargs="-NoUBA" -build -cook -map="$MAPS" -stage -prereqs
+python3 "$PROJECT_DIR/Tools/downloads.py" "$STAGE/DesktopForces/Content/Paks" \
+  "$PROJECT_DIR/Saved/Cooked/$STAGE_NAME/DesktopForces/Metadata/ChunkManifest" "$OUT-downloads" "$BUILD_ID" "$MANIFEST_PLATFORM"
+"${UAT[@]}" -skipcook -skipstage -skippak -archive -archivedirectory="$OUT" "${PACKAGE_ARGS[@]}"
+echo "Done: $OUT (content build $BUILD_ID)"
+echo "  upload the contents of $OUT-downloads/Downloads/ to the download server (DownloadServer in DefaultGame.ini)"
+echo "  $OUT-downloads/Sideload/: the classic pack - for your own devices only (Docs/Building.md)"

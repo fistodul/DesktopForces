@@ -59,6 +59,22 @@ struct FDFVehicleSwap {
 };
 
 /** A named bot: who it is and what it takes from the loadout (MF RageBotA-P, BonusBotA-P). */
+/** A content pack offered for download (Tools/package.sh --downloads): its chunk id, as the
+ *  importer labels the packs (1 community, 2 unverified; 3 classic is never offered). */
+USTRUCT()
+struct FDFDownloadPack {
+	GENERATED_BODY()
+
+	UPROPERTY(Config, EditAnywhere, Category = "Downloads")
+	int32 Chunk = INDEX_NONE;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Downloads")
+	FText Name;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Downloads")
+	FText Description;
+};
+
 USTRUCT(BlueprintType)
 struct FDFBotDef {
 	GENERATED_BODY()
@@ -133,6 +149,15 @@ public:
 	/** Played once when the title screen first shows. */
 	UPROPERTY(Config, EditAnywhere, Category = "Menu")
 	TSoftObjectPtr<class USoundBase> MenuMusic;
+
+	/** Where downloadable packs are (Tools/package.sh --downloads uploads): <server>/<content build id>/...
+	 *  A player's own choice (UDFUserSettings::DownloadServer) wins. */
+	UPROPERTY(Config, EditAnywhere, Category = "Menu")
+	FString DownloadServer;
+
+	/** Names of the downloadable packs on the menu's Downloads page (others show as "Pack N"). */
+	UPROPERTY(Config, EditAnywhere, Category = "Menu")
+	TArray<FDFDownloadPack> DownloadPacks;
 
 	/** Unshadowed ambient floor = map ambient (MF zone ambient) x this; the rest of it is baked. */
 	UPROPERTY(Config, EditAnywhere, Category = "Look")

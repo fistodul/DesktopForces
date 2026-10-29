@@ -126,7 +126,9 @@ with the same engine version:
 
 - **Maps, Blueprints, assets**: cook them in this project (editor or `RunUAT BuildCookRun` with
   the DLC options) into a `.pak` and drop it into the game's `Content/Paks/` folder; UE mounts
-  every pak there at start (the game itself ships one pak per content pack: [Building](Building.md#package)). Blueprint mods can add weapons and modes this way, no compiler
+  every pak there at start (the game itself ships one pak per content pack: [Building](Building.md#package);
+  a `--downloads` build fetches the packs in game and mounts them without a restart:
+  [Building](Building.md#downloadable-packs)). Blueprint mods can add weapons and modes this way, no compiler
   needed. (Planned: a `Mods/` folder the game scans and a menu list of mod maps -
   [Roadmap](Roadmap.md).)
 - **C++ code**: needs a build of the game itself (open source: fork, add code, build) - the same

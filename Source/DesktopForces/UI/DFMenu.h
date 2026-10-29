@@ -18,7 +18,7 @@ namespace DFMenu {
 	DESKTOPFORCES_API bool IsOpen();
 	/** Back to the title screen (the default map with the menu game mode). */
 	DESKTOPFORCES_API void ReturnToMainMenu(APlayerController* PC);
-	/** Scripted tests: show page N (0 main, 1 play, 2 join, 3 options, 4 credits) / press Start. */
+	/** Scripted tests: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads) / press Start. */
 	DESKTOPFORCES_API void DebugPage(int32 Page);
 	DESKTOPFORCES_API void DebugStart();
 } // namespace DFMenu
@@ -49,6 +49,15 @@ public:
 	/** Developer: press Start on the play page with its current choices. */
 	UFUNCTION(Exec)
 	void DFMenuStart() { DFMenu::DebugStart(); }
+	/** Developer: the Downloads page's actions and state (UDFDownloads), for scripted tests. */
+	UFUNCTION(Exec)
+	void DFPackDownload(int32 Chunk);
+	UFUNCTION(Exec)
+	void DFPackCancel(int32 Chunk);
+	UFUNCTION(Exec)
+	void DFPackDelete(int32 Chunk);
+	UFUNCTION(Exec)
+	void DFPacks();
 	/** Developer: screenshot with the menu on it (Saved/Screenshots/<platform>/<Name>.png). */
 	UFUNCTION(Exec)
 	void DFShot(const FString& Name) { FScreenshotRequest::RequestScreenshot(Name.IsEmpty() ? TEXT("menu_shot") : Name, true, false); }

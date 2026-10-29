@@ -8,6 +8,9 @@
 #   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Clean
 #   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Public   (no Classic / Unverified content)
 #   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Zip      (also one .zip to hand around)
+#   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 -Downloads
+#       the core pack only; community / unverified paks + manifest for the download server in
+#       Build\Windows-downloads\Downloads, the classic pak in ...\Sideload (never upload that one)
 #   pwsh Tools/package.ps1 -DryRun   (print what would run; works on Linux too)
 #
 # Same build as Tools/package.sh on Linux: every map passed by name (the cooker doesn't take maps
@@ -25,6 +28,7 @@ param (
     [switch]$Public = $false,                 # Leave out the Classic and Unverified content plugins
     [switch]$DryRun = $false,                 # Print the commands instead of running them
     [switch]$Zip = $false,                    # Pack the finished build into one .zip next to it
+    [switch]$Downloads = $false,              # Packs other than core as in-game downloads (Docs/Building.md)
     [string]$UePath = $env:UE_ROOT            # Explicit Unreal Engine path (optional)
 )
 
@@ -172,10 +176,16 @@ Write-Host "    Output directory: $OutputDir" -ForegroundColor Cyan
 
 # content packs -> their own paks (bGenerateChunks): label each pack root (cheap once they exist)
 $EditorCmd = Join-Path $FoundUe "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
-$Code = Invoke-Tool $EditorCmd @($Uproject, "-run=DFImport", "-steps=packs", "-unattended", "-nopause", "-nosplash")
+$LabelLog = Join-Path $ProjectDir "Saved\Logs\PackLabels.log"
+$Code = Invoke-Tool $EditorCmd @($Uproject, "-run=DFImport", "-steps=packs", "-unattended", "-nopause", "-nosplash", "-abslog=$LabelLog")
 if ($Code -ne 0) {
     Write-Host "[!] Labelling the content packs failed with exit code $Code" -ForegroundColor Red
     exit $Code
+}
+# only one of two same-named labels counts: the other's folder would fall into the core pak
+if (-not $DryRun -and (Select-String -Path $LabelLog -Pattern "duplicate PrimaryAssetID" -Quiet)) {
+    Write-Host "[!] Two pack labels share a name (Saved\Logs\PackLabels.log)" -ForegroundColor Red
+    exit 1
 }
 
 # every built map: the game's own and, unless -Public, the content plugins'
@@ -195,13 +205,30 @@ foreach ($m in $MapDirs) {
 }
 Write-Host "    Maps: $($Maps.Count)" -ForegroundColor Cyan
 
-$UatArgs = @("BuildCookRun", "-project=$Uproject", "-noP4", "-utf8output", "-unattended", "-platform=Win64",
-    "-clientconfig=$Config", "-build", "-cook", "-stage", "-pak", "-iostore",
-    "-compressed", "-prereqs", "-archive", "-archivedirectory=$OutputDir")
+$CommonArgs = @("BuildCookRun", "-project=$Uproject", "-noP4", "-utf8output", "-unattended", "-platform=Win64",
+    "-clientconfig=$Config", "-pak", "-iostore", "-compressed")
+if ($Config -eq "Shipping") { $CommonArgs += "-nodebuginfo" }
+$UatArgs = $CommonArgs + @("-build", "-cook", "-stage", "-prereqs")
 # (a checkout without the converted maps - CI - still packages: the menu and what the always-cook
 # folders hold)
 if ($Maps.Count -gt 0) { $UatArgs += "-map=$($Maps -join '+')" }
-if ($Config -eq "Shipping") { $UatArgs += "-nodebuginfo" }
+if (-not $Downloads) { $UatArgs += @("-archive", "-archivedirectory=$OutputDir") }
+
+# the content build id (UDFDownloads): only in a -Downloads build, only while it's made - the paks
+# on the server must come from the same cook as the game asking for them
+$BuildIdFile = Join-Path $ProjectDir "Content\Downloads\ContentBuildId.txt"
+if (-not $DryRun) {
+    New-Item -ItemType Directory -Force (Split-Path $BuildIdFile) | Out-Null # staged as UFS (DefaultGame.ini)
+    Remove-Item $BuildIdFile -ErrorAction SilentlyContinue
+}
+$BuildId = $null
+if ($Downloads) {
+    $Commit = (& git -C $ProjectDir rev-parse --short HEAD 2>$null)
+    if (-not $Commit) { $Commit = "local" }
+    $BuildId = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss") + "-$Commit"
+    if (-not $DryRun) { Set-Content $BuildIdFile $BuildId -NoNewline }
+    Write-Host "    Content build: $BuildId" -ForegroundColor Cyan
+}
 
 # -Public: the content plugins aren't listed in the project (on when present): list them as off
 # for this build only, back the way it was whatever happens
@@ -215,9 +242,26 @@ if ($Public -and -not $DryRun) {
 }
 try {
     $Code = Invoke-Tool $RunUAT $UatArgs
+    if ($Code -eq 0 -and $Downloads) {
+        # the packs other than core out of the staged build (Tools/downloads.py), then archive the rest
+        $Split = "$OutputDir-downloads"
+        $Python = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $Python) { $Python = Get-Command python3 -ErrorAction SilentlyContinue }
+        $PyArgs = @()
+        if (-not $Python) { $Python = Get-Command py -ErrorAction SilentlyContinue; $PyArgs = @("-3") }
+        if (-not $Python) { throw "-Downloads needs Python 3.11+" }
+        $Code = Invoke-Tool $Python.Source ($PyArgs + @((Join-Path $PSScriptRoot "downloads.py"),
+            (Join-Path $ProjectDir "Saved\StagedBuilds\Windows\DesktopForces\Content\Paks"),
+            (Join-Path $ProjectDir "Saved\Cooked\Windows\DesktopForces\Metadata\ChunkManifest"),
+            $Split, $BuildId, "Windows"))
+        if ($Code -eq 0) {
+            $Code = Invoke-Tool $RunUAT ($CommonArgs + @("-skipcook", "-skipstage", "-skippak", "-archive", "-archivedirectory=$OutputDir"))
+        }
+    }
 }
 finally {
     if ($Public -and (Test-Path $Backup)) { Move-Item $Backup $Uproject -Force }
+    if (-not $DryRun) { Remove-Item $BuildIdFile -ErrorAction SilentlyContinue }
 }
 
 if ($Code -ne 0) {
@@ -243,4 +287,8 @@ Write-Host "==========================================================" -Foregro
 Write-Host " Build & Packaging $(if ($DryRun) { 'dry run done' } else { 'Successful!' })" -ForegroundColor Green
 Write-Host " Output: $OutputDir\DesktopForces.exe" -ForegroundColor Green
 if ($ZipFile) { Write-Host " Zip: $ZipFile" -ForegroundColor Green }
+if ($Downloads) {
+    Write-Host " Upload the contents of $OutputDir-downloads\Downloads to the download server" -ForegroundColor Green
+    Write-Host " $OutputDir-downloads\Sideload: the classic pack, for your own machines only" -ForegroundColor Yellow
+}
 Write-Host "==========================================================" -ForegroundColor Green

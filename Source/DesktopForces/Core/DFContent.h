@@ -26,6 +26,9 @@ namespace DF {
 	 *  ("/Game/MF/Mods/Icons/TotemIcon") as it is. */
 	DESKTOPFORCES_API UObject* LoadClassicObject(UClass* Class, const FString& Rel);
 
+	/** Forget which root had what: a pack was mounted or unmounted (UDFDownloads). */
+	DESKTOPFORCES_API void ResetContentLookups();
+
 	template <typename T>
 	T* LoadClassic(const FString& Rel) {
 		return Cast<T>(LoadClassicObject(T::StaticClass(), Rel));

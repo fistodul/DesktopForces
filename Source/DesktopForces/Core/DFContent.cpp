@@ -17,11 +17,20 @@
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
 
+namespace {
+	/** LoadClassicObject's lookups: Rel -> object path; empty: in no root. */
+	TMap<FString, FString> GResolved;
+} // namespace
+
+void DF::ResetContentLookups() {
+	GResolved.Reset();
+}
+
 UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel) {
 	// which root has it is worked out once: asking for a package that isn't there costs a
 	// synchronous load attempt (FlushAsyncLoading, a hitch) every time - and classic assets were
 	// first asked for under the community root on every footstep and every effect
-	static TMap<FString, FString> Resolved; // Rel -> object path; empty: in no root
+	TMap<FString, FString>& Resolved = GResolved;
 	if (const FString* Path = Resolved.Find(Rel))
 		return Path->IsEmpty() ? nullptr : StaticLoadObject(Class, nullptr, **Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	TArray<FString, TInlineAllocator<UE_ARRAY_COUNT(ContentRoots)>> Packages;
