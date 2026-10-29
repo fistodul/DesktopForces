@@ -166,7 +166,7 @@ void ADFHUD::DrawHUD() {
 			DrawHealthMF(C);
 			DrawInventoryMF(C, PC);
 			if (ADFWeapon* W = C->GetCurrentWeapon())
-				Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f, true);
+				Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f * TextScale, true);
 		} else {
 			DrawStatus(C);
 			DrawWeaponBar(C);
@@ -294,7 +294,7 @@ void ADFHUD::DrawStatus(ADFCharacter* C) {
 		Text(FString::FromInt(Armour), X + 64.f * UIScale, Y + 34.f * UIScale, FLinearColor(0.5f, 0.7f, 1.f), 1.3f);
 	}
 	if (ADFWeapon* W = C->GetCurrentWeapon())
-		Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f, true);
+		Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f * TextScale, true);
 }
 
 void ADFHUD::DrawWeaponBar(ADFCharacter* C) {
@@ -323,7 +323,7 @@ void ADFHUD::DrawWeaponBar(ADFCharacter* C) {
 	if (FreeBlocks > 0)
 		Frame(X, Y, WidthOf(FreeBlocks), CellH, FLinearColor(0.f, 0.f, 0.f, 0.25f), Grey);
 	if (GetWorld()->GetTimeSeconds() - SelectedTime < 1.5f)
-		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 26.f * UIScale, Yellow, 1.f, true);
+		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 26.f * UIScale * TextScale, Yellow, TextScale, true);
 }
 
 void ADFHUD::DrawScoreBarMF(float X, float Y, float W, float H, int32 BoxSet, int32 Icon, const FString& Label, float Level) {
@@ -380,23 +380,23 @@ void ADFHUD::DrawGameInfo(ADFGameState* GS, ADFPlayerController* PC) {
 	const float CX = Canvas->ClipX * 0.5f;
 	const bool bMFPanels = LoadMFArt() && DrawGameInfoMF(GS);
 	if (const int32 Left = GS->GetRemainingTime(); Left >= 0 && !(bMFPanels && GS->GameName == TEXT("SafeCracker")))
-		Text(FString::Printf(TEXT("%d:%02d"), Left / 60, Left % 60), CX, 10.f * UIScale, White, 1.2f, true);
+		Text(FString::Printf(TEXT("%d:%02d"), Left / 60, Left % 60), CX, 10.f * UIScale, White, 1.2f * TextScale, true);
 	if (GS->IsTeamGame()) {
 		const UDFGameSettings& Settings = UDFGameSettings::Get();
-		const float Spacing = 140.f * UIScale;
+		const float Spacing = 140.f * UIScale * TextScale;
 		float X = CX - Spacing * 0.5f * (GS->NumTeams - 1);
 		for (int32 T = 0; T < GS->NumTeams && !bMFPanels; ++T, X += Spacing)
 			Text(FString::Printf(TEXT("%s %d"), *GS->GetTeamName(T).ToString().ToUpper(), GS->GetTeamScore(T)),
-				X, 36.f * UIScale, Settings.GetTeamColor(T), 1.1f, true);
+				X, 36.f * UIScale * TextScale, Settings.GetTeamColor(T), 1.1f * TextScale, true);
 		// Capture points (Holdout / KOH), coloured by the team holding them
 		TArray<const AHoldoutPoint*> Points;
 		for (TActorIterator<AHoldoutPoint> It(GetWorld()); It; ++It)
 			Points.Add(*It);
-		const float PSpacing = 110.f * UIScale;
+		const float PSpacing = 110.f * UIScale * TextScale;
 		float PX = CX - PSpacing * 0.5f * (Points.Num() - 1);
 		for (const AHoldoutPoint* P : Points) {
 			const FLinearColor Col = P->OwnerTeam == DF::NoTeam ? FLinearColor(0.6f, 0.6f, 0.6f) : Settings.GetTeamColor(P->OwnerTeam);
-			Text(P->PointName, PX, 60.f * UIScale, Col, 0.9f, true);
+			Text(P->PointName, PX, 60.f * UIScale * TextScale, Col, 0.9f * TextScale, true);
 			PX += PSpacing;
 		}
 	} else if (PC && PC->PlayerState) {
@@ -406,7 +406,7 @@ void ADFHUD::DrawGameInfo(ADFGameState* GS, ADFPlayerController* PC) {
 		DFText(Frags, Canvas->ClipX - FS.X - Block * 0.25f, Canvas->ClipY - FS.Y - Block * 0.25f, White, 1);
 	}
 	if (GetWorld()->GetTimeSeconds() - AnnouncementTime < 4.f && !(PC && PC->IsScoreboardShown()) && !GS->HasMatchEnded())
-		Text(Announcement, CX, Canvas->ClipY * 0.28f, Yellow, 1.5f, true);
+		Text(Announcement, CX, Canvas->ClipY * 0.28f, Yellow, 1.5f * TextScale, true);
 }
 
 void ADFHUD::DrawMessages() {
@@ -615,7 +615,7 @@ void ADFHUD::DrawLoadout(ADFCharacter* C, ADFPlayerController* PC) {
 	const FString Hint = PC->UsesTouch() ? TEXT("Tap an item to take it or put it back   -   LOADOUT to leave")
 		: OpenSlot                       ? FString::Printf(TEXT("Row %s: press the item's number"), *ADFWeapon::SlotKeyName(OpenSlot))
 										 : TEXT("Press Q to exit loadout   -   1-0 / X pick a row, again for an item   -   Up/Down + Fire also work");
-	Text(Hint, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.72f, White, 1.f, true);
+	Text(Hint, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.72f, White, TextScale, true);
 }
 
 void ADFHUD::DrawScoreboardMF(ADFGameState* GS) {
@@ -725,7 +725,7 @@ void ADFHUD::DrawDeadScreen(ADFGameState* GS, ADFPlayerController* PC) {
 	const ADFPlayerState* PS = PC->GetPlayerState<ADFPlayerState>();
 	const float Left = PS ? PS->DeathTime + GS->RespawnWait - GS->GetServerWorldTimeSeconds() : 0.f;
 	Text(Left > 0.f ? FString::Printf(TEXT("Respawning in %d"), FMath::CeilToInt(Left)) : TEXT("Respawning..."),
-		Canvas->ClipX * 0.5f, Canvas->ClipY * 0.6f, White, 1.2f, true);
+		Canvas->ClipX * 0.5f, Canvas->ClipY * 0.6f, White, 1.2f * TextScale, true);
 }
 
 // --- MF art --------------------------------------------------------------------------
@@ -956,7 +956,7 @@ void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC) {
 	if (Left > 0)
 		DrawEmptyMF(Left, X, Y);
 	if (!bLoadout && GetWorld()->GetTimeSeconds() - SelectedTime < 1.5f)
-		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 28.f * RS, Yellow, RS, true);
+		Text(SelectedName, Canvas->ClipX * 0.5f, Y - 28.f * RS * TextScale, Yellow, RS * TextScale, true);
 }
 
 void ADFHUD::DrawHealthMF(ADFCharacter* C) {
@@ -972,7 +972,8 @@ void ADFHUD::DrawHealthMF(ADFCharacter* C) {
 	// RageHUD.DrawHealth: GetHUDMedFont, at ((64 + 8) * RS / 2 - W * 0.75, 48 * RS - H / 2)
 	const FString HS = FString::FromInt(Health);
 	FVector2D TS = DFTextSize(HS, 1);
-	DFText(HS, HX + 72.f * RS * 0.5f - TS.X * 0.75f, HY + 48.f * RS - TS.Y * 0.5f, FLinearColor::White, 1);
+	// kept on screen: the bigger touch-screen text outgrows MF's offset on small screens
+	DFText(HS, FMath::Max(2.f, HX + 72.f * RS * 0.5f - TS.X * 0.75f), HY + 48.f * RS - TS.Y * 0.5f, FLinearColor::White, 1);
 	// Armour: vest next to it, only while carrying armour (RageHUD.DrawArmour)
 	if (const int32 Armour = C->GetArmourCharge(); Armour > 0) {
 		const float AX = 46.f * RS, AY = Canvas->ClipY - 56.f * RS;
