@@ -181,7 +181,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      the bots spawn; KillEnemy every few seconds.
    - Turret seats are not looked at yet.
 7. ✅ **Downloadable content packs** (2026-10-29): `Tools/package.py <Platform> --downloads` puts
-   only the core pack in the build (Android OBB 50 MB instead of 1.34 GB with three maps); community and unverified go to `Downloads/<Platform>/<content build
+   only the core pack in the build (Android: one ~150 MB APK, data inside, instead of an APK plus
+   a 1.34 GB OBB with three maps); community and unverified go to `Downloads/<Platform>/<content build
    id>/` for `https://mf.nofisto.com/download/` (Options > Game can point elsewhere), classic to
    `Sideload/` ([Building](Building.md#downloadable-packs)). Menu > Downloads lists the
    packs (Download / Cancel / Delete, progress); a finished pack mounts at once and its maps join
