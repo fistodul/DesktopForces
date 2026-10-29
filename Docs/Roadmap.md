@@ -125,9 +125,10 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - Soft crossed-quad tracers and live owned-ammo counts in the classic loadout.
 - Space-station double-sided grating collision refreshed without rebuilding its lighting.
 - Saved model/team preferences; team balance remains authoritative.
-- Remaining playable maps have a resumable conversion/import/lighting queue. Completion
-  is recorded in `Tools/mfport/work/remaining/progress.json`; queued does not mean finished.
-  DM-AbandonedMine-KF, DM-Asylum, and DM-Cathedral are imported and baked; 52 maps remain in that queue.
+- Remaining playable maps have a resumable conversion/import/lighting queue
+  (`mfport.py remaining`, progress in `Tools/mfport/work/remaining/progress.json`). All 55 were
+  converted, imported and baked on 2026-10-29; mf-nc, MB-ShippingArena and MB-Ballpark load
+  with bots without errors. The rest still need a play pass.
 
 ## Open threads (handoff, 2026-10-28)
 
