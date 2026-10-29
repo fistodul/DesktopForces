@@ -15,8 +15,10 @@ root:
 from __future__ import annotations
 
 import json
+import re
+import textwrap
 import tomllib
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from .config import Config, TOOL_DIR
@@ -129,3 +131,36 @@ def report(cfg: Config) -> None:
         total = sum(len(v) for v in need.values())
         print(f'{name:28s} {pack}, {len(usage)} textures, {total} still from the original game'
               + (': ' + ', '.join(f'{p} {len(v)}' for p, v in sorted(need.items())) if total else ''))
+
+
+def cooked_report(project: Path) -> None:
+    """What the last cook of each platform put in each pak, from the cooker's own lists
+    (Saved/Cooked/<Platform>/<Project>/Metadata/ChunkManifest/pakchunkN.txt): files per folder
+    and the maps."""
+    for lists in sorted(project.glob('Saved/Cooked/*/*/Metadata/ChunkManifest')):
+        platform, game = lists.parents[2].name, lists.parents[1].name
+        print(f'\nLast {platform} cook ({lists}):')
+        chunks = [f for f in lists.glob('pakchunk*.txt') if re.fullmatch(r'pakchunk\d+', f.stem)]
+        for f in sorted(chunks, key=lambda f: int(f.stem[8:])):
+            folders, maps = Counter(), []
+            for line in f.read_text(errors='replace').splitlines():
+                path = line.split('\t')[0].replace('\\', '/')
+                parts = path.split(f'/{platform}/', 1)[-1].split('/')
+                if parts[0] == game:
+                    parts = parts[1:]
+                if parts[0] == 'Plugins' and len(parts) > 3:
+                    key = f'{parts[1]}/{parts[3]}'   # <plugin>/<folder>
+                elif parts[0] == 'Content' and len(parts) > 3 and parts[1] == 'MF':
+                    key = f'MF/{parts[2]}'
+                elif parts[0] == 'Content' and len(parts) > 2:
+                    key = parts[1]
+                else:
+                    key = parts[0]                 # Engine, loose files
+                folders[key] += 1
+                if len(parts) > 1 and parts[-2] == 'Maps' and not parts[-1].endswith('_BuiltData') and not parts[-1].startswith('PAL_'):
+                    maps.append(parts[-1])
+            top = ', '.join(f'{k} {n}' for k, n in folders.most_common(6))
+            print(f'  {f.stem}: {sum(folders.values())} files ({top})')
+            if maps:
+                print(textwrap.fill(f'maps ({len(maps)}): ' + ', '.join(sorted(maps, key=str.lower)), 100,
+                                    initial_indent='    ', subsequent_indent='      '))

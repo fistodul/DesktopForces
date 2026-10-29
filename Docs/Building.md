@@ -97,8 +97,10 @@ the same name is ignored and its folder falls into chunk 0; the packagers stop o
 don't claim what they use (the `Map` asset type is non-recursive in `DefaultGame.ini`), so an
 asset stays in its pack's pak even when another pack uses it: community maps that borrow classic
 textures show them only while the classic pak is installed. (Until 2026-10-29 maps were recursive
-and the community pak carried copies of the ~300 classic textures and sounds its maps borrow. The
-cooker's list of each pak is `Saved/Cooked/<Platform>/DesktopForces/Metadata/ChunkManifest/pakchunkN.txt`.)
+and the community pak carried copies of the ~300 classic textures and sounds its maps borrow.)
+`python3 Tools/mfport/mfport.py packs` shows what is in each pack: every converted map with its
+pack, and per platform what the last cook put in each pak (files per folder, the maps), read from
+the cooker's lists `Saved/Cooked/<Platform>/DesktopForces/Metadata/ChunkManifest/pakchunkN.txt`.
 
 ### Downloadable packs
 

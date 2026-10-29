@@ -11,8 +11,9 @@ Steps (run alone or chained with `all`):
   skeletal             soldiers and first-person weapons: skeletal meshes + animations as glTF
   vmf <name...>        convert a Source (Hammer) map listed in vmf_maps.toml, aligned to its MF map
   merge <preset...>    merge two aligned maps area by area (merge/<preset>.toml)
-  packs                which pack each converted map is in (core / classic), and what core maps
-                       still need from the original game (packs.toml)
+  packs                which pack each converted map is in (community / unverified / classic),
+                       what they still need from the original game (packs.toml), and what the
+                       last cook of each platform put in each pak
   import [map...]      run the UE editor importer (UnrealEditor-Cmd -run=DFImport)
   light <map...>       bake static lighting (Lightmass) for generated maps
   all <map...>         map + textures + effects + sounds + import + light
@@ -168,6 +169,7 @@ def main():
     if a.step == 'packs':
         from mflib import packs
         packs.report(cfg)
+        packs.cooked_report(cfg.uproject.parent)
     if a.step in ('import', 'all'):
         from mflib import packs
         packs.write_manifest(cfg)
