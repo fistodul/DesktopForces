@@ -10,7 +10,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | Role | Who |
 |---|---|
 | Project lead, code | Filip Stojanovic and the Desktop Forces contributors (git history) |
-| Mods (MF-mods, now part of the game) | fistodul: Totem of Undying, Trip Lasers, Seeker Mines, Sentry Gun, Tug of War, King of the Hill, Molotov |
+| Mods (MF-mods, now part of the game) | fistodul: Totem of Undying, Trip Lasers, Seeker Mines, Sentry Gun, Tug of War, King of the Hill, Molotov, Predator Missile (their art AI-generated) |
 | Coop, Zombie modes | Animeman (for AKVARI) |
 | Grenade launcher | Gian, Peto, "Secret Dude" |
 | DeBall (MoBall), TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |

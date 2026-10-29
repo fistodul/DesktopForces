@@ -88,6 +88,7 @@ remaster_classic = false              # true: classic maps use replacement art t
 "WarriorDwarfes" = "Marcin (mf-BraveDwarfes)"
 # MF-mods code packages with their own art
 "battleRoyale" = "Gregaras (Battle Royale: crate, tower, platform, safe zone models and metal textures CC0; ammoBox CC0 pxhere.com/en/photo/673938)"
+"PredatorMissile" = "fistodul (MF-mods Predator Missile; its art AI-generated)"
 # MF-mods art (vehicles: Marcin, Gregaras - models CC0; Desert Eagle; Gian's grenade launcher)
 "deagle" = "the servers' Desert Eagle (textures, first-person arms)"
 "deagleSFX" = "the servers' Desert Eagle (sounds)"
