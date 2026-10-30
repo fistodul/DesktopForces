@@ -272,3 +272,17 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       map needs from Downloads), refresh, double click joins;
     - hosts forward UDP 7777 and 7778 (no NAT traversal in this protocol); IPv4 only; test with a
       local master first (333networks MasterServer runs anywhere), then `master.nofisto.com`.
+14. **Dedicated server builds through Epic's container image** (Filip, 2026-10-30). Server targets
+    need an engine built from source; the installed 5.8.4 can't build them. Epic publishes
+    source-built engines as images at `ghcr.io/epicgames/unreal-engine` (needs the Epic account
+    linked to GitHub, then `docker login ghcr.io` with a GitHub token with `read:packages`).
+    Docker 29 is installed here, 90 GB free on `/`. Plan:
+    - check the tag list for `dev-slim-5.8.4` (the server must be the clients' engine version:
+      the network check includes the engine's compatible changelist); a third-party mirror lists
+      `dev-slim-5.8.0` / `5.8.1`, a community page puts dev-slim at ~35 GB (both unconfirmed);
+    - add `Source/DesktopForcesServer.Target.cs` (`Type = TargetType.Server`) and a `package.py
+      Linux --server` mode that runs BuildCookRun inside the container (project mounted, `-server
+      -serverplatform=Linux -noclient`), the same packs as the client build;
+    - test: server on the PC, desktop and phone clients joining; then a small VPS. The dev images
+      may not be redistributed (Unreal EULA): build with them, ship only the server build.
+    Without it, servers are listen servers (`?listen -nullrhi -nosound` on a packaged game).
