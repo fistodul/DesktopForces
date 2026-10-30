@@ -252,3 +252,23 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       turns Lumen off (GI Low), else Low loses its bake; maps would need Stationary/Movable
       lights for Lumen;
     - measure mf-warehouse low end / high end against the baked look.
+13. **Server list: LAN and internet through the 333networks master** (Filip, 2026-10-30). Filip
+    runs a 333networks master at `master.nofisto.com` (TCP 28900 answers `\basic\\secure\<challenge>`,
+    web list and `/json/` on https). Use its GameSpy-v1 protocol rather than an online subsystem:
+    plain UDP/TCP through UE's `Sockets` module, next to the game's NetDriver, nothing in UE
+    against it. Plan:
+    - register a new gamename (`desktopforces`, not MF's `mobileforces`: old UE1 clients would try
+      to join) with its cipher in the master's game table;
+    - servers (dedicated and listen, a `UGameInstanceSubsystem` or the game mode): a UDP query port
+      (game port + 1, 7778, like UE1) answering `\basic\` `\info\` `\rules\` `\players\` `\status\`
+      `\echo\`, and `\secure\` with `\validate\` (gsmsalg + cipher); `\heartbeat\<queryport>\gamename\desktopforces`
+      to the master's UDP port every few minutes and on state changes (`\statechanged\`). Master
+      list in `DefaultGame.ini`, an `-nomaster` / `?Public=0` switch for private servers;
+    - client: TCP list request (`\gamename\..\location\0\validate\..\final\` then
+      `\list\\gamename\desktopforces\final\`), then query each server itself over UDP for name,
+      map, mode, players and ping (as UE1 did); a LAN tab broadcasts the same `\status\` query to
+      the query ports on the local subnet, so one protocol covers both;
+    - menu: a server browser page in Join (sort by ping / players, filter mode / map, the pack a
+      map needs from Downloads), refresh, double click joins;
+    - hosts forward UDP 7777 and 7778 (no NAT traversal in this protocol); IPv4 only; test with a
+      local master first (333networks MasterServer runs anywhere), then `master.nofisto.com`.
