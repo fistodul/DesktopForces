@@ -47,26 +47,26 @@ jobs:
           clean: false
 
       # ------------------------------------------------------------------------
-      # Windows (Win64) Build & Package
+      # Windows Build & Package
       # ------------------------------------------------------------------------
       # the same script as a local build (Tools/package.py): engine lookup, the map list,
       # iostore paks
-      - name: Build C++ Modules (Win64)
+      - name: Build C++ Modules (Windows)
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE != 'true'
         shell: powershell
-        run: py -3 Tools\package.py Win64 $env:BUILD_CONFIG --compile-only
+        run: py -3 Tools\package.py Windows $env:BUILD_CONFIG --compile-only
 
-      - name: Cook & Package Game (Win64)
+      - name: Cook & Package Game (Windows)
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE == 'true'
         shell: powershell
-        run: py -3 Tools\package.py Win64 $env:BUILD_CONFIG
+        run: py -3 Tools\package.py Windows $env:BUILD_CONFIG
 
       - name: Upload Windows Artifact
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: DesktopForces-Windows-${{ env.BUILD_CONFIG }}
-          path: Build/Windows/
+          path: Saved/Packages/Windows-${{ env.BUILD_CONFIG }}/
 
       # ------------------------------------------------------------------------
       # Linux Cross-Compilation from Windows (via Epic Clang toolchain)

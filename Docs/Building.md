@@ -65,15 +65,23 @@ patches. There is no need to change the project association to a patch number.
 ```bash
 python3 Tools/package.py Linux Development
 python3 Tools/package.py --public
-python3 Tools/package.py Win64 Development --zip      # on Windows
-python3 Tools/package.py Win64 Development --compile-only
-python3 Tools/package.py --dry-run Win64
+python3 Tools/package.py Windows Development --zip    # on Windows
+python3 Tools/package.py Windows Development --compile-only
+python3 Tools/package.py --dry-run Windows
 ```
 
 It builds the editor modules (as `play.py build`), labels the packs, runs Unreal's BuildCookRun
 with the map list, compressed paks and iostore, and on Windows first checks the toolchain. The
-engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs: `Saved/Packages/<platform>-<config>/`;
-`Build/Windows/` for Win64.
+engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs, for every platform:
+
+| Folder | What |
+|---|---|
+| `Saved/Packages/<Platform>-<Config>[-public]/` | the game build (Shipping: release; Development: console and logs) |
+| `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: the packs for the public server (upload its contents) |
+| `Saved/Packages/<…>-downloads/Sideload/` | `--downloads`: the classic pack, for the team only |
+
+`Build/<Platform>/` holds Unreal's own build data (pak file order, chunk layout, generated Android
+sources), not builds.
 
 Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<Platform>`):
 

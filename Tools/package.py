@@ -4,16 +4,16 @@ starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
 
     python3 Tools/package.py                          this machine's platform, Shipping
     python3 Tools/package.py Linux Development        with the console and logs
-    python3 Tools/package.py Win64 --zip              (on Windows) and one .zip to hand around
+    python3 Tools/package.py Windows --zip            (on Windows) and one .zip to hand around
     python3 Tools/package.py --public                 without the Classic and Unverified plugins
     python3 Tools/package.py Android Development --maps MF_TestRange,mf-warehouse
                                                       an arm64 APK (ASTC textures) with two maps
     python3 Tools/package.py Android --downloads      core pack in the build; the other packs for
                                                       the download server (Docs/Building.md)
     python3 Tools/package.py --compile-only           build the editor and game code, no cook (CI)
-    python3 Tools/package.py --dry-run Win64          print the commands instead of running them
+    python3 Tools/package.py --dry-run Windows        print the commands instead of running them
 
-Output: Saved/Packages/<Platform>-<Config>[-public]/ (Windows: Build/Windows[-public]/);
+Output: Saved/Packages/<Platform>-<Config>[-public]/ (every platform);
 --downloads also writes <output>-downloads/Downloads/<Platform>/<content build id>/ (upload it)
 and <output>-downloads/Sideload/ (the classic pack: never upload it). Engine: as Tools/play.py
 (UE_ROOT, mfport.toml `ue_root`).
@@ -43,7 +43,9 @@ from mfport.mflib.config import load  # noqa: E402
 WINDOWS = platform.system() == 'Windows'
 CLASSIC_MARK = 'mobileforcesclassic'
 # cook platform folder (Saved/StagedBuilds, Saved/Cooked) and ChunkDownloader's platform name
-STAGE_NAMES = {'Android': ('Android_ASTC', 'Android'), 'Win64': ('Windows', 'Windows'), 'Linux': ('Linux', 'Linux')}
+STAGE_NAMES = {'Android': ('Android_ASTC', 'Android'), 'Windows': ('Windows', 'Windows'), 'Linux': ('Linux', 'Linux')}
+# the name Unreal's build tools take (UnrealTargetPlatform); the game and the download server say Windows
+UE_PLATFORMS = {'Windows': 'Win64'}
 
 
 class Fail(Exception):
@@ -194,11 +196,11 @@ def package(a: argparse.Namespace) -> None:
     run([sys.executable, TOOLS / 'play.py', 'build'], a.dry_run)
     if a.compile_only:
         build = [batch / 'Build.bat'] if WINDOWS else [batch / 'Linux/Build.sh']
-        run([*build, 'DesktopForces', a.platform, a.config, f'-Project={uproject}', '-WaitMutex', '-NoUBA'], a.dry_run)
+        run([*build, 'DesktopForces', UE_PLATFORMS.get(a.platform, a.platform), a.config, f'-Project={uproject}', '-WaitMutex', '-NoUBA'], a.dry_run)
         return
 
     suffix = '-public' if a.public else ''
-    out = project / 'Build/Windows' if a.platform == 'Win64' else project / f'Saved/Packages/{a.platform}-{a.config}'
+    out = project / f'Saved/Packages/{a.platform}-{a.config}'
     out = out.with_name(out.name + suffix)
     env = android_env() if a.platform == 'Android' else os.environ.copy()
 
@@ -223,7 +225,7 @@ def package(a: argparse.Namespace) -> None:
     maps = find_maps(project, plugins, set(filter(None, (a.maps or '').split(','))))
 
     uat = [batch / ('RunUAT.bat' if WINDOWS else 'RunUAT.sh'), 'BuildCookRun', f'-project={uproject}', '-noP4', '-utf8output',
-           '-unattended', f'-platform={a.platform}', f'-clientconfig={a.config}', '-pak', '-iostore', '-compressed']
+           '-unattended', f'-platform={UE_PLATFORMS.get(a.platform, a.platform)}', f'-clientconfig={a.config}', '-pak', '-iostore', '-compressed']
     if a.config == 'Shipping':
         uat.append('-nodebuginfo')
     if a.platform == 'Android':
@@ -291,7 +293,7 @@ def package(a: argparse.Namespace) -> None:
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('platform', nargs='?', choices=['Linux', 'Win64', 'Android'], default='Win64' if WINDOWS else 'Linux')
+    ap.add_argument('platform', nargs='?', choices=['Linux', 'Windows', 'Android'], default='Windows' if WINDOWS else 'Linux')
     ap.add_argument('config', nargs='?', choices=['Shipping', 'Development'], default='Shipping')
     ap.add_argument('--public', action='store_true', help='leave out the Classic and Unverified plugins')
     ap.add_argument('--downloads', action='store_true', help='core pack only in the build; the other packs for the server')

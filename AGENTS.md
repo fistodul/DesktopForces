@@ -43,7 +43,7 @@ checkout may be shared with Windows through a symlink, so verify resolved paths.
 Windows compile command (PowerShell):
 
 ```powershell
-py -3 Tools/package.py Win64 Development --compile-only
+py -3 Tools/package.py Windows Development --compile-only
 ```
 
 Pipeline prerequisites are Python 3.11+, Pillow, numpy, ffmpeg, and a local Mobile
