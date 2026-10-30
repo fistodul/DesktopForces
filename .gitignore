@@ -56,3 +56,6 @@ __pycache__/
 /Plugins/*/Content/
 /Plugins/*/*/Binaries/
 /Plugins/*/*/Intermediate/
+
+# Locally acquired replacement source images and their provenance (not standalone downloads).
+/Tools/mfport/overrides/licensed/
