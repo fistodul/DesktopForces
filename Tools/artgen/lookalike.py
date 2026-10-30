@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Replacement art: new procedural textures that stand in for original Mobile Forces ones.
 
-Core maps (community maps that are part of Desktop Forces, Tools/mfport/packs.toml) still use
-some textures of the original game. This makes our own versions: each entry names a procedural
+Community and unverified maps (Tools/mfport/packs.toml) borrow textures from packs they can't
+count on. This makes our own versions: each entry names a procedural
 generator (bricks, planks, corrugated metal, plaster ...) and its layout; only the original's
 *colours* are sampled (dark / mid / light tones), never its pixels.
 
   lookalikes.toml       hand-tuned entries
-  lookalikes_auto.toml  written by --auto for every other texture core maps still borrow: the
+  lookalikes_auto.toml  written by --auto for every other texture those maps still borrow: the
                         generator picked from the name and the stripes / grid found in the
                         original, colours and size stored, so it regenerates without the game
 
@@ -364,6 +364,100 @@ def g_grate(rng, h, w, t, o):
     return rgb
 
 
+def drawn_mask(h, w, draw) -> np.ndarray:
+    """Coverage 0..255 of shapes drawn at twice the size (draw(d, W, H)), for smooth edges."""
+    m = Image.new('L', (w * 2, h * 2), 0)
+    draw(ImageDraw.Draw(m), w * 2, h * 2)
+    return np.asarray(m.resize((w, h), Image.LANCZOS), np.float32)
+
+
+def g_lattice(rng, h, w, t, o):
+    """Steel frames (rails, posts, cross braces, walkway grids): see-through between the bars."""
+    dark, mid, light = t
+    rows, cols = o.get('rows', 1), o.get('cols', 1)
+    thick = o.get('thick', 0.03)
+
+    def draw(d, W, H):
+        T = max(2, int(thick * W))
+        for i in range(rows + 1 if rows else 0):
+            y = i * (H - T) / rows
+            d.rectangle((0, y, W, y + T), fill=255)
+        for i in range(cols + 1 if cols else 0):
+            x = i * (W - T) / cols
+            d.rectangle((x, 0, x + T, H), fill=255)
+        if o.get('cross'):
+            cw, ch = W / max(cols, 1), H / max(rows, 1)
+            for i in range(max(cols, 1)):
+                for j in range(max(rows, 1)):
+                    d.line((i * cw, j * ch, (i + 1) * cw, (j + 1) * ch), fill=255, width=T)
+                    d.line(((i + 1) * cw, j * ch, i * cw, (j + 1) * ch), fill=255, width=T)
+    rgb = ramp(0.3 + 0.5 * fbm(rng, h, w, 1.7), dark, mid, light)
+    return rgb, drawn_mask(h, w, draw)
+
+
+def g_tree(rng, h, w, t, o):
+    """A tree on a card: forking branches, leaves on the twigs (leaves = 0: bare)."""
+    dark, mid, light = t
+    bark = rgb_from(o.get('bark', dark * 0.7))
+    img = Image.new('RGB', (w * 2, h * 2), tuple(int(c) for c in bark))
+    mask = Image.new('L', (w * 2, h * 2), 0)
+    di, dm = ImageDraw.Draw(img), ImageDraw.Draw(mask)
+    leaves = o.get('leaves', 0.5)
+    size = o.get('leaf', 0.025) * w * 2
+
+    def branch(x, y, angle, length, width, depth):
+        x2, y2 = x + np.sin(angle) * length, y - np.cos(angle) * length
+        for d in (di, dm):
+            d.line((x, y, x2, y2), fill=(tuple(int(c) for c in bark) if d is di else 255), width=max(2, int(width)))
+        if depth == 0:
+            for _ in range(int(14 * leaves)):
+                lx, ly = x2 + rng.normal(0, size * 2.2), y2 + rng.normal(0, size * 2.2)
+                r = size * rng.uniform(0.6, 1.2)
+                col = tuple(int(c) for c in ramp(np.array([rng.random()], np.float32), dark, mid, light)[0])
+                di.ellipse((lx - r, ly - r * 0.6, lx + r, ly + r * 0.6), fill=col)
+                dm.ellipse((lx - r, ly - r * 0.6, lx + r, ly + r * 0.6), fill=255)
+            return
+        for _ in range(o.get('forks', 3)):
+            branch(x2, y2, angle + rng.uniform(-0.75, 0.75), length * rng.uniform(0.6, 0.82), width * 0.68, depth - 1)
+    branch(w, h * 2, 0.0, h * 0.62, w * o.get('trunk', 0.035) * 2, o.get('depth', 5))
+    rgb = np.asarray(img.resize((w, h), Image.LANCZOS), np.float32)
+    return rgb, np.asarray(mask.resize((w, h), Image.LANCZOS), np.float32)
+
+
+def g_palm(rng, h, w, t, o):
+    """Palm fronds side by side: blades fanning off a pale rib along the middle."""
+    dark, mid, light = t
+    img = Image.new('RGB', (w * 2, h * 2), (0, 0, 0))
+    mask = Image.new('L', (w * 2, h * 2), 0)
+    di, dm = ImageDraw.Draw(img), ImageDraw.Draw(mask)
+    H, W = h * 2, w * 2
+    for x in np.linspace(0, W, o.get('blades', 64)):
+        for side in (-1, 1):
+            reach = H * rng.uniform(0.3, 0.48) * (0.5 + 0.5 * np.sin(np.pi * x / W))
+            tip = (x + reach * rng.uniform(0.5, 1.0), H / 2 + side * reach)
+            blade = [(x - W * 0.03, H / 2), tip, (x + W * 0.03, H / 2)]
+            col = tuple(int(c) for c in ramp(np.array([rng.random()], np.float32), dark, mid, light)[0])
+            di.polygon(blade, fill=col)
+            dm.polygon(blade, fill=255)
+    di.rectangle((0, H / 2 - H * 0.012, W, H / 2 + H * 0.012), fill=tuple(int(c) for c in light))
+    dm.rectangle((0, H / 2 - H * 0.012, W, H / 2 + H * 0.012), fill=255)
+    return np.asarray(img.resize((w, h), Image.LANCZOS), np.float32), np.asarray(mask.resize((w, h), Image.LANCZOS), np.float32)
+
+
+def g_splat(rng, h, w, t, o):
+    """A splash: one blot and a few drops around it, soft edged."""
+    dark, mid, _ = t
+
+    def draw(d, W, H):
+        for i in range(o.get('drops', 7)):
+            a, r = rng.uniform(0, 6.28), 0 if i == 0 else rng.uniform(0.2, 0.42) * W
+            s = (0.2 if i == 0 else rng.uniform(0.03, 0.09)) * W
+            x, y = W / 2 + np.cos(a) * r, H / 2 + np.sin(a) * r
+            d.ellipse((x - s, y - s, x + s, y + s), fill=255)
+    alpha = blur(drawn_mask(h, w, draw) / 255, max(w / 32, 1)) * 255
+    return np.broadcast_to(mid, (h, w, 3)).copy(), np.clip((alpha - 60) * 1.6, 0, 255)
+
+
 def g_panel(rng, h, w, t, o):
     """Metal panel: plate with a raised border, rivets, scratches; beam = horizontal flanges."""
     dark, mid, light = t
@@ -555,6 +649,7 @@ GENERATORS = {
     'corrugated': g_corrugated, 'siding': g_siding, 'treadplate': g_treadplate, 'grate': g_grate,
     'panel': g_panel, 'pipes': g_pipes, 'lamp': g_lamp, 'sign': g_sign, 'flat': g_flat,
     'sky': g_sky, 'glow': g_glow, 'screen': g_screen, 'window': g_window,
+    'lattice': g_lattice, 'tree': g_tree, 'palm': g_palm, 'splat': g_splat,
 }
 
 
@@ -585,7 +680,7 @@ def make(key: str, spec: dict) -> Image.Image:
     out = GENERATORS[spec['gen']](rng, h, w, t, spec)
     rgb, alpha = out if isinstance(out, tuple) else (out, None)
     # surface detail on top of every material: fine grit and big soft grime patches
-    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen')
+    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen', 'splat')
     grit = spec.get('grit', 0.0 if plain else 0.22)
     grime = spec.get('grime', 0.0 if plain else 0.25)
     if grit:
@@ -650,6 +745,8 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
         return None                                   # see-through shapes (foliage, decals): later, by hand
     if 'additive' in modes and gen not in ('glow', 'lamp'):
         gen, opts = 'glow', {}
+    elif gen == 'glow' and 'additive' not in modes:
+        gen, opts = None, {}                          # a wall named after a glow: no black backdrop
     nx, px, ny, py = periodicity(gray)
     ex = float(np.abs(np.diff(gray, axis=1)).mean())   # edges across x (vertical lines)
     ey = float(np.abs(np.diff(gray, axis=0)).mean())   # edges across y (horizontal lines)
@@ -660,15 +757,19 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
         if gen == 'bricks':
             opts.update(rows=int(min(16, max(4, ny))), cols=int(min(8, max(2, nx // 2 or 2))))
         elif gen == 'tiles' or (gen in (None, 'noise') and strong_x and strong_y):
-            gen = 'tiles'
-            opts.update(n=int(min(8, max(2, round((nx + ny) / 2)))), grout=0.04)
+            n = int(min(8, max(2, round((nx + ny) / 2))))
+            if n > 2 or gen == 'tiles':
+                gen = 'tiles'
+                opts.update(n=n, grout=0.04)
+            else:
+                gen = 'noise'                         # a 2 x 2 "grid" is the image's own seams
         elif gen == 'planks' or (gen in (None, 'noise') and strong_y and not strong_x and 'wood' in k):
             gen = 'planks'
             opts.update(n=int(min(10, max(1, ny if strong_y else 4))), vertical=bool(strong_x and not strong_y))
         elif strong_x != strong_y and gen in (None, 'noise', 'panel', 'corrugated'):
             n = nx if strong_x else ny
-            gen = 'corrugated' if n >= 6 else 'siding'
-            opts = {'ridges': int(min(24, n)), 'vertical': bool(strong_x)} if gen == 'corrugated' else {'n': int(n), 'vertical': bool(strong_x)}
+            gen = 'corrugated' if n >= 6 else 'siding' if n > 2 else 'noise'   # 1-2 stripes: stains, not boards
+            opts = {'ridges': int(min(24, n)), 'vertical': bool(strong_x)} if gen == 'corrugated' else {'n': int(n), 'vertical': bool(strong_x)} if gen == 'siding' else {}
         elif gen is None:
             gen = 'noise'
     if gen == 'noise':
@@ -693,18 +794,21 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
 
 
 def needed_textures() -> dict[str, set[str]]:
-    """Textures core maps use from classic packages, with the modes they're drawn in."""
+    """Textures non-classic maps borrow from a pack they can't count on, with the modes they're
+    drawn in: classic for every one of them, unverified too for community maps."""
     sys.path.insert(0, str(MFPORT))
     from mflib import config, packs
     cfg = config.load()
     p = packs.load()
     need: dict[str, set[str]] = {}
     for lj in (cfg.out_dir / 'Maps').glob('*/level.json'):
-        if packs.map_pack(p, lj.parent.name) != 'community':
+        pack = packs.map_pack(p, lj.parent.name)
+        if pack == 'classic':
             continue
+        borrowed = {'classic', 'unverified'} if pack == 'community' else {'classic'}
         for key, modes in json.loads(lj.read_text())['texture_usage'].items():
             pkg = key.split('.')[0]
-            if set(modes) <= {'sky'} or pkg.lower() == 'engine' or packs.package_pack(p, pkg) != 'classic':
+            if set(modes) <= {'sky'} or pkg.lower() == 'engine' or packs.package_pack(p, pkg) not in borrowed:
                 continue
             need.setdefault(key.lower(), set()).update(modes)
     return need
@@ -712,12 +816,17 @@ def needed_textures() -> dict[str, set[str]]:
 
 def write_auto_table() -> None:
     hand = {k.lower() for k in tomllib.loads(TABLE.read_text())}
+    # entries already there stay as they are: their art is imported and reviewed, and a map joining
+    # the list must not change it for the others
+    kept = tomllib.loads(AUTO_TABLE.read_text()) if AUTO_TABLE.exists() else {}
+    known = {k.lower() for k in kept}
     man = {k.lower(): (k, v) for k, v in json.loads((MFPORT / 'work' / 'out' / 'textures.json').read_text()).items()}
     lines = ['# Written by `lookalike.py --auto` (re-run after converting more core maps); edit an entry or',
              '# move it to lookalikes.toml to tune it. Colours were sampled from the originals.', '']
-    skipped, n = [], 0
+    skipped, n = [], len(kept)
+    specs = dict(kept)
     for lk, modes in sorted(needed_textures().items()):
-        if lk in hand or lk not in man:
+        if lk in hand or lk in known or lk not in man:
             continue
         key, info = man[lk]
         f = MFPORT / 'work' / 'out' / info['file']
@@ -727,11 +836,13 @@ def write_auto_table() -> None:
         if spec is None:
             skipped.append(key)
             continue
+        specs[key] = spec
+        n += 1
+    for key, spec in sorted(specs.items(), key=lambda kv: kv[0].lower()):
         lines.append(f'["{key}"]')
         for name, val in spec.items():
             lines.append(f'{name} = {json.dumps(val)}')
         lines.append('')
-        n += 1
     if skipped:
         lines.append('# not generated (see-through shapes; replace by hand): ' + ', '.join(skipped))
     AUTO_TABLE.write_text('\n'.join(lines) + '\n')

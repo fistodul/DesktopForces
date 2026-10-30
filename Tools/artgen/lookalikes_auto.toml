@@ -20,6 +20,15 @@ light = [253, 249, 250]
 n = 2
 vertical = true
 
+["car_park.blind2"]
+size = [256, 256]
+gen = "noise"
+dark = [48, 45, 46]
+mid = [74, 68, 62]
+light = [97, 90, 78]
+contrast = 0.55
+beta = 1.8
+
 ["car_park.boxside"]
 size = [128, 128]
 gen = "panel"
@@ -36,6 +45,15 @@ mid = [160, 161, 162]
 light = [223, 229, 234]
 n = 2
 vertical = false
+
+["car_park.cp_BankGatelogo"]
+size = [256, 256]
+gen = "sign"
+dark = [98, 83, 77]
+mid = [131, 108, 100]
+light = [145, 125, 118]
+color = [131, 108, 100]
+mark = [255, 255, 255]
 
 ["car_park.cp_Bin"]
 size = [256, 256]
@@ -56,6 +74,54 @@ contrast = 0.71
 beta = 1.8
 spots = 0.06
 
+["car_park.cp_BrickPav"]
+size = [256, 256]
+gen = "bricks"
+dark = [109, 108, 109]
+mid = [122, 117, 115]
+light = [131, 123, 120]
+rows = 16
+cols = 4
+
+["car_park.cp_cornerLB"]
+size = [256, 256]
+gen = "noise"
+dark = [131, 133, 132]
+mid = [145, 148, 147]
+light = [154, 157, 156]
+contrast = 0.4
+beta = 1.8
+spots = 0.152
+
+["car_park.cp_cornerLT"]
+size = [256, 256]
+gen = "noise"
+dark = [132, 135, 134]
+mid = [145, 147, 146]
+light = [153, 156, 155]
+contrast = 0.4
+beta = 1.8
+spots = 0.112
+
+["car_park.cp_CornerRB"]
+size = [256, 256]
+gen = "tiles"
+dark = [128, 130, 129]
+mid = [144, 146, 145]
+light = [153, 157, 155]
+n = 3
+grout = 0.04
+
+["car_park.cp_cornerRT"]
+size = [256, 256]
+gen = "noise"
+dark = [126, 128, 128]
+mid = [144, 146, 145]
+light = [153, 156, 155]
+contrast = 0.4
+beta = 1.8
+spots = 0.159
+
 ["car_park.cp_curb"]
 size = [256, 64]
 gen = "noise"
@@ -74,6 +140,15 @@ mid = [58, 60, 74]
 light = [61, 63, 80]
 border = 0.0
 
+["car_park.cp_ForkWheel"]
+size = [256, 256]
+gen = "noise"
+dark = [0, 0, 0]
+mid = [23, 21, 10]
+light = [87, 87, 94]
+contrast = 1.1
+beta = 1.8
+
 ["car_park.cp_HalfLight"]
 size = [256, 128]
 gen = "lamp"
@@ -81,6 +156,15 @@ dark = [0, 0, 0]
 mid = [168, 190, 169]
 light = [200, 214, 203]
 kind = "round"
+
+["car_park.cp_maintenance"]
+size = [256, 128]
+gen = "siding"
+dark = [28, 28, 28]
+mid = [40, 40, 40]
+light = [145, 145, 145]
+n = 3
+vertical = false
 
 ["car_park.cp_Og_rail2"]
 size = [256, 256]
@@ -100,6 +184,24 @@ light = [140, 118, 110]
 contrast = 0.4
 beta = 1.8
 spots = 0.085
+
+["car_park.cp_OgplainBevel"]
+size = [256, 128]
+gen = "noise"
+dark = [119, 99, 95]
+mid = [141, 123, 120]
+light = [148, 131, 129]
+contrast = 0.43
+beta = 1.8
+spots = 0.2
+
+["car_park.cp_OgVent1"]
+size = [256, 128]
+gen = "grate"
+dark = [12, 11, 16]
+mid = [52, 55, 82]
+light = [85, 95, 143]
+n = 12
 
 ["car_park.cp_Ogwall1"]
 size = [256, 256]
@@ -158,6 +260,33 @@ light = [140, 121, 118]
 n = 2
 grout = 0.04
 
+["car_park.cp_OgWinRef1"]
+size = [256, 256]
+gen = "noise"
+dark = [25, 25, 34]
+mid = [36, 37, 54]
+light = [64, 65, 83]
+contrast = 0.52
+beta = 1.8
+
+["car_park.cp_OgWinRef2"]
+size = [256, 256]
+gen = "noise"
+dark = [26, 25, 34]
+mid = [36, 38, 52]
+light = [65, 66, 83]
+contrast = 0.52
+beta = 1.8
+
+["car_park.cp_OgWinRef3"]
+size = [256, 256]
+gen = "noise"
+dark = [24, 24, 33]
+mid = [33, 34, 46]
+light = [64, 65, 83]
+contrast = 0.52
+beta = 1.8
+
 ["car_park.cp_OgWinRef4"]
 size = [256, 256]
 gen = "noise"
@@ -166,6 +295,33 @@ mid = [31, 32, 42]
 light = [64, 65, 80]
 contrast = 0.49
 beta = 1.8
+
+["car_park.cp_pipes"]
+size = [128, 256]
+gen = "pipes"
+dark = [0, 0, 0]
+mid = [47, 46, 53]
+light = [124, 120, 137]
+
+["car_park.cp_road1"]
+size = [256, 256]
+gen = "noise"
+dark = [127, 128, 128]
+mid = [143, 145, 145]
+light = [154, 158, 157]
+contrast = 0.4
+beta = 1.8
+spots = 0.043
+
+["car_park.cp_road2"]
+size = [256, 256]
+gen = "noise"
+dark = [127, 129, 128]
+mid = [143, 145, 145]
+light = [154, 158, 157]
+contrast = 0.4
+beta = 1.8
+spots = 0.051
 
 ["car_park.cp_SmallLight"]
 size = [64, 64]
@@ -200,6 +356,46 @@ mid = [76, 88, 59]
 light = [92, 117, 77]
 n = 2
 vertical = true
+
+["car_park.cp_TruckBack1"]
+size = [256, 256]
+gen = "noise"
+dark = [37, 47, 68]
+mid = [59, 71, 104]
+light = [73, 92, 138]
+contrast = 0.55
+beta = 1.8
+spots = 0.128
+
+["car_park.cp_TruckBack2"]
+size = [256, 256]
+gen = "noise"
+dark = [40, 48, 71]
+mid = [60, 73, 105]
+light = [74, 97, 151]
+contrast = 0.55
+beta = 1.8
+spots = 0.146
+
+["car_park.cp_TruckBack3"]
+size = [256, 256]
+gen = "noise"
+dark = [40, 48, 71]
+mid = [60, 72, 105]
+light = [75, 99, 156]
+contrast = 0.58
+beta = 1.8
+spots = 0.124
+
+["car_park.cp_TruckBack4"]
+size = [256, 256]
+gen = "noise"
+dark = [40, 48, 71]
+mid = [59, 72, 104]
+light = [73, 92, 139]
+contrast = 0.53
+beta = 1.8
+spots = 0.144
 
 ["car_park.cp_TruckBack5"]
 size = [256, 256]
@@ -246,6 +442,15 @@ contrast = 0.4
 beta = 1.8
 spots = 0.056
 
+["car_park.cp_YelPaint1"]
+size = [64, 256]
+gen = "noise"
+dark = [171, 134, 56]
+mid = [186, 153, 75]
+light = [203, 176, 108]
+contrast = 0.49
+beta = 1.8
+
 ["car_park.EPMsign2"]
 size = [256, 128]
 gen = "sign"
@@ -288,6 +493,35 @@ dark = [127, 125, 127]
 mid = [142, 138, 142]
 light = [148, 144, 146]
 
+["car_park.OgateFace3"]
+size = [256, 256]
+gen = "tiles"
+dark = [62, 63, 75]
+mid = [77, 80, 97]
+light = [90, 93, 114]
+n = 5
+grout = 0.04
+
+["car_park.OgateStrip1"]
+size = [256, 64]
+gen = "noise"
+dark = [72, 73, 87]
+mid = [81, 81, 97]
+light = [84, 86, 104]
+contrast = 0.4
+beta = 1.8
+spots = 0.161
+
+["car_park.OgateWin1"]
+size = [256, 256]
+gen = "noise"
+dark = [55, 55, 69]
+mid = [65, 65, 80]
+light = [70, 71, 90]
+contrast = 0.4
+beta = 1.8
+spots = 0.116
+
 ["car_park.OgateWin3"]
 size = [256, 256]
 gen = "tiles"
@@ -296,6 +530,24 @@ mid = [133, 137, 138]
 light = [169, 173, 170]
 n = 6
 grout = 0.04
+
+["car_park.park_Arrow00"]
+size = [256, 256]
+gen = "sign"
+dark = [123, 114, 96]
+mid = [138, 128, 108]
+light = [168, 160, 144]
+color = [138, 128, 108]
+mark = [255, 255, 255]
+
+["car_park.park_Arrow01"]
+size = [256, 256]
+gen = "sign"
+dark = [123, 114, 96]
+mid = [138, 128, 108]
+light = [169, 160, 145]
+color = [138, 128, 108]
+mark = [255, 255, 255]
 
 ["car_park.park_ceiling_0"]
 size = [256, 256]
@@ -335,6 +587,34 @@ contrast = 0.4
 beta = 1.8
 spots = 0.077
 
+["car_park.park_cement_5a"]
+size = [256, 256]
+gen = "noise"
+dark = [120, 125, 119]
+mid = [142, 145, 142]
+light = [150, 155, 153]
+contrast = 0.43
+beta = 1.8
+spots = 0.122
+
+["car_park.park_cement_6"]
+size = [256, 256]
+gen = "corrugated"
+dark = [74, 75, 74]
+mid = [109, 111, 110]
+light = [133, 137, 138]
+ridges = 17
+vertical = true
+
+["car_park.park_cement_7"]
+size = [256, 256]
+gen = "corrugated"
+dark = [31, 32, 31]
+mid = [53, 55, 54]
+light = [69, 72, 72]
+ridges = 17
+vertical = true
+
 ["car_park.park_cement_8"]
 size = [256, 256]
 gen = "noise"
@@ -354,6 +634,15 @@ light = [101, 105, 106]
 n = 2
 grout = 0.04
 
+["car_park.park_curb_01"]
+size = [256, 128]
+gen = "noise"
+dark = [83, 81, 78]
+mid = [104, 101, 88]
+light = [129, 121, 66]
+contrast = 0.53
+beta = 1.8
+
 ["car_park.park_drain_0"]
 size = [64, 32]
 gen = "tiles"
@@ -362,6 +651,15 @@ mid = [18, 20, 19]
 light = [49, 53, 49]
 n = 6
 grout = 0.04
+
+["car_park.park_elevator_2"]
+size = [128, 128]
+gen = "noise"
+dark = [0, 0, 0]
+mid = [1, 4, 1]
+light = [42, 41, 42]
+contrast = 0.65
+beta = 1.8
 
 ["car_park.park_esc_side"]
 size = [256, 256]
@@ -380,6 +678,15 @@ mid = [137, 127, 107]
 light = [147, 137, 116]
 n = 2
 vertical = true
+
+["car_park.park_floor02Dom"]
+size = [256, 256]
+gen = "noise"
+dark = [123, 114, 96]
+mid = [139, 129, 109]
+light = [193, 170, 108]
+contrast = 0.76
+beta = 1.8
 
 ["car_park.park_floor_0"]
 size = [256, 256]
@@ -400,6 +707,16 @@ contrast = 0.42
 beta = 1.8
 spots = 0.088
 
+["car_park.park_floor_7"]
+size = [256, 256]
+gen = "noise"
+dark = [130, 118, 96]
+mid = [157, 133, 88]
+light = [190, 143, 56]
+contrast = 0.41
+beta = 1.8
+spots = 0.098
+
 ["car_park.park_floor_8"]
 size = [256, 256]
 gen = "tiles"
@@ -409,6 +726,15 @@ light = [185, 177, 164]
 n = 2
 grout = 0.04
 
+["car_park.park_FreExit1"]
+size = [64, 32]
+gen = "noise"
+dark = [0, 105, 55]
+mid = [25, 118, 72]
+light = [241, 231, 223]
+contrast = 1.6
+beta = 1.8
+
 ["car_park.park_girder_0"]
 size = [128, 128]
 gen = "siding"
@@ -417,6 +743,14 @@ mid = [10, 26, 13]
 light = [10, 28, 13]
 n = 2
 vertical = false
+
+["car_park.park_girder_1"]
+size = [128, 128]
+gen = "panel"
+dark = [10, 25, 12]
+mid = [10, 26, 13]
+light = [11, 28, 12]
+border = 0.0
 
 ["car_park.park_grate_1"]
 size = [256, 256]
@@ -433,6 +767,15 @@ dark = [101, 75, 74]
 mid = [122, 96, 95]
 light = [186, 129, 123]
 n = 12
+
+["car_park.park_logo_3"]
+size = [128, 256]
+gen = "sign"
+dark = [0, 0, 1]
+mid = [171, 121, 1]
+light = [242, 171, 0]
+color = [156, 110, 1]
+mark = [255, 255, 255]
 
 ["car_park.park_office_carpet"]
 size = [256, 256]
@@ -452,6 +795,16 @@ light = [74, 75, 78]
 n = 2
 vertical = true
 
+["car_park.park_pillar_0"]
+size = [64, 256]
+gen = "noise"
+dark = [27, 26, 25]
+mid = [164, 147, 110]
+light = [172, 173, 166]
+contrast = 1.6
+beta = 1.8
+spots = 0.2
+
 ["car_park.park_pillar_A1"]
 size = [64, 256]
 gen = "siding"
@@ -459,6 +812,55 @@ dark = [45, 44, 93]
 mid = [166, 147, 106]
 light = [173, 173, 168]
 n = 2
+vertical = false
+
+["car_park.park_pillar_A2"]
+size = [64, 256]
+gen = "noise"
+dark = [56, 55, 95]
+mid = [166, 147, 107]
+light = [173, 173, 168]
+contrast = 1.43
+beta = 1.8
+spots = 0.2
+
+["car_park.park_pillar_A3"]
+size = [64, 256]
+gen = "noise"
+dark = [57, 56, 94]
+mid = [166, 147, 108]
+light = [173, 173, 168]
+contrast = 1.42
+beta = 1.8
+spots = 0.2
+
+["car_park.park_pillar_A4"]
+size = [64, 256]
+gen = "noise"
+dark = [54, 53, 95]
+mid = [166, 147, 107]
+light = [173, 174, 169]
+contrast = 1.43
+beta = 1.8
+spots = 0.2
+
+["car_park.park_plant"]
+size = [256, 256]
+gen = "noise"
+dark = [85, 60, 57]
+mid = [178, 170, 161]
+light = [185, 177, 166]
+contrast = 1.47
+beta = 1.8
+spots = 0.2
+
+["car_park.park_Private"]
+size = [64, 32]
+gen = "siding"
+dark = [21, 20, 19]
+mid = [204, 193, 186]
+light = [246, 235, 228]
+n = 3
 vertical = false
 
 ["car_park.park_shop_wall_0"]
@@ -559,6 +961,13 @@ dark = [82, 104, 138]
 mid = [127, 143, 174]
 light = [168, 178, 200]
 
+["car_park.park_sky_Floor0"]
+size = [256, 256]
+gen = "sky"
+dark = [214, 243, 239]
+mid = [214, 243, 239]
+light = [214, 243, 239]
+
 ["car_park.park_small_door"]
 size = [128, 256]
 gen = "panel"
@@ -567,6 +976,24 @@ mid = [203, 204, 198]
 light = [210, 212, 206]
 border = 0.06
 bolt = true
+
+["car_park.park_Stairwell"]
+size = [64, 32]
+gen = "noise"
+dark = [0, 0, 72]
+mid = [6, 3, 71]
+light = [213, 205, 206]
+contrast = 1.6
+beta = 1.8
+
+["car_park.park_Stairwell2"]
+size = [64, 32]
+gen = "noise"
+dark = [0, 4, 71]
+mid = [5, 8, 70]
+light = [215, 206, 208]
+contrast = 1.6
+beta = 1.8
 
 ["car_park.park_stripe_0"]
 size = [128, 128]
@@ -632,6 +1059,16 @@ contrast = 0.4
 beta = 1.8
 spots = 0.089
 
+["car_park.park_wall_20"]
+size = [256, 256]
+gen = "noise"
+dark = [107, 108, 108]
+mid = [109, 111, 110]
+light = [114, 115, 114]
+contrast = 0.4
+beta = 1.8
+spots = 0.094
+
 ["car_park.park_window_05"]
 size = [256, 256]
 gen = "window"
@@ -658,6 +1095,15 @@ mid = [207, 164, 80]
 light = [213, 169, 81]
 n = 2
 grout = 0.04
+
+["car_park.Private"]
+size = [64, 32]
+gen = "siding"
+dark = [21, 20, 19]
+mid = [204, 193, 186]
+light = [246, 235, 228]
+n = 3
+vertical = false
 
 ["car_park.road04S"]
 size = [256, 256]
@@ -774,6 +1220,26 @@ light = [190, 143, 56]
 n = 2
 vertical = true
 
+["Dam.Bridge1"]
+size = [256, 256]
+gen = "noise"
+dark = [90, 73, 64]
+mid = [108, 92, 83]
+light = [128, 106, 93]
+contrast = 0.63
+beta = 1.8
+spots = 0.12
+
+["Dam.Bridge2"]
+size = [256, 256]
+gen = "noise"
+dark = [84, 70, 59]
+mid = [110, 92, 79]
+light = [174, 141, 52]
+contrast = 1.02
+beta = 1.8
+spots = 0.049
+
 ["Dam.Cables"]
 size = [256, 256]
 gen = "noise"
@@ -801,6 +1267,53 @@ light = [158, 164, 163]
 contrast = 0.88
 beta = 1.8
 
+["Dam.cncr12S"]
+size = [256, 256]
+gen = "noise"
+dark = [92, 81, 79]
+mid = [141, 143, 141]
+light = [162, 165, 163]
+contrast = 0.95
+beta = 1.8
+spots = 0.2
+
+["Dam.cncr21S"]
+size = [256, 256]
+gen = "noise"
+dark = [128, 128, 127]
+mid = [135, 135, 135]
+light = [140, 142, 143]
+contrast = 0.4
+beta = 1.8
+spots = 0.103
+
+["Dam.cncr22"]
+size = [256, 256]
+gen = "noise"
+dark = [103, 101, 94]
+mid = [125, 125, 123]
+light = [136, 137, 136]
+contrast = 0.46
+beta = 1.8
+
+["Dam.CoCret1"]
+size = [256, 256]
+gen = "tiles"
+dark = [120, 120, 120]
+mid = [134, 135, 140]
+light = [142, 144, 148]
+n = 5
+grout = 0.04
+
+["Dam.CoCret1b"]
+size = [256, 256]
+gen = "noise"
+dark = [58, 55, 50]
+mid = [72, 68, 63]
+light = [91, 84, 78]
+contrast = 0.41
+beta = 1.8
+
 ["Dam.CoCret2"]
 size = [256, 256]
 gen = "bricks"
@@ -810,6 +1323,26 @@ light = [146, 148, 156]
 rows = 6
 cols = 4
 
+["Dam.CoCret3a"]
+size = [256, 256]
+gen = "noise"
+dark = [110, 96, 94]
+mid = [129, 130, 135]
+light = [140, 142, 147]
+contrast = 0.53
+beta = 1.8
+spots = 0.169
+
+["Dam.CoCret3b"]
+size = [256, 256]
+gen = "noise"
+dark = [105, 91, 90]
+mid = [120, 106, 105]
+light = [137, 119, 117]
+contrast = 0.41
+beta = 1.8
+spots = 0.082
+
 ["Dam.CoCret4"]
 size = [256, 256]
 gen = "corrugated"
@@ -818,6 +1351,15 @@ mid = [103, 109, 108]
 light = [127, 131, 134]
 ridges = 8
 vertical = true
+
+["Dam.CoCret5"]
+size = [256, 256]
+gen = "siding"
+dark = [46, 55, 46]
+mid = [60, 70, 61]
+light = [71, 81, 70]
+n = 3
+vertical = false
 
 ["Dam.CoCretBlank"]
 size = [256, 256]
@@ -838,6 +1380,134 @@ contrast = 0.43
 beta = 1.8
 spots = 0.138
 
+["Dam.CoCretV"]
+size = [256, 256]
+gen = "tiles"
+dark = [103, 104, 108]
+mid = [119, 119, 123]
+light = [155, 156, 160]
+n = 3
+grout = 0.04
+
+["Dam.CoCretW"]
+size = [256, 256]
+gen = "noise"
+dark = [60, 59, 65]
+mid = [132, 133, 138]
+light = [215, 166, 64]
+contrast = 1.31
+beta = 1.8
+spots = 0.2
+
+["Dam.CoCrSeg"]
+size = [256, 256]
+gen = "siding"
+dark = [121, 122, 127]
+mid = [132, 133, 138]
+light = [143, 144, 148]
+n = 4
+vertical = true
+
+["Dam.crain1e"]
+size = [256, 256]
+gen = "glow"
+dark = [60, 89, 66]
+mid = [69, 102, 76]
+light = [76, 113, 84]
+
+["Dam.Cylinder1D"]
+size = [256, 256]
+gen = "noise"
+dark = [152, 117, 50]
+mid = [173, 151, 70]
+light = [182, 167, 85]
+contrast = 0.59
+beta = 1.8
+spots = 0.14
+
+["Dam.Cylinder3a"]
+size = [256, 256]
+gen = "siding"
+dark = [146, 111, 53]
+mid = [169, 150, 77]
+light = [183, 168, 98]
+n = 3
+vertical = true
+
+["Dam.dam_ceiling_00"]
+size = [256, 256]
+gen = "corrugated"
+dark = [87, 82, 84]
+mid = [117, 112, 117]
+light = [139, 134, 140]
+ridges = 11
+vertical = true
+
+["Dam.dam_concrete_01"]
+size = [256, 256]
+gen = "siding"
+dark = [130, 128, 121]
+mid = [139, 141, 139]
+light = [147, 150, 150]
+n = 3
+vertical = false
+
+["Dam.dam_concrete_03"]
+size = [256, 256]
+gen = "glow"
+dark = [134, 136, 133]
+mid = [141, 143, 141]
+light = [147, 149, 147]
+
+["Dam.dam_concrete_04"]
+size = [256, 256]
+gen = "noise"
+dark = [120, 102, 84]
+mid = [138, 129, 115]
+light = [150, 148, 138]
+contrast = 0.64
+beta = 1.8
+spots = 0.116
+
+["Dam.dam_concrete_05"]
+size = [256, 256]
+gen = "noise"
+dark = [90, 84, 67]
+mid = [132, 122, 104]
+light = [144, 145, 133]
+contrast = 0.73
+beta = 1.8
+spots = 0.093
+
+["Dam.dam_concrete_06"]
+size = [256, 256]
+gen = "siding"
+dark = [103, 98, 85]
+mid = [115, 119, 110]
+light = [123, 132, 126]
+n = 5
+vertical = true
+
+["Dam.dam_concrete_07"]
+size = [256, 256]
+gen = "noise"
+dark = [88, 82, 67]
+mid = [130, 119, 101]
+light = [144, 145, 133]
+contrast = 0.78
+beta = 1.8
+spots = 0.091
+
+["Dam.dam_concrete_09"]
+size = [128, 128]
+gen = "noise"
+dark = [132, 129, 123]
+mid = [140, 140, 137]
+light = [147, 150, 150]
+contrast = 0.4
+beta = 1.8
+spots = 0.106
+
 ["Dam.dam_gen_00"]
 size = [256, 256]
 gen = "bricks"
@@ -856,6 +1526,77 @@ light = [79, 111, 70]
 n = 2
 vertical = false
 
+["Dam.dam_light_00"]
+size = [128, 64]
+gen = "lamp"
+dark = [118, 115, 118]
+mid = [202, 200, 194]
+light = [248, 250, 251]
+kind = "round"
+
+["Dam.dam_sign_00"]
+size = [256, 256]
+gen = "sign"
+dark = [22, 20, 23]
+mid = [67, 75, 91]
+light = [165, 171, 178]
+color = [67, 75, 91]
+mark = [255, 255, 255]
+
+["Dam.dam_sign_01"]
+size = [256, 256]
+gen = "sign"
+dark = [23, 21, 24]
+mid = [191, 109, 90]
+light = [226, 200, 184]
+color = [194, 123, 104]
+mark = [255, 255, 255]
+
+["Dam.dam_sign_03"]
+size = [256, 256]
+gen = "sign"
+dark = [159, 111, 95]
+mid = [166, 127, 116]
+light = [222, 202, 187]
+color = [169, 121, 104]
+mark = [255, 255, 255]
+
+["Dam.dam_sign_04"]
+size = [256, 256]
+gen = "sign"
+dark = [163, 114, 99]
+mid = [172, 134, 126]
+light = [220, 202, 189]
+color = [172, 123, 108]
+mark = [255, 255, 255]
+
+["Dam.dam_sign_05"]
+size = [256, 256]
+gen = "sign"
+dark = [158, 109, 91]
+mid = [170, 130, 120]
+light = [221, 202, 187]
+color = [170, 122, 104]
+mark = [255, 255, 255]
+
+["Dam.dam_sign_06"]
+size = [256, 256]
+gen = "sign"
+dark = [157, 105, 84]
+mid = [165, 124, 111]
+light = [218, 196, 179]
+color = [167, 118, 100]
+mark = [255, 255, 255]
+
+["Dam.DamRock"]
+size = [256, 256]
+gen = "noise"
+dark = [32, 22, 17]
+mid = [75, 56, 48]
+light = [117, 103, 98]
+contrast = 1.1
+beta = 1.8
+
 ["Dam.Ddoor2"]
 size = [256, 256]
 gen = "panel"
@@ -864,6 +1605,24 @@ mid = [94, 129, 153]
 light = [103, 135, 157]
 border = 0.06
 bolt = true
+
+["Dam.Ftile2"]
+size = [256, 256]
+gen = "tiles"
+dark = [135, 136, 144]
+mid = [152, 154, 161]
+light = [166, 168, 174]
+n = 8
+grout = 0.04
+
+["Dam.grat04S"]
+size = [256, 256]
+gen = "corrugated"
+dark = [64, 56, 48]
+mid = [130, 120, 99]
+light = [166, 174, 172]
+ridges = 22
+vertical = false
 
 ["Dam.HydroPan1a"]
 size = [256, 256]
@@ -884,6 +1643,16 @@ light = [77, 117, 150]
 n = 2
 grout = 0.04
 
+["Dam.HydroPan2"]
+size = [256, 256]
+gen = "noise"
+dark = [115, 119, 141]
+mid = [136, 141, 165]
+light = [150, 154, 175]
+contrast = 0.62
+beta = 1.8
+spots = 0.172
+
 ["Dam.HydroPan2a"]
 size = [256, 256]
 gen = "tiles"
@@ -892,6 +1661,45 @@ mid = [136, 141, 165]
 light = [140, 145, 169]
 n = 2
 grout = 0.04
+
+["Dam.InConc1"]
+size = [256, 256]
+gen = "siding"
+dark = [126, 143, 174]
+mid = [158, 158, 160]
+light = [164, 165, 167]
+n = 4
+vertical = true
+
+["Dam.loadwall"]
+size = [256, 256]
+gen = "noise"
+dark = [114, 127, 163]
+mid = [146, 153, 166]
+light = [163, 164, 166]
+contrast = 0.48
+beta = 1.8
+spots = 0.164
+
+["Dam.metl18S"]
+size = [256, 256]
+gen = "noise"
+dark = [112, 111, 104]
+mid = [128, 132, 131]
+light = [148, 153, 156]
+contrast = 0.63
+beta = 1.8
+spots = 0.101
+
+["Dam.pain09S"]
+size = [256, 256]
+gen = "noise"
+dark = [182, 162, 128]
+mid = [185, 170, 135]
+light = [186, 176, 145]
+contrast = 0.4
+beta = 1.8
+spots = 0.14
 
 ["Dam.panl04S"]
 size = [256, 256]
@@ -958,6 +1766,42 @@ light = [156, 152, 149]
 ridges = 24
 vertical = true
 
+["Dam.redload"]
+size = [256, 256]
+gen = "siding"
+dark = [134, 121, 111]
+mid = [161, 139, 129]
+light = [157, 157, 149]
+n = 4
+vertical = true
+
+["Dam.redloadsign"]
+size = [256, 256]
+gen = "sign"
+dark = [142, 115, 104]
+mid = [171, 130, 119]
+light = [156, 154, 146]
+color = [171, 123, 112]
+mark = [255, 255, 255]
+
+["Dam.rust05S"]
+size = [256, 256]
+gen = "panel"
+dark = [148, 133, 119]
+mid = [171, 146, 122]
+light = [161, 176, 188]
+border = 0.0
+
+["Dam.rust31S"]
+size = [256, 256]
+gen = "noise"
+dark = [70, 51, 41]
+mid = [127, 120, 102]
+light = [142, 153, 152]
+contrast = 1.17
+beta = 1.8
+spots = 0.2
+
 ["Dam.sd_grass"]
 size = [256, 256]
 gen = "noise"
@@ -968,6 +1812,72 @@ contrast = 0.79
 beta = 1.8
 spots = 0.046
 
+["Dam.Sd_largeGate1a"]
+size = [256, 256]
+gen = "noise"
+dark = [118, 85, 63]
+mid = [154, 123, 98]
+light = [183, 171, 144]
+contrast = 1.03
+beta = 1.8
+spots = 0.089
+
+["Dam.sd_Sidewall"]
+size = [256, 256]
+gen = "noise"
+dark = [89, 73, 61]
+mid = [152, 152, 141]
+light = [168, 172, 167]
+contrast = 1.11
+beta = 1.8
+spots = 0.2
+
+["Dam.sd_Sidewalllower"]
+size = [256, 256]
+gen = "noise"
+dark = [115, 109, 86]
+mid = [139, 140, 122]
+light = [166, 172, 165]
+contrast = 0.78
+beta = 1.8
+spots = 0.05
+
+["Dam.Sd_tower1a"]
+size = [256, 256]
+gen = "corrugated"
+dark = [104, 104, 108]
+mid = [119, 119, 124]
+light = [153, 153, 158]
+ridges = 8
+vertical = true
+
+["Dam.Sd_tower2"]
+size = [256, 256]
+gen = "noise"
+dark = [114, 109, 112]
+mid = [130, 127, 130]
+light = [147, 149, 151]
+contrast = 0.57
+beta = 1.8
+spots = 0.105
+
+["Dam.Sd_tower4a"]
+size = [256, 256]
+gen = "noise"
+dark = [116, 113, 110]
+mid = [144, 143, 141]
+light = [160, 160, 158]
+contrast = 0.64
+beta = 1.8
+spots = 0.173
+
+["Dam.sd_towerRoof"]
+size = [256, 256]
+gen = "corrugated"
+dark = [85, 58, 37]
+mid = [97, 69, 44]
+light = [109, 82, 55]
+
 ["Dam.sd_YelloWingrate"]
 size = [256, 256]
 gen = "grate"
@@ -975,6 +1885,50 @@ dark = [232, 221, 86]
 mid = [254, 251, 111]
 light = [255, 254, 127]
 n = 12
+
+["Dam.sky_00"]
+size = [512, 256]
+gen = "sky"
+dark = [95, 81, 85]
+mid = [136, 101, 94]
+light = [232, 140, 65]
+
+["Dam.sky_01"]
+size = [512, 256]
+gen = "sky"
+dark = [110, 87, 87]
+mid = [193, 117, 85]
+light = [248, 174, 79]
+
+["Dam.sky_02"]
+size = [512, 256]
+gen = "sky"
+dark = [99, 82, 87]
+mid = [136, 104, 102]
+light = [246, 144, 60]
+
+["Dam.sky_03"]
+size = [512, 256]
+gen = "sky"
+dark = [95, 80, 82]
+mid = [128, 99, 96]
+light = [227, 142, 70]
+
+["Dam.sky_04"]
+size = [256, 256]
+gen = "sky"
+dark = [99, 87, 87]
+mid = [128, 105, 107]
+light = [144, 114, 109]
+
+["Dam.SteelWalk1"]
+size = [256, 256]
+gen = "corrugated"
+dark = [48, 64, 87]
+mid = [56, 73, 98]
+light = [67, 84, 108]
+ridges = 24
+vertical = true
 
 ["Dam.StelP2"]
 size = [256, 256]
@@ -993,6 +1947,15 @@ mid = [147, 83, 75]
 light = [161, 141, 137]
 n = 6
 grout = 0.04
+
+["Dam.StelP4"]
+size = [256, 256]
+gen = "corrugated"
+dark = [157, 155, 157]
+mid = [177, 176, 176]
+light = [183, 184, 185]
+ridges = 10
+vertical = true
 
 ["Dam.StripLight1"]
 size = [256, 256]
@@ -1018,6 +1981,34 @@ light = [176, 202, 224]
 contrast = 1.6
 beta = 1.8
 
+["Dam.Turbien1"]
+size = [256, 256]
+gen = "siding"
+dark = [108, 67, 41]
+mid = [165, 110, 52]
+light = [188, 133, 61]
+n = 3
+vertical = true
+
+["Dam.Turbien1a"]
+size = [256, 256]
+gen = "siding"
+dark = [118, 69, 40]
+mid = [172, 114, 50]
+light = [189, 134, 61]
+n = 3
+vertical = true
+
+["Dam.Turbien2"]
+size = [256, 256]
+gen = "noise"
+dark = [32, 55, 79]
+mid = [61, 103, 142]
+light = [74, 120, 161]
+contrast = 0.73
+beta = 1.8
+spots = 0.2
+
 ["Dam.Twomen"]
 size = [128, 128]
 gen = "noise"
@@ -1025,6 +2016,15 @@ dark = [0, 0, 0]
 mid = [0, 89, 165]
 light = [131, 173, 207]
 contrast = 1.6
+beta = 1.8
+
+["Dam.wind01S"]
+size = [128, 256]
+gen = "noise"
+dark = [49, 45, 41]
+mid = [95, 88, 80]
+light = [172, 169, 161]
+contrast = 1.42
 beta = 1.8
 
 ["Dam.yellowpipe"]
@@ -1041,6 +2041,44 @@ dark = [164, 144, 78]
 mid = [171, 153, 86]
 light = [180, 163, 98]
 
+["Editor.B_CollOf"]
+size = [16, 16]
+gen = "noise"
+dark = [99, 98, 97]
+mid = [121, 121, 119]
+light = [142, 137, 133]
+contrast = 0.52
+beta = 1.8
+spots = 0.059
+
+["Editor.Bkgnd"]
+size = [128, 128]
+gen = "noise"
+dark = [30, 25, 19]
+mid = [35, 30, 24]
+light = [41, 36, 30]
+contrast = 0.4
+beta = 1.8
+spots = 0.048
+
+["Editor.BkgndHi"]
+size = [128, 128]
+gen = "noise"
+dark = [83, 99, 87]
+mid = [83, 99, 87]
+light = [83, 99, 87]
+contrast = 0.4
+beta = 1.8
+
+["icebase.back"]
+size = [256, 256]
+gen = "noise"
+dark = [152, 157, 163]
+mid = [165, 169, 174]
+light = [180, 183, 188]
+contrast = 0.55
+beta = 1.8
+
 ["icebase.BlueLogoSnow"]
 size = [256, 256]
 gen = "sign"
@@ -1049,6 +2087,70 @@ mid = [102, 132, 169]
 light = [119, 151, 183]
 color = [102, 132, 168]
 mark = [255, 255, 255]
+
+["icebase.BotFront"]
+size = [256, 256]
+gen = "noise"
+dark = [152, 157, 165]
+mid = [165, 169, 177]
+light = [174, 177, 187]
+contrast = 0.4
+beta = 1.8
+spots = 0.133
+
+["icebase.FrontBackDash02"]
+size = [256, 256]
+gen = "bricks"
+dark = [153, 158, 164]
+mid = [167, 170, 176]
+light = [203, 204, 208]
+rows = 4
+cols = 2
+
+["icebase.ib_chrome2"]
+size = [256, 256]
+gen = "siding"
+dark = [135, 139, 141]
+mid = [146, 148, 148]
+light = [157, 158, 158]
+n = 5
+vertical = false
+
+["icebase.ib_coragated2"]
+size = [256, 256]
+gen = "tiles"
+dark = [108, 107, 99]
+mid = [142, 145, 146]
+light = [160, 162, 162]
+n = 8
+grout = 0.04
+
+["icebase.ib_corsnow1"]
+size = [256, 256]
+gen = "tiles"
+dark = [149, 127, 112]
+mid = [196, 195, 193]
+light = [221, 224, 230]
+n = 8
+grout = 0.04
+
+["icebase.ib_corsnow2"]
+size = [256, 256]
+gen = "tiles"
+dark = [132, 100, 85]
+mid = [169, 153, 139]
+light = [202, 201, 198]
+n = 8
+grout = 0.04
+
+["icebase.ib_door2"]
+size = [128, 256]
+gen = "panel"
+dark = [65, 70, 70]
+mid = [149, 151, 149]
+light = [164, 166, 166]
+border = 0.06
+bolt = true
 
 ["icebase.ib_door3"]
 size = [128, 256]
@@ -1067,6 +2169,16 @@ mid = [148, 153, 154]
 light = [194, 202, 204]
 n = 2
 vertical = false
+
+["icebase.ib_intwall2B"]
+size = [256, 256]
+gen = "noise"
+dark = [181, 184, 194]
+mid = [201, 201, 193]
+light = [206, 207, 201]
+contrast = 0.4
+beta = 1.8
+spots = 0.098
 
 ["icebase.ib_light2"]
 size = [128, 128]
@@ -1138,6 +2250,14 @@ contrast = 0.4
 beta = 1.8
 spots = 0.05
 
+["icebase.ib_radioBox1"]
+size = [128, 128]
+gen = "panel"
+dark = [64, 65, 55]
+mid = [68, 71, 70]
+light = [73, 76, 79]
+border = 0.07
+
 ["icebase.ib_radioBox2"]
 size = [256, 128]
 gen = "panel"
@@ -1145,6 +2265,13 @@ dark = [44, 50, 53]
 mid = [84, 100, 113]
 light = [125, 139, 153]
 border = 0.07
+
+["icebase.ib_sheetIce"]
+size = [256, 256]
+gen = "corrugated"
+dark = [209, 222, 227]
+mid = [220, 230, 234]
+light = [231, 239, 242]
 
 ["icebase.ib_Skyblue"]
 size = [256, 256]
@@ -1168,6 +2295,51 @@ mid = [218, 222, 229]
 light = [230, 233, 238]
 n = 4
 vertical = true
+
+["icebase.ib_Stwalk"]
+size = [256, 256]
+gen = "corrugated"
+dark = [39, 36, 33]
+mid = [51, 46, 43]
+light = [62, 59, 57]
+ridges = 24
+vertical = true
+
+["icebase.ib_Sub1"]
+size = [256, 256]
+gen = "noise"
+dark = [51, 56, 60]
+mid = [57, 65, 74]
+light = [63, 75, 88]
+contrast = 0.4
+beta = 1.8
+
+["icebase.ib_Sub3"]
+size = [256, 256]
+gen = "noise"
+dark = [51, 57, 61]
+mid = [57, 66, 75]
+light = [65, 76, 89]
+contrast = 0.4
+beta = 1.8
+
+["icebase.ib_Sub3a"]
+size = [256, 256]
+gen = "noise"
+dark = [51, 58, 64]
+mid = [60, 69, 78]
+light = [107, 120, 134]
+contrast = 0.73
+beta = 1.8
+
+["icebase.ib_wood1"]
+size = [256, 256]
+gen = "planks"
+dark = [96, 95, 88]
+mid = [123, 124, 119]
+light = [148, 155, 154]
+n = 4
+vertical = false
 
 ["icebase.MFswat01"]
 size = [512, 512]
@@ -1214,6 +2386,24 @@ light = [180, 133, 135]
 color = [161, 79, 76]
 mark = [255, 255, 255]
 
+["icebase.roof"]
+size = [256, 256]
+gen = "siding"
+dark = [156, 160, 168]
+mid = [173, 178, 185]
+light = [225, 227, 229]
+n = 3
+vertical = false
+
+["icebase.Sides"]
+size = [256, 256]
+gen = "bricks"
+dark = [153, 158, 165]
+mid = [168, 171, 177]
+light = [201, 204, 208]
+rows = 7
+cols = 2
+
 ["icebase.Snow00"]
 size = [256, 256]
 gen = "noise"
@@ -1223,6 +2413,24 @@ light = [249, 251, 252]
 contrast = 0.4
 beta = 1.8
 spots = 0.128
+
+["icebase.TopBack"]
+size = [256, 256]
+gen = "siding"
+dark = [153, 158, 165]
+mid = [168, 172, 178]
+light = [203, 205, 210]
+n = 3
+vertical = false
+
+["icebase.TopFront"]
+size = [256, 256]
+gen = "noise"
+dark = [154, 159, 166]
+mid = [168, 171, 179]
+light = [188, 192, 197]
+contrast = 0.52
+beta = 1.8
 
 ["icebase.TruckSide512FlatterDark"]
 size = [512, 512]
@@ -1250,6 +2458,134 @@ mid = [4, 4, 67]
 light = [23, 22, 13]
 n = 2
 grout = 0.04
+
+["icebase.Wheel"]
+size = [256, 256]
+gen = "noise"
+dark = [156, 159, 166]
+mid = [173, 174, 182]
+light = [231, 231, 233]
+contrast = 0.9
+beta = 1.8
+
+["Mio.Aquarium.glass"]
+size = [64, 512]
+gen = "window"
+dark = [0, 9, 118]
+mid = [0, 66, 161]
+light = [0, 127, 236]
+nx = 5
+ny = 2
+
+["Mio.Aquarium.rocks"]
+size = [256, 128]
+gen = "noise"
+dark = [28, 23, 12]
+mid = [84, 71, 35]
+light = [146, 126, 69]
+contrast = 1.34
+beta = 1.8
+
+["Mio.Aquarium.sand"]
+size = [256, 256]
+gen = "noise"
+dark = [129, 108, 56]
+mid = [154, 126, 73]
+light = [179, 144, 91]
+contrast = 0.49
+beta = 1.8
+spots = 0.059
+
+["Mio.ceiling.woodc0"]
+size = [256, 256]
+gen = "planks"
+dark = [58, 55, 41]
+mid = [74, 70, 55]
+light = [83, 79, 63]
+n = 4
+vertical = false
+
+["Mio.Floor.moquetbb"]
+size = [256, 256]
+gen = "noise"
+dark = [159, 157, 142]
+mid = [165, 163, 149]
+light = [172, 170, 156]
+contrast = 0.4
+beta = 1.8
+spots = 0.069
+
+["Mio.Prop.cannon"]
+size = [256, 256]
+gen = "noise"
+dark = [3, 4, 1]
+mid = [55, 46, 26]
+light = [119, 97, 60]
+contrast = 1.23
+beta = 1.8
+
+["Mio.Prop.plan1"]
+size = [128, 128]
+gen = "noise"
+dark = [4, 6, 8]
+mid = [36, 37, 47]
+light = [79, 94, 107]
+contrast = 1.08
+beta = 1.8
+
+["Mio.Prop.plan2"]
+size = [128, 128]
+gen = "noise"
+dark = [6, 9, 11]
+mid = [35, 85, 113]
+light = [95, 166, 170]
+contrast = 1.6
+beta = 1.8
+
+["Mio.Prop.plan4"]
+size = [256, 128]
+gen = "noise"
+dark = [0, 0, 0]
+mid = [3, 12, 7]
+light = [114, 121, 107]
+contrast = 1.6
+beta = 1.8
+
+["Mio.Prop.Sofa0"]
+size = [128, 128]
+gen = "noise"
+dark = [153, 137, 103]
+mid = [160, 146, 113]
+light = [167, 154, 122]
+contrast = 0.44
+beta = 1.8
+
+["Mio.Wall.concrete"]
+size = [256, 256]
+gen = "noise"
+dark = [142, 140, 131]
+mid = [148, 147, 138]
+light = [155, 155, 145]
+contrast = 0.4
+beta = 1.8
+
+["Mio.Wall.OfficeWall1"]
+size = [256, 256]
+gen = "noise"
+dark = [126, 129, 119]
+mid = [135, 138, 127]
+light = [136, 140, 129]
+contrast = 0.4
+beta = 1.8
+spots = 0.057
+
+["Mio.Wall.wirewall0"]
+size = [256, 256]
+gen = "grate"
+dark = [68, 71, 62]
+mid = [171, 168, 139]
+light = [193, 191, 102]
+n = 12
 
 ["Palm01.Palm01"]
 size = [256, 256]
@@ -1303,6 +2639,13 @@ light = [253, 253, 253]
 n = 12
 masked = true
 
+["Rage.Skins.OrdersRedMidR"]
+size = [256, 32]
+gen = "glow"
+dark = [112, 2, 0]
+mid = [117, 3, 1]
+light = [127, 3, 0]
+
 ["Rage.Skins.RTG_FlagTex5"]
 size = [128, 128]
 gen = "sign"
@@ -1329,6 +2672,13 @@ mid = [10, 12, 7]
 light = [24, 22, 13]
 n = 2
 vertical = false
+
+["Rage.TyreSmoke.s3r_a00"]
+size = [32, 32]
+gen = "glow"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [16, 16, 16]
 
 ["rage_airport.box-cargo.ap_MetalBox"]
 size = [256, 256]
@@ -1561,6 +2911,14 @@ mid = [66, 65, 66]
 light = [66, 65, 66]
 border = 0.07
 
+["rage_airport.Box.JeansAd"]
+size = [256, 256]
+gen = "panel"
+dark = [1, 1, 1]
+mid = [31, 43, 69]
+light = [108, 116, 135]
+border = 0.07
+
 ["rage_airport.Button.ap_conVbuttons"]
 size = [128, 128]
 gen = "noise"
@@ -1588,6 +2946,35 @@ light = [109, 125, 145]
 n = 2
 vertical = false
 
+["rage_airport.Cargo.ap_BlPan2"]
+size = [256, 256]
+gen = "noise"
+dark = [94, 107, 123]
+mid = [104, 120, 140]
+light = [175, 178, 176]
+contrast = 0.89
+beta = 1.8
+
+["rage_airport.Cargo.ap_BlPan3"]
+size = [256, 256]
+gen = "noise"
+dark = [94, 106, 122]
+mid = [102, 118, 135]
+light = [110, 126, 145]
+contrast = 0.4
+beta = 1.8
+spots = 0.146
+
+["rage_airport.Cargo.ap_CargoBuild"]
+size = [256, 256]
+gen = "bricks"
+dark = [162, 167, 169]
+mid = [176, 179, 182]
+light = [183, 186, 189]
+border = 0.07
+rows = 6
+cols = 2
+
 ["rage_airport.Cargo.ap_CargoBuild1"]
 size = [256, 256]
 gen = "panel"
@@ -1604,6 +2991,53 @@ mid = [177, 177, 177]
 light = [184, 184, 184]
 ridges = 10
 vertical = false
+
+["rage_airport.Cargo.ap_CcladA1edge"]
+size = [256, 256]
+gen = "bricks"
+dark = [150, 150, 150]
+mid = [176, 176, 176]
+light = [184, 184, 184]
+border = 0.07
+rows = 10
+cols = 2
+
+["rage_airport.Cargo.ap_CcladA1edge10"]
+size = [256, 256]
+gen = "siding"
+dark = [0, 4, 0]
+mid = [55, 74, 92]
+light = [175, 179, 180]
+n = 3
+vertical = true
+
+["rage_airport.Cargo.ap_CcladA1edge5"]
+size = [256, 256]
+gen = "panel"
+dark = [142, 143, 143]
+mid = [174, 174, 174]
+light = [184, 184, 184]
+border = 0.07
+
+["rage_airport.Cargo.ap_CcladA1edge6"]
+size = [256, 256]
+gen = "noise"
+dark = [150, 150, 150]
+mid = [176, 176, 176]
+light = [184, 184, 184]
+contrast = 0.51
+beta = 1.8
+spots = 0.143
+
+["rage_airport.Cargo.ap_CcladA1edge7"]
+size = [256, 256]
+gen = "noise"
+dark = [150, 150, 150]
+mid = [176, 176, 176]
+light = [184, 184, 184]
+contrast = 0.5
+beta = 1.8
+spots = 0.145
 
 ["rage_airport.Cargo.ap_HangerDg1"]
 size = [256, 256]
@@ -1667,6 +3101,16 @@ light = [208, 214, 216]
 n = 2
 vertical = false
 
+["rage_airport.Door.ap_SlatDoor"]
+size = [256, 256]
+gen = "noise"
+dark = [67, 71, 75]
+mid = [77, 82, 86]
+light = [92, 99, 106]
+contrast = 0.62
+beta = 1.8
+spots = 0.106
+
 ["rage_airport.Door.ap_vbelt"]
 size = [256, 256]
 gen = "siding"
@@ -1718,6 +3162,15 @@ gen = "grate"
 dark = [63, 72, 83]
 mid = [88, 94, 102]
 light = [132, 132, 135]
+n = 12
+masked = true
+
+["rage_airport.fence.ap_towerlit1"]
+size = [256, 256]
+gen = "grate"
+dark = [7, 5, 5]
+mid = [50, 49, 48]
+light = [145, 146, 147]
 n = 12
 masked = true
 
@@ -1777,12 +3230,31 @@ contrast = 0.4
 beta = 1.8
 spots = 0.051
 
+["rage_airport.General.airportfog"]
+size = [64, 64]
+gen = "noise"
+dark = [24, 33, 41]
+mid = [24, 33, 41]
+light = [24, 33, 41]
+contrast = 0.4
+beta = 1.8
+
 ["rage_airport.General.ap_blackz"]
 size = [256, 256]
 gen = "glow"
 dark = [12, 12, 17]
 mid = [15, 15, 20]
 light = [17, 17, 24]
+
+["rage_airport.General.ap_Brownz"]
+size = [256, 256]
+gen = "noise"
+dark = [37, 16, 0]
+mid = [43, 19, 1]
+light = [49, 22, 3]
+contrast = 0.4
+beta = 1.8
+spots = 0.094
 
 ["rage_airport.General.ap_leatherPlain"]
 size = [256, 256]
@@ -1828,6 +3300,52 @@ mid = [130, 138, 134]
 light = [144, 153, 149]
 n = 3
 vertical = false
+
+["rage_airport.HangarFloor.ap_door1az"]
+size = [256, 256]
+gen = "panel"
+dark = [54, 66, 76]
+mid = [117, 117, 122]
+light = [159, 158, 160]
+border = 0.06
+bolt = true
+
+["rage_airport.HangarFloor.ap_door1dz"]
+size = [256, 256]
+gen = "corrugated"
+dark = [103, 102, 106]
+mid = [120, 120, 125]
+light = [151, 152, 156]
+ridges = 8
+vertical = true
+
+["rage_airport.HangarFloor.ap_door2az"]
+size = [256, 256]
+gen = "corrugated"
+dark = [64, 81, 99]
+mid = [83, 104, 126]
+light = [120, 139, 157]
+ridges = 8
+vertical = true
+
+["rage_airport.HangarFloor.ap_door2dz"]
+size = [256, 256]
+gen = "corrugated"
+dark = [69, 78, 93]
+mid = [85, 105, 125]
+light = [144, 143, 132]
+ridges = 8
+vertical = true
+
+["rage_airport.HangarFloor.ap_hangerfloor1z"]
+size = [256, 256]
+gen = "noise"
+dark = [148, 149, 148]
+mid = [153, 155, 155]
+light = [159, 160, 160]
+contrast = 0.4
+beta = 1.8
+spots = 0.134
 
 ["rage_airport.HangarFloor.ap_hangerfloor2z"]
 size = [256, 256]
@@ -1883,6 +3401,16 @@ gen = "glow"
 dark = [65, 78, 57]
 mid = [69, 82, 60]
 light = [74, 88, 64]
+
+["rage_airport.metal.ap_greenwall2z"]
+size = [256, 256]
+gen = "noise"
+dark = [54, 62, 43]
+mid = [67, 81, 58]
+light = [74, 88, 64]
+contrast = 0.4
+beta = 1.8
+spots = 0.177
 
 ["rage_airport.metal.ap_greenwall3z"]
 size = [256, 256]
@@ -2010,6 +3538,16 @@ light = [74, 88, 64]
 n = 3
 vertical = false
 
+["rage_airport.planes.CivDoor"]
+size = [256, 256]
+gen = "noise"
+dark = [201, 201, 200]
+mid = [229, 229, 229]
+light = [232, 233, 233]
+contrast = 0.98
+beta = 1.8
+spots = 0.173
+
 ["rage_airport.planes.CivEnginePod2"]
 size = [256, 256]
 gen = "noise"
@@ -2019,6 +3557,43 @@ light = [231, 231, 230]
 contrast = 1.54
 beta = 1.8
 spots = 0.2
+
+["rage_airport.planes.CivEnginePod3"]
+size = [256, 256]
+gen = "noise"
+dark = [110, 113, 114]
+mid = [178, 178, 176]
+light = [229, 229, 228]
+contrast = 1.43
+beta = 1.8
+
+["rage_airport.planes.CivInEngine"]
+size = [256, 256]
+gen = "noise"
+dark = [69, 70, 72]
+mid = [123, 125, 132]
+light = [148, 149, 151]
+contrast = 0.99
+beta = 1.8
+spots = 0.048
+
+["rage_airport.planes.CivLogo"]
+size = [256, 256]
+gen = "sign"
+dark = [149, 19, 11]
+mid = [229, 229, 229]
+light = [234, 235, 235]
+color = [170, 68, 62]
+mark = [255, 255, 255]
+
+["rage_airport.planes.CockPit"]
+size = [256, 256]
+gen = "noise"
+dark = [26, 29, 17]
+mid = [57, 67, 46]
+light = [62, 75, 52]
+contrast = 0.51
+beta = 1.8
 
 ["rage_airport.planes.IntWallCargo"]
 size = [256, 256]
@@ -2030,12 +3605,44 @@ border = 0.07
 rows = 16
 cols = 2
 
+["rage_airport.planes.PassWindow"]
+size = [64, 64]
+gen = "window"
+dark = [37, 39, 43]
+mid = [126, 134, 139]
+light = [227, 227, 226]
+nx = 2
+ny = 2
+
 ["rage_airport.planes.PiperA1"]
 size = [256, 256]
 gen = "pipes"
 dark = [123, 139, 108]
 mid = [181, 195, 198]
 light = [212, 218, 219]
+
+["rage_airport.planes.PiperA3"]
+size = [256, 256]
+gen = "pipes"
+dark = [91, 91, 92]
+mid = [188, 190, 197]
+light = [217, 223, 224]
+
+["rage_airport.planes.PiperA4"]
+size = [256, 256]
+gen = "pipes"
+dark = [138, 100, 24]
+mid = [189, 190, 198]
+light = [211, 217, 217]
+
+["rage_airport.planes.PlaneEngine1"]
+size = [256, 256]
+gen = "noise"
+dark = [19, 18, 18]
+mid = [92, 94, 99]
+light = [204, 204, 202]
+contrast = 1.6
+beta = 1.8
 
 ["rage_airport.planes.PlaneEngine3"]
 size = [256, 256]
@@ -2054,6 +3661,44 @@ mid = [63, 74, 52]
 light = [78, 93, 66]
 n = 2
 vertical = false
+
+["rage_airport.planes.SideTailA"]
+size = [256, 256]
+gen = "noise"
+dark = [55, 65, 46]
+mid = [61, 74, 52]
+light = [75, 92, 68]
+contrast = 0.4
+beta = 1.8
+spots = 0.052
+
+["rage_airport.planes.SideTailB"]
+size = [256, 256]
+gen = "noise"
+dark = [54, 55, 37]
+mid = [63, 76, 53]
+light = [74, 99, 77]
+contrast = 0.43
+beta = 1.8
+
+["rage_airport.planes.SideWing"]
+size = [256, 256]
+gen = "noise"
+dark = [56, 62, 42]
+mid = [61, 74, 51]
+light = [77, 95, 68]
+contrast = 0.4
+beta = 1.8
+
+["rage_airport.planes.SkinBase"]
+size = [256, 256]
+gen = "noise"
+dark = [223, 223, 222]
+mid = [229, 229, 229]
+light = [233, 233, 233]
+contrast = 0.4
+beta = 1.8
+spots = 0.089
 
 ["rage_airport.roof.ap_HangerRoof"]
 size = [256, 256]
@@ -2081,6 +3726,15 @@ mid = [185, 186, 183]
 light = [192, 194, 191]
 n = 5
 vertical = true
+
+["rage_airport.sec.ap_security2"]
+size = [256, 256]
+gen = "tiles"
+dark = [82, 87, 83]
+mid = [103, 109, 105]
+light = [119, 127, 124]
+n = 8
+grout = 0.04
 
 ["rage_airport.Sign.ap_BaseSignz"]
 size = [256, 128]
@@ -2113,6 +3767,15 @@ dark = [148, 27, 27]
 mid = [156, 51, 51]
 light = [200, 203, 202]
 
+["rage_airport.Sign.ap_liberty"]
+size = [128, 256]
+gen = "sign"
+dark = [28, 25, 25]
+mid = [70, 121, 155]
+light = [160, 196, 207]
+color = [87, 127, 168]
+mark = [255, 255, 255]
+
 ["rage_airport.Sign.ap_P&Hd"]
 size = [256, 128]
 gen = "sign"
@@ -2121,6 +3784,15 @@ mid = [154, 146, 115]
 light = [170, 162, 144]
 color = [128, 118, 77]
 mark = [255, 255, 255]
+
+["rage_airport.Sign.ap_riskpark"]
+size = [128, 256]
+gen = "sign"
+dark = [119, 120, 113]
+mid = [168, 169, 159]
+light = [180, 183, 185]
+color = [168, 169, 159]
+mark = [30, 30, 30]
 
 ["rage_airport.Sign.ap_tileco"]
 size = [256, 128]
@@ -2138,6 +3810,15 @@ dark = [0, 0, 0]
 mid = [107, 100, 90]
 light = [219, 208, 212]
 color = [61, 40, 32]
+mark = [255, 255, 255]
+
+["rage_airport.Sign.Tmenz"]
+size = [128, 128]
+gen = "sign"
+dark = [0, 0, 0]
+mid = [0, 89, 165]
+light = [176, 202, 224]
+color = [12, 94, 164]
 mark = [255, 255, 255]
 
 ["rage_airport.Sign.Twomenz"]
@@ -2183,6 +3864,27 @@ gen = "screen"
 dark = [2, 2, 123]
 mid = [89, 89, 86]
 light = [139, 144, 133]
+
+["rage_airport.Terminal.ap_DelayedSig3"]
+size = [256, 128]
+gen = "screen"
+dark = [10, 10, 10]
+mid = [24, 23, 23]
+light = [37, 36, 25]
+
+["rage_airport.Terminal.ap_DepClad"]
+size = [256, 256]
+gen = "screen"
+dark = [158, 158, 158]
+mid = [175, 175, 174]
+light = [186, 186, 185]
+
+["rage_airport.Terminal.ap_DepDoor1"]
+size = [256, 256]
+gen = "screen"
+dark = [108, 109, 111]
+mid = [156, 161, 163]
+light = [161, 166, 168]
 
 ["rage_airport.Terminal.ap_DepDoor2"]
 size = [256, 256]
@@ -2233,6 +3935,13 @@ dark = [143, 142, 141]
 mid = [150, 150, 149]
 light = [156, 156, 156]
 
+["rage_airport.Terminal.ap_DepStairsTop"]
+size = [256, 64]
+gen = "screen"
+dark = [0, 51, 89]
+mid = [0, 56, 95]
+light = [156, 156, 157]
+
 ["rage_airport.Terminal.ap_DepVent"]
 size = [256, 256]
 gen = "screen"
@@ -2246,6 +3955,107 @@ gen = "screen"
 dark = [145, 145, 147]
 mid = [157, 157, 158]
 light = [168, 168, 169]
+
+["rage_airport.Terminal.ap_TermBConc1"]
+size = [256, 256]
+gen = "screen"
+dark = [0, 50, 87]
+mid = [0, 53, 92]
+light = [0, 55, 96]
+
+["rage_airport.Terminal.ap_TermBConc3"]
+size = [256, 256]
+gen = "screen"
+dark = [0, 50, 86]
+mid = [0, 54, 94]
+light = [142, 143, 143]
+
+["rage_airport.Terminal.ap_TermBConc4"]
+size = [256, 256]
+gen = "screen"
+dark = [6, 14, 22]
+mid = [10, 17, 24]
+light = [118, 120, 119]
+
+["rage_airport.Terminal.ap_TermBConc5"]
+size = [256, 256]
+gen = "screen"
+dark = [7, 16, 24]
+mid = [0, 51, 89]
+light = [143, 145, 145]
+
+["rage_airport.Terminal.ap_TermClad1"]
+size = [256, 256]
+gen = "screen"
+dark = [0, 50, 87]
+mid = [0, 56, 98]
+light = [4, 60, 104]
+
+["rage_airport.Terminal.ap_TermConc1"]
+size = [256, 256]
+gen = "screen"
+dark = [141, 141, 139]
+mid = [146, 147, 145]
+light = [150, 152, 150]
+
+["rage_airport.Terminal.ap_TermConc2"]
+size = [256, 128]
+gen = "screen"
+dark = [127, 129, 126]
+mid = [146, 148, 145]
+light = [151, 153, 151]
+
+["rage_airport.Terminal.ap_TermOut1"]
+size = [256, 256]
+gen = "screen"
+dark = [158, 155, 145]
+mid = [169, 167, 161]
+light = [176, 174, 168]
+
+["rage_airport.Terminal.ap_TermOut2"]
+size = [256, 256]
+gen = "screen"
+dark = [168, 165, 159]
+mid = [172, 170, 164]
+light = [176, 174, 168]
+
+["rage_airport.Terminal.ap_TermOut7"]
+size = [256, 256]
+gen = "screen"
+dark = [119, 118, 113]
+mid = [154, 154, 149]
+light = [171, 171, 165]
+
+["rage_airport.Terminal.ap_TermOut8"]
+size = [256, 256]
+gen = "screen"
+dark = [120, 120, 115]
+mid = [147, 149, 148]
+light = [165, 166, 162]
+
+["rage_airport.Terminal.ap_windowA0"]
+size = [256, 256]
+gen = "screen"
+dark = [51, 95, 98]
+mid = [82, 137, 139]
+light = [131, 158, 166]
+
+["rage_airport.Terminal.ap_YellowTow1"]
+size = [256, 256]
+gen = "screen"
+dark = [164, 143, 52]
+mid = [174, 151, 54]
+light = [184, 158, 57]
+
+["rage_airport.toilet.airport_mirror"]
+size = [256, 256]
+gen = "noise"
+dark = [70, 70, 69]
+mid = [152, 151, 150]
+light = [206, 205, 204]
+contrast = 1.6
+beta = 1.8
+spots = 0.112
 
 ["rage_airport.toilet.ap_potty2Az"]
 size = [256, 256]
@@ -2295,6 +4105,15 @@ light = [164, 168, 169]
 n = 3
 vertical = false
 
+["rage_airport.Wall.ap_bGwall6"]
+size = [256, 256]
+gen = "bricks"
+dark = [95, 98, 102]
+mid = [140, 140, 138]
+light = [171, 162, 137]
+rows = 8
+cols = 2
+
 ["rage_airport.Wall.ap_Con10az"]
 size = [256, 256]
 gen = "siding"
@@ -2322,6 +4141,16 @@ light = [160, 161, 161]
 ridges = 24
 vertical = true
 
+["rage_airport.Wall.ap_TowerBase5z"]
+size = [256, 256]
+gen = "noise"
+dark = [91, 85, 82]
+mid = [161, 164, 164]
+light = [173, 175, 174]
+contrast = 1.06
+beta = 1.8
+spots = 0.173
+
 ["rage_airport.Wall.ap_TowerBasez"]
 size = [256, 256]
 gen = "siding"
@@ -2330,6 +4159,16 @@ mid = [166, 169, 168]
 light = [175, 177, 176]
 n = 3
 vertical = false
+
+["rage_airport.Wall.ap_towerInt"]
+size = [256, 256]
+gen = "noise"
+dark = [156, 158, 156]
+mid = [163, 166, 166]
+light = [168, 172, 173]
+contrast = 0.4
+beta = 1.8
+spots = 0.092
 
 ["rage_airport.Wall.ap_towerInt1"]
 size = [256, 256]
@@ -2348,6 +4187,16 @@ mid = [168, 165, 160]
 light = [181, 184, 188]
 ridges = 6
 vertical = false
+
+["rage_airport.Wall.ap_wall02"]
+size = [256, 256]
+gen = "noise"
+dark = [98, 78, 61]
+mid = [158, 155, 147]
+light = [181, 184, 188]
+contrast = 1.25
+beta = 1.8
+spots = 0.177
 
 ["rage_airport.Wall.ap_wall07"]
 size = [256, 256]
@@ -2378,6 +4227,25 @@ contrast = 0.4
 beta = 1.8
 spots = 0.131
 
+["rage_airport.Wall.ware_concrete_5"]
+size = [256, 256]
+gen = "noise"
+dark = [78, 23, 5]
+mid = [139, 133, 110]
+light = [156, 168, 175]
+contrast = 1.51
+beta = 1.8
+
+["rage_airport.Wall.wh_base2"]
+size = [256, 256]
+gen = "noise"
+dark = [69, 64, 66]
+mid = [124, 122, 118]
+light = [146, 148, 148]
+contrast = 1.03
+beta = 1.8
+spots = 0.168
+
 ["rage_airport.Wall.wh_base5"]
 size = [256, 256]
 gen = "noise"
@@ -2397,6 +4265,14 @@ light = [151, 159, 161]
 contrast = 0.73
 beta = 1.8
 spots = 0.13
+
+["rage_dock.crane.yard-crane-01"]
+size = [256, 256]
+gen = "panel"
+dark = [15, 15, 15]
+mid = [107, 107, 78]
+light = [137, 131, 55]
+border = 0.0
 
 ["rage_dock.crane.yard-crane-02"]
 size = [256, 128]
@@ -2432,12 +4308,53 @@ mid = [136, 130, 54]
 light = [140, 134, 56]
 border = 0.0
 
+["rage_dock.crane.yard-crane-07"]
+size = [64, 64]
+gen = "panel"
+dark = [16, 16, 16]
+mid = [16, 17, 16]
+light = [17, 18, 17]
+border = 0.0
+
+["rage_dock.crane.yard-crane-08"]
+size = [256, 256]
+gen = "panel"
+dark = [107, 108, 98]
+mid = [111, 114, 117]
+light = [131, 132, 122]
+border = 0.0
+
+["rage_dock.crane.yard-crane-09"]
+size = [256, 256]
+gen = "siding"
+dark = [105, 106, 108]
+mid = [111, 114, 115]
+light = [114, 117, 119]
+n = 3
+vertical = true
+
+["rage_dock.crane.yard-crane-11"]
+size = [256, 256]
+gen = "panel"
+dark = [100, 101, 103]
+mid = [111, 114, 115]
+light = [115, 117, 119]
+border = 0.0
+
 ["rage_dock.crane.yard-crane-12"]
 size = [256, 256]
 gen = "panel"
 dark = [91, 91, 92]
 mid = [111, 114, 115]
 light = [115, 117, 119]
+border = 0.0
+
+["rage_dock.crane.yard-crane-13"]
+size = [256, 256]
+gen = "panel"
+dark = [86, 85, 86]
+mid = [110, 113, 115]
+light = [114, 117, 119]
 border = 0.0
 
 ["rage_dock.crane.yard-crane-14"]
@@ -2457,6 +4374,41 @@ mid = [110, 113, 115]
 light = [115, 118, 119]
 border = 0.0
 
+["rage_dock.crane.yard-crane-16"]
+size = [256, 256]
+gen = "panel"
+dark = [10, 17, 17]
+mid = [109, 111, 113]
+light = [114, 117, 118]
+border = 0.0
+
+["rage_dock.crane.yard-crane-17"]
+size = [256, 256]
+gen = "panel"
+dark = [10, 16, 17]
+mid = [109, 112, 114]
+light = [115, 117, 118]
+border = 0.0
+
+["rage_dock.Door.dock_door_1"]
+size = [256, 256]
+gen = "panel"
+dark = [128, 128, 134]
+mid = [146, 150, 153]
+light = [157, 158, 165]
+border = 0.06
+bolt = true
+
+["rage_dock.Door.dock_door_2"]
+size = [128, 256]
+gen = "noise"
+dark = [112, 114, 126]
+mid = [156, 159, 177]
+light = [164, 167, 184]
+contrast = 0.92
+beta = 1.8
+spots = 0.2
+
 ["rage_dock.Door.yard-door-01"]
 size = [256, 256]
 gen = "corrugated"
@@ -2465,6 +4417,24 @@ mid = [101, 102, 99]
 light = [132, 135, 130]
 ridges = 16
 vertical = true
+
+["rage_dock.Door.yard-door-02"]
+size = [256, 256]
+gen = "corrugated"
+dark = [69, 62, 56]
+mid = [97, 95, 91]
+light = [130, 132, 127]
+ridges = 16
+vertical = true
+
+["rage_dock.Door.yard-door-03"]
+size = [128, 256]
+gen = "panel"
+dark = [55, 56, 52]
+mid = [86, 87, 70]
+light = [104, 100, 70]
+border = 0.06
+bolt = true
 
 ["rage_dock.Door.yard-door-04"]
 size = [128, 256]
@@ -2475,6 +4445,33 @@ light = [92, 64, 71]
 n = 2
 vertical = true
 
+["rage_dock.Door.yard-door-05"]
+size = [128, 256]
+gen = "noise"
+dark = [39, 37, 52]
+mid = [53, 54, 77]
+light = [73, 80, 95]
+contrast = 0.83
+beta = 1.8
+
+["rage_dock.Door.yard-door-06"]
+size = [128, 256]
+gen = "panel"
+dark = [58, 59, 55]
+mid = [126, 129, 127]
+light = [160, 162, 159]
+border = 0.06
+bolt = true
+
+["rage_dock.ground.dock-floor12"]
+size = [256, 256]
+gen = "noise"
+dark = [36, 33, 17]
+mid = [48, 43, 25]
+light = [63, 55, 37]
+contrast = 0.4
+beta = 1.8
+
 ["rage_dock.ground.dock_ground_3"]
 size = [256, 256]
 gen = "bricks"
@@ -2484,6 +4481,16 @@ light = [162, 159, 161]
 rows = 16
 cols = 2
 
+["rage_dock.ground.dock_ground_4"]
+size = [256, 256]
+gen = "noise"
+dark = [106, 86, 76]
+mid = [154, 124, 88]
+light = [204, 155, 74]
+contrast = 1.11
+beta = 1.8
+spots = 0.098
+
 ["rage_dock.ground.dock_ground_5"]
 size = [256, 128]
 gen = "noise"
@@ -2491,6 +4498,15 @@ dark = [26, 23, 25]
 mid = [146, 142, 145]
 light = [161, 158, 160]
 contrast = 1.6
+beta = 1.8
+
+["rage_dock.ground.dock_ground_8"]
+size = [256, 256]
+gen = "noise"
+dark = [123, 123, 122]
+mid = [134, 136, 134]
+light = [148, 150, 147]
+contrast = 0.44
 beta = 1.8
 
 ["rage_dock.ground.dock_ground_9"]
@@ -2502,6 +4518,60 @@ light = [142, 135, 122]
 ridges = 20
 vertical = true
 
+["rage_dock.ground.dock_water_00"]
+size = [256, 256]
+gen = "glow"
+dark = [28, 92, 129]
+mid = [32, 105, 142]
+light = [58, 142, 177]
+
+["rage_dock.ground.yard-floor-10"]
+size = [256, 256]
+gen = "noise"
+dark = [144, 139, 143]
+mid = [155, 150, 154]
+light = [178, 171, 175]
+contrast = 0.48
+beta = 1.8
+spots = 0.094
+
+["rage_dock.ground.yard-floor-11"]
+size = [256, 256]
+gen = "noise"
+dark = [144, 139, 142]
+mid = [155, 150, 153]
+light = [177, 169, 135]
+contrast = 0.47
+beta = 1.8
+spots = 0.092
+
+["rage_dock.ground.yard-floor-14"]
+size = [256, 256]
+gen = "bricks"
+dark = [121, 111, 107]
+mid = [138, 131, 128]
+light = [153, 147, 144]
+rows = 16
+cols = 2
+
+["rage_dock.ground.yard-floor-16"]
+size = [256, 256]
+gen = "siding"
+dark = [65, 57, 48]
+mid = [111, 100, 95]
+light = [138, 129, 125]
+n = 3
+vertical = false
+
+["rage_dock.ground.yard-floor-17"]
+size = [256, 256]
+gen = "siding"
+dark = [84, 76, 68]
+mid = [117, 110, 107]
+light = [143, 137, 134]
+n = 3
+vertical = false
+
 ["rage_dock.ground.yard-floor-20"]
 size = [256, 256]
 gen = "noise"
@@ -2512,6 +4582,16 @@ contrast = 0.7
 beta = 1.8
 spots = 0.09
 
+["rage_dock.ground.yard-floor-21"]
+size = [256, 256]
+gen = "noise"
+dark = [119, 120, 116]
+mid = [133, 135, 130]
+light = [146, 148, 143]
+contrast = 0.47
+beta = 1.8
+spots = 0.068
+
 ["rage_dock.ground.yard-floor-22"]
 size = [256, 256]
 gen = "corrugated"
@@ -2521,6 +4601,14 @@ light = [139, 132, 119]
 ridges = 10
 vertical = true
 
+["rage_dock.Light.ap_LRlight"]
+size = [256, 256]
+gen = "lamp"
+dark = [0, 0, 0]
+mid = [188, 188, 187]
+light = [232, 230, 231]
+kind = "round"
+
 ["rage_dock.Light.dock_light_1"]
 size = [128, 64]
 gen = "lamp"
@@ -2528,6 +4616,14 @@ dark = [62, 57, 57]
 mid = [180, 174, 164]
 light = [250, 248, 246]
 kind = "round"
+
+["rage_dock.metal.dock_metal_1"]
+size = [256, 256]
+gen = "panel"
+dark = [62, 68, 68]
+mid = [100, 123, 126]
+light = [121, 148, 152]
+border = 0.0
 
 ["rage_dock.metal.dock_metal_10"]
 size = [256, 256]
@@ -2538,6 +4634,39 @@ light = [188, 209, 201]
 ridges = 18
 vertical = true
 
+["rage_dock.metal.dock_metal_11"]
+size = [256, 256]
+gen = "corrugated"
+dark = [105, 101, 93]
+mid = [159, 173, 166]
+light = [190, 209, 201]
+ridges = 24
+vertical = true
+
+["rage_dock.metal.dock_metal_12"]
+size = [256, 256]
+gen = "panel"
+dark = [115, 114, 101]
+mid = [167, 183, 176]
+light = [197, 214, 208]
+border = 0.0
+
+["rage_dock.metal.dock_metal_13"]
+size = [256, 256]
+gen = "panel"
+dark = [114, 97, 76]
+mid = [154, 141, 116]
+light = [176, 165, 142]
+border = 0.0
+
+["rage_dock.metal.dock_metal_14"]
+size = [256, 256]
+gen = "panel"
+dark = [102, 94, 100]
+mid = [150, 142, 123]
+light = [176, 166, 143]
+border = 0.0
+
 ["rage_dock.metal.dock_metal_17"]
 size = [256, 256]
 gen = "panel"
@@ -2545,6 +4674,35 @@ dark = [137, 120, 100]
 mid = [159, 159, 146]
 light = [163, 175, 180]
 border = 0.0
+
+["rage_dock.metal.dock_metal_19"]
+size = [256, 256]
+gen = "noise"
+dark = [150, 149, 169]
+mid = [169, 168, 164]
+light = [175, 176, 172]
+contrast = 0.4
+beta = 1.8
+spots = 0.2
+
+["rage_dock.metal.dock_metal_2"]
+size = [256, 256]
+gen = "noise"
+dark = [64, 73, 74]
+mid = [102, 126, 128]
+light = [127, 153, 158]
+contrast = 1.17
+beta = 1.8
+spots = 0.192
+
+["rage_dock.metal.dock_metal_20"]
+size = [256, 256]
+gen = "corrugated"
+dark = [78, 86, 91]
+mid = [124, 131, 136]
+light = [175, 175, 172]
+ridges = 10
+vertical = true
 
 ["rage_dock.metal.dock_metal_21"]
 size = [256, 256]
@@ -2580,6 +4738,14 @@ mid = [169, 169, 165]
 light = [175, 176, 172]
 border = 0.0
 
+["rage_dock.metal.dock_metal_26"]
+size = [128, 128]
+gen = "panel"
+dark = [0, 36, 107]
+mid = [0, 36, 107]
+light = [0, 36, 107]
+border = 0.0
+
 ["rage_dock.metal.dock_metal_27"]
 size = [256, 256]
 gen = "siding"
@@ -2597,12 +4763,37 @@ mid = [163, 164, 163]
 light = [171, 173, 172]
 border = 0.0
 
+["rage_dock.metal.dock_metal_3"]
+size = [256, 256]
+gen = "corrugated"
+dark = [88, 96, 95]
+mid = [99, 122, 126]
+light = [111, 136, 140]
+ridges = 24
+vertical = true
+
+["rage_dock.metal.dock_metal_30"]
+size = [256, 256]
+gen = "panel"
+dark = [129, 127, 116]
+mid = [135, 137, 131]
+light = [150, 156, 161]
+border = 0.0
+
 ["rage_dock.metal.dock_metal_36"]
 size = [256, 256]
 gen = "panel"
 dark = [81, 67, 54]
 mid = [166, 149, 88]
 light = [173, 155, 91]
+border = 0.0
+
+["rage_dock.metal.dock_metal_4"]
+size = [256, 256]
+gen = "panel"
+dark = [109, 99, 83]
+mid = [158, 151, 126]
+light = [176, 173, 135]
 border = 0.0
 
 ["rage_dock.metal.dock_metal_41"]
@@ -2614,12 +4805,55 @@ light = [168, 183, 197]
 n = 4
 vertical = true
 
+["rage_dock.metal.dock_metal_4445"]
+size = [256, 256]
+gen = "panel"
+dark = [93, 94, 81]
+mid = [133, 126, 113]
+light = [148, 152, 144]
+border = 0.0
+
+["rage_dock.metal.dock_metal_48"]
+size = [256, 256]
+gen = "siding"
+dark = [102, 84, 77]
+mid = [136, 109, 115]
+light = [196, 168, 154]
+n = 3
+vertical = false
+
+["rage_dock.metal.dock_metal_5"]
+size = [256, 256]
+gen = "panel"
+dark = [89, 81, 64]
+mid = [163, 156, 119]
+light = [182, 177, 137]
+border = 0.0
+
 ["rage_dock.metal.dock_metal_59"]
 size = [256, 256]
 gen = "panel"
 dark = [142, 138, 131]
 mid = [149, 144, 138]
 light = [157, 153, 146]
+border = 0.0
+
+["rage_dock.metal.dock_metal_6"]
+size = [256, 256]
+gen = "noise"
+dark = [91, 78, 65]
+mid = [162, 156, 120]
+light = [179, 175, 137]
+contrast = 1.24
+beta = 1.8
+spots = 0.2
+
+["rage_dock.metal.dock_metal_60"]
+size = [256, 256]
+gen = "panel"
+dark = [91, 91, 82]
+mid = [129, 121, 115]
+light = [145, 142, 144]
 border = 0.0
 
 ["rage_dock.metal.dock_metal_65"]
@@ -2655,12 +4889,103 @@ mid = [246, 229, 208]
 light = [247, 234, 217]
 border = 0.0
 
+["rage_dock.metal.dock_metal_69"]
+size = [256, 256]
+gen = "panel"
+dark = [194, 169, 139]
+mid = [235, 208, 178]
+light = [241, 222, 200]
+border = 0.0
+
+["rage_dock.metal.dock_metal_7"]
+size = [256, 256]
+gen = "noise"
+dark = [93, 86, 89]
+mid = [164, 165, 180]
+light = [165, 166, 181]
+contrast = 1.19
+beta = 1.8
+spots = 0.2
+
+["rage_dock.metal.dock_metal_70"]
+size = [256, 256]
+gen = "siding"
+dark = [211, 185, 154]
+mid = [236, 214, 188]
+light = [244, 230, 213]
+n = 4
+vertical = true
+
+["rage_dock.metal.dock_metal_71"]
+size = [256, 256]
+gen = "siding"
+dark = [198, 171, 148]
+mid = [232, 208, 182]
+light = [246, 230, 209]
+n = 4
+vertical = true
+
+["rage_dock.metal.dock_metal_77"]
+size = [256, 256]
+gen = "noise"
+dark = [122, 97, 85]
+mid = [130, 124, 123]
+light = [133, 137, 142]
+contrast = 0.5
+beta = 1.8
+spots = 0.129
+
+["rage_dock.metal.dock_metal_8"]
+size = [256, 256]
+gen = "panel"
+dark = [71, 67, 68]
+mid = [155, 152, 162]
+light = [167, 168, 182]
+border = 0.0
+
+["rage_dock.metal.dock_metal_81"]
+size = [256, 256]
+gen = "noise"
+dark = [158, 159, 153]
+mid = [162, 163, 159]
+light = [163, 168, 166]
+contrast = 0.4
+beta = 1.8
+spots = 0.081
+
+["rage_dock.metal.dock_metal_82"]
+size = [256, 256]
+gen = "siding"
+dark = [113, 96, 77]
+mid = [121, 115, 96]
+light = [128, 131, 116]
+n = 3
+vertical = false
+
 ["rage_dock.metal.dock_metal_83"]
 size = [256, 256]
 gen = "panel"
 dark = [14, 8, 7]
 mid = [41, 24, 17]
 light = [104, 66, 46]
+border = 0.0
+
+["rage_dock.metal.dock_metal_88"]
+size = [256, 256]
+gen = "bricks"
+dark = [73, 56, 34]
+mid = [81, 62, 38]
+light = [88, 69, 42]
+border = 0.0
+rows = 8
+cols = 2
+
+["rage_dock.metal.dock_metal_9"]
+size = [256, 256]
+gen = "panel"
+dark = [69, 67, 71]
+mid = [161, 160, 175]
+light = [168, 168, 183]
 border = 0.0
 
 ["rage_dock.metal.dock_metal_90"]
@@ -2671,6 +4996,14 @@ mid = [77, 64, 58]
 light = [84, 73, 66]
 n = 2
 vertical = true
+
+["rage_dock.metal.dock_metal_92"]
+size = [256, 256]
+gen = "panel"
+dark = [82, 51, 41]
+mid = [109, 75, 60]
+light = [144, 115, 90]
+border = 0.0
 
 ["rage_dock.metal.dock_metal_93"]
 size = [256, 256]
@@ -2687,6 +5020,24 @@ dark = [94, 53, 43]
 mid = [130, 94, 77]
 light = [160, 132, 120]
 border = 0.0
+
+["rage_dock.metal.dock_metal_95"]
+size = [256, 256]
+gen = "corrugated"
+dark = [111, 66, 47]
+mid = [152, 107, 77]
+light = [224, 199, 156]
+ridges = 24
+vertical = false
+
+["rage_dock.Object.dock_object_1"]
+size = [256, 256]
+gen = "noise"
+dark = [87, 61, 62]
+mid = [133, 120, 113]
+light = [156, 166, 173]
+contrast = 1.25
+beta = 1.8
 
 ["rage_dock.Object.dock_object_10"]
 size = [128, 128]
@@ -2715,6 +5066,43 @@ light = [145, 23, 21]
 contrast = 0.4
 beta = 1.8
 
+["rage_dock.Object.dock_object_16"]
+size = [256, 256]
+gen = "bricks"
+dark = [102, 12, 12]
+mid = [120, 15, 14]
+light = [141, 107, 97]
+rows = 4
+cols = 2
+
+["rage_dock.Object.dock_object_17"]
+size = [256, 256]
+gen = "noise"
+dark = [67, 60, 75]
+mid = [100, 90, 111]
+light = [224, 223, 223]
+contrast = 1.6
+beta = 1.8
+
+["rage_dock.Object.dock_object_2"]
+size = [256, 256]
+gen = "noise"
+dark = [123, 110, 89]
+mid = [153, 151, 140]
+light = [160, 165, 166]
+contrast = 0.75
+beta = 1.8
+spots = 0.188
+
+["rage_dock.Object.dock_object_20"]
+size = [256, 256]
+gen = "bricks"
+dark = [7, 4, 17]
+mid = [45, 37, 50]
+light = [110, 118, 99]
+rows = 4
+cols = 2
+
 ["rage_dock.Object.dock_object_21"]
 size = [128, 128]
 gen = "siding"
@@ -2723,6 +5111,15 @@ mid = [0, 0, 21]
 light = [42, 43, 166]
 n = 2
 vertical = false
+
+["rage_dock.Object.dock_object_22"]
+size = [256, 256]
+gen = "noise"
+dark = [2, 1, 1]
+mid = [60, 43, 36]
+light = [131, 142, 158]
+contrast = 1.6
+beta = 1.8
 
 ["rage_dock.Object.dock_object_30"]
 size = [256, 128]
@@ -2761,6 +5158,13 @@ contrast = 1.26
 beta = 1.8
 spots = 0.2
 
+["rage_dock.Object.dock_sky"]
+size = [64, 64]
+gen = "sky"
+dark = [45, 53, 48]
+mid = [45, 53, 48]
+light = [45, 53, 48]
+
 ["rage_dock.Object.Lamp04"]
 size = [256, 256]
 gen = "lamp"
@@ -2769,6 +5173,15 @@ mid = [53, 75, 59]
 light = [207, 205, 192]
 kind = "round"
 
+["rage_dock.Object.yard-buoy-05"]
+size = [256, 256]
+gen = "tiles"
+dark = [98, 46, 6]
+mid = [122, 61, 10]
+light = [152, 140, 103]
+n = 8
+grout = 0.04
+
 ["rage_dock.Object.yard-lid-00"]
 size = [256, 256]
 gen = "noise"
@@ -2776,6 +5189,25 @@ dark = [10, 10, 10]
 mid = [143, 146, 144]
 light = [159, 161, 161]
 contrast = 1.6
+beta = 1.8
+
+["rage_dock.Object.yard-panel_00"]
+size = [128, 256]
+gen = "noise"
+dark = [64, 65, 60]
+mid = [69, 70, 64]
+light = [75, 76, 70]
+contrast = 0.4
+beta = 1.8
+spots = 0.042
+
+["rage_dock.Object.yard-panel_01"]
+size = [256, 128]
+gen = "noise"
+dark = [120, 121, 117]
+mid = [125, 125, 120]
+light = [130, 130, 126]
+contrast = 0.4
 beta = 1.8
 
 ["rage_dock.Object.yard-panel_02"]
@@ -2788,6 +5220,56 @@ contrast = 1.06
 beta = 1.8
 spots = 0.078
 
+["rage_dock.roof.dock_roof_1"]
+size = [256, 256]
+gen = "corrugated"
+dark = [17, 17, 25]
+mid = [52, 54, 69]
+light = [92, 96, 117]
+
+["rage_dock.roof.yard-roof-01"]
+size = [256, 256]
+gen = "corrugated"
+dark = [34, 29, 30]
+mid = [77, 66, 64]
+light = [154, 137, 130]
+
+["rage_dock.Sign.yard-sign-06"]
+size = [128, 128]
+gen = "sign"
+dark = [74, 73, 76]
+mid = [160, 164, 169]
+light = [194, 198, 198]
+color = [126, 102, 76]
+mark = [255, 255, 255]
+
+["rage_dock.Sign.yard-sign-17"]
+size = [128, 256]
+gen = "sign"
+dark = [25, 67, 147]
+mid = [39, 79, 153]
+light = [170, 183, 207]
+color = [51, 88, 157]
+mark = [255, 255, 255]
+
+["rage_dock.Sign.yard-sign-18"]
+size = [256, 256]
+gen = "sign"
+dark = [9, 9, 9]
+mid = [164, 163, 162]
+light = [197, 196, 194]
+color = [159, 92, 79]
+mark = [255, 255, 255]
+
+["rage_dock.Sign.yard-sign-21"]
+size = [128, 256]
+gen = "sign"
+dark = [3, 106, 148]
+mid = [37, 125, 160]
+light = [180, 199, 208]
+color = [46, 130, 164]
+mark = [255, 255, 255]
+
 ["rage_dock.Sign.yard-sign-22"]
 size = [256, 256]
 gen = "sign"
@@ -2796,6 +5278,61 @@ mid = [175, 173, 164]
 light = [208, 215, 209]
 color = [78, 111, 118]
 mark = [255, 255, 255]
+
+["rage_dock.tower.yard-tower-04"]
+size = [256, 256]
+gen = "noise"
+dark = [39, 29, 18]
+mid = [194, 160, 131]
+light = [243, 226, 209]
+contrast = 1.6
+beta = 1.8
+
+["rage_dock.tower.yard-tower-05"]
+size = [256, 256]
+gen = "noise"
+dark = [40, 29, 19]
+mid = [61, 45, 29]
+light = [85, 64, 39]
+contrast = 0.48
+beta = 1.8
+
+["rage_dock.tower.yard-tower-06"]
+size = [256, 256]
+gen = "siding"
+dark = [97, 64, 65]
+mid = [169, 106, 110]
+light = [191, 180, 171]
+n = 4
+vertical = true
+
+["rage_dock.tower.yard-tower-10"]
+size = [256, 256]
+gen = "corrugated"
+dark = [100, 86, 71]
+mid = [165, 168, 169]
+light = [195, 199, 201]
+ridges = 6
+vertical = true
+
+["rage_dock.tower.yard-tower-11"]
+size = [256, 256]
+gen = "noise"
+dark = [219, 103, 79]
+mid = [236, 211, 192]
+light = [244, 227, 211]
+contrast = 1.22
+beta = 1.8
+spots = 0.143
+
+["rage_dock.Wall.dock_wall_1"]
+size = [256, 256]
+gen = "bricks"
+dark = [132, 75, 66]
+mid = [140, 90, 82]
+light = [157, 135, 133]
+rows = 14
+cols = 8
 
 ["rage_dock.Wall.dock_wall_11"]
 size = [256, 256]
@@ -2807,6 +5344,52 @@ contrast = 1.6
 beta = 1.8
 spots = 0.2
 
+["rage_dock.Wall.dock_wall_12"]
+size = [256, 256]
+gen = "noise"
+dark = [153, 105, 89]
+mid = [234, 227, 234]
+light = [246, 235, 246]
+contrast = 1.54
+beta = 1.8
+spots = 0.2
+
+["rage_dock.Wall.dock_wall_13"]
+size = [256, 256]
+gen = "bricks"
+dark = [229, 221, 228]
+mid = [240, 232, 241]
+light = [247, 238, 247]
+rows = 16
+cols = 2
+
+["rage_dock.Wall.dock_wall_14"]
+size = [256, 256]
+gen = "corrugated"
+dark = [119, 68, 62]
+mid = [140, 87, 78]
+light = [155, 132, 130]
+ridges = 18
+vertical = true
+
+["rage_dock.Wall.dock_wall_15"]
+size = [256, 256]
+gen = "bricks"
+dark = [145, 94, 86]
+mid = [188, 117, 97]
+light = [216, 139, 104]
+rows = 16
+cols = 2
+
+["rage_dock.Wall.dock_wall_18"]
+size = [256, 256]
+gen = "tiles"
+dark = [123, 114, 92]
+mid = [157, 150, 127]
+light = [180, 170, 147]
+n = 8
+grout = 0.04
+
 ["rage_dock.Wall.dock_wall_24"]
 size = [256, 256]
 gen = "noise"
@@ -2816,6 +5399,15 @@ light = [136, 140, 133]
 contrast = 0.4
 beta = 1.8
 spots = 0.08
+
+["rage_dock.Wall.dock_wall_4"]
+size = [256, 256]
+gen = "bricks"
+dark = [137, 105, 92]
+mid = [152, 125, 109]
+light = [156, 163, 159]
+rows = 9
+cols = 8
 
 ["rage_dock.Wall.dock_wall_8"]
 size = [256, 256]
@@ -2844,6 +5436,16 @@ light = [180, 182, 200]
 n = 3
 vertical = false
 
+["rage_dock.Wall.yard-wall-06"]
+size = [256, 256]
+gen = "noise"
+dark = [91, 82, 85]
+mid = [126, 112, 116]
+light = [145, 139, 147]
+contrast = 1.01
+beta = 1.8
+spots = 0.2
+
 ["rage_dock.Wall.yard-wall-08"]
 size = [256, 256]
 gen = "siding"
@@ -2853,6 +5455,16 @@ light = [99, 91, 88]
 n = 2
 vertical = true
 
+["rage_dock.Wall.yard-wall-19"]
+size = [256, 256]
+gen = "noise"
+dark = [102, 94, 87]
+mid = [118, 109, 102]
+light = [128, 121, 114]
+contrast = 0.71
+beta = 1.8
+spots = 0.061
+
 ["rage_dock.Wall.yard-wall-24"]
 size = [256, 256]
 gen = "bricks"
@@ -2861,6 +5473,99 @@ mid = [78, 72, 91]
 light = [100, 86, 103]
 rows = 16
 cols = 7
+
+["rage_dock.Wall.yard-wall-25"]
+size = [256, 256]
+gen = "noise"
+dark = [62, 55, 76]
+mid = [85, 77, 94]
+light = [117, 106, 122]
+contrast = 0.71
+beta = 1.8
+
+["rage_dock.Wall.yard-wall-29"]
+size = [256, 256]
+gen = "bricks"
+dark = [92, 86, 100]
+mid = [130, 115, 120]
+light = [160, 146, 144]
+rows = 16
+cols = 2
+
+["rage_dock.Wall.yard-wall-30"]
+size = [256, 256]
+gen = "noise"
+dark = [67, 65, 78]
+mid = [121, 107, 112]
+light = [156, 141, 139]
+contrast = 0.95
+beta = 1.8
+
+["rage_dock.Wall.yard-wall-31"]
+size = [256, 256]
+gen = "noise"
+dark = [93, 87, 99]
+mid = [133, 119, 125]
+light = [165, 148, 149]
+contrast = 0.83
+beta = 1.8
+spots = 0.046
+
+["rage_dock.Wall.yard-wall-32"]
+size = [256, 256]
+gen = "bricks"
+dark = [65, 63, 76]
+mid = [113, 101, 108]
+light = [150, 141, 147]
+rows = 4
+cols = 2
+
+["rage_dock.Wall.yard-wall-33"]
+size = [256, 256]
+gen = "tiles"
+dark = [73, 62, 72]
+mid = [117, 106, 130]
+light = [164, 160, 184]
+n = 8
+grout = 0.04
+
+["rage_dock.Wall.yard-wall-34"]
+size = [256, 256]
+gen = "noise"
+dark = [55, 54, 73]
+mid = [118, 109, 112]
+light = [132, 126, 133]
+contrast = 0.91
+beta = 1.8
+spots = 0.2
+
+["rage_dock.Wall.yard-wall-35"]
+size = [256, 256]
+gen = "bricks"
+dark = [107, 97, 102]
+mid = [120, 112, 114]
+light = [135, 129, 135]
+rows = 9
+cols = 2
+
+["rage_dock.Wall.yard-wall-37"]
+size = [256, 256]
+gen = "noise"
+dark = [110, 112, 111]
+mid = [119, 121, 121]
+light = [127, 130, 131]
+contrast = 0.4
+beta = 1.8
+spots = 0.079
+
+["rage_dock.Wall.yard-wall-39"]
+size = [256, 256]
+gen = "noise"
+dark = [37, 30, 18]
+mid = [70, 57, 28]
+light = [106, 89, 55]
+contrast = 0.8
+beta = 1.8
 
 ["rage_dock.Wall.yard-wall-40"]
 size = [256, 256]
@@ -2916,6 +5621,24 @@ light = [206, 197, 187]
 n = 4
 vertical = false
 
+["rage_dock.Wood.dock_wood_3"]
+size = [256, 128]
+gen = "planks"
+dark = [55, 50, 45]
+mid = [73, 69, 63]
+light = [95, 94, 87]
+n = 4
+vertical = false
+
+["rage_dock.Wood.dock_wood_4"]
+size = [256, 256]
+gen = "planks"
+dark = [115, 105, 96]
+mid = [177, 167, 154]
+light = [205, 196, 186]
+n = 4
+vertical = true
+
 ["rage_dock.Wood.dock_wood_5"]
 size = [256, 256]
 gen = "planks"
@@ -2924,6 +5647,22 @@ mid = [187, 183, 179]
 light = [214, 213, 210]
 n = 5
 vertical = false
+
+["rage_dock.Wood.dock_wood_6"]
+size = [256, 256]
+gen = "planks"
+dark = [118, 104, 91]
+mid = [185, 180, 173]
+light = [213, 212, 208]
+n = 4
+vertical = false
+
+["rage_generic.Brick.BlueDoor_A01"]
+size = [64, 128]
+gen = "glow"
+dark = [3, 10, 103]
+mid = [4, 13, 147]
+light = [129, 134, 214]
 
 ["rage_generic.Brick.BlueDoor_A02"]
 size = [64, 128]
@@ -2934,12 +5673,51 @@ light = [123, 129, 213]
 rows = 4
 cols = 2
 
+["rage_generic.Brick.BlueDoor_A03"]
+size = [64, 128]
+gen = "glow"
+dark = [5, 15, 151]
+mid = [5, 17, 177]
+light = [115, 122, 216]
+
+["rage_generic.Brick.generic_brick_1"]
+size = [256, 256]
+gen = "bricks"
+dark = [100, 94, 81]
+mid = [121, 115, 100]
+light = [143, 138, 122]
+rows = 4
+cols = 2
+
+["rage_generic.Brick.RedDoor_A01"]
+size = [64, 128]
+gen = "glow"
+dark = [107, 0, 0]
+mid = [152, 0, 0]
+light = [215, 127, 127]
+
 ["rage_generic.Light.generic_lens_1"]
 size = [128, 128]
 gen = "lamp"
 dark = [0, 0, 0]
 mid = [0, 0, 0]
 light = [33, 33, 33]
+kind = "round"
+
+["rage_generic.Light.generic_lens_2"]
+size = [128, 128]
+gen = "lamp"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [33, 19, 1]
+kind = "round"
+
+["rage_generic.Light.generic_lens_3"]
+size = [128, 128]
+gen = "lamp"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [0, 25, 33]
 kind = "round"
 
 ["rage_generic.Light.generic_light1"]
@@ -2950,12 +5728,28 @@ mid = [99, 126, 146]
 light = [218, 249, 252]
 kind = "round"
 
+["rage_generic.Light.generic_light2"]
+size = [128, 128]
+gen = "lamp"
+dark = [41, 38, 39]
+mid = [170, 111, 98]
+light = [253, 211, 176]
+kind = "round"
+
 ["rage_generic.Light.generic_light3"]
 size = [256, 128]
 gen = "lamp"
 dark = [189, 186, 180]
 mid = [215, 214, 210]
 light = [254, 254, 254]
+kind = "round"
+
+["rage_generic.Light.generic_light4"]
+size = [128, 128]
+gen = "lamp"
+dark = [56, 72, 67]
+mid = [111, 186, 103]
+light = [209, 237, 205]
 kind = "round"
 
 ["rage_generic.Object.generic_manhole_1"]
@@ -3204,6 +5998,15 @@ light = [120, 121, 121]
 n = 3
 vertical = true
 
+["rage_lumberyard.Rock.lumber_rock_01256"]
+size = [256, 256]
+gen = "siding"
+dark = [37, 38, 35]
+mid = [83, 86, 84]
+light = [120, 121, 121]
+n = 3
+vertical = true
+
 ["rage_lumberyard.roof.lumber_roof_00"]
 size = [128, 128]
 gen = "corrugated"
@@ -3374,6 +6177,15 @@ light = [131, 145, 156]
 n = 4
 vertical = false
 
+["rage_lumberyard.Wood.lumber_wood_31"]
+size = [256, 256]
+gen = "planks"
+dark = [53, 80, 54]
+mid = [76, 104, 79]
+light = [102, 139, 120]
+n = 2
+vertical = false
+
 ["rage_lumberyard.Wood.lumber_wood_33"]
 size = [256, 256]
 gen = "planks"
@@ -3382,6 +6194,15 @@ mid = [67, 61, 57]
 light = [84, 79, 75]
 n = 4
 vertical = true
+
+["rage_lumberyard.Wood.lumber_wood_42"]
+size = [128, 128]
+gen = "planks"
+dark = [69, 91, 74]
+mid = [120, 129, 114]
+light = [151, 157, 133]
+n = 2
+vertical = false
 
 ["rage_lumberyard.Wood.lumber_wood_46"]
 size = [256, 256]
@@ -3409,6 +6230,24 @@ mid = [126, 119, 111]
 light = [147, 142, 135]
 n = 4
 vertical = true
+
+["rage_marina.concrete.marina_concrete_10"]
+size = [256, 256]
+gen = "bricks"
+dark = [156, 148, 144]
+mid = [202, 192, 188]
+light = [215, 205, 201]
+rows = 5
+cols = 6
+
+["rage_marina.concrete.marina_concrete_12"]
+size = [256, 256]
+gen = "bricks"
+dark = [147, 130, 130]
+mid = [181, 166, 164]
+light = [209, 195, 192]
+rows = 8
+cols = 6
 
 ["rage_marina.concrete.marina_concrete_13"]
 size = [128, 128]
@@ -3455,6 +6294,15 @@ dark = [134, 135, 134]
 mid = [141, 143, 142]
 light = [147, 149, 149]
 n = 3
+vertical = true
+
+["rage_marina.concrete.marina_concrete_20"]
+size = [256, 256]
+gen = "corrugated"
+dark = [156, 152, 147]
+mid = [178, 173, 167]
+light = [193, 188, 180]
+ridges = 6
 vertical = true
 
 ["rage_marina.concrete.marina_concrete_21"]
@@ -3582,6 +6430,15 @@ light = [154, 129, 116]
 n = 2
 grout = 0.04
 
+["rage_marina.concrete.marina_concrete_40"]
+size = [256, 256]
+gen = "noise"
+dark = [5, 6, 2]
+mid = [11, 12, 6]
+light = [17, 18, 13]
+contrast = 0.4
+beta = 1.8
+
 ["rage_marina.concrete.marina_concrete_41"]
 size = [256, 64]
 gen = "tiles"
@@ -3635,6 +6492,16 @@ mid = [173, 170, 172]
 light = [182, 180, 181]
 ridges = 24
 vertical = true
+
+["rage_marina.concrete.marina_concrete_7"]
+size = [128, 128]
+gen = "noise"
+dark = [131, 132, 126]
+mid = [140, 141, 135]
+light = [145, 146, 140]
+contrast = 0.4
+beta = 1.8
+spots = 0.184
 
 ["rage_marina.concrete.marina_concrete_8"]
 size = [128, 128]
@@ -3795,6 +6662,24 @@ light = [227, 230, 2]
 n = 2
 vertical = true
 
+["rage_marina.Object.marina_object_11"]
+size = [256, 256]
+gen = "noise"
+dark = [8, 9, 2]
+mid = [45, 38, 15]
+light = [162, 117, 29]
+contrast = 1.37
+beta = 1.8
+
+["rage_marina.Object.marina_object_14"]
+size = [256, 256]
+gen = "noise"
+dark = [18, 7, 1]
+mid = [76, 47, 8]
+light = [227, 201, 191]
+contrast = 1.6
+beta = 1.8
+
 ["rage_marina.Object.marina_object_16"]
 size = [128, 64]
 gen = "corrugated"
@@ -3925,6 +6810,25 @@ contrast = 0.4
 beta = 1.8
 spots = 0.08
 
+["rage_marina.Object.marina_object_44"]
+size = [128, 256]
+gen = "noise"
+dark = [0, 76, 109]
+mid = [14, 93, 125]
+light = [134, 157, 166]
+contrast = 1.32
+beta = 1.8
+
+["rage_marina.Object.marina_object_5"]
+size = [256, 256]
+gen = "noise"
+dark = [72, 38, 15]
+mid = [79, 42, 16]
+light = [83, 46, 17]
+contrast = 0.4
+beta = 1.8
+spots = 0.08
+
 ["rage_marina.Object.marina_object_9"]
 size = [128, 128]
 gen = "tiles"
@@ -3986,6 +6890,15 @@ light = [149, 154, 156]
 color = [57, 66, 71]
 mark = [255, 255, 255]
 
+["rage_marina.Sign.dock-billboard-11"]
+size = [256, 256]
+gen = "sign"
+dark = [0, 0, 0]
+mid = [46, 41, 39]
+light = [174, 180, 169]
+color = [48, 44, 36]
+mark = [255, 255, 255]
+
 ["rage_marina.Sign.dock-billboard-12"]
 size = [256, 256]
 gen = "sign"
@@ -4020,6 +6933,15 @@ dark = [66, 58, 47]
 mid = [152, 120, 53]
 light = [186, 175, 159]
 color = [149, 114, 43]
+mark = [255, 255, 255]
+
+["rage_marina.Sign.marina_sign_18"]
+size = [256, 128]
+gen = "sign"
+dark = [0, 89, 122]
+mid = [118, 153, 166]
+light = [251, 252, 252]
+color = [51, 116, 141]
 mark = [255, 255, 255]
 
 ["rage_marina.Sign.marina_sign_19"]
@@ -4076,6 +6998,15 @@ light = [169, 151, 107]
 color = [54, 74, 40]
 mark = [255, 255, 255]
 
+["rage_marina.Sign.marina_sign_25"]
+size = [256, 256]
+gen = "sign"
+dark = [6, 8, 4]
+mid = [75, 66, 44]
+light = [215, 162, 36]
+color = [95, 74, 23]
+mark = [255, 255, 255]
+
 ["rage_marina.Sign.marina_sign_26"]
 size = [256, 256]
 gen = "sign"
@@ -4083,6 +7014,33 @@ dark = [6, 11, 8]
 mid = [29, 50, 31]
 light = [100, 105, 101]
 color = [28, 47, 30]
+mark = [255, 255, 255]
+
+["rage_marina.Sign.marina_sign_27"]
+size = [256, 256]
+gen = "sign"
+dark = [0, 0, 0]
+mid = [29, 34, 32]
+light = [169, 172, 173]
+color = [26, 35, 36]
+mark = [255, 255, 255]
+
+["rage_marina.Sign.marina_sign_28"]
+size = [256, 256]
+gen = "sign"
+dark = [54, 19, 16]
+mid = [126, 62, 52]
+light = [178, 170, 181]
+color = [127, 60, 50]
+mark = [255, 255, 255]
+
+["rage_marina.Sign.marina_sign_29"]
+size = [256, 256]
+gen = "sign"
+dark = [18, 15, 15]
+mid = [58, 54, 59]
+light = [232, 227, 113]
+color = [119, 111, 44]
 mark = [255, 255, 255]
 
 ["rage_marina.Sign.marina_sign_30"]
@@ -4137,11 +7095,25 @@ dark = [59, 80, 72]
 mid = [118, 126, 116]
 light = [188, 185, 167]
 
+["rage_marina.sky.sky_00256"]
+size = [256, 256]
+gen = "sky"
+dark = [59, 81, 72]
+mid = [117, 126, 116]
+light = [187, 185, 167]
+
 ["rage_marina.sky.sky_01"]
 size = [512, 512]
 gen = "sky"
 dark = [50, 76, 68]
 mid = [98, 105, 98]
+light = [154, 150, 133]
+
+["rage_marina.sky.sky_01256"]
+size = [256, 256]
+gen = "sky"
+dark = [50, 76, 68]
+mid = [98, 106, 97]
 light = [154, 150, 133]
 
 ["rage_marina.sky.sky_02"]
@@ -4150,6 +7122,13 @@ gen = "sky"
 dark = [70, 87, 77]
 mid = [170, 172, 146]
 light = [227, 226, 207]
+
+["rage_marina.sky.sky_02256"]
+size = [256, 256]
+gen = "sky"
+dark = [70, 87, 77]
+mid = [170, 172, 146]
+light = [227, 227, 208]
 
 ["rage_marina.sky.sky_03"]
 size = [512, 512]
@@ -4171,6 +7150,13 @@ gen = "sky"
 dark = [130, 126, 118]
 mid = [210, 201, 180]
 light = [225, 221, 199]
+
+["rage_marina.sky.sky_04256"]
+size = [256, 256]
+gen = "sky"
+dark = [129, 126, 118]
+mid = [209, 201, 180]
+light = [224, 221, 198]
 
 ["rage_marina.Wall.marina_wall_1"]
 size = [256, 256]
@@ -4199,6 +7185,24 @@ light = [131, 148, 147]
 n = 2
 vertical = false
 
+["rage_marina.Window.marina_window_11"]
+size = [256, 256]
+gen = "window"
+dark = [19, 22, 26]
+mid = [31, 42, 57]
+light = [44, 45, 47]
+nx = 4
+ny = 3
+
+["rage_marina.Window.marina_window_12"]
+size = [128, 128]
+gen = "window"
+dark = [4, 4, 2]
+mid = [13, 11, 8]
+light = [32, 29, 26]
+nx = 2
+ny = 2
+
 ["rage_marina.Window.marina_window_13"]
 size = [128, 128]
 gen = "window"
@@ -4226,6 +7230,15 @@ light = [89, 89, 96]
 nx = 2
 ny = 2
 
+["rage_marina.Window.marina_window_16"]
+size = [128, 128]
+gen = "window"
+dark = [92, 117, 123]
+mid = [145, 179, 197]
+light = [148, 185, 196]
+nx = 2
+ny = 5
+
 ["rage_marina.Window.marina_window_2"]
 size = [128, 128]
 gen = "window"
@@ -4241,6 +7254,24 @@ gen = "window"
 dark = [26, 26, 44]
 mid = [68, 68, 84]
 light = [210, 213, 214]
+nx = 2
+ny = 2
+
+["rage_marina.Window.marina_window_6"]
+size = [128, 128]
+gen = "window"
+dark = [67, 70, 72]
+mid = [148, 156, 160]
+light = [155, 165, 171]
+nx = 3
+ny = 4
+
+["rage_marina.Window.marina_window_8"]
+size = [128, 128]
+gen = "window"
+dark = [61, 84, 119]
+mid = [69, 93, 132]
+light = [140, 146, 154]
 nx = 2
 ny = 2
 
@@ -4339,6 +7370,15 @@ light = [172, 130, 93]
 n = 4
 vertical = false
 
+["rage_pueblo.Door.pueblo_door_10"]
+size = [256, 256]
+gen = "panel"
+dark = [0, 0, 0]
+mid = [60, 45, 41]
+light = [127, 114, 105]
+border = 0.06
+bolt = true
+
 ["rage_pueblo.Door.pueblo_door_11"]
 size = [256, 256]
 gen = "panel"
@@ -4411,6 +7451,33 @@ light = [201, 133, 68]
 n = 2
 grout = 0.04
 
+["rage_pueblo.Object.pueblo_object_10"]
+size = [256, 256]
+gen = "noise"
+dark = [21, 19, 19]
+mid = [48, 36, 28]
+light = [85, 66, 45]
+contrast = 0.61
+beta = 1.8
+
+["rage_pueblo.Object.pueblo_object_11"]
+size = [256, 256]
+gen = "noise"
+dark = [32, 21, 15]
+mid = [61, 40, 24]
+light = [86, 65, 43]
+contrast = 0.56
+beta = 1.8
+
+["rage_pueblo.Object.pueblo_object_12"]
+size = [256, 256]
+gen = "noise"
+dark = [46, 64, 38]
+mid = [49, 71, 41]
+light = [104, 82, 62]
+contrast = 0.4
+beta = 1.8
+
 ["rage_pueblo.Object.pueblo_object_20"]
 size = [256, 256]
 gen = "tiles"
@@ -4438,6 +7505,24 @@ light = [191, 149, 110]
 n = 3
 vertical = false
 
+["rage_pueblo.Object.pueblo_object_4"]
+size = [128, 256]
+gen = "noise"
+dark = [9, 9, 8]
+mid = [128, 123, 97]
+light = [192, 185, 147]
+contrast = 1.6
+beta = 1.8
+
+["rage_pueblo.Object.pueblo_object_9"]
+size = [128, 256]
+gen = "bricks"
+dark = [17, 16, 13]
+mid = [151, 136, 104]
+light = [179, 162, 125]
+rows = 4
+cols = 2
+
 ["rage_pueblo.Rock.pueblo_rock_1"]
 size = [256, 256]
 gen = "noise"
@@ -4461,10 +7546,62 @@ dark = [65, 50, 36]
 mid = [131, 102, 73]
 light = [153, 125, 91]
 
+["rage_pueblo.Sign.pueblo_sign_01"]
+size = [256, 256]
+gen = "sign"
+dark = [23, 93, 123]
+mid = [75, 132, 162]
+light = [175, 201, 211]
+color = [67, 129, 157]
+mark = [255, 255, 255]
+
+["rage_pueblo.Sign.pueblo_sign_10"]
+size = [256, 128]
+gen = "sign"
+dark = [35, 39, 44]
+mid = [73, 91, 104]
+light = [119, 132, 130]
+color = [61, 92, 123]
+mark = [255, 255, 255]
+
+["rage_pueblo.Sign.pueblo_sign_11"]
+size = [256, 128]
+gen = "sign"
+dark = [37, 40, 44]
+mid = [70, 87, 104]
+light = [116, 126, 124]
+color = [58, 90, 123]
+mark = [255, 255, 255]
+
+["rage_pueblo.Sign.pueblo_sign_12"]
+size = [256, 128]
+gen = "sign"
+dark = [46, 42, 39]
+mid = [114, 87, 77]
+light = [142, 129, 116]
+color = [135, 73, 58]
+mark = [255, 255, 255]
+
+["rage_pueblo.Sign.pueblo_sign_13"]
+size = [256, 128]
+gen = "sign"
+dark = [44, 41, 39]
+mid = [118, 83, 72]
+light = [142, 132, 117]
+color = [136, 75, 59]
+mark = [255, 255, 255]
+
 ["rage_pueblo.sky.Des_Sun1a"]
 size = [512, 512]
 gen = "sky"
 dark = [107, 162, 255]
+mid = [244, 251, 255]
+light = [255, 255, 255]
+
+["rage_pueblo.sky.Des_Sun1a256"]
+size = [256, 256]
+gen = "sky"
+dark = [107, 162, 254]
 mid = [244, 251, 255]
 light = [255, 255, 255]
 
@@ -4484,6 +7621,33 @@ light = [198, 142, 107]
 n = 4
 grout = 0.04
 
+["rage_pueblo.Wall.pueblo_wall_10"]
+size = [256, 256]
+gen = "siding"
+dark = [149, 147, 120]
+mid = [164, 161, 134]
+light = [175, 171, 146]
+n = 3
+vertical = true
+
+["rage_pueblo.Wall.pueblo_wall_16"]
+size = [256, 256]
+gen = "noise"
+dark = [149, 127, 96]
+mid = [168, 148, 118]
+light = [209, 201, 194]
+contrast = 0.9
+beta = 1.8
+
+["rage_pueblo.Wall.pueblo_wall_17"]
+size = [256, 256]
+gen = "bricks"
+dark = [149, 128, 97]
+mid = [164, 145, 118]
+light = [176, 157, 131]
+rows = 4
+cols = 2
+
 ["rage_pueblo.Wall.pueblo_wall_19"]
 size = [256, 256]
 gen = "siding"
@@ -4493,6 +7657,16 @@ light = [178, 173, 156]
 n = 2
 vertical = true
 
+["rage_pueblo.Wall.pueblo_wall_22"]
+size = [256, 256]
+gen = "noise"
+dark = [161, 151, 114]
+mid = [173, 164, 125]
+light = [184, 175, 137]
+contrast = 0.4
+beta = 1.8
+spots = 0.1
+
 ["rage_pueblo.Wall.pueblo_wall_28"]
 size = [256, 256]
 gen = "siding"
@@ -4501,6 +7675,34 @@ mid = [135, 127, 115]
 light = [152, 144, 134]
 n = 2
 vertical = false
+
+["rage_pueblo.Wall.pueblo_wall_3"]
+size = [256, 256]
+gen = "bricks"
+dark = [168, 132, 90]
+mid = [174, 141, 100]
+light = [182, 150, 108]
+rows = 5
+cols = 3
+
+["rage_pueblo.Wall.pueblo_wall_4"]
+size = [256, 256]
+gen = "noise"
+dark = [169, 141, 101]
+mid = [174, 150, 115]
+light = [178, 161, 135]
+contrast = 0.4
+beta = 1.8
+
+["rage_pueblo.Wall.pueblo_wall_42"]
+size = [256, 256]
+gen = "noise"
+dark = [127, 119, 107]
+mid = [140, 130, 116]
+light = [152, 140, 123]
+contrast = 0.4
+beta = 1.8
+spots = 0.104
 
 ["rage_pueblo.Wall.pueblo_wall_47"]
 size = [256, 256]
@@ -4629,6 +7831,42 @@ light = [136, 112, 99]
 n = 2
 vertical = false
 
+["rage_pueblo.Wood.mexican-wood-29"]
+size = [256, 256]
+gen = "planks"
+dark = [104, 97, 92]
+mid = [137, 132, 130]
+light = [143, 138, 140]
+n = 10
+vertical = false
+
+["rage_pueblo.Wood.pueblo_wood_10"]
+size = [256, 256]
+gen = "planks"
+dark = [81, 77, 74]
+mid = [99, 97, 99]
+light = [118, 119, 125]
+n = 4
+vertical = false
+
+["rage_pueblo.Wood.pueblo_wood_11"]
+size = [128, 128]
+gen = "planks"
+dark = [102, 95, 87]
+mid = [109, 106, 101]
+light = [117, 117, 116]
+n = 2
+vertical = false
+
+["rage_pueblo.Wood.pueblo_wood_12"]
+size = [256, 256]
+gen = "planks"
+dark = [26, 22, 24]
+mid = [51, 39, 28]
+light = [88, 68, 45]
+n = 4
+vertical = false
+
 ["rage_pueblo.Wood.pueblo_wood_13"]
 size = [256, 256]
 gen = "planks"
@@ -4683,12 +7921,30 @@ light = [173, 178, 179]
 n = 3
 vertical = false
 
+["rage_pueblo.Wood.pueblo_wood_3"]
+size = [256, 256]
+gen = "planks"
+dark = [180, 173, 163]
+mid = [209, 204, 197]
+light = [228, 226, 221]
+n = 2
+vertical = false
+
 ["rage_pueblo.Wood.pueblo_wood_34"]
 size = [256, 256]
 gen = "planks"
 dark = [96, 82, 73]
 mid = [125, 111, 102]
 light = [143, 132, 127]
+n = 2
+vertical = false
+
+["rage_pueblo.Wood.pueblo_wood_35"]
+size = [256, 256]
+gen = "planks"
+dark = [78, 88, 62]
+mid = [108, 118, 93]
+light = [127, 139, 119]
 n = 2
 vertical = false
 
@@ -4701,6 +7957,15 @@ light = [183, 184, 185]
 n = 5
 vertical = false
 
+["rage_pueblo.Wood.pueblo_wood_5"]
+size = [256, 256]
+gen = "planks"
+dark = [96, 88, 80]
+mid = [126, 119, 111]
+light = [147, 142, 135]
+n = 4
+vertical = true
+
 ["rage_pueblo.Wood.pueblo_wood_7"]
 size = [256, 256]
 gen = "planks"
@@ -4708,6 +7973,15 @@ dark = [51, 49, 53]
 mid = [92, 92, 94]
 light = [126, 130, 130]
 n = 5
+vertical = false
+
+["rage_pueblo.Wood.pueblo_wood_8"]
+size = [256, 256]
+gen = "planks"
+dark = [102, 97, 94]
+mid = [135, 132, 130]
+light = [142, 140, 138]
+n = 10
 vertical = false
 
 ["rage_pueblo.Wood.pueblo_wood_9"]
@@ -5137,6 +8411,16 @@ light = [87, 88, 92]
 ridges = 9
 vertical = true
 
+["rage_urban.BlueOilTbase1"]
+size = [256, 256]
+gen = "noise"
+dark = [33, 52, 67]
+mid = [46, 73, 92]
+light = [51, 81, 106]
+contrast = 0.4
+beta = 1.8
+spots = 0.175
+
 ["rage_urban.BlueOilTbase2"]
 size = [256, 256]
 gen = "noise"
@@ -5146,6 +8430,16 @@ light = [48, 78, 104]
 contrast = 0.4
 beta = 1.8
 spots = 0.2
+
+["rage_urban.BlueOilTEnd1"]
+size = [256, 256]
+gen = "noise"
+dark = [34, 51, 65]
+mid = [46, 75, 99]
+light = [66, 102, 138]
+contrast = 0.6
+beta = 1.8
+spots = 0.107
 
 ["rage_urban.brck05S"]
 size = [256, 256]
@@ -5166,6 +8460,15 @@ contrast = 0.8
 beta = 1.8
 spots = 0.167
 
+["rage_urban.door05S"]
+size = [256, 256]
+gen = "panel"
+dark = [113, 125, 118]
+mid = [176, 190, 208]
+light = [194, 210, 235]
+border = 0.06
+bolt = true
+
 ["rage_urban.door30L"]
 size = [256, 256]
 gen = "panel"
@@ -5183,6 +8486,33 @@ mid = [52, 87, 107]
 light = [102, 135, 157]
 n = 2
 vertical = true
+
+["rage_urban.ghettosky"]
+size = [256, 256]
+gen = "sky"
+dark = [115, 89, 74]
+mid = [115, 89, 74]
+light = [115, 89, 74]
+
+["rage_urban.graf02S"]
+size = [256, 256]
+gen = "noise"
+dark = [85, 102, 113]
+mid = [137, 139, 136]
+light = [151, 155, 156]
+contrast = 0.7
+beta = 1.8
+spots = 0.2
+
+["rage_urban.graf03S"]
+size = [256, 256]
+gen = "noise"
+dark = [76, 65, 70]
+mid = [104, 106, 107]
+light = [127, 132, 132]
+contrast = 0.81
+beta = 1.8
+spots = 0.103
 
 ["rage_urban.mail"]
 size = [128, 128]
@@ -5202,6 +8532,24 @@ light = [253, 249, 232]
 contrast = 1.6
 beta = 1.8
 
+["rage_urban.metl12S"]
+size = [128, 256]
+gen = "corrugated"
+dark = [122, 127, 131]
+mid = [139, 141, 140]
+light = [155, 156, 152]
+ridges = 16
+vertical = true
+
+["rage_urban.ny_bankposter"]
+size = [128, 256]
+gen = "sign"
+dark = [0, 0, 0]
+mid = [90, 90, 88]
+light = [229, 230, 230]
+color = [90, 90, 88]
+mark = [255, 255, 255]
+
 ["rage_urban.ny_BBrick"]
 size = [256, 256]
 gen = "bricks"
@@ -5210,6 +8558,15 @@ mid = [85, 76, 67]
 light = [107, 97, 86]
 rows = 16
 cols = 2
+
+["rage_urban.ny_BrBrick1"]
+size = [256, 256]
+gen = "bricks"
+dark = [121, 117, 115]
+mid = [140, 135, 130]
+light = [155, 149, 144]
+rows = 8
+cols = 3
 
 ["rage_urban.ny_BrBrick2"]
 size = [256, 256]
@@ -5238,6 +8595,15 @@ light = [155, 151, 144]
 rows = 4
 cols = 2
 
+["rage_urban.ny_BrBrick4"]
+size = [256, 256]
+gen = "bricks"
+dark = [114, 112, 111]
+mid = [138, 135, 132]
+light = [153, 151, 149]
+rows = 16
+cols = 8
+
 ["rage_urban.ny_Door2"]
 size = [128, 256]
 gen = "panel"
@@ -5246,6 +8612,15 @@ mid = [81, 62, 60]
 light = [104, 80, 76]
 border = 0.06
 bolt = true
+
+["rage_urban.ny_fancy1"]
+size = [256, 64]
+gen = "tiles"
+dark = [66, 64, 59]
+mid = [130, 130, 127]
+light = [175, 175, 171]
+n = 5
+grout = 0.04
 
 ["rage_urban.ny_fancy3"]
 size = [256, 64]
@@ -5265,6 +8640,16 @@ light = [143, 144, 143]
 n = 2
 vertical = false
 
+["rage_urban.Ny_garagewall1a"]
+size = [256, 256]
+gen = "noise"
+dark = [128, 134, 132]
+mid = [155, 158, 158]
+light = [160, 164, 165]
+contrast = 0.43
+beta = 1.8
+spots = 0.2
+
 ["rage_urban.Ny_garagewall3a"]
 size = [256, 256]
 gen = "siding"
@@ -5273,6 +8658,22 @@ mid = [121, 122, 120]
 light = [128, 130, 128]
 n = 3
 vertical = false
+
+["rage_urban.ny_GrBrick1"]
+size = [256, 256]
+gen = "bricks"
+dark = [114, 118, 120]
+mid = [128, 133, 138]
+light = [139, 147, 151]
+rows = 8
+cols = 3
+
+["rage_urban.ny_humpbridge"]
+size = [256, 256]
+gen = "glow"
+dark = [0, 0, 0]
+mid = [93, 23, 14]
+light = [181, 176, 167]
 
 ["rage_urban.ny_mottlesstone"]
 size = [256, 256]
@@ -5393,6 +8794,23 @@ light = [67, 77, 57]
 rows = 4
 cols = 7
 
+["rage_urban.ny_tyrepressure"]
+size = [256, 256]
+gen = "siding"
+dark = [160, 170, 116]
+mid = [215, 212, 184]
+light = [239, 237, 233]
+n = 4
+vertical = true
+
+["rage_urban.ny_vent1"]
+size = [256, 256]
+gen = "grate"
+dark = [22, 22, 20]
+mid = [74, 78, 80]
+light = [172, 175, 177]
+n = 12
+
 ["rage_urban.ny_whitebrick"]
 size = [256, 256]
 gen = "bricks"
@@ -5401,6 +8819,24 @@ mid = [194, 191, 190]
 light = [209, 207, 205]
 rows = 16
 cols = 2
+
+["rage_urban.ny_window2"]
+size = [256, 256]
+gen = "window"
+dark = [42, 50, 62]
+mid = [53, 69, 78]
+light = [85, 97, 103]
+nx = 2
+ny = 2
+
+["rage_urban.oilsign"]
+size = [256, 128]
+gen = "sign"
+dark = [139, 110, 109]
+mid = [172, 170, 167]
+light = [185, 186, 181]
+color = [166, 107, 97]
+mark = [255, 255, 255]
 
 ["rage_urban.P0001006"]
 size = [256, 128]
@@ -5411,6 +8847,24 @@ light = [255, 255, 255]
 contrast = 1.42
 beta = 1.8
 spots = 0.2
+
+["rage_urban.Panel02"]
+size = [256, 256]
+gen = "noise"
+dark = [115, 103, 89]
+mid = [131, 126, 116]
+light = [151, 152, 147]
+contrast = 0.59
+beta = 1.8
+
+["rage_urban.Panel03"]
+size = [256, 256]
+gen = "noise"
+dark = [173, 139, 115]
+mid = [175, 146, 127]
+light = [180, 153, 135]
+contrast = 0.4
+beta = 1.8
 
 ["rage_urban.phon01S"]
 size = [128, 256]
@@ -5431,6 +8885,15 @@ contrast = 0.51
 beta = 1.8
 spots = 0.048
 
+["rage_urban.sped03S"]
+size = [256, 256]
+gen = "noise"
+dark = [13, 14, 15]
+mid = [229, 238, 239]
+light = [249, 254, 254]
+contrast = 1.6
+beta = 1.8
+
 ["rage_urban.surf016S"]
 size = [256, 256]
 gen = "siding"
@@ -5439,6 +8902,15 @@ mid = [171, 155, 132]
 light = [178, 175, 168]
 n = 2
 vertical = true
+
+["rage_urban.TellyStatic_A01"]
+size = [256, 256]
+gen = "noise"
+dark = [0, 0, 0]
+mid = [41, 42, 50]
+light = [142, 146, 162]
+contrast = 1.6
+beta = 1.8
 
 ["rage_urban.TellyTex"]
 size = [256, 256]
@@ -5449,6 +8921,77 @@ light = [141, 148, 174]
 n = 2
 grout = 0.04
 
+["rage_urban.thisway"]
+size = [256, 256]
+gen = "noise"
+dark = [70, 60, 55]
+mid = [114, 117, 116]
+light = [161, 170, 173]
+contrast = 1.29
+beta = 1.8
+spots = 0.073
+
+["rage_urban.thisway2"]
+size = [256, 256]
+gen = "noise"
+dark = [70, 60, 55]
+mid = [111, 114, 113]
+light = [157, 167, 169]
+contrast = 1.25
+beta = 1.8
+spots = 0.076
+
+["rage_urban.urban_box_00"]
+size = [128, 128]
+gen = "panel"
+dark = [153, 132, 108]
+mid = [166, 144, 119]
+light = [169, 149, 122]
+border = 0.07
+
+["rage_urban.urban_box_01"]
+size = [128, 128]
+gen = "panel"
+dark = [200, 76, 33]
+mid = [168, 133, 103]
+light = [183, 157, 105]
+border = 0.07
+
+["rage_urban.urban_box_02"]
+size = [128, 128]
+gen = "panel"
+dark = [198, 77, 34]
+mid = [164, 138, 112]
+light = [170, 150, 120]
+border = 0.07
+
+["rage_urban.urban_box_05"]
+size = [128, 128]
+gen = "panel"
+dark = [153, 133, 109]
+mid = [166, 145, 120]
+light = [169, 150, 123]
+border = 0.07
+
+["rage_urban.urban_box_06"]
+size = [128, 128]
+gen = "noise"
+dark = [53, 68, 94]
+mid = [151, 130, 101]
+light = [188, 157, 89]
+contrast = 1.15
+beta = 1.8
+
+["rage_urban.urban_box_07"]
+size = [128, 128]
+gen = "noise"
+dark = [49, 54, 65]
+mid = [146, 127, 104]
+light = [165, 146, 121]
+contrast = 1.34
+beta = 1.8
+spots = 0.04
+
 ["rage_urban.urban_door_00"]
 size = [128, 256]
 gen = "panel"
@@ -5457,6 +9000,61 @@ mid = [141, 143, 143]
 light = [171, 160, 148]
 border = 0.06
 bolt = true
+
+["rage_urban.urban_floor_04"]
+size = [128, 128]
+gen = "bricks"
+dark = [107, 103, 99]
+mid = [122, 119, 115]
+light = [139, 139, 136]
+rows = 16
+cols = 8
+
+["rage_urban.urban_lift_00"]
+size = [256, 256]
+gen = "noise"
+dark = [28, 20, 19]
+mid = [90, 67, 60]
+light = [130, 101, 82]
+contrast = 1.07
+beta = 1.8
+
+["rage_urban.urban_lift_01"]
+size = [256, 256]
+gen = "noise"
+dark = [73, 46, 36]
+mid = [108, 74, 59]
+light = [141, 113, 88]
+contrast = 0.94
+beta = 1.8
+spots = 0.043
+
+["rage_urban.urban_poster_00"]
+size = [128, 256]
+gen = "sign"
+dark = [50, 48, 42]
+mid = [161, 153, 134]
+light = [200, 190, 167]
+color = [161, 153, 134]
+mark = [255, 255, 255]
+
+["rage_urban.urban_poster_01"]
+size = [128, 256]
+gen = "sign"
+dark = [74, 70, 59]
+mid = [180, 170, 144]
+light = [198, 187, 159]
+color = [180, 170, 144]
+mark = [30, 30, 30]
+
+["rage_urban.urban_poster_02"]
+size = [128, 256]
+gen = "sign"
+dark = [10, 8, 12]
+mid = [27, 17, 29]
+light = [89, 78, 94]
+color = [39, 28, 39]
+mark = [255, 255, 255]
 
 ["rage_urban.urban_roof_00"]
 size = [256, 256]
@@ -5480,6 +9078,58 @@ mid = [130, 94, 77]
 light = [160, 132, 120]
 border = 0.0
 
+["rage_urban.urban_rust_02"]
+size = [256, 256]
+gen = "panel"
+dark = [82, 51, 41]
+mid = [109, 75, 60]
+light = [144, 115, 90]
+border = 0.0
+
+["rage_urban.urban_rust_04"]
+size = [256, 256]
+gen = "panel"
+dark = [102, 94, 87]
+mid = [118, 109, 102]
+light = [128, 121, 114]
+border = 0.0
+
+["rage_urban.urban_sign_12"]
+size = [256, 256]
+gen = "sign"
+dark = [25, 49, 76]
+mid = [44, 64, 89]
+light = [76, 96, 117]
+color = [48, 68, 92]
+mark = [255, 255, 255]
+
+["rage_urban.urban_sign_14"]
+size = [128, 128]
+gen = "sign"
+dark = [72, 69, 53]
+mid = [179, 173, 116]
+light = [209, 211, 211]
+color = [172, 155, 36]
+mark = [255, 255, 255]
+
+["rage_urban.urban_sign_16"]
+size = [128, 128]
+gen = "sign"
+dark = [34, 33, 28]
+mid = [182, 172, 98]
+light = [214, 215, 215]
+color = [176, 158, 37]
+mark = [255, 255, 255]
+
+["rage_urban.urban_sign_17"]
+size = [256, 256]
+gen = "sign"
+dark = [31, 30, 24]
+mid = [177, 168, 97]
+light = [213, 215, 214]
+color = [170, 153, 35]
+mark = [255, 255, 255]
+
 ["rage_urban.urban_sign_18"]
 size = [256, 256]
 gen = "sign"
@@ -5497,6 +9147,16 @@ mid = [153, 42, 38]
 light = [206, 126, 119]
 color = [160, 61, 56]
 mark = [255, 255, 255]
+
+["rage_urban.urban_wall_06"]
+size = [256, 256]
+gen = "noise"
+dark = [64, 65, 63]
+mid = [74, 75, 74]
+light = [82, 84, 83]
+contrast = 0.4
+beta = 1.8
+spots = 0.065
 
 ["rage_urban.urban_wall_07"]
 size = [256, 256]
@@ -5535,6 +9195,25 @@ light = [147, 132, 127]
 n = 4
 vertical = true
 
+["rage_urban.urban_wall_17"]
+size = [256, 256]
+gen = "noise"
+dark = [168, 140, 100]
+mid = [173, 150, 117]
+light = [177, 161, 139]
+contrast = 0.4
+beta = 1.8
+spots = 0.081
+
+["rage_urban.urban_wall_18"]
+size = [256, 256]
+gen = "noise"
+dark = [169, 141, 101]
+mid = [174, 150, 115]
+light = [178, 161, 135]
+contrast = 0.4
+beta = 1.8
+
 ["rage_urban.urban_wall_20"]
 size = [256, 64]
 gen = "siding"
@@ -5561,6 +9240,24 @@ mid = [141, 141, 139]
 light = [146, 148, 147]
 n = 2
 grout = 0.04
+
+["rage_urban.urban_wall_23"]
+size = [256, 256]
+gen = "bricks"
+dark = [97, 63, 54]
+mid = [136, 96, 85]
+light = [177, 136, 114]
+rows = 16
+cols = 2
+
+["rage_urban.urban_wall_24"]
+size = [256, 256]
+gen = "bricks"
+dark = [118, 71, 59]
+mid = [141, 102, 85]
+light = [178, 138, 120]
+rows = 16
+cols = 2
 
 ["rage_urban.urban_wall_27"]
 size = [256, 256]
@@ -5589,6 +9286,33 @@ light = [247, 237, 247]
 rows = 16
 cols = 2
 
+["rage_urban.urban_wall_30"]
+size = [256, 256]
+gen = "siding"
+dark = [89, 86, 90]
+mid = [221, 213, 220]
+light = [244, 237, 244]
+n = 4
+vertical = false
+
+["rage_urban.urban_wall_31"]
+size = [256, 256]
+gen = "siding"
+dark = [84, 80, 83]
+mid = [210, 203, 209]
+light = [244, 235, 244]
+n = 3
+vertical = false
+
+["rage_urban.urban_wall_32"]
+size = [256, 256]
+gen = "siding"
+dark = [100, 90, 73]
+mid = [116, 104, 83]
+light = [132, 119, 96]
+n = 3
+vertical = true
+
 ["rage_urban.urban_wall_33"]
 size = [256, 256]
 gen = "corrugated"
@@ -5606,6 +9330,16 @@ mid = [173, 154, 139]
 light = [182, 165, 150]
 n = 2
 vertical = true
+
+["rage_urban.urban_wall_38"]
+size = [256, 256]
+gen = "noise"
+dark = [32, 33, 30]
+mid = [106, 99, 96]
+light = [139, 129, 122]
+contrast = 1.2
+beta = 1.8
+spots = 0.054
 
 ["rage_urban.urban_wall_39"]
 size = [256, 256]
@@ -5644,6 +9378,24 @@ light = [181, 179, 177]
 n = 2
 vertical = true
 
+["rage_urban.urban_wood_00"]
+size = [256, 256]
+gen = "planks"
+dark = [115, 105, 96]
+mid = [177, 167, 154]
+light = [205, 196, 186]
+n = 4
+vertical = true
+
+["rage_urban.urban_wood_01"]
+size = [256, 256]
+gen = "planks"
+dark = [97, 90, 82]
+mid = [127, 120, 112]
+light = [147, 142, 136]
+n = 2
+vertical = false
+
 ["rage_urban.urban_wood_03"]
 size = [256, 256]
 gen = "planks"
@@ -5652,6 +9404,16 @@ mid = [187, 183, 179]
 light = [214, 213, 210]
 n = 5
 vertical = false
+
+["rage_urban.WAL001L"]
+size = [128, 128]
+gen = "noise"
+dark = [92, 77, 78]
+mid = [182, 188, 192]
+light = [202, 213, 217]
+contrast = 1.6
+beta = 1.8
+spots = 0.2
 
 ["rage_urban.wal023S"]
 size = [256, 256]
@@ -5679,6 +9441,34 @@ mid = [125, 106, 101]
 light = [149, 127, 118]
 rows = 16
 cols = 2
+
+["rage_urban.wal146L"]
+size = [256, 256]
+gen = "tiles"
+dark = [57, 65, 70]
+mid = [95, 107, 114]
+light = [120, 130, 135]
+n = 6
+grout = 0.04
+
+["rage_urban.wal151S"]
+size = [256, 256]
+gen = "noise"
+dark = [49, 44, 47]
+mid = [106, 112, 115]
+light = [124, 128, 129]
+contrast = 1.06
+beta = 1.8
+spots = 0.199
+
+["rage_urban.wind05S"]
+size = [256, 256]
+gen = "tiles"
+dark = [53, 47, 48]
+mid = [70, 68, 69]
+light = [208, 210, 206]
+n = 4
+grout = 0.04
 
 ["rage_warehouse.Brick.ware_brick_10"]
 size = [256, 256]
@@ -5779,6 +9569,33 @@ light = [161, 166, 164]
 n = 3
 vertical = true
 
+["rage_warehouse.concrete.ware_concrete_2"]
+size = [256, 256]
+gen = "siding"
+dark = [102, 103, 99]
+mid = [142, 143, 138]
+light = [163, 163, 157]
+n = 3
+vertical = false
+
+["rage_warehouse.concrete.ware_concrete_6"]
+size = [512, 256]
+gen = "siding"
+dark = [87, 85, 85]
+mid = [138, 137, 128]
+light = [176, 173, 161]
+n = 3
+vertical = true
+
+["rage_warehouse.concrete.ware_concrete_7"]
+size = [512, 256]
+gen = "noise"
+dark = [36, 46, 59]
+mid = [54, 67, 85]
+light = [156, 161, 161]
+contrast = 1.59
+beta = 1.8
+
 ["rage_warehouse.concrete.ware_concrete_8"]
 size = [256, 256]
 gen = "noise"
@@ -5807,6 +9624,15 @@ light = [151, 156, 156]
 border = 0.06
 bolt = true
 
+["rage_warehouse.Door.ware_door_3"]
+size = [128, 256]
+gen = "panel"
+dark = [67, 56, 55]
+mid = [135, 139, 142]
+light = [177, 182, 187]
+border = 0.06
+bolt = true
+
 ["rage_warehouse.Door.ware_door_4"]
 size = [128, 256]
 gen = "panel"
@@ -5824,6 +9650,15 @@ mid = [72, 72, 71]
 light = [139, 143, 140]
 ridges = 18
 vertical = false
+
+["rage_warehouse.Door.ware_door_7"]
+size = [128, 256]
+gen = "panel"
+dark = [100, 103, 98]
+mid = [129, 131, 128]
+light = [158, 160, 157]
+border = 0.06
+bolt = true
 
 ["rage_warehouse.Door.ware_door_8"]
 size = [128, 256]
@@ -5863,12 +9698,29 @@ contrast = 0.42
 beta = 1.8
 spots = 0.054
 
+["rage_warehouse.ground.ware_ground_5"]
+size = [256, 256]
+gen = "noise"
+dark = [66, 63, 61]
+mid = [79, 77, 75]
+light = [100, 97, 95]
+contrast = 0.62
+beta = 1.8
+
 ["rage_warehouse.Light.ware_light_1"]
 size = [256, 128]
 gen = "lamp"
 dark = [7, 7, 7]
 mid = [84, 75, 70]
 light = [243, 243, 243]
+kind = "round"
+
+["rage_warehouse.Light.ware_light_3"]
+size = [128, 64]
+gen = "lamp"
+dark = [63, 134, 42]
+mid = [126, 210, 123]
+light = [252, 253, 252]
 kind = "round"
 
 ["rage_warehouse.Light.ware_light_4"]
@@ -5879,6 +9731,14 @@ mid = [168, 137, 108]
 light = [237, 228, 194]
 kind = "round"
 
+["rage_warehouse.Light.ware_light_5"]
+size = [256, 128]
+gen = "lamp"
+dark = [0, 0, 0]
+mid = [24, 23, 21]
+light = [122, 120, 107]
+kind = "round"
+
 ["rage_warehouse.metal.ware_metal_1"]
 size = [256, 256]
 gen = "corrugated"
@@ -5887,6 +9747,25 @@ mid = [142, 143, 145]
 light = [146, 148, 150]
 ridges = 17
 vertical = true
+
+["rage_warehouse.metal.ware_metal_14"]
+size = [256, 256]
+gen = "noise"
+dark = [74, 74, 81]
+mid = [140, 124, 108]
+light = [175, 160, 135]
+contrast = 1.28
+beta = 1.8
+
+["rage_warehouse.metal.ware_metal_15"]
+size = [128, 256]
+gen = "noise"
+dark = [74, 75, 81]
+mid = [139, 132, 109]
+light = [167, 155, 112]
+contrast = 1.06
+beta = 1.8
+spots = 0.075
 
 ["rage_warehouse.metal.ware_metal_16"]
 size = [256, 256]
@@ -5919,6 +9798,33 @@ dark = [75, 68, 64]
 mid = [80, 77, 75]
 light = [86, 87, 86]
 border = 0.0
+
+["rage_warehouse.metal.ware_metal_25"]
+size = [256, 256]
+gen = "corrugated"
+dark = [68, 57, 53]
+mid = [109, 98, 93]
+light = [114, 105, 101]
+ridges = 6
+vertical = false
+
+["rage_warehouse.metal.ware_metal_27"]
+size = [256, 256]
+gen = "siding"
+dark = [96, 35, 19]
+mid = [130, 132, 120]
+light = [136, 138, 127]
+n = 3
+vertical = false
+
+["rage_warehouse.metal.ware_metal_28"]
+size = [256, 256]
+gen = "siding"
+dark = [136, 43, 20]
+mid = [161, 160, 145]
+light = [232, 234, 214]
+n = 3
+vertical = false
 
 ["rage_warehouse.metal.ware_metal_29"]
 size = [256, 256]
@@ -5963,6 +9869,13 @@ mid = [79, 52, 39]
 light = [89, 74, 67]
 ridges = 16
 vertical = true
+
+["rage_warehouse.metal.ware_metal_37"]
+size = [128, 64]
+gen = "glow"
+dark = [4, 5, 4]
+mid = [33, 33, 30]
+light = [141, 137, 136]
 
 ["rage_warehouse.metal.ware_metal_38"]
 size = [256, 256]
@@ -6009,6 +9922,16 @@ mid = [124, 106, 90]
 light = [157, 167, 164]
 border = 0.0
 
+["rage_warehouse.metal.ware_metal_46"]
+size = [256, 256]
+gen = "bricks"
+dark = [47, 39, 34]
+mid = [71, 58, 51]
+light = [82, 70, 63]
+border = 0.0
+rows = 8
+cols = 6
+
 ["rage_warehouse.metal.ware_metal_47"]
 size = [256, 256]
 gen = "bricks"
@@ -6018,6 +9941,33 @@ light = [87, 88, 88]
 border = 0.0
 rows = 8
 cols = 6
+
+["rage_warehouse.metal.ware_metal_5"]
+size = [128, 128]
+gen = "bricks"
+dark = [107, 103, 99]
+mid = [122, 119, 115]
+light = [139, 139, 136]
+border = 0.0
+rows = 16
+cols = 8
+
+["rage_warehouse.metal.ware_metal_6"]
+size = [256, 256]
+gen = "siding"
+dark = [30, 95, 151]
+mid = [159, 161, 147]
+light = [232, 234, 214]
+n = 3
+vertical = false
+
+["rage_warehouse.metal.ware_metal_7"]
+size = [256, 256]
+gen = "panel"
+dark = [22, 69, 113]
+mid = [130, 131, 119]
+light = [136, 138, 126]
+border = 0.0
 
 ["rage_warehouse.Object.ware_cable_00"]
 size = [64, 64]
@@ -6103,6 +10053,16 @@ mid = [216, 215, 198]
 light = [222, 219, 198]
 contrast = 0.4
 beta = 1.8
+
+["rage_warehouse.Object.ware_object_13"]
+size = [64, 64]
+gen = "noise"
+dark = [162, 164, 139]
+mid = [184, 187, 168]
+light = [197, 208, 198]
+contrast = 0.57
+beta = 1.8
+spots = 0.064
 
 ["rage_warehouse.Object.ware_object_14"]
 size = [128, 128]
@@ -6237,6 +10197,16 @@ light = [44, 41, 38]
 ridges = 6
 vertical = true
 
+["rage_warehouse.Object.ware_object_30"]
+size = [128, 128]
+gen = "noise"
+dark = [112, 93, 23]
+mid = [124, 104, 27]
+light = [133, 113, 31]
+contrast = 0.4
+beta = 1.8
+spots = 0.113
+
 ["rage_warehouse.Object.ware_object_33"]
 size = [128, 256]
 gen = "noise"
@@ -6270,6 +10240,15 @@ size = [256, 256]
 gen = "corrugated"
 dark = [77, 79, 79]
 mid = [144, 169, 164]
+light = [165, 187, 179]
+ridges = 6
+vertical = true
+
+["rage_warehouse.Object.ware_object_37"]
+size = [256, 256]
+gen = "corrugated"
+dark = [75, 77, 77]
+mid = [144, 169, 163]
 light = [165, 187, 179]
 ridges = 6
 vertical = true
@@ -6427,6 +10406,33 @@ dark = [88, 59, 33]
 mid = [125, 99, 36]
 light = [135, 111, 38]
 
+["rage_warehouse.Object.ware_sparkle_00"]
+size = [128, 128]
+gen = "noise"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [53, 31, 1]
+contrast = 1.04
+beta = 1.8
+
+["rage_warehouse.Sign.ware_sign_1"]
+size = [256, 128]
+gen = "sign"
+dark = [100, 40, 48]
+mid = [217, 219, 211]
+light = [231, 234, 225]
+color = [137, 84, 87]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_10"]
+size = [128, 128]
+gen = "sign"
+dark = [17, 10, 18]
+mid = [215, 158, 42]
+light = [231, 185, 37]
+color = [171, 129, 34]
+mark = [255, 255, 255]
+
 ["rage_warehouse.Sign.ware_sign_11"]
 size = [128, 128]
 gen = "sign"
@@ -6434,6 +10440,15 @@ dark = [49, 81, 185]
 mid = [61, 92, 195]
 light = [215, 216, 229]
 color = [73, 101, 194]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_13"]
+size = [128, 128]
+gen = "sign"
+dark = [42, 75, 173]
+mid = [45, 79, 177]
+light = [212, 214, 226]
+color = [58, 89, 179]
 mark = [255, 255, 255]
 
 ["rage_warehouse.Sign.ware_sign_14"]
@@ -6454,6 +10469,69 @@ light = [254, 254, 254]
 color = [26, 95, 128]
 mark = [255, 255, 255]
 
+["rage_warehouse.Sign.ware_sign_16"]
+size = [128, 128]
+gen = "sign"
+dark = [212, 32, 0]
+mid = [230, 139, 121]
+light = [255, 255, 255]
+color = [219, 77, 50]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_18"]
+size = [256, 256]
+gen = "sign"
+dark = [148, 129, 136]
+mid = [249, 227, 243]
+light = [254, 233, 250]
+color = [249, 227, 243]
+mark = [30, 30, 30]
+
+["rage_warehouse.Sign.ware_sign_19"]
+size = [256, 256]
+gen = "sign"
+dark = [145, 157, 155]
+mid = [222, 243, 234]
+light = [232, 252, 247]
+color = [222, 243, 234]
+mark = [30, 30, 30]
+
+["rage_warehouse.Sign.ware_sign_20"]
+size = [256, 256]
+gen = "sign"
+dark = [130, 131, 137]
+mid = [245, 234, 234]
+light = [250, 238, 238]
+color = [245, 234, 234]
+mark = [30, 30, 30]
+
+["rage_warehouse.Sign.ware_sign_21"]
+size = [256, 256]
+gen = "sign"
+dark = [150, 161, 158]
+mid = [223, 242, 233]
+light = [232, 252, 247]
+color = [223, 242, 233]
+mark = [30, 30, 30]
+
+["rage_warehouse.Sign.ware_sign_22"]
+size = [256, 256]
+gen = "sign"
+dark = [120, 125, 134]
+mid = [245, 232, 230]
+light = [254, 240, 240]
+color = [127, 153, 190]
+mark = [30, 30, 30]
+
+["rage_warehouse.Sign.ware_sign_23"]
+size = [256, 256]
+gen = "sign"
+dark = [132, 118, 128]
+mid = [248, 224, 242]
+light = [254, 229, 248]
+color = [208, 130, 156]
+mark = [30, 30, 30]
+
 ["rage_warehouse.Sign.ware_sign_4"]
 size = [256, 128]
 gen = "sign"
@@ -6461,6 +10539,51 @@ dark = [108, 1, 3]
 mid = [163, 149, 148]
 light = [215, 243, 237]
 color = [140, 81, 82]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_5"]
+size = [256, 128]
+gen = "sign"
+dark = [174, 55, 60]
+mid = [247, 251, 242]
+light = [255, 255, 255]
+color = [194, 110, 112]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_6"]
+size = [256, 256]
+gen = "sign"
+dark = [42, 52, 57]
+mid = [46, 91, 141]
+light = [141, 150, 153]
+color = [38, 93, 145]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_7"]
+size = [256, 256]
+gen = "sign"
+dark = [67, 37, 35]
+mid = [117, 65, 59]
+light = [151, 146, 144]
+color = [128, 54, 46]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_8"]
+size = [256, 256]
+gen = "sign"
+dark = [51, 43, 36]
+mid = [132, 106, 86]
+light = [221, 197, 161]
+color = [140, 112, 81]
+mark = [255, 255, 255]
+
+["rage_warehouse.Sign.ware_sign_9"]
+size = [128, 128]
+gen = "sign"
+dark = [45, 75, 169]
+mid = [85, 113, 190]
+light = [213, 215, 229]
+color = [77, 104, 185]
 mark = [255, 255, 255]
 
 ["rage_warehouse.sky.sky_00"]
@@ -6498,6 +10621,31 @@ dark = [107, 119, 110]
 mid = [115, 125, 115]
 light = [118, 131, 122]
 
+["rage_warehouse.sky.sky_04256"]
+size = [256, 256]
+gen = "sky"
+dark = [107, 119, 110]
+mid = [115, 125, 115]
+light = [118, 131, 121]
+
+["rage_warehouse.ware_concrete_1"]
+size = [256, 256]
+gen = "tiles"
+dark = [33, 33, 32]
+mid = [52, 53, 51]
+light = [70, 72, 70]
+n = 8
+grout = 0.04
+
+["rage_warehouse.Window.ware_window_1"]
+size = [256, 256]
+gen = "window"
+dark = [116, 104, 102]
+mid = [144, 141, 136]
+light = [157, 155, 153]
+nx = 5
+ny = 3
+
 ["rage_warehouse.Window.ware_window_2"]
 size = [256, 256]
 gen = "window"
@@ -6514,6 +10662,24 @@ dark = [58, 40, 36]
 mid = [122, 109, 110]
 light = [172, 158, 147]
 
+["rage_warehouse.Window.ware_window_4"]
+size = [256, 256]
+gen = "window"
+dark = [52, 47, 48]
+mid = [70, 67, 68]
+light = [207, 209, 205]
+nx = 6
+ny = 2
+
+["rage_warehouse.Window.ware_window_5"]
+size = [256, 256]
+gen = "window"
+dark = [56, 38, 39]
+mid = [72, 51, 49]
+light = [159, 168, 177]
+nx = 2
+ny = 2
+
 ["rage_warehouse.Window.ware_window_6"]
 size = [256, 256]
 gen = "window"
@@ -6529,6 +10695,15 @@ gen = "planks"
 dark = [104, 80, 53]
 mid = [142, 110, 74]
 light = [171, 149, 103]
+n = 2
+vertical = false
+
+["rage_warehouse.Wood.ware_wood_12"]
+size = [256, 256]
+gen = "planks"
+dark = [113, 80, 52]
+mid = [144, 97, 65]
+light = [167, 142, 98]
 n = 2
 vertical = false
 
@@ -6549,6 +10724,15 @@ mid = [159, 125, 77]
 light = [185, 156, 95]
 n = 4
 vertical = false
+
+["rage_warehouse.Wood.ware_wood_15"]
+size = [256, 256]
+gen = "planks"
+dark = [126, 101, 69]
+mid = [153, 125, 82]
+light = [182, 152, 94]
+n = 4
+vertical = true
 
 ["rage_warehouse.Wood.ware_wood_16"]
 size = [256, 256]
@@ -6584,6 +10768,15 @@ dark = [79, 74, 54]
 mid = [88, 82, 60]
 light = [97, 90, 66]
 n = 2
+vertical = false
+
+["rage_warehouse.Wood.ware_wood_4"]
+size = [64, 128]
+gen = "planks"
+dark = [0, 0, 3]
+mid = [78, 75, 56]
+light = [94, 88, 64]
+n = 8
 vertical = false
 
 ["rage_warehouse.Wood.ware_wood_5"]
@@ -6645,6 +10838,27 @@ dark = [0, 0, 0]
 mid = [68, 12, 134]
 light = [186, 89, 247]
 
+["RageEffects.GroundFire.GroundFire_A01"]
+size = [128, 128]
+gen = "glow"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [157, 74, 26]
+
+["RageEffects.Laser.BlueLaser_A01"]
+size = [32, 32]
+gen = "glow"
+dark = [0, 0, 11]
+mid = [3, 8, 90]
+light = [121, 125, 192]
+
+["RageEffects.Laser.RedLaser_A01"]
+size = [32, 32]
+gen = "glow"
+dark = [12, 0, 0]
+mid = [93, 0, 0]
+light = [194, 119, 119]
+
 ["RageEffects.Skins.Gib1_Tex"]
 size = [128, 128]
 gen = "siding"
@@ -6689,6 +10903,20 @@ dark = [0, 0, 9]
 mid = [2, 5, 59]
 light = [84, 85, 95]
 
+["RageGame.BlueWall.BlueWall_A01"]
+size = [32, 256]
+gen = "glow"
+dark = [0, 2, 23]
+mid = [6, 17, 174]
+light = [154, 159, 234]
+
+["RageGame.BlueWall.BlueWall_A06"]
+size = [32, 256]
+gen = "glow"
+dark = [0, 0, 13]
+mid = [4, 12, 130]
+light = [203, 205, 234]
+
 ["RageGame.RedWall.RedWall_A00"]
 size = [64, 128]
 gen = "glow"
@@ -6696,12 +10924,35 @@ dark = [10, 0, 0]
 mid = [61, 0, 0]
 light = [95, 84, 84]
 
+["RageGame.RedWall.RedWall_A01"]
+size = [32, 256]
+gen = "glow"
+dark = [20, 1, 1]
+mid = [108, 22, 22]
+light = [237, 151, 151]
+
+["RageGame.Skins.DetArrowTex0"]
+size = [256, 256]
+gen = "glow"
+dark = [129, 38, 15]
+mid = [195, 157, 39]
+light = [238, 251, 89]
+
 ["RageWeapons.MuzzleFlash.FlashYellow_A01"]
 size = [64, 64]
 gen = "glow"
 dark = [0, 0, 0]
 mid = [0, 0, 0]
 light = [18, 12, 5]
+
+["RageWeapons.Skins.GermArmTexture"]
+size = [256, 256]
+gen = "siding"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [84, 77, 70]
+n = 3
+vertical = true
 
 ["RageWeapons.Skins.GrenadesPlayerTex1"]
 size = [256, 256]
@@ -6757,6 +11008,79 @@ light = [4, 5, 5]
 contrast = 0.4
 beta = 1.8
 
+["Steve-DM1.Concrete02"]
+size = [256, 256]
+gen = "noise"
+dark = [86, 106, 107]
+mid = [97, 118, 120]
+light = [104, 128, 130]
+contrast = 0.4
+beta = 1.8
+spots = 0.108
+
+["Steve-DM1.Concrete03"]
+size = [256, 256]
+gen = "siding"
+dark = [102, 95, 77]
+mid = [115, 106, 84]
+light = [130, 118, 91]
+n = 3
+vertical = true
+
+["Steve-DM1.Concrete05"]
+size = [256, 256]
+gen = "noise"
+dark = [126, 121, 122]
+mid = [137, 133, 134]
+light = [152, 148, 148]
+contrast = 0.4
+beta = 1.8
+
+["Steve-DM1.Concrete07"]
+size = [256, 256]
+gen = "noise"
+dark = [54, 57, 58]
+mid = [60, 64, 65]
+light = [67, 72, 73]
+contrast = 0.4
+beta = 1.8
+
+["Steve-DM1.Corridor04"]
+size = [256, 256]
+gen = "noise"
+dark = [40, 40, 38]
+mid = [110, 102, 81]
+light = [129, 116, 91]
+contrast = 0.91
+beta = 1.8
+spots = 0.196
+
+["Steve-DM1.floor00"]
+size = [256, 256]
+gen = "noise"
+dark = [24, 22, 21]
+mid = [40, 37, 35]
+light = [57, 50, 45]
+contrast = 0.41
+beta = 1.8
+spots = 0.045
+
+["Steve-DM1.Girder1"]
+size = [128, 128]
+gen = "panel"
+dark = [71, 26, 4]
+mid = [79, 30, 7]
+light = [86, 35, 10]
+border = 0.0
+
+["Steve-DM1.Rust07"]
+size = [256, 256]
+gen = "panel"
+dark = [50, 46, 45]
+mid = [60, 56, 54]
+light = [76, 68, 64]
+border = 0.0
+
 ["the_bank.Asphalt"]
 size = [512, 512]
 gen = "noise"
@@ -6803,6 +11127,15 @@ light = [19, 29, 41]
 rows = 8
 cols = 2
 
+["train.Ammocount.brck35S"]
+size = [256, 256]
+gen = "noise"
+dark = [67, 68, 61]
+mid = [80, 80, 74]
+light = [96, 96, 88]
+contrast = 0.4
+beta = 1.8
+
 ["train.Ammocount.brick3"]
 size = [256, 256]
 gen = "bricks"
@@ -6822,12 +11155,65 @@ contrast = 0.63
 beta = 1.8
 spots = 0.12
 
+["train.Ammocount.BridgeRun1"]
+size = [256, 256]
+gen = "corrugated"
+dark = [100, 97, 91]
+mid = [119, 117, 113]
+light = [144, 143, 138]
+ridges = 12
+vertical = false
+
+["train.Ammocount.BridgeSLight"]
+size = [128, 128]
+gen = "lamp"
+dark = [75, 75, 74]
+mid = [119, 119, 118]
+light = [202, 203, 200]
+kind = "round"
+
+["train.Ammocount.BridgeSteel"]
+size = [256, 256]
+gen = "panel"
+dark = [119, 118, 117]
+mid = [127, 127, 127]
+light = [135, 136, 137]
+border = 0.0
+
+["train.Ammocount.BridgeSteel1"]
+size = [256, 256]
+gen = "noise"
+dark = [81, 81, 80]
+mid = [118, 117, 116]
+light = [133, 133, 133]
+contrast = 0.69
+beta = 1.8
+spots = 0.2
+
 ["train.Ammocount.clouds"]
 size = [256, 256]
 gen = "glow"
 dark = [45, 39, 88]
 mid = [68, 64, 109]
 light = [105, 101, 143]
+
+["train.Ammocount.Coragate1"]
+size = [256, 256]
+gen = "tiles"
+dark = [93, 93, 84]
+mid = [103, 103, 92]
+light = [112, 112, 100]
+n = 8
+grout = 0.04
+
+["train.Ammocount.ElecCab1"]
+size = [256, 256]
+gen = "noise"
+dark = [0, 0, 0]
+mid = [18, 18, 19]
+light = [133, 133, 137]
+contrast = 1.6
+beta = 1.8
 
 ["train.Ammocount.fenc05S"]
 size = [256, 256]
@@ -6865,6 +11251,52 @@ light = [120, 121, 121]
 n = 3
 vertical = true
 
+["train.Ammocount.paintedwood"]
+size = [256, 256]
+gen = "planks"
+dark = [158, 136, 121]
+mid = [188, 158, 129]
+light = [205, 173, 140]
+n = 4
+vertical = false
+
+["train.Ammocount.panl19S"]
+size = [256, 256]
+gen = "noise"
+dark = [114, 105, 91]
+mid = [128, 129, 128]
+light = [145, 152, 152]
+contrast = 0.54
+beta = 1.8
+spots = 0.135
+
+["train.Ammocount.panl45S"]
+size = [256, 256]
+gen = "tiles"
+dark = [63, 60, 54]
+mid = [105, 100, 84]
+light = [162, 153, 128]
+n = 8
+grout = 0.04
+
+["train.Ammocount.Parkersig1"]
+size = [256, 256]
+gen = "noise"
+dark = [120, 119, 112]
+mid = [151, 152, 147]
+light = [210, 211, 201]
+contrast = 1.07
+beta = 1.8
+
+["train.Ammocount.Parkersig2"]
+size = [256, 256]
+gen = "noise"
+dark = [118, 118, 110]
+mid = [148, 149, 144]
+light = [203, 204, 197]
+contrast = 1.03
+beta = 1.8
+
 ["train.Ammocount.roof"]
 size = [256, 256]
 gen = "siding"
@@ -6874,6 +11306,14 @@ light = [48, 70, 46]
 n = 3
 vertical = true
 
+["train.Ammocount.rust28S"]
+size = [256, 256]
+gen = "panel"
+dark = [118, 91, 88]
+mid = [141, 113, 120]
+light = [196, 162, 150]
+border = 0.0
+
 ["train.Ammocount.Sides"]
 size = [256, 256]
 gen = "noise"
@@ -6882,6 +11322,14 @@ mid = [2, 4, 8]
 light = [30, 45, 33]
 contrast = 0.66
 beta = 1.8
+
+["train.Ammocount.Tlightlenz"]
+size = [128, 128]
+gen = "lamp"
+dark = [194, 194, 203]
+mid = [222, 222, 227]
+light = [253, 253, 254]
+kind = "round"
 
 ["train.Ammocount.TopBack"]
 size = [256, 256]
@@ -6900,6 +11348,24 @@ mid = [10, 18, 25]
 light = [134, 133, 122]
 n = 2
 vertical = false
+
+["train.Ammocount.Tr_Brezblock1"]
+size = [256, 256]
+gen = "bricks"
+dark = [127, 131, 134]
+mid = [143, 147, 154]
+light = [155, 164, 168]
+rows = 8
+cols = 3
+
+["train.Ammocount.Tr_Brezblock1f"]
+size = [256, 256]
+gen = "tiles"
+dark = [106, 106, 104]
+mid = [138, 142, 148]
+light = [153, 160, 165]
+n = 4
+grout = 0.04
 
 ["train.Ammocount.tr_car_side_01"]
 size = [256, 128]
@@ -6920,6 +11386,24 @@ light = [152, 152, 159]
 rows = 4
 cols = 2
 
+["train.Ammocount.Tr_Dirt2Con"]
+size = [256, 256]
+gen = "noise"
+dark = [110, 106, 105]
+mid = [130, 130, 135]
+light = [149, 149, 155]
+contrast = 0.54
+beta = 1.8
+
+["train.Ammocount.Tr_Gdirt1"]
+size = [256, 256]
+gen = "noise"
+dark = [102, 83, 74]
+mid = [116, 97, 86]
+light = [134, 113, 101]
+contrast = 0.48
+beta = 1.8
+
 ["train.Ammocount.Tr_grav1"]
 size = [256, 256]
 gen = "siding"
@@ -6929,6 +11413,34 @@ light = [167, 167, 166]
 n = 2
 vertical = false
 
+["train.Ammocount.Tr_GreMbrick1"]
+size = [256, 256]
+gen = "bricks"
+dark = [86, 88, 86]
+mid = [116, 118, 114]
+light = [144, 148, 144]
+rows = 16
+cols = 2
+
+["train.Ammocount.Tr_GreMbrick2"]
+size = [256, 256]
+gen = "bricks"
+dark = [76, 68, 57]
+mid = [108, 107, 103]
+light = [139, 147, 152]
+rows = 16
+cols = 2
+
+["train.Ammocount.Tr_Gurder1"]
+size = [256, 256]
+gen = "noise"
+dark = [48, 39, 32]
+mid = [72, 59, 49]
+light = [87, 72, 61]
+contrast = 0.5
+beta = 1.8
+spots = 0.116
+
 ["train.Ammocount.Tr_Hcrain1"]
 size = [256, 128]
 gen = "corrugated"
@@ -6937,6 +11449,25 @@ mid = [153, 115, 53]
 light = [179, 147, 71]
 ridges = 6
 vertical = true
+
+["train.Ammocount.Tr_Hcrain2"]
+size = [256, 128]
+gen = "noise"
+dark = [158, 110, 45]
+mid = [172, 133, 57]
+light = [180, 148, 69]
+contrast = 0.42
+beta = 1.8
+spots = 0.126
+
+["train.Ammocount.Tr_Hcrain3"]
+size = [256, 256]
+gen = "siding"
+dark = [0, 0, 0]
+mid = [86, 75, 79]
+light = [143, 133, 138]
+n = 3
+vertical = false
 
 ["train.Ammocount.Tr_Oilcan"]
 size = [256, 256]
@@ -6975,6 +11506,15 @@ light = [147, 145, 134]
 n = 2
 vertical = false
 
+["train.Ammocount.Tr_Oldwood"]
+size = [256, 256]
+gen = "planks"
+dark = [107, 107, 106]
+mid = [121, 123, 121]
+light = [137, 139, 138]
+n = 4
+vertical = true
+
 ["train.Ammocount.Tr_Oldwood1"]
 size = [256, 256]
 gen = "planks"
@@ -6984,12 +11524,38 @@ light = [118, 119, 125]
 n = 4
 vertical = false
 
+["train.Ammocount.Tr_RBrick1"]
+size = [256, 256]
+gen = "bricks"
+dark = [121, 92, 92]
+mid = [143, 113, 112]
+light = [163, 136, 135]
+rows = 16
+cols = 2
+
+["train.Ammocount.Tr_RedGreenLight"]
+size = [128, 256]
+gen = "lamp"
+dark = [4, 3, 1]
+mid = [123, 108, 61]
+light = [191, 194, 102]
+kind = "round"
+
 ["train.Ammocount.Tr_SkyBoxdn"]
 size = [256, 256]
 gen = "sky"
 dark = [0, 0, 0]
 mid = [0, 0, 0]
 light = [2, 2, 2]
+
+["train.Ammocount.Tr_Steel1"]
+size = [256, 256]
+gen = "siding"
+dark = [104, 105, 111]
+mid = [116, 118, 124]
+light = [130, 132, 138]
+n = 4
+vertical = true
 
 ["train.Ammocount.Tr_track"]
 size = [128, 256]
@@ -7008,6 +11574,157 @@ mid = [146, 138, 133]
 light = [156, 148, 143]
 n = 3
 grout = 0.04
+
+["train.Ammocount.Tr_watertower1"]
+size = [256, 256]
+gen = "noise"
+dark = [70, 62, 54]
+mid = [115, 109, 102]
+light = [141, 140, 135]
+contrast = 0.99
+beta = 1.8
+spots = 0.101
+
+["train.Ammocount.Tr_watertower2"]
+size = [256, 256]
+gen = "noise"
+dark = [87, 79, 73]
+mid = [115, 116, 114]
+light = [132, 134, 132]
+contrast = 0.75
+beta = 1.8
+spots = 0.198
+
+["train.Ammocount.Tr_watertower3"]
+size = [256, 256]
+gen = "noise"
+dark = [81, 73, 61]
+mid = [120, 115, 106]
+light = [149, 147, 141]
+contrast = 0.96
+beta = 1.8
+spots = 0.094
+
+["train.Ammocount.Tr_WfloorNew"]
+size = [256, 256]
+gen = "siding"
+dark = [80, 66, 66]
+mid = [92, 76, 76]
+light = [102, 84, 84]
+n = 3
+vertical = false
+
+["train.Ammocount.Tr_WfloorNew1"]
+size = [256, 256]
+gen = "siding"
+dark = [81, 66, 65]
+mid = [94, 76, 76]
+light = [118, 94, 53]
+n = 3
+vertical = false
+
+["train.Ammocount.Tr_WHclad1"]
+size = [256, 256]
+gen = "corrugated"
+dark = [175, 172, 125]
+mid = [195, 193, 154]
+light = [202, 201, 165]
+ridges = 10
+vertical = true
+
+["train.Ammocount.Tr_WHclad2"]
+size = [256, 256]
+gen = "corrugated"
+dark = [153, 149, 83]
+mid = [187, 185, 141]
+light = [201, 200, 164]
+ridges = 10
+vertical = true
+
+["train.Ammocount.Tr_WHclad4"]
+size = [256, 256]
+gen = "corrugated"
+dark = [140, 140, 130]
+mid = [192, 190, 150]
+light = [201, 200, 164]
+ridges = 10
+vertical = true
+
+["train.Ammocount.Tr_woodwall14"]
+size = [256, 256]
+gen = "planks"
+dark = [119, 119, 112]
+mid = [145, 146, 141]
+light = [168, 173, 172]
+n = 4
+vertical = false
+
+["train.Ammocount.Tr_woodwall2"]
+size = [256, 256]
+gen = "planks"
+dark = [123, 122, 115]
+mid = [147, 148, 144]
+light = [169, 175, 173]
+n = 4
+vertical = false
+
+["train.Ammocount.train1cab"]
+size = [256, 128]
+gen = "noise"
+dark = [37, 35, 35]
+mid = [107, 107, 110]
+light = [155, 156, 159]
+contrast = 1.37
+beta = 1.8
+spots = 0.2
+
+["train.Ammocount.train1front"]
+size = [256, 256]
+gen = "noise"
+dark = [111, 89, 59]
+mid = [177, 138, 39]
+light = [191, 155, 49]
+contrast = 0.72
+beta = 1.8
+spots = 0.158
+
+["train.Ammocount.train1M1"]
+size = [256, 256]
+gen = "noise"
+dark = [89, 44, 49]
+mid = [130, 127, 118]
+light = [157, 155, 146]
+contrast = 1.19
+beta = 1.8
+spots = 0.053
+
+["train.Ammocount.train1M2"]
+size = [256, 256]
+gen = "noise"
+dark = [53, 54, 55]
+mid = [126, 128, 131]
+light = [151, 153, 156]
+contrast = 1.38
+beta = 1.8
+spots = 0.127
+
+["train.Ammocount.train1Ma"]
+size = [256, 256]
+gen = "noise"
+dark = [85, 39, 43]
+mid = [135, 128, 114]
+light = [156, 157, 154]
+contrast = 1.26
+beta = 1.8
+
+["train.Ammocount.train1Mc"]
+size = [256, 256]
+gen = "noise"
+dark = [43, 46, 47]
+mid = [89, 83, 80]
+light = [151, 146, 133]
+contrast = 1.29
+beta = 1.8
 
 ["train.Ammocount.train_crane_panels"]
 size = [256, 128]
@@ -7036,6 +11753,25 @@ light = [175, 181, 184]
 color = [195, 54, 56]
 mark = [255, 255, 255]
 
+["train.Ammocount.train_sign_12"]
+size = [256, 256]
+gen = "sign"
+dark = [70, 70, 63]
+mid = [89, 89, 81]
+light = [155, 156, 143]
+color = [89, 89, 81]
+mark = [255, 255, 255]
+
+["train.Ammocount.trainBon1"]
+size = [256, 256]
+gen = "noise"
+dark = [115, 113, 110]
+mid = [148, 139, 115]
+light = [158, 159, 159]
+contrast = 0.55
+beta = 1.8
+spots = 0.06
+
 ["train.Ammocount.traindoor"]
 size = [128, 256]
 gen = "siding"
@@ -7044,6 +11780,15 @@ mid = [85, 88, 91]
 light = [151, 154, 155]
 n = 3
 vertical = false
+
+["train.Ammocount.trainplain"]
+size = [256, 128]
+gen = "tiles"
+dark = [133, 134, 131]
+mid = [146, 147, 147]
+light = [157, 160, 162]
+n = 3
+grout = 0.04
 
 ["train.Ammocount.TrainRustP"]
 size = [128, 64]
@@ -7062,6 +11807,33 @@ light = [101, 64, 46]
 n = 2
 grout = 0.04
 
+["train.Ammocount.TrWindows"]
+size = [256, 128]
+gen = "window"
+dark = [51, 54, 60]
+mid = [57, 60, 66]
+light = [94, 99, 106]
+nx = 5
+ny = 2
+
+["train.Ammocount.ware_concrete_9"]
+size = [256, 256]
+gen = "noise"
+dark = [13, 14, 13]
+mid = [20, 21, 19]
+light = [31, 31, 28]
+contrast = 0.4
+beta = 1.8
+
+["train.Ammocount.ware_floor_02"]
+size = [128, 128]
+gen = "bricks"
+dark = [107, 103, 99]
+mid = [122, 119, 115]
+light = [139, 139, 136]
+rows = 16
+cols = 8
+
 ["train.Ammocount.Wheel"]
 size = [256, 256]
 gen = "tiles"
@@ -7070,6 +11842,24 @@ mid = [17, 11, 18]
 light = [64, 46, 53]
 n = 2
 grout = 0.04
+
+["train.Ammocount.wood15S"]
+size = [256, 256]
+gen = "planks"
+dark = [97, 83, 73]
+mid = [125, 110, 102]
+light = [144, 133, 129]
+n = 4
+vertical = true
+
+["UWindow.BlackTexture"]
+size = [32, 32]
+gen = "window"
+dark = [0, 0, 0]
+mid = [0, 0, 0]
+light = [0, 0, 0]
+nx = 2
+ny = 2
 
 ["UWindow.WhiteTexture"]
 size = [32, 32]
@@ -7107,4 +11897,17 @@ light = [138, 108, 84]
 n = 2
 grout = 0.04
 
-# not generated (see-through shapes; replace by hand): car_park.cp_RadioBit, car_park.cp_RadioBit1, car_park.cp_RadioTower, Dam.Cylinder1, Dam.stwalk1, Rage.JBuggyWheel1, Rage.Skins.OrdersBluMidR, Rage.Skins.VehicleFlagTex0, Rage.Skins.VehicleFlagTex1, rage_airport.Box.ap_Snacks1a, rage_dock.crane.yard-crane-00, rage_dock.crane.yard-crane-05, rage_dock.ground.dock_ground_7, rage_lumberyard.leaves.lumber_leaves_01, rage_urban.brck07S, rage_warehouse.metal.ware_metal_35, rage_warehouse.Object.ware_object_32, RageEffects.BloodSplat03, RageEffects.BloodSplat06, RageEffects.BloodSplat08, RageEffects.Skins.Jcarfrag011
+["xSandPax.xWater03"]
+size = [256, 256]
+gen = "glow"
+dark = [0, 0, 86]
+mid = [0, 7, 102]
+light = [0, 34, 152]
+
+["xSandPax.xWater04"]
+size = [256, 256]
+gen = "glow"
+dark = [0, 32, 103]
+mid = [0, 41, 116]
+light = [6, 70, 165]
+

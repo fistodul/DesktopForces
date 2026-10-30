@@ -5,8 +5,11 @@
 #include "AssetImportTask.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
+#include "Algo/Find.h"
+#include "AssetCompilingManager.h"
 #include "Dom/JsonObject.h"
 #include "Engine/StaticMesh.h"
+#include "Serialization/ArchiveReplaceObjectRef.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
 #include "MaterialShared.h"
@@ -83,6 +86,10 @@ void FDFPacks::Load(const FString& File) {
 		CommunityPackages.Add(V->AsString().ToLower());
 	for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("replaced")))
 		Replaced.Add(V->AsString().ToLower());
+	UnverifiedReplaced.Reset();
+	if (const TArray<TSharedPtr<FJsonValue>>* Only; J->TryGetArrayField(TEXT("unverified_replaced"), Only))
+		for (const TSharedPtr<FJsonValue>& V : *Only)
+			UnverifiedReplaced.Add(V->AsString().ToLower());
 	UE_LOG(LogDFEditor, Display, TEXT("Packs: %d community maps, %d community packages, %d replaced textures"), CommunityMaps.Num(), CommunityPackages.Num(), Replaced.Num());
 }
 
@@ -137,7 +144,7 @@ FString FDFImporter::TextureAssetPath(const FString& Key) {
 FString FDFImporter::ReplacementAssetPath(const FString& Key) {
 	FString Dir, Name;
 	SplitKey(Key, Dir, Name);
-	return FString::Printf(TEXT("%s/Textures/%s/%s.%s"), *Packs.ReplacedRoot, *Dir, *Name, *Name);
+	return FString::Printf(TEXT("%s/Textures/%s/%s.%s"), *Packs.ReplacementRoot(Key), *Dir, *Name, *Name);
 }
 
 UTexture2D* FDFImporter::FindTexture(const FString& Key) const {
@@ -177,6 +184,154 @@ void FDFImporter::RepointCommunityMaterials() {
 		}
 	}
 	UE_LOG(LogDFEditor, Display, TEXT("Replacement art: %d community material instances point at it"), Count);
+}
+
+FString FDFImporter::OwnMaterialInstance(const FString& ClassicPackage, const FString& Root) {
+	const FString CacheKey = Root + TEXT("|") + ClassicPackage;
+	if (const FString* Known = OwnInstances.Find(CacheKey))
+		return *Known;
+	FString& Own = OwnInstances.Add(CacheKey);
+	const FString Name = FPackageName::GetShortName(ClassicPackage);
+	UMaterialInstanceConstant* Old = LoadObject<UMaterialInstanceConstant>(nullptr, *(ClassicPackage + TEXT(".") + Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UTexture* OldTex = nullptr;
+	if (!Old || !Old->GetTextureParameterValue(FMaterialParameterInfo(TEXT("Texture")), OldTex) || !OldTex)
+		return Own;
+	FString Key = OldTex->GetOutermost()->GetName();
+	const FString TexturesRoot = (Key.StartsWith(Packs.UnverifiedRoot) ? Packs.UnverifiedRoot : Packs.ClassicRoot) / TEXT("Textures/");
+	if (FString Book = Key; Book.RemoveFromStart(Packs.ClassicRoot / TEXT("Effects/Textures/"))) {
+		// a flipbook: the same grid drawn anew, for every pack that uses it
+		const FString Effects = Packs.ReplacedRoot / TEXT("Effects");
+		const FString Short = FPackageName::GetShortName(Book);
+		UTexture2D* Art = LoadObject<UTexture2D>(nullptr, *(Effects / TEXT("Textures") / Book + TEXT(".") + Short), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Art)
+			return Own;
+		FString RelDir = FPackageName::GetLongPackagePath(ClassicPackage);
+		RelDir.RemoveFromStart(Packs.ClassicRoot / TEXT("Effects/Materials"));
+		bool bCreatedBook = false;
+		UMaterialInstanceConstant* BookMI = FindOrCreateAsset<UMaterialInstanceConstant>(Effects / TEXT("Materials") + RelDir, Name, bCreatedBook);
+		BookMI->SetParentEditorOnly(Old->Parent);
+		BookMI->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Art);
+		BookMI->PostEditChange();
+		if (SaveAsset(BookMI))
+			Own = Effects / TEXT("Materials") + RelDir / Name;
+		return Own;
+	}
+	if (!Key.RemoveFromStart(TexturesRoot))
+		return Own;
+	Key.ReplaceInline(TEXT("/"), TEXT("."));
+	if (!Packs.HasReplacement(Key)) {
+		// asset names lost what packages can't hold ("ap_P&Hd" is asset ap_P_Hd): the manifest's spelling
+		const FString Safe = SafeName(Key);
+		const FString* Real = Algo::FindByPredicate(Packs.Replaced, [&Safe](const FString& R) { return SafeName(R).Equals(Safe, ESearchCase::IgnoreCase); });
+		if (!Real)
+			return Own;
+		Key = *Real;
+	}
+	UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *ReplacementAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (!Tex)
+		return Own;
+	FString Rel = FPackageName::GetLongPackagePath(ClassicPackage);
+	Rel.RemoveFromStart(Packs.ClassicRoot / TEXT("Materials"));
+	Rel.RemoveFromStart(Packs.UnverifiedRoot / TEXT("Materials"));
+	const FString Folder = Root / TEXT("Materials") + Rel;
+	bool bCreated = false;
+	UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(Folder, Name, bCreated);
+	MIC->SetParentEditorOnly(Old->Parent);
+	MIC->BasePropertyOverrides = Old->BasePropertyOverrides;
+	MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Tex);
+	MIC->PostEditChange();
+	if (SaveAsset(MIC))
+		Own = Folder / Name;
+	return Own;
+}
+
+int32 FDFImporter::RepointPackages(const TArray<FName>& Names, const FString& Root, bool bFromUnverified, TSet<FString>& Left, int32& Failed) {
+	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	const FString ClassicMaterials = Packs.ClassicRoot / TEXT("Materials/");
+	const FString ClassicEffects = Packs.ClassicRoot / TEXT("Effects/Materials/");
+	const FString UnverifiedMaterials = Packs.UnverifiedRoot / TEXT("Materials/");
+	int32 Done = 0;
+	for (const FName Name : Names) {
+		TArray<FName> Deps;
+		AR.GetDependencies(Name, Deps);
+		TMap<UObject*, UObject*> Swap;
+		for (const FName Dep : Deps) {
+			const FString From = Dep.ToString();
+			if (FString Sound = From; Sound.RemoveFromStart(Packs.ClassicRoot / TEXT("Sounds/"))) {
+				const FString Short = FPackageName::GetShortName(Sound);
+				UObject* OldSound = LoadObject<USoundBase>(nullptr, *(From + TEXT(".") + Short), nullptr, LOAD_NoWarn | LOAD_Quiet);
+				UObject* NewSound = LoadObject<USoundBase>(nullptr, *(Packs.ReplacedRoot / TEXT("Sounds") / Sound + TEXT(".") + Short), nullptr, LOAD_NoWarn | LOAD_Quiet);
+				if (OldSound && NewSound)
+					Swap.Add(OldSound, NewSound);
+				continue;
+			}
+			if (!From.StartsWith(ClassicMaterials) && !From.StartsWith(ClassicEffects) && !(bFromUnverified && From.StartsWith(UnverifiedMaterials)))
+				continue;
+			const FString To = OwnMaterialInstance(From, Root);
+			if (To.IsEmpty()) {
+				Left.Add(From);
+				continue;
+			}
+			UObject* Old = LoadObject<UMaterialInterface>(nullptr, *(From + TEXT(".") + FPackageName::GetShortName(From)), nullptr, LOAD_NoWarn | LOAD_Quiet);
+			UObject* New = LoadObject<UMaterialInterface>(nullptr, *(To + TEXT(".") + FPackageName::GetShortName(To)), nullptr, LOAD_NoWarn | LOAD_Quiet);
+			if (Old && New)
+				Swap.Add(Old, New);
+		}
+		if (Swap.IsEmpty())
+			continue;
+		UPackage* Pkg = LoadPackage(nullptr, *Name.ToString(), LOAD_None);
+		if (!Pkg) {
+			++Failed;
+			continue;
+		}
+		FAssetCompilingManager::Get().FinishAllCompilation();
+		int64 Count = 0;
+		ForEachObjectWithPackage(Pkg, [&](UObject* Object) {
+			FArchiveReplaceObjectRef<UObject> Replace(Object, Swap, EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
+			Count += Replace.GetCount();
+			return true;
+		});
+		if (Count == 0)
+			continue;
+		UObject* Asset = Pkg->FindAssetInPackage();
+		if (Asset && SaveAsset(Asset))
+			++Done;
+		else
+			++Failed;
+	}
+	CollectGarbage(RF_NoFlags);
+	return Done;
+}
+
+bool FDFImporter::RepointMaps(const TArray<FString>& Maps) {
+	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AR.ScanPathsSynchronous({ Packs.CommunityMapsRoot, Packs.CommunityRoot, Packs.UnverifiedRoot, Packs.ClassicRoot / TEXT("Materials"), Packs.ClassicRoot / TEXT("Effects/Materials"), Packs.ClassicRoot / TEXT("Sounds") }, true);
+	int32 Saved = 0, Failed = 0;
+	TSet<FString> Left;
+	for (const FString& Map : Maps) {
+		const bool bCommunity = Packs.IsCommunityMap(Map);
+		if (!bCommunity && !Packs.IsUnverifiedMap(Map))
+			continue;
+		TArray<FName> Names = { FName(*Packs.MapPackage(Map)) };
+		TArray<FAssetData> Data;
+		AR.GetAssetsByPath(FName(*Packs.MapDataRoot(Map)), Data, true);
+		for (const FAssetData& A : Data)
+			Names.AddUnique(A.PackageName);
+		const int32 Done = RepointPackages(Names, bCommunity ? Packs.CommunityRoot : Packs.UnverifiedRoot, bCommunity, Left, Failed);
+		Saved += Done;
+		UE_LOG(LogDFEditor, Display, TEXT("Repoint %s: %d of %d packages"), *Map, Done, Names.Num());
+	}
+	// the community pack's own props (boats, mod vehicles) borrow too
+	TArray<FName> Props;
+	TArray<FAssetData> PropAssets;
+	AR.GetAssetsByPath(FName(*(Packs.CommunityRoot / TEXT("Props"))), PropAssets, true);
+	for (const FAssetData& A : PropAssets)
+		Props.AddUnique(A.PackageName);
+	Saved += RepointPackages(Props, Packs.CommunityRoot, true, Left, Failed);
+	UE_LOG(LogDFEditor, Display, TEXT("Repoint: %d packages saved, %d failed, %d material instances without replacement art"), Saved, Failed, Left.Num());
+	for (const FString& Package : Left)
+		UE_LOG(LogDFEditor, Display, TEXT("  no art: %s"), *Package);
+	return Failed == 0;
 }
 
 USoundWave* FDFImporter::FindSound(const FString& DFPath) const {
@@ -249,7 +404,7 @@ bool FDFImporter::ImportTextures() {
 			}
 			UAssetImportTask* Rep = NewObject<UAssetImportTask>();
 			Rep->Filename = RepFile;
-			Rep->DestinationPath = FString::Printf(TEXT("%s/Textures/%s"), *Packs.ReplacedRoot, *Dir);
+			Rep->DestinationPath = FString::Printf(TEXT("%s/Textures/%s"), *Packs.ReplacementRoot(Key), *Dir);
 			Rep->DestinationName = Name;
 			Rep->bAutomated = true;
 			Rep->bReplaceExisting = true;
@@ -425,6 +580,43 @@ bool FDFImporter::ImportSounds(const FString& SubDir, bool bLooping) {
 		}
 	}
 	return true;
+}
+
+bool FDFImporter::ImportSoundArt() {
+	// Tools/artgen/ambience.py: <package>/<name>.wav beside work/out, for /Game/MF/Replacements
+	const FString SoundDir = FPaths::GetPath(WorkDir) / TEXT("generated/sounds");
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *SoundDir, TEXT("*.wav"), true, false);
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	TArray<UAssetImportTask*> Tasks;
+	for (const FString& File : Files) {
+		FString Rel = File;
+		FPaths::MakePathRelativeTo(Rel, *(SoundDir + TEXT("/")));
+		UAssetImportTask* Task = NewObject<UAssetImportTask>();
+		Task->Filename = File;
+		Task->DestinationPath = Packs.ReplacedRoot / TEXT("Sounds") / FPaths::GetPath(Rel);
+		Task->DestinationName = SafeName(FPaths::GetBaseFilename(Rel));
+		Task->bAutomated = true;
+		Task->bReplaceExisting = true;
+		Task->bSave = false;
+		Tasks.Add(Task);
+	}
+	if (!Tasks.IsEmpty())
+		AssetTools.ImportAssetTasks(Tasks);
+	int32 Ok = 0;
+	for (UAssetImportTask* Task : Tasks)
+		for (UObject* Object : Task->GetObjects())
+			if (USoundWave* Wave = Cast<USoundWave>(Object)) {
+				// plays like the sound it stands in for
+				FString Classic = Wave->GetOutermost()->GetName();
+				Classic.RemoveFromStart(Packs.ReplacedRoot);
+				const USoundWave* Old = LoadObject<USoundWave>(nullptr, *(Packs.ClassicRoot + Classic + TEXT(".") + Wave->GetName()), nullptr, LOAD_NoWarn | LOAD_Quiet);
+				Wave->bLooping = Old ? Old->bLooping : true;
+				Wave->AttenuationSettings = EnsureSoundAttenuation();
+				Ok += SaveAsset(Wave) ? 1 : 0;
+			}
+	UE_LOG(LogDFEditor, Display, TEXT("Sound art: %d / %d"), Ok, Files.Num());
+	return Ok == Files.Num();
 }
 
 // --- mod plugin art --------------------------------------------------------------------

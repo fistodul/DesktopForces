@@ -1,0 +1,373 @@
+# Replacement sounds (ambience.py): length in seconds and loudness (RMS 0..1) of each original.
+
+["RagePlayerSounds.deathc51"]
+seconds = 2.03
+rms = 0.1849
+
+["RagePlayerSounds.deathc53"]
+seconds = 2.01
+rms = 0.1714
+
+["RagePlayerSounds.hgasp1"]
+seconds = 0.83
+rms = 0.1485
+
+["VehicleFragSFX.VehicleBurnLoop"]
+seconds = 3.22
+rms = 0.1921
+
+["levelSFX.767FlyBy"]
+seconds = 7.87
+rms = 0.1144
+
+["levelSFX.AIRVENT"]
+seconds = 2.33
+rms = 0.1955
+
+["levelSFX.AirDucts"]
+seconds = 3.19
+rms = 0.1645
+
+["levelSFX.AircraftEngine"]
+seconds = 4.52
+rms = 0.1299
+
+["levelSFX.ArcticWind01"]
+seconds = 5.94
+rms = 0.0798
+
+["levelSFX.ArcticWind02"]
+seconds = 4.90
+rms = 0.1006
+
+["levelSFX.ArcticWind03"]
+seconds = 4.76
+rms = 0.1105
+
+["levelSFX.BarrelFire"]
+seconds = 5.03
+rms = 0.0999
+
+["levelSFX.Bat"]
+seconds = 1.18
+rms = 0.0158
+
+["levelSFX.BoatBridgeAmbience"]
+seconds = 1.71
+rms = 0.1018
+
+["levelSFX.BoatEngine"]
+seconds = 2.76
+rms = 0.2394
+
+["levelSFX.BoxingGym01"]
+seconds = 4.93
+rms = 0.0302
+
+["levelSFX.BrokenWireSparks1"]
+seconds = 4.18
+rms = 0.0377
+
+["levelSFX.BusyFlyover"]
+seconds = 3.95
+rms = 0.1818
+
+["levelSFX.Carpassby"]
+seconds = 5.93
+rms = 0.0929
+
+["levelSFX.ChimneyFlame"]
+seconds = 4.79
+rms = 0.2278
+
+["levelSFX.CircularSawOneShot"]
+seconds = 9.14
+rms = 0.2160
+
+["levelSFX.CityAmbience"]
+seconds = 4.63
+rms = 0.1232
+
+["levelSFX.ComputerTerminal01"]
+seconds = 1.71
+rms = 0.1018
+
+["levelSFX.ControlTowerAmbience01"]
+seconds = 12.12
+rms = 0.1653
+
+["levelSFX.ControlTowerAmbience02"]
+seconds = 5.02
+rms = 0.2160
+
+["levelSFX.Crane1"]
+seconds = 5.02
+rms = 0.2265
+
+["levelSFX.CraneCreak"]
+seconds = 3.22
+rms = 0.0797
+
+["levelSFX.CrashingWater"]
+seconds = 2.88
+rms = 0.1507
+
+["levelSFX.CreakingMetal03"]
+seconds = 10.66
+rms = 0.0785
+
+["levelSFX.CreakyRafter3"]
+seconds = 0.58
+rms = 0.0458
+
+["levelSFX.Crickets01"]
+seconds = 2.59
+rms = 0.0432
+
+["levelSFX.Crickets02"]
+seconds = 4.53
+rms = 0.0403
+
+["levelSFX.DistantFreightTrain"]
+seconds = 3.41
+rms = 0.1854
+
+["levelSFX.DistantPolice"]
+seconds = 5.71
+rms = 0.0578
+
+["levelSFX.DistantPolice2"]
+seconds = 6.23
+rms = 0.0614
+
+["levelSFX.DrippingWater"]
+seconds = 4.22
+rms = 0.0190
+
+["levelSFX.ElectricalRoomHum01"]
+seconds = 2.82
+rms = 0.0839
+
+["levelSFX.ElectricalRoomHum02"]
+seconds = 2.17
+rms = 0.0790
+
+["levelSFX.ElevatorMusic"]
+seconds = 7.95
+rms = 0.0931
+
+["levelSFX.EscapingGas"]
+seconds = 1.39
+rms = 0.2154
+
+["levelSFX.FanBlades"]
+seconds = 3.62
+rms = 0.1892
+
+["levelSFX.Fans01"]
+seconds = 2.09
+rms = 0.1169
+
+["levelSFX.Fans02"]
+seconds = 3.18
+rms = 0.1557
+
+["levelSFX.Fans03"]
+seconds = 3.19
+rms = 0.1645
+
+["levelSFX.FlickeringLight"]
+seconds = 6.22
+rms = 0.0317
+
+["levelSFX.FoghornLoud"]
+seconds = 3.42
+rms = 0.4938
+
+["levelSFX.GasHiss"]
+seconds = 1.95
+rms = 0.0681
+
+["levelSFX.GenericInternalRumble01"]
+seconds = 2.72
+rms = 0.1571
+
+["levelSFX.GravelSlide01"]
+seconds = 4.04
+rms = 0.0197
+
+["levelSFX.Hammering1"]
+seconds = 4.13
+rms = 0.0963
+
+["levelSFX.HeavyFlow"]
+seconds = 2.41
+rms = 0.2212
+
+["levelSFX.HeavyPolarWind"]
+seconds = 9.84
+rms = 0.3617
+
+["levelSFX.IceCreak1"]
+seconds = 2.87
+rms = 0.0550
+
+["levelSFX.Industrialarea01"]
+seconds = 3.24
+rms = 0.1114
+
+["levelSFX.Industrialarea02"]
+seconds = 3.62
+rms = 0.2348
+
+["levelSFX.Industrialarea03"]
+seconds = 2.16
+rms = 0.2243
+
+["levelSFX.LappingWater01"]
+seconds = 5.13
+rms = 0.0575
+
+["levelSFX.LappingWater02"]
+seconds = 3.67
+rms = 0.0472
+
+["levelSFX.LightFittingHum1"]
+seconds = 3.82
+rms = 0.0528
+
+["levelSFX.LoadoutBlocker"]
+seconds = 0.76
+rms = 0.2893
+
+["levelSFX.Machinery01"]
+seconds = 3.24
+rms = 0.2089
+
+["levelSFX.Machinery02"]
+seconds = 2.26
+rms = 0.1902
+
+["levelSFX.Machinery03"]
+seconds = 2.74
+rms = 0.1417
+
+["levelSFX.Machinery04"]
+seconds = 2.40
+rms = 0.1743
+
+["levelSFX.Machinery05"]
+seconds = 2.27
+rms = 0.1296
+
+["levelSFX.MallMusic"]
+seconds = 4.00
+rms = 0.0955
+
+["levelSFX.MechanicalDetail1"]
+seconds = 4.40
+rms = 0.1391
+
+["levelSFX.MechanicalDetail3"]
+seconds = 7.45
+rms = 0.0654
+
+["levelSFX.MechanicalDetail4"]
+seconds = 4.74
+rms = 0.1221
+
+["levelSFX.OminousWind01"]
+seconds = 3.44
+rms = 0.1255
+
+["levelSFX.PipeFlow"]
+seconds = 2.41
+rms = 0.2123
+
+["levelSFX.PipeFlow2"]
+seconds = 2.41
+rms = 0.2212
+
+["levelSFX.RadioStatic"]
+seconds = 2.75
+rms = 0.1350
+
+["levelSFX.RadioStaticLoop"]
+seconds = 8.41
+rms = 0.1523
+
+["levelSFX.RoofFans"]
+seconds = 3.18
+rms = 0.2572
+
+["levelSFX.RoomAmbience01"]
+seconds = 2.97
+rms = 0.1037
+
+["levelSFX.RopeBridgeCreak"]
+seconds = 8.68
+rms = 0.0133
+
+["levelSFX.Seagulls1"]
+seconds = 8.17
+rms = 0.0357
+
+["levelSFX.Seagulls2"]
+seconds = 6.87
+rms = 0.0255
+
+["levelSFX.SewerAmbience"]
+seconds = 4.61
+rms = 0.1411
+
+["levelSFX.StreetsBelowAmbience"]
+seconds = 8.65
+rms = 0.1370
+
+["levelSFX.SubwayAmbience"]
+seconds = 6.62
+rms = 0.1441
+
+["levelSFX.SunnyDayAmbience"]
+seconds = 8.68
+rms = 0.0289
+
+["levelSFX.TechnologyRoom01"]
+seconds = 4.81
+rms = 0.2054
+
+["levelSFX.TechnologyRoom02"]
+seconds = 3.67
+rms = 0.3127
+
+["levelSFX.TrainHorn"]
+seconds = 2.51
+rms = 0.1245
+
+["levelSFX.TrainIdle"]
+seconds = 2.63
+rms = 0.2796
+
+["levelSFX.Turbines"]
+seconds = 4.40
+rms = 0.2491
+
+["levelSFX.Underwater"]
+seconds = 6.13
+rms = 0.1961
+
+["levelSFX.Welding"]
+seconds = 4.79
+rms = 0.0622
+
+["levelSFX.WindThroughTrees01"]
+seconds = 2.68
+rms = 0.0756
+
+["levelSFX.WindThroughTrees02"]
+seconds = 3.14
+rms = 0.0454
+
+["levelSFX.WoodBridgeCreak"]
+seconds = 8.34
+rms = 0.0208

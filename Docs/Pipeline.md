@@ -335,7 +335,27 @@ end of the auto table).
     python3 Tools/artgen/lookalike.py           # generate (7 min for ~850)
     python3 Tools/mfport/mfport.py textures && python3 Tools/mfport/mfport.py import --steps textures
 
-To check that a community map no longer needs the original game, run it with the packs
+Generators cover every community and unverified map since 2026-10-30. `--auto` only adds
+entries: art already reviewed and imported doesn't change when a map joins the list. Textures
+only unverified maps use go to `/MobileForcesUnverified/Replacements` (`unverified_replaced` in
+`packs.json`), so the community pack doesn't carry them.
+
+**Effects and sounds** work the same way. `Tools/artgen/flipbooks.py` draws the particle atlases on
+the originals' grids (`mfport.py effects` lists them); `Tools/artgen/ambience.py` synthesizes
+ambience by the sound's name, with length and loudness from `sounds_table.toml`. Music has no
+stand-in: without Classic those maps have no music.
+
+    python3 Tools/artgen/lookalike.py --auto && python3 Tools/artgen/lookalike.py
+    python3 Tools/artgen/flipbooks.py && python3 Tools/artgen/ambience.py
+    python3 Tools/mfport/mfport.py textures && python3 Tools/mfport/mfport.py effects
+    python3 Tools/mfport/mfport.py import --steps textures,flipbooks,ambience,repoint
+
+Unverified maps' meshes use classic material instances directly, and effects and sounds sit in map
+packages. The `repoint` step swaps those references in place for each pack's own instance or
+replacement sound (no rebuild, no re-bake; `-maps=` limits it). Back up
+`Plugins/MobileForcesUnverified/Content/Maps` first: it isn't in Git.
+
+To check that a map no longer needs the original game, run it with the packs
 unmounted; nothing is deleted. `LoadErrors` and "Skipped package" lines name what it still needs:
 
     python3 Tools/play.py MF-RandomLand dm 2 -RenderOffscreen -DisablePlugins=MobileForcesClassic,MobileForcesUnverified -DFQuitAfter=20

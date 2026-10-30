@@ -41,6 +41,7 @@ struct FDFPacks {
 	TSet<FString> ClassicPackages; // lower case: retail and [classic]; anything not community or classic is unverified
 	TSet<FString> UnverifiedMaps; // lower case
 	TSet<FString> Replaced; // lower case texture keys with replacement art
+	TSet<FString> UnverifiedReplaced; // the ones only unverified maps use: art of that pack
 	bool bRemasterClassic = false; // classic maps use replacement art too
 
 	void Load(const FString& File);
@@ -48,17 +49,26 @@ struct FDFPacks {
 	/** "rage_warehouse.metal.x" -> its package's root (the original texture). */
 	FString TextureRoot(const FString& Key) const;
 	bool HasReplacement(const FString& Key) const { return Replaced.Contains(Key.ToLower()); }
+	FString ReplacementRoot(const FString& Key) const { return UnverifiedReplaced.Contains(Key.ToLower()) ? UnverifiedRoot / TEXT("Replacements") : ReplacedRoot; }
 	FString MapPackage(const FString& Map) const;
 	FString MapDataRoot(const FString& Map) const { return MapPackage(Map) + TEXT("_Data"); }
 	/** The folder a map's package is in (its pack's Maps folder). */
 	FString MapRoot(const FString& Map) const { return FPackageName::GetLongPackagePath(MapPackage(Map)); }
 	bool IsCommunityMap(const FString& Map) const { return CommunityMaps.Contains(Map.ToLower()); }
+	bool IsUnverifiedMap(const FString& Map) const { return UnverifiedMaps.Contains(Map.ToLower()); }
 };
 class FDFImporter {
 public:
 	explicit FDFImporter(const FString& InWorkDir);
 
 	bool ImportTextures();
+	/** Community and unverified maps' packages: classic material instances with replacement art
+	 *  become their own pack's, in place (no rebuild, no re-bake). */
+	bool RepointMaps(const TArray<FString>& Maps);
+	/** Flipbooks of Tools/artgen/flipbooks.py into /Game/MF/Replacements/Effects. */
+	bool ImportEffectArt();
+	/** Sounds of Tools/artgen/ambience.py into /Game/MF/Replacements/Sounds. */
+	bool ImportSoundArt();
 	/** Import WAVs under work/out/<SubDir>/<package>/... to <package root>/<SubDir>/<package>/... */
 	class USoundAttenuation* EnsureSoundAttenuation();
 	bool ImportSounds(const FString& SubDir = TEXT("Sounds"), bool bLooping = false);
@@ -149,6 +159,11 @@ public:
 
 private:
 	UMaterialInterface* GetMasterMaterial(const FString& Mode);
+	/** Root/Materials/... copy of a classic instance, on the replacement texture; empty: it has none. */
+	FString OwnMaterialInstance(const FString& ClassicPackage, const FString& Root);
+	/** RepointMaps on these packages; bFromUnverified: a community package, that pack counts as borrowed too. */
+	int32 RepointPackages(const TArray<FName>& Names, const FString& Root, bool bFromUnverified, TSet<FString>& Left, int32& Failed);
+	TMap<FString, FString> OwnInstances;
 	/** M_MF_Particle_add / _sub / _alpha and their instances per flipbook. */
 	UMaterialInterface* GetParticleMaster(const FString& Draw);
 	UMaterialInterface* GetParticleMaterial(const FString& Key, const FString& Draw);

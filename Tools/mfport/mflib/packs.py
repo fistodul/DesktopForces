@@ -84,10 +84,24 @@ def package_pack(packs: dict, package: str) -> str:
 def write_manifest(cfg: Config) -> Path:
     packs = load()
     maps = sorted(p.parent.name for p in (cfg.out_dir / 'Maps').glob('*/level.json'))
-    replaced = []
+    replaced, unverified_replaced = [], []
     tex = cfg.out_dir / 'textures.json'
     if tex.exists():
-        replaced = sorted(k.lower() for k, v in json.loads(tex.read_text()).items() if v.get('override'))
+        keys = [k for k, v in json.loads(tex.read_text()).items() if v.get('override')]
+        replaced = sorted(k.lower() for k in keys)
+        # art only unverified maps use stays in their pack, so the community pack doesn't carry it
+        # (what is already imported there stays: moving it is `import --steps repack`'s job)
+        used = set()
+        for m in maps:
+            if map_pack(packs, m) == 'community':
+                used |= {k.lower() for k in json.loads((cfg.out_dir / 'Maps' / m / 'level.json').read_text()).get('texture_usage', {})}
+                for mesh in (cfg.out_dir / 'Maps' / m).rglob('*.mfmesh.json'):   # movers aren't in texture_usage
+                    used |= {name.split('|')[0].lower() for name in json.loads(mesh.read_text()).get('materials', [])}
+        for mesh in (cfg.out_dir / 'Props').rglob('*.mfmesh.json'):              # vehicles, crates: any map's
+            used |= {name.split('|')[0].lower() for name in json.loads(mesh.read_text()).get('materials', [])}
+        imported = cfg.uproject.parent / 'Content' / 'MF' / 'Replacements' / 'Textures'
+        unverified_replaced = sorted(k.lower() for k in keys if k.lower() not in used
+                                     and not imported.joinpath(*k.split('.')).with_suffix('.uasset').exists())
     out = {
         'classic_root': packs['classic_root'],
         'community_root': packs['community_root'],
@@ -101,6 +115,7 @@ def write_manifest(cfg: Config) -> Path:
         # the importer's rule: community_packages -> community, these -> classic, anything else -> unverified
         'classic_packages': sorted(packs['classic_packages']),
         'replaced': replaced,
+        'unverified_replaced': unverified_replaced,
     }
     path = cfg.out_dir / 'packs.json'
     path.write_text(json.dumps(out, indent=1))

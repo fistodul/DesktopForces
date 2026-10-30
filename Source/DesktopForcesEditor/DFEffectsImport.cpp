@@ -152,6 +152,46 @@ FString FDFImporter::FlipbookAssetPath(const FString& Key) const {
 	return FString::Printf(TEXT("%s/Effects/Textures/%s/%s.%s"), *Packs.TextureRoot(Key), *Dir, *Name, *Name);
 }
 
+bool FDFImporter::ImportEffectArt() {
+	if (!LoadEffects())
+		return false;
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	const FString Root = Packs.ReplacedRoot / TEXT("Effects/Textures");
+	TArray<UAssetImportTask*> Tasks;
+	TArray<FString> Paths;
+	for (const auto& Pair : Flipbooks) {
+		FString Replacement;
+		if (!Pair.Value->TryGetStringField(TEXT("replacement"), Replacement))
+			continue;
+		FString Dir, Name;
+		SplitKey(Pair.Value->GetStringField(TEXT("key")), Dir, Name);
+		UAssetImportTask* Task = NewObject<UAssetImportTask>();
+		Task->Filename = FPaths::ConvertRelativePathToFull(WorkDir / Replacement);
+		Task->DestinationPath = Root / Dir;
+		Task->DestinationName = Name;
+		Task->bAutomated = true;
+		Task->bReplaceExisting = true;
+		Task->bSave = false;
+		Tasks.Add(Task);
+		Paths.Add(Root / Dir / Name + TEXT(".") + Name);
+	}
+	if (!Tasks.IsEmpty())
+		AssetTools.ImportAssetTasks(Tasks);
+	int32 Ok = 0;
+	for (const FString& Path : Paths)
+		if (UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet)) {
+			Tex->LODGroup = TEXTUREGROUP_Effects;
+			Tex->NeverStream = true;
+			Tex->SRGB = true;
+			Tex->CompressionSettings = TC_Default;
+			Tex->CompressionNoAlpha = false;
+			Tex->PostEditChange();
+			Ok += SaveAsset(Tex) ? 1 : 0;
+		}
+	UE_LOG(LogDFEditor, Display, TEXT("Effect art: %d / %d flipbooks"), Ok, Paths.Num());
+	return Ok == Paths.Num();
+}
+
 bool FDFImporter::ImportEffects() {
 	if (!LoadEffects())
 		return false;

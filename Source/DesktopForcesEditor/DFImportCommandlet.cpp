@@ -48,33 +48,26 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		Importer.ImportSkeletal();
 	if (Steps.Contains(TEXT("testmap")))
 		Errors += Importer.BuildTestMap() ? 0 : 1;
+	TArray<FString> MapList; // default: every converted map
+	if (Maps.IsEmpty())
+		IFileManager::Get().FindFiles(MapList, *(Work / TEXT("Maps/*")), false, true);
+	else
+		Maps.ParseIntoArray(MapList, TEXT(","));
+	if (Steps.Contains(TEXT("flipbooks")) && !Importer.ImportEffectArt())
+		++Errors;
+	if (Steps.Contains(TEXT("ambience")) && !Importer.ImportSoundArt())
+		++Errors;
+	if (Steps.Contains(TEXT("repoint")) && !Importer.RepointMaps(MapList))
+		++Errors;
 	if (Steps.Contains(TEXT("patch")) || Steps.Contains(TEXT("zones"))) // "zones": its old name
-	{
-		TArray<FString> MapList;
-		if (Maps.IsEmpty())
-			IFileManager::Get().FindFiles(MapList, *(Work / TEXT("Maps/*")), false, true);
-		else
-			Maps.ParseIntoArray(MapList, TEXT(","));
 		for (const FString& Map : MapList)
 			Importer.PatchMapData(Map);
-	}
-	if (Steps.Contains(TEXT("collision"))) {
-		TArray<FString> MapList;
-		Maps.ParseIntoArray(MapList, TEXT(","));
+	if (Steps.Contains(TEXT("collision")) && !Maps.IsEmpty())
 		for (const FString& Map : MapList)
 			Errors += Importer.RefreshMapCollision(Map) ? 0 : 1;
-	}
-	if (Steps.Contains(TEXT("maps"))) {
-		TArray<FString> MapList;
-		if (Maps.IsEmpty()) {
-			// every converted map
-			IFileManager::Get().FindFiles(MapList, *(Work / TEXT("Maps/*")), false, true);
-		} else {
-			Maps.ParseIntoArray(MapList, TEXT(","));
-		}
+	if (Steps.Contains(TEXT("maps")))
 		for (const FString& Map : MapList)
 			Errors += Importer.BuildMap(Map) ? 0 : 1;
-	}
 	UE_LOG(LogDFEditor, Display, TEXT("DFImport finished with %d error(s)"), Errors);
 	return Errors;
 }

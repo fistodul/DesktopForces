@@ -15,6 +15,39 @@ all maps, or revive the removed animation-budget experiment. Keep user-facing re
 replacement from this investigation remains applied. The concrete trial was fully reverted.
 All 55 previously queued maps were already imported and baked; that batch is finished.
 
+## Current state, 2026-10-30
+
+All 73 non-Classic maps (22 community, 51 unverified) now run with the Classic plugin unmounted,
+and the community maps also with Unverified unmounted. Every map's only remaining load error is
+**music**: 19 retail tracks, referenced by maps that then play nothing. The lists are
+`load-community.txt` and `load-unverified.txt` in the evidence folder below.
+
+| Replaced | How |
+|---|---|
+| 577 + 2 textures | `lookalike.py`: generators, plus lattice, tree, palm and splat shapes for see-through art |
+| 19 particle atlases | `Tools/artgen/flipbooks.py`, same grids |
+| 93 sounds | `Tools/artgen/ambience.py`, synthesized by name; length and loudness kept in `sounds_table.toml` |
+| 2900+ map packages | new `repoint` importer step, no rebuild or re-bake |
+
+Pack rules: textures only unverified maps use are in `/MobileForcesUnverified/Replacements`
+(534, not in Git). Art shared with community maps or props, effects and sounds are in
+`/Game/MF/Replacements`. A backup of the unverified maps from before `repoint` is at
+`~/df-repoint-backup-20261030/unverified-maps.tar`; delete it once this is trusted.
+
+Known limits:
+
+- **Unverified maps now use generated art even when Classic is installed.** Signs and posters
+  lost their words, and windows, lamps and machinery became generic surfaces. Restoring the backup
+  brings the originals back; hand tuning in `lookalikes.toml` is the better fix for maps that matter.
+- `--auto` still reads some floors as `corrugated` or `siding`, which shows as stripes (seen in
+  MB-EndagaDam). Give those keys a hand entry.
+- The 146 "Classic texture" hits in a raw byte scan are `contentImportPath` import metadata, not
+  dependencies. `LoadErrors` is the real test.
+- No sound was listened to: recipes and loudness are checked numerically only.
+- Gameplay assets still need Classic: soldiers, weapon models and sounds, pickups, vehicle
+  meshes, HUD art, crosshairs and blood effects. Thread 9 covers maps, not these.
+- Not yet cooked: no packaged build or phone test of any of this.
+
 ## Accepted batches
 
 **MF-RandomLand, 2026-10-30:** first community map with no Classic package dependency. Its four
@@ -204,9 +237,6 @@ Useful local leads, **not yet auditioned/validated**:
 - Props: `SM_Shelf`, `SM_Chair`, `SM_Door`, lamps and `SM_Rock` in `StarterContent/Props`.
   Check silhouette, dimensions, collision, triangle count and material cost before substitution.
 - Plain opaque wood/steel/gravel/basalt surfaces using the already exported textures.
-- Remaining opaque textures, the next generator batch: mf-City_Rush's `rage_marina.sky.sky_*256`,
-  `rage_pueblo.sky.Des_Sun1a256` and `rage_generic.Light.generic_lens_2`. The rest of the 34 are
-  see-through and need hand-made shapes.
 
 **Audio pipeline caveat:** `mflib/sounds.py` supports WAV overrides and writes them back under
 `work/out/Sounds/<package>/`. The new `replacements` command is texture-only. Community routing,
@@ -225,8 +255,8 @@ art local/private where required; do not publish standalone licensed sources wit
 1. Check HEAD, status, `AGENTS.md`, and whether another agent owns the Unreal execution lane.
 2. Reuse the exports/contact sheet. Refresh missing dependencies and select a small batch with
    exact target keys, referring maps, source provenance, and screenshots of the originals.
-3. Either audition ambient audio first, or take the next opaque batch through the generators.
-   Audio needs the routing audit above. Do not retry poured concrete against the slab target.
+3. Superseded by [Current state](#current-state-2026-10-30): listen to the generated ambience,
+   cook a build, then hand-tune what matters. Do not retry poured concrete against the slab target.
 4. Stage selected image sources through `replacements`; inspect the resized result and alpha.
    Preserve original `usize`/`vsize`, which govern the converted UV scale.
 5. Import only the selected assets and repoint the relevant community materials. The regular

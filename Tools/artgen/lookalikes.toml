@@ -18,6 +18,10 @@
 #   lamp        kind = round | grid | tube, n, glow, housing, back
 #   sign        color, mark
 #   flat        top, bottom
+#   lattice     rows, cols, thick, cross (see-through between the bars)
+#   tree        leaves, leaf, forks, depth, trunk, bark (see-through card)
+#   palm        blades (see-through card)
+#   splat       drops (see-through)
 # Every entry may set scale (default 2: 256 px originals become 512, our cap).
 
 # --- MF-Filip (AKVARI) ------------------------------------------------------------------
@@ -291,3 +295,268 @@ grit = 0.15
 ["rage_warehouse.sky.ware_sky_2"]
 gen = "sky"
 clouds = 0.25
+
+# --- see-through and masked originals, all non-classic maps ---------------------------------
+["Dam.Cylinder1"]
+gen = "panel"
+border = 0.0
+rust = 0.3
+
+["Dam.Sd_tower1"]
+gen = "corrugated"
+ridges = 12
+
+["rage_airport.Box.ap_Snacks1a"]
+gen = "noise"
+contrast = 0.3
+
+["rage_dock.crane.yard-crane-00"]
+gen = "noise"
+contrast = 0.5
+beta = 2.0
+
+["rage_dock.crane.yard-crane-05"]
+gen = "noise"
+contrast = 0.5
+beta = 2.0
+
+["rage_dock.ground.dock_ground_7"]
+gen = "grate"
+n = 14
+wire = 0.12
+
+["rage_urban.brck07S"]
+gen = "bricks"
+rows = 8
+cols = 4
+
+["Rage.Skins.VehicleFlagTex0"]
+gen = "noise"
+dark = [35, 40, 95]
+mid = [49, 56, 124]
+light = [75, 82, 150]
+contrast = 0.8
+
+["Rage.Skins.VehicleFlagTex1"]
+gen = "noise"
+dark = [95, 40, 40]
+mid = [127, 60, 58]
+light = [160, 90, 85]
+contrast = 0.8
+
+["Rage.JBuggyWheel1"]
+gen = "noise"
+dark = [20, 18, 22]
+mid = [42, 37, 47]
+light = [70, 66, 74]
+contrast = 0.8
+
+["RageEffects.Skins.Jcarfrag011"]
+gen = "noise"
+dark = [25, 10, 10]
+mid = [45, 19, 17]
+light = [80, 40, 34]
+contrast = 1.0
+
+["Rage.Skins.OrdersBluMidR"]
+gen = "flat"
+top = [17, 26, 116]
+bottom = [17, 26, 116]
+
+["Rage.LoadoutBackBlue"]
+gen = "glow"
+light = [0, 20, 180]
+mid = [0, 10, 80]
+dark = [0, 1, 17]
+
+["Rage.LoadoutBackRed"]
+gen = "glow"
+light = [180, 10, 10]
+mid = [80, 5, 5]
+dark = [17, 0, 0]
+
+["car_park.cp_RadioBit"]
+gen = "lattice"
+rows = 2
+cols = 1
+thick = 0.05
+dark = [70, 72, 72]
+mid = [95, 96, 96]
+light = [130, 130, 130]
+
+["car_park.cp_RadioBit1"]
+gen = "lattice"
+rows = 2
+cols = 1
+thick = 0.05
+dark = [90, 90, 88]
+mid = [134, 133, 130]
+light = [170, 170, 165]
+
+["car_park.cp_RadioTower"]
+gen = "lattice"
+rows = 3
+cols = 1
+thick = 0.05
+cross = true
+dark = [85, 88, 88]
+mid = [120, 123, 123]
+light = [160, 163, 163]
+
+["Dam.Crane01"]
+gen = "lattice"
+rows = 1
+cols = 2
+thick = 0.1
+
+["Dam.dam_girder_00"]
+gen = "lattice"
+rows = 1
+cols = 1
+thick = 0.1
+cross = true
+
+["Dam.stwalk1"]
+gen = "lattice"
+rows = 10
+cols = 8
+thick = 0.022
+
+["train.STEELWALK2"]
+gen = "lattice"
+rows = 10
+cols = 8
+thick = 0.022
+
+["rage_dock.Object.dock_object_9"]
+gen = "lattice"
+rows = 3
+cols = 0
+thick = 0.022
+
+["rage_pueblo.Object.pueblo_object_1"]
+gen = "lattice"
+rows = 2
+cols = 2
+thick = 0.05
+cross = true
+
+["rage_urban.ny_SubRail"]
+gen = "lattice"
+rows = 1
+cols = 8
+thick = 0.05
+
+["rage_warehouse.metal.ware_metal_35"]
+gen = "grate"
+n = 14
+wire = 0.1
+masked = true
+
+["rage_warehouse.Object.ware_object_32"]
+gen = "grate"
+n = 14
+wire = 0.1
+masked = true
+
+["rage_dock.Object.dock_object_13"]
+gen = "grate"
+n = 14
+wire = 0.1
+masked = true
+
+["rage_dock.Object.yard-buoy-06"]
+gen = "grate"
+n = 14
+wire = 0.1
+masked = true
+
+["rage_lumberyard.leaves.lumber_leaves_00"]
+gen = "tree"
+dark = [110, 80, 30]
+mid = [148, 111, 57]
+light = [190, 160, 70]
+bark = [60, 45, 30]
+leaves = 0.5
+leaf = 0.018
+
+["rage_lumberyard.leaves.lumber_leaves_01"]
+gen = "tree"
+dark = [40, 35, 28]
+mid = [59, 53, 43]
+light = [80, 72, 60]
+bark = [45, 40, 32]
+leaves = 0
+trunk = 0.03
+
+["rage_lumberyard.leaves.lumber_leaves_02"]
+gen = "tree"
+dark = [55, 65, 35]
+mid = [86, 94, 53]
+light = [125, 132, 80]
+bark = [60, 50, 35]
+leaves = 0.8
+leaf = 0.018
+
+["rage_lumberyard.leaves.lumber_leaves_03"]
+gen = "tree"
+dark = [70, 60, 10]
+mid = [100, 81, 20]
+light = [140, 120, 30]
+bark = [60, 40, 20]
+depth = 3
+leaves = 1.2
+leaf = 0.04
+forks = 3
+
+["rage_marina.Object.marina_object_6"]
+gen = "palm"
+dark = [60, 75, 40]
+mid = [108, 118, 67]
+light = [200, 205, 170]
+
+["rage_marina.Object.marina_object_7"]
+gen = "palm"
+dark = [70, 85, 50]
+mid = [112, 124, 77]
+light = [205, 210, 175]
+
+["rage_marina.Object.marina_object_8"]
+gen = "palm"
+dark = [40, 50, 30]
+mid = [86, 93, 63]
+light = [170, 175, 140]
+
+["RageEffects.BloodSplat02"]
+gen = "splat"
+drops = 6
+mid = [110, 5, 5]
+dark = [60, 0, 0]
+
+["RageEffects.BloodSplat03"]
+gen = "splat"
+drops = 7
+mid = [110, 5, 5]
+dark = [60, 0, 0]
+
+["RageEffects.BloodSplat06"]
+gen = "splat"
+drops = 8
+mid = [110, 5, 5]
+dark = [60, 0, 0]
+
+["RageEffects.BloodSplat08"]
+gen = "splat"
+drops = 5
+mid = [110, 5, 5]
+dark = [60, 0, 0]
+
+["Rage.Jhumvee3"]                             # the boat's hull
+gen = "panel"
+border = 0.0
+rust = 0.2
+
+["Rage.Jhumvee7"]
+gen = "panel"
+border = 0.0
+rust = 0.2

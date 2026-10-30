@@ -39,6 +39,8 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
+from pathlib import Path
 
 from PIL import Image
 
@@ -280,6 +282,15 @@ def convert(cfg: Config) -> str:
         if (fb := flipbook(cfg, key, cache)) is not None:
             books[key] = fb
             print(f'  {fb["key"]}: {fb["frames"]} frame(s)')
+    # replacement art (Tools/artgen/flipbooks.py): same grid, imported to /Game/MF/Replacements
+    generated = cfg.work_dir / 'generated' / 'effects'
+    for fb in books.values():
+        rel = Path(fb['file']).relative_to('Effects')
+        if (generated / rel).exists():
+            dst = cfg.out_dir / 'Replacements' / 'Effects' / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(generated / rel, dst)
+            fb['replacement'] = str(dst.relative_to(cfg.out_dir))
     path = cfg.out_dir / 'Effects' / 'effects.json'
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({'flipbooks': books, 'systems': SYSTEMS}, indent=1, sort_keys=True))

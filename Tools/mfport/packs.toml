@@ -15,7 +15,8 @@
 #   - a package listed under [classic] stays classic (local only) though it isn't retail
 #   - everything else is unverified (2026-10-29, Filip: custom maps by authors not asked yet,
 #     before that they were classic)
-#   - replacement art (overrides/textures/...) is community: /Game/MF/Replacements; community maps use it,
+#   - replacement art (overrides/textures/...) is community: /Game/MF/Replacements (art only unverified
+#     maps use: /MobileForcesUnverified/Replacements); non-classic maps use it,
 #     classic maps keep the original texture unless remaster_classic = true
 #
 # A community map can still use classic textures; `mfport.py packs` lists what each one still
