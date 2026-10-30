@@ -6,7 +6,7 @@
 # Generators and their options (see lookalike.py):
 #   noise       beta, contrast, spots, spot_size, streaks, stains, band = {height, color}
 #   bricks      rows, cols, mortar, mortar_color, offset
-#   tiles       n, grout, grout_color, diamond
+#   tiles       n, grout, grout_color, diamond, spots, flecks, spot_size
 #   planks      n, vertical, rings, gap, weathered, nails, frame
 #   plywood     frame, emblem = {size, color, opacity}
 #   corrugated  ridges, vertical, rust, rust_color, seam
@@ -254,3 +254,40 @@ gen = "planks"
 n = 5
 vertical = true
 weathered = 0.5
+
+# --- MF-RandomLand (AKVARI) -------------------------------------------------------------
+["rage_warehouse.concrete.ware_concrete_9"]   # one floor slab per tile: its joint is the light edge
+gen = "tiles"
+n = 1
+grout = 0.009
+grout_color = [197, 212, 219]
+spots = 0.006
+flecks = 0.006
+spot_size = 2
+grit = 0.08
+grime = 0.08
+
+["rage_urban.stuc01S"]
+gen = "noise"
+dark = [84, 87, 88]
+mid = [152, 155, 155]
+light = [218, 220, 220]
+scale = 1
+beta = 1.0
+contrast = 2.6
+grit = 0.35
+grime = 0.25
+
+["rage_warehouse.Object.ware_object_31"]      # worn yellow paint
+gen = "noise"
+dark = [104, 84, 20]
+mid = [128, 107, 28]
+light = [146, 124, 36]
+beta = 2.2
+contrast = 1.6
+stains = 0.25
+grit = 0.15
+
+["rage_warehouse.sky.ware_sky_2"]
+gen = "sky"
+clouds = 0.25

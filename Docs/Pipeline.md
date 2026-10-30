@@ -335,6 +335,11 @@ end of the auto table).
     python3 Tools/artgen/lookalike.py           # generate (7 min for ~850)
     python3 Tools/mfport/mfport.py textures && python3 Tools/mfport/mfport.py import --steps textures
 
+To check that a community map no longer needs the original game, run it with the packs
+unmounted; nothing is deleted. `LoadErrors` and "Skipped package" lines name what it still needs:
+
+    python3 Tools/play.py MF-RandomLand dm 2 -RenderOffscreen -DisablePlugins=MobileForcesClassic,MobileForcesUnverified -DFQuitAfter=20
+
 Masked textures get their see-through texels' colour bled in from the opaque neighbours
 (`bleed_alpha` in `textures.py`): UE1 kept palette index 0 (white, magenta) there, which
 filtering and mips smeared into white fringes (tyres, fences).

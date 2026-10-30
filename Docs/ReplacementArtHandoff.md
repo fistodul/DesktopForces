@@ -15,6 +15,48 @@ all maps, or revive the removed animation-budget experiment. Keep user-facing re
 replacement from this investigation remains applied. The concrete trial was fully reverted.
 All 55 previously queued maps were already imported and baked; that batch is finished.
 
+## Accepted batches
+
+**MF-RandomLand, 2026-10-30:** first community map with no Classic package dependency. Its four
+leftovers are generated stand-ins, hand-tuned in `Tools/artgen/lookalikes.toml`, so they are
+MPL-2.0 art that regenerates without the game. Starter Content was not needed.
+
+| Target | Generator | Where the map shows it | In-scene result |
+|---|---|---|---|
+| `rage_warehouse.concrete.ware_concrete_9` | `tiles` `n = 1`, light joint, spots + flecks | roof slabs | Joints, tile rhythm and flecks kept |
+| `rage_urban.stuc01S` | `noise`, `scale = 1` | ground plane, one tile is about 110 m | Reads the same; the blockiness is the map's UV scale |
+| `rage_warehouse.Object.ware_object_31` | `noise` | two yellow ramp sheets | Same colour and wear |
+| `rage_warehouse.sky.ware_sky_2` | `sky` | strip behind the outer wall at x = -5687 | Black from the only camera that reached it, before and after; replaced for the dependency |
+
+Evidence is under `/home/mrs/Documents/Unreal Projects/tests/20261030-replacement-art/`:
+`compare.png` and `compare-slab.png` (fixed cameras, before/after), the `noclassic-*` runs and
+`community-hard-refs.txt`.
+
+Verified with `-DisablePlugins=MobileForcesClassic,MobileForcesUnverified`, which unmounts the
+packs without touching the user's files. MF-RandomLand loaded with no `LoadErrors` or skipped
+packages and two bots played; the control, MF-Stuck, reported its snack texture and Doom music.
+This covers the map's own packages. Runtime gameplay assets still fall back without Classic:
+soldiers, weapon models, pickups, vehicle meshes, blood/hit effects and game sounds. A cooked
+build of this batch has not been tested yet.
+
+Lessons from this batch:
+
+- Try the generators first for opaque surfaces. `--auto` misread these two (stucco as siding,
+  the slab as noise), but a hand entry fixed them, and the licence and regeneration questions
+  disappear. The tracked `g_tiles` now accepts `spots`, `flecks` and `spot_size`.
+- `mfport.py packs` counts textures only. Following the package references of the 22 community
+  maps also finds 58 sounds, 24 Classic textures, 24 Classic materials, 14 effects and 8 music
+  tracks, plus 15 textures and 1 material in the **Unverified** pack (`Mio`, used by
+  MF-Aquarius and others). `community-hard-refs.txt` lists them by map. Counts are distinct
+  names across all maps and lower bounds: the raw scan drops numeric suffixes, so `ware_x_1`
+  and `ware_x_2` count once. `deps.py` beside it is the scratch scanner.
+- `python3 Tools/mfport/mfport.py import --steps textures` proved safe here: it imported only
+  the changed textures, left 4975 alone and re-saved only the four repointed instances. The
+  separate `-work` directory is unnecessary, and `-work` did not take effect with this
+  spaced path anyway (the run used `work/out`).
+- A full `mfport.py textures` takes about 11 minutes on the NTFS checkout. Output was byte-identical
+  except the new files. For one retuned image, call `textures.convert` for its package instead.
+
 ## Locations and constraints
 
 | Item | Location |
@@ -86,7 +128,8 @@ assets merely because hashes match, or accept broad re-save churn as part of a s
 The tested original, `rage_warehouse.concrete.ware_concrete_9`, is an opaque 256² blue-grey
 **slab/tile floor with visible joints**. Despite the package name, the comparison was in the
 community map **`MF-RandomLand`**, not the retail warehouse map. Poured concrete erased the
-slab lines and changed the appearance too much. A slab/tile replacement is needed here.
+slab lines and changed the appearance too much. A generated slab now covers this target
+(see [Accepted batches](#accepted-batches)).
 
 The temporary assets were:
 
@@ -140,9 +183,9 @@ because they failed to match one original.
 
 ## Remaining asset inventory and leads
 
-`missing-community-textures.json` maps 34 unreplaced texture keys to referring maps. It is a
-snapshot from converted manifests, includes engine placeholders, and is **not** a count of all
-remaining cooked Classic dependencies. Roadmap thread 9 separately records about 300 classic
+`missing-community-textures.json` maps 34 unreplaced texture keys to referring maps; four are
+now done (MF-RandomLand). It is a snapshot from converted manifests, includes engine
+placeholders, and is **not** a count of all remaining cooked Classic dependencies. Roadmap thread 9 separately records about 300 classic
 packages. Refresh the dependency report before choosing a batch:
 
 ```bash
@@ -161,6 +204,9 @@ Useful local leads, **not yet auditioned/validated**:
 - Props: `SM_Shelf`, `SM_Chair`, `SM_Door`, lamps and `SM_Rock` in `StarterContent/Props`.
   Check silhouette, dimensions, collision, triangle count and material cost before substitution.
 - Plain opaque wood/steel/gravel/basalt surfaces using the already exported textures.
+- Remaining opaque textures, the next generator batch: mf-City_Rush's `rage_marina.sky.sky_*256`,
+  `rage_pueblo.sky.Des_Sun1a256` and `rage_generic.Light.generic_lens_2`. The rest of the 34 are
+  see-through and need hand-made shapes.
 
 **Audio pipeline caveat:** `mflib/sounds.py` supports WAV overrides and writes them back under
 `work/out/Sounds/<package>/`. The new `replacements` command is texture-only. Community routing,
@@ -179,9 +225,8 @@ art local/private where required; do not publish standalone licensed sources wit
 1. Check HEAD, status, `AGENTS.md`, and whether another agent owns the Unreal execution lane.
 2. Reuse the exports/contact sheet. Refresh missing dependencies and select a small batch with
    exact target keys, referring maps, source provenance, and screenshots of the originals.
-3. Either audition ambient audio first, or start with one genuinely plain opaque surface.
-   Audio needs the routing audit above. Keep the slab target open until a suitable slab source
-   exists; do not retry poured concrete against it unchanged.
+3. Either audition ambient audio first, or take the next opaque batch through the generators.
+   Audio needs the routing audit above. Do not retry poured concrete against the slab target.
 4. Stage selected image sources through `replacements`; inspect the resized result and alpha.
    Preserve original `usize`/`vsize`, which govern the converted UV scale.
 5. Import only the selected assets and repoint the relevant community materials. The regular

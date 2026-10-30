@@ -218,7 +218,11 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      local-only provenance, maximum 512 px, and rejection of opaque replacements for holes.
      The Starter poured-concrete sample passed staging but was rejected after an in-scene
      comparison: it removes this target's slab pattern. Its material change and asset were
-     dropped; seek a slab/tile replacement. See [systems follow-up](Performance.md#systems-follow-up-2026-10-29).
+     dropped. See [systems follow-up](Performance.md#systems-follow-up-2026-10-29).
+   - 2026-10-30: MF-RandomLand is the first community map with no Classic package dependency:
+     four hand-tuned generated stand-ins, including that slab. Runtime gameplay assets still
+     need Classic. `mfport.py packs` counts textures only; sounds, music, effects and materials
+     are in the handoff's list.
 10. **Flat crate in mf-warehouse** (Filip's phone screenshot `Screenshot_20261028-224646.webp`,
     not in the repo: it shows classic textures): outdoors under the sunset sky,
     a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP

@@ -196,6 +196,10 @@ def g_tiles(rng, h, w, t, o):
     tint = rng.uniform(0.9, 1.1, (64, 64))
     base = ramp(0.4 + 0.35 * fbm(rng, h, w, 1.7), dark, mid, light)
     base = shade(base, tint[iu % 64, iv % 64])
+    if o.get('spots', 0):
+        base = shade(base, 1 - 0.6 * speckle(rng, h, w, o['spots'], o.get('spot_size', 2)))
+    if o.get('flecks', 0):
+        base = shade(base, 1 + 0.35 * speckle(rng, h, w, o['flecks'], o.get('spot_size', 2)))
     edge = np.minimum(np.minimum(fu, 1 - fu), np.minimum(fv, 1 - fv)) / grout
     m = np.clip(edge - 0.5, 0, 1)
     bevel = 0.85 + 0.15 * np.clip(edge / 4, 0, 1)
