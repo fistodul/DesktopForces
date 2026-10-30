@@ -31,6 +31,7 @@ AAK74::AAK74() {
 	AltAccuracy = 0.078f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(240.f, -6.75f, 100.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.82f;
 	ClassicFireSound = TEXT("AK74.AK74Fire");
 	ClassicReloadSound = TEXT("AK74.AK74Reload");

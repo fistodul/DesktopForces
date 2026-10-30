@@ -31,6 +31,7 @@ AFamas::AFamas() {
 	AltAccuracy = 0.07f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(150.f, -69.f, 116.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.98f;
 	ClassicFireSound = TEXT("famas.Famas_Fire");
 	ClassicReloadSound = TEXT("famas.famasreload");

@@ -31,6 +31,7 @@ ADesertEagle::ADesertEagle() {
 	AltAccuracy = 0.05f;
 	MaxZoomLevel = 1;
 	ZoomScale = 1.5f;
+	ZoomedViewOffset = FVector(140.f, -166.2f, 100.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.9f;
 	ClassicFireSound = TEXT("Desert.Desert_Fire");
 	ClassicReloadSound = TEXT("Desert.desertReload");

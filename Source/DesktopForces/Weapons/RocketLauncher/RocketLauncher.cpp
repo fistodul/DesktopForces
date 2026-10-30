@@ -40,6 +40,8 @@ ARocketLauncher::ARocketLauncher() {
 	AltProjectileClass = ARocket::StaticClass();
 	MaxZoomLevel = 1;
 	ZoomScale = 4.f;
+	ZoomedViewOffset = FVector(0.4f, 0.f, -4.f); // MF ZoomedInViewOffset
+	bInstantZoom = true;
 	RecoilPower = 8.f;
 	ClassicFireSound = TEXT("WeaponSFX_RocketLauncher.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_RocketLauncher.Reload");

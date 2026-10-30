@@ -903,7 +903,7 @@ void ADFPlayerController::PlayerTick(float DeltaTime) {
 		if (P && Now >= ForcedMoveNextLog) {
 			ForcedMoveNextLog = Now + 0.25f;
 			const UCharacterMovementComponent* M = Cast<ACharacter>(P) ? Cast<ACharacter>(P)->GetCharacterMovement() : nullptr;
-			UE_LOG(LogDF, Display, TEXT("DFWalk %.1f: %s mode %s speed %.0f"), Now, *P->GetActorLocation().ToCompactString(),
+			UE_LOG(LogDF, Display, TEXT("DFWalk %.1f: %s yaw %.0f mode %s speed %.0f"), Now, *P->GetActorLocation().ToCompactString(), P->GetActorRotation().Yaw,
 				M ? *M->GetMovementName() : *P->GetClass()->GetName(), P->GetVelocity().Size());
 		}
 	}

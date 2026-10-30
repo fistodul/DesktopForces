@@ -31,6 +31,7 @@ AG36::AG36() {
 	AltAccuracy = 0.07f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(240.f, -81.15f, 176.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.75f;
 	ClassicFireSound = TEXT("g36.G36_Fire");
 	ClassicReloadSound = TEXT("g36.g36reload");

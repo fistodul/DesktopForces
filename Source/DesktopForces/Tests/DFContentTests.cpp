@@ -47,6 +47,10 @@ namespace {
 				Previous = Car->GetActorQuat();
 				// Compare identical trucks, with turbo requested on only one of them.
 				ADFGameMode* GM = World->GetAuthGameMode<ADFGameMode>();
+				if (!GM) {
+					Test->AddError(TEXT("Needs a Desktop Forces game mode: run with a map (MF_TestRange)"));
+					return true;
+				}
 				const bool bTurbo = GM->bTurboCars;
 				GM->bTurboCars = true;
 				for (int32 I = 0; I < 2; ++I) {

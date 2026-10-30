@@ -302,6 +302,11 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		Driven += W.bDrive;
 	const float Speed = FVector::DotProduct(Body->GetPhysicsLinearVelocity(), Fwd);
 	const float DriveForce = GearRatios.Num() ? GetDriveForce(Speed, Throttle) : Throttle * (Throttle < 0.f ? 0.5f : 1.f) * EngineForce;
+	// TurboCars: crouch held in the driver's seat, below the nitro top speed. It drives like the
+	// throttle: the wheels must not hold or coast-brake against it (braking steered wheels pull
+	// the nose the other way, so nitro alone steered backwards)
+	const bool bNitroOn = bTurbo && bNitro && Driver && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed;
+	const bool bCoasting = FMath::IsNearlyZero(Throttle) && !bNitroOn;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFWheel), false, this);
 	if (Driver)
 		Params.AddIgnoredActor(Driver);
@@ -349,11 +354,11 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		const float MaxFriction = 1.3f * Fz;
 		float FLat = FMath::Clamp(-VLat * GripHere * WheelMass, -MaxFriction, MaxFriction);
 		// engine, brakes, rolling resistance (strong when coasting: cars roll to a stop like MF's)
-		float FLong = -VLong * (FMath::IsNearlyZero(Throttle) ? CoastDrag : RollingDrag) * WheelMass;
+		float FLong = -VLong * (bCoasting ? CoastDrag : RollingDrag) * WheelMass;
 		const bool bBraking = !FMath::IsNearlyZero(Throttle) && FMath::Abs(Speed) > 60.f && FMath::Sign(Throttle) != FMath::Sign(Speed);
 		// no throttle and next to no speed: held (a car left with its engine idling doesn't roll
 		// away down a slope; MF's engine braking and clutch held them)
-		const bool bHold = FMath::IsNearlyZero(Throttle) && FMath::Abs(Speed) < 150.f;
+		const bool bHold = bCoasting && FMath::Abs(Speed) < 150.f;
 		if (bBraking || bHandbrake || bHold) {
 			const float Brake = BrakeDecel * WheelMass * (bHandbrake || bHold ? 1.f : FMath::Abs(Throttle));
 			FLong = -FMath::Sign(VLong) * FMath::Min(Brake, FMath::Abs(VLong) * WheelMass / FMath::Max(Dt, 1e-3f));
@@ -369,8 +374,7 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		WheelSpin[i] += VLong / FMath::Max(W.Radius, 1.f) * Dt;
 	}
 	SimulateDrive(Dt);
-	// TurboCars: crouch held in the driver's seat, on the ground, below the nitro top speed
-	if (bTurbo && bNitro && Driver && Grounded > 0 && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed)
+	if (bNitroOn && Grounded > 0)
 		Body->AddForce(Fwd * MassKg * NitroAccel);
 	// air drag caps the top speed: at TopSpeed (MF MaxSpeed) the engine just matches drag plus
 	// rolling resistance; some downforce keeps it planted

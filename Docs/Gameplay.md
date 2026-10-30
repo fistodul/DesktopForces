@@ -77,8 +77,16 @@ CalcDrawOffset's 0.9 / FOV 90 cancel out), squashed to half depth like MF's MESH
 has: SelectUp / SelectDown, Fire (or the Fire01-04 / ContinuousFire01-04 / Slash01-04 takes at
 random, Shoot, ThrowOver, PlaceForward), AccurateAimFire when zoomed, AltFire / RightThrow,
 Reload, AccurateAimUp / Down or BringScopeUp / Down, Still / AccurateAimStill as the idle. Each
-plays at the rate that fits the weapon's state time, so MF's timings stay the rule. Raised
-scopes hide the arms (the scope mask covers the view).
+plays at the rate that fits the weapon's state time, so MF's timings stay the rule.
+
+**Zooming** (RageWeapon PreZoomIn / PostZoomOut): alt fire raises the sights (AccurateAimUp /
+BringScopeUp, ZoomTime), then over ZoomInTime (0.35 s, eased) the FOV narrows to 1 / ZoomScale
+and the arms move by the weapon's ZoomedInViewOffset; zooming out runs the other way (view back
+over ZoomOutTime, then the sights come down). The arms' offset is scaled by 0.9 / the current
+FOV (Inventory.CalcDrawOffset), so zoomed they move out and keep their size: with the
+ZoomedInViewOffset that is what lines the sights up with the crosshair. Scopes (bInstantZoom:
+sniper rifle, rocket launcher, WA2000) hide the arms and draw the scope mask once raised, not
+while the raising animation plays.
 
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.
@@ -328,7 +336,8 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 - **TurboCars** (MF-mods TurboCars, on by default like the community servers' mutPack
   replaceVehicles; `?TurboCars=0` off): drivers hold Crouch (Ctrl / C) for nitro, pushing
   forward on the ground up to the vehicle's nitro top speed (Buggy 50 m/s, Humvee 40,
-  Armadillo 50; trucks and trailer cabs never had it).
+  Armadillo 50, Truck 40 (TurboTruck); trailer cabs never had it). Nitro drives like the
+  throttle: steering works the same with it alone.
 - Hits (MF Vehicle / Physical.TakeDamage): every hit clangs (MiscSFX.HitMetal) and shoves the
   car by √momentum (knife slashes and bullets a little, rockets a lot; pellets 40 % of the
   time). Bullets and knives hit the model itself, not a box around it. Soldiers can't push cars

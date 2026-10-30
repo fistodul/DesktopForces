@@ -31,6 +31,7 @@ AMAC10::AMAC10() {
 	AltAccuracy = 0.1f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(480.f, 31.f, 280.f); // MF ZoomedInViewOffset
 	RecoilPower = 1.f;
 	ClassicFireSound = TEXT("MAC10.MAC10Fire");
 	ClassicReloadSound = TEXT("MAC10.MAC10Reload");

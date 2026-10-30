@@ -167,13 +167,12 @@ protected:
 	void OnKnifeStop(const FHitResult& Hit);
 	UFUNCTION()
 	void OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
-	/** Dangerous.ProcessTouch: hurt Other once (not the thrower until it has hit a wall). */
+	/** Dangerous.ProcessTouch: hurt Other once (never the thrower). */
 	void HitVictim(AActor* Other, const FHitResult& Hit);
 	/** state Safe: lying still, waiting for its owner. */
 	void BecomeSafe(USceneComponent* StickTo);
 	void Return();
 
 	bool bSafe = false;
-	bool bCanHitOwner = false;
 	FTimerHandle ReturnTimer;
 };

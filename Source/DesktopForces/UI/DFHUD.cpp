@@ -208,7 +208,7 @@ void ADFHUD::DrawCrosshair(ADFCharacter* C) {
 	if (W && W->DrawHUD(Canvas))
 		return;
 	const float CX = Canvas->ClipX * 0.5f, CY = Canvas->ClipY * 0.5f;
-	if (W && W->IsZoomed() && W->ZoomScale >= 3.f) {
+	if (W && W->IsScopeRaised()) {
 		// Scope mask (MF RageWeapon.DrawScopeMask)
 		const float R = Canvas->ClipY * 0.45f;
 		Box(0, 0, CX - R, Canvas->ClipY, FLinearColor::Black);
@@ -221,14 +221,14 @@ void ADFHUD::DrawCrosshair(ADFCharacter* C) {
 	}
 	if (UTexture2D* X = TexCrosshair[FMath::Clamp(UDFUserSettings::Get().Crosshair, 0, 23)]) {
 		// RageHUD.DrawCrossHair: 32 px at 640 wide; STY_Subtractive GreyColor (only the shape:
-		// the texture alpha is its brightness), then the team colour added twice
+		// the texture alpha is its brightness), then the team colour added twice. Added, it took
+		// the colour of what it was over (a pale smudge on bright walls, a solid block on dark
+		// ones): it is blended over instead, the same on everything.
 		const float Size = 32.f * Canvas->ClipX / 640.f * FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
 		const FIntRect UV = DF::CrosshairBounds(UDFUserSettings::Get().Crosshair);
 		const float PX = FMath::RoundToFloat(CX - Size * 0.5f), PY = FMath::RoundToFloat(CY - Size * 0.5f);
 		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
-		const FLinearColor Team = SetColour(TeamSet());
-		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), Team, SE_BLEND_Additive);
-		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), Team, SE_BLEND_Additive);
+		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), SetColour(TeamSet()), SE_BLEND_Translucent);
 		return;
 	}
 	const float Scale = FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);

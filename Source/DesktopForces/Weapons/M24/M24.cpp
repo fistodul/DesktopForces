@@ -31,6 +31,7 @@ AM24::AM24() {
 	AltAccuracy = 0.05f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(450.f, -80.95f, 156.5f); // MF ZoomedInViewOffset
 	RecoilPower = 4.0f;
 	MaxTraceDistance = 45000.f; // like the sniper rifle
 	CasingMesh = TEXT("RageWeapons/RifleBullet"); // RageRifle_BulletCase

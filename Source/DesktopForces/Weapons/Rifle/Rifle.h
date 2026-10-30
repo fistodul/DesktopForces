@@ -15,7 +15,7 @@ public:
 	ARifle();
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
-	virtual float GetFOVScale() const override;
+	virtual float GetZoomScale() const override;
 	virtual FString GetHUDStatus() const override;
 	void AdjustZoom(int32 Steps);
 	float GetShotPower() const;

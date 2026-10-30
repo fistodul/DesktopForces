@@ -32,6 +32,7 @@ AUltimax::AUltimax() {
 	AltAccuracy = 0.07f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(140.f, -92.2f, 160.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.85f;
 	ClassicFireSound = TEXT("ultimax.ultimaxFire");
 	ClassicReloadSound = TEXT("ultimax.ultimaxreload");

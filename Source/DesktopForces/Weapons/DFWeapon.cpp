@@ -172,8 +172,27 @@ FRotator ADFWeapon::GetAimRotation() const {
 	return C ? C->GetBaseAimRotation() : GetActorRotation();
 }
 
+float ADFWeapon::GetZoomBlend() const {
+	// MF PreZoomIn: the AimUp animation (ZoomTime), then ZoomInTime zooming; PostZoomOut: ZoomOutTime
+	// zooming, then AimDown. Eased: (sin(a Pi - Pi/2) + 1) / 2.
+	const float T = GetWorld()->GetTimeSeconds() - ZoomChangeTime;
+	float A;
+	if (ZoomLevel > 0)
+		A = ZoomInTime > 0.f ? FMath::Clamp((T - ZoomTime) / ZoomInTime, 0.f, 1.f) : float(T >= ZoomTime);
+	else
+		A = ZoomOutTime > 0.f ? 1.f - FMath::Clamp(T / ZoomOutTime, 0.f, 1.f) : 0.f;
+	return (FMath::Sin(A * UE_PI - UE_HALF_PI) + 1.f) * 0.5f;
+}
+
+bool ADFWeapon::IsScopeRaised() const {
+	if (!bInstantZoom)
+		return false;
+	const float T = GetWorld()->GetTimeSeconds() - ZoomChangeTime;
+	return ZoomLevel > 0 ? T >= ZoomTime : T < ZoomOutTime;
+}
+
 float ADFWeapon::GetFOVScale() const {
-	return ZoomLevel > 0 ? 1.f / FMath::Max(ZoomScale, 1.f) : 1.f;
+	return FMath::Lerp(1.f, 1.f / FMath::Max(GetZoomScale(), 1.f), GetZoomBlend());
 }
 
 float ADFWeapon::GetMoveSpeedScale() const {
@@ -226,8 +245,9 @@ void ADFWeapon::SetState(EDFWeaponState NewState, float Duration) {
 			Duration /= GS->FireRate; // ?FireRate
 	}
 	State = NewState;
-	if (Arms && NewState != EDFWeaponState::Firing && NewState != EDFWeaponState::Inactive && IsLocallyControlled())
-		PlayArmsAnim(NewState, Duration); // shots play theirs with the shot (PlayFireEffects)
+	// shots play theirs with the shot (PlayFireEffects), zooms theirs in ToggleZoom
+	if (Arms && NewState != EDFWeaponState::Firing && NewState != EDFWeaponState::Zooming && NewState != EDFWeaponState::Inactive && IsLocallyControlled())
+		PlayArmsAnim(NewState, Duration);
 	ClearStateTimer();
 	if (Duration > 0.f) {
 		GetWorldTimerManager().SetTimer(StateTimer, this, &ADFWeapon::OnStateTimer, Duration, false);
@@ -332,11 +352,8 @@ void ADFWeapon::StartReload() {
 		return;
 	if (State != EDFWeaponState::Idle)
 		return;
-	if (ZoomLevel > 0) {
-		ZoomLevel = 0;
-		if (ADFCharacter* C = GetOwnerCharacter())
-			C->UpdateCarrySpeed();
-	}
+	if (ZoomLevel > 0)
+		ResetZoom();
 	SetState(EDFWeaponState::Reloading, ReloadTime);
 	if (HasAuthority())
 		MulticastReload();
@@ -365,15 +382,39 @@ bool ADFWeapon::TryFire(bool bAlt) {
 
 void ADFWeapon::ToggleZoom() {
 	ZoomLevel = (ZoomLevel + 1) % (MaxZoomLevel + 1);
+	ZoomChangeTime = GetWorld()->GetTimeSeconds();
 	OnZoomChanged();
-	SetState(EDFWeaponState::Zooming, ZoomTime);
+	const bool bIn = ZoomLevel > 0;
+	SetState(EDFWeaponState::Zooming, ZoomTime + (bIn ? ZoomInTime : ZoomOutTime));
 	if (ADFCharacter* C = GetOwnerCharacter())
 		C->UpdateCarrySpeed();
-	if (IsLocallyControlled())
-		PlaySoundLocal(ZoomLevel > 0 ? ZoomInSound : ZoomOutSound);
+	if (!IsLocallyControlled())
+		return;
+	PlaySoundLocal(bIn ? ZoomInSound : ZoomOutSound);
+	if (!Arms)
+		return;
+	// in: the sights come up, then the view zooms; out: the view comes back, then they go down
+	GetWorldTimerManager().ClearTimer(ZoomAnimTimer);
+	if (bIn || ZoomOutTime <= 0.f)
+		PlayArmsAnim(EDFWeaponState::Zooming, ZoomTime);
+	else
+		GetWorldTimerManager().SetTimer(ZoomAnimTimer, FTimerDelegate::CreateWeakLambda(this, [this]() {
+			if (State == EDFWeaponState::Zooming && ZoomLevel == 0)
+				PlayArmsAnim(EDFWeaponState::Zooming, ZoomTime);
+		}),
+			ZoomOutTime, false);
+}
+
+void ADFWeapon::ResetZoom() {
+	ZoomLevel = 0;
+	ZoomChangeTime = -1000.f;
+	GetWorldTimerManager().ClearTimer(ZoomAnimTimer);
+	if (ADFCharacter* C = GetOwnerCharacter())
+		C->UpdateCarrySpeed();
 }
 
 void ADFWeapon::OnRep_ZoomLevel(uint8 OldZoom) {
+	ZoomChangeTime = GetWorld()->GetTimeSeconds();
 	if (ADFCharacter* C = GetOwnerCharacter())
 		C->UpdateCarrySpeed();
 	OnZoomChanged();
@@ -565,11 +606,8 @@ void ADFWeapon::OnEquip() {
 void ADFWeapon::OnPutDown() {
 	bFireHeld = bAltFireHeld = false;
 	SetAmbientMFSound(nullptr);
-	if (ZoomLevel > 0) {
-		ZoomLevel = 0;
-		if (ADFCharacter* C = GetOwnerCharacter())
-			C->UpdateCarrySpeed();
-	}
+	if (ZoomLevel > 0)
+		ResetZoom();
 	SetState(EDFWeaponState::PuttingDown, PutDownTime);
 }
 
@@ -693,6 +731,7 @@ void ADFWeapon::ForceInactive() {
 	bFireHeld = bAltFireHeld = false;
 	bPendingReload = false;
 	ZoomLevel = 0;
+	ZoomChangeTime = -1000.f;
 	SetActorHiddenInGame(true);
 }
 
@@ -817,8 +856,8 @@ void ADFWeapon::ApplyHand() {
 		const float Hand1 = Hand == EDFWeaponHand::Left ? 1.f : Hand == EDFWeaponHand::Center ? -2.f
 																							  : -1.f;
 		Arms->SetRelativeRotation(FRotator(0.f, 0.f, ArmsRoll * Hand1 * 360.f / 65536.f));
-		// Inventory.CalcDrawOffset: 0.9 / FOVAngle x the offset (x 100 by setHand): 0.9 uu per unit at FOV 100
-		Arms->SetRelativeLocation(Offset * 2.25f * 90.f / FMath::Max(UDFUserSettings::Get().FieldOfView, 1.f));
+		ArmsHandOffset = Offset;
+		PlaceArms();
 		Arms->SetRelativeScale3D(ArmsScale3D * Mirror);
 	}
 	if (bHasViewMesh && !bDropped) {
@@ -833,17 +872,30 @@ void ADFWeapon::ApplyHand() {
 	}
 }
 
+void ADFWeapon::PlaceArms() {
+	// RageWeapon.CalcDrawOffsetOffset: ZoomedInViewOffset as far as the zoom has gone (mirrored
+	// for the mirrored left hand); Inventory.CalcDrawOffset: 0.9 / FOVAngle (the current one) x the
+	// offset (x 100 by setHand), so zooming in pushes the model out and it keeps its size
+	FVector Zoomed = ZoomedViewOffset * (GetZoomBlend() / 100.f);
+	if (UDFUserSettings::Get().WeaponHand == EDFWeaponHand::Left)
+		Zoomed.Y = -Zoomed.Y;
+	const ADFCharacter* C = GetOwnerCharacter();
+	const float FOV = C ? C->GetDesiredFOV() : UDFUserSettings::Get().FieldOfView;
+	Arms->SetRelativeLocation((ArmsHandOffset + Zoomed) * 2.25f * 90.f / FMath::Max(FOV, 1.f));
+}
+
 void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 	if (Mesh3P)
 		Mesh3P->SetOwnerNoSee(!bBehindView);
 	if (bDropped)
 		return;
 	// MF draws nothing in hand behind a raised scope (the HUD's scope mask covers the view)
-	const bool bScoped = IsZoomed() && ZoomScale >= 3.f && State != EDFWeaponState::Zooming;
 	const bool bHandHidden = UDFUserSettings::Get().WeaponHand == EDFWeaponHand::Hidden; // MF Handedness 2
-	if (Arms)
-		Arms->SetVisibility(!bBehindView && !bScoped && !bHandHidden);
-	else if (Mesh1P && bHasViewMesh)
+	if (Arms) {
+		Arms->SetVisibility(!bBehindView && !IsScopeRaised() && !bHandHidden);
+		if (Arms->IsVisible())
+			PlaceArms();
+	} else if (Mesh1P && bHasViewMesh)
 		Mesh1P->SetVisibility(!bBehindView && !bHandHidden);
 }
 

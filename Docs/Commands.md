@@ -113,7 +113,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |
 | `DFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `DFLoadoutPick N`, `DFLoadout`, `DFSelect N`, `DFScores`, `DFShot Name` | for scripted runs: `-DFExec="@4:DFLoadoutPick 1\|@6:DFLoadout\|@20:DFShot test"` |
-| `DFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
+| `DFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position, yaw + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
 | `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads; 10-13 the options tabs) / press Start / screenshot with the menu |
 | `DFPacks`, `DFPackDownload N`, `DFPackCancel N`, `DFPackDelete N` | main menu: log the downloadable packs (state, bytes, map count) / the Downloads page's buttons for pack (chunk) N |
 | `DFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |

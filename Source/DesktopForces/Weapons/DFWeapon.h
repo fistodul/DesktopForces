@@ -166,6 +166,12 @@ public:
 	/** Raising / lowering the sights (AccurateAimUp/Down). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Timing")
 	float ZoomTime = 0.35f;
+	/** MF ZoomInTime / ZoomOutTime: the view zooms (FOV, arms to ZoomedViewOffset) this long after
+	 *  the sights are up (PreZoomIn), and back before they come down (PostZoomOut). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Timing")
+	float ZoomInTime = 0.35f;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Timing")
+	float ZoomOutTime = 0.35f;
 
 	// --- hitscan ------------------------------------------------------------------------
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
@@ -234,6 +240,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
 	float ZoomScale = 1.f;
 
+	/** MF bInstantZoom: a scope. Once raised the arms hide and the HUD draws the scope mask. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
+	bool bInstantZoom = false;
+
+	/** MF ZoomedInViewOffset: added to the arms' offset while zoomed, in the same units as
+	 *  ArmsOffset x 100 (setHand's scale; written for the right hand). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
+	FVector ZoomedViewOffset = FVector::ZeroVector;
+
 	/** Movement speed multiplier while zoomed / aiming. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
 	float ZoomedMoveScale = 0.4f;
@@ -241,8 +256,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DF")
 	bool IsZoomed() const { return ZoomLevel > 0; }
 
+	/** How far the view has zoomed, 0-1 (MF PreZoomIn / PostZoomOut's eased ZoomAlpha). */
+	float GetZoomBlend() const;
+	/** The scope is up: arms hidden, scope mask drawn (MF bHideWeapon; FOVAngle != DefaultFOV). */
+	bool IsScopeRaised() const;
 	/** FOV multiplier for the owner's camera (1 = not zoomed). */
-	virtual float GetFOVScale() const;
+	float GetFOVScale() const;
+	/** Zoomed FOV divisor (the rifle's changes with the mouse wheel). */
+	virtual float GetZoomScale() const { return ZoomScale; }
 	/** Movement multiplier for the owner. */
 	virtual float GetMoveSpeedScale() const;
 
@@ -326,6 +347,9 @@ public:
 	 *  the first one the mesh has. */
 	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt);
 	void SetupArms();
+	/** The arms at their hand's offset (ApplyHand), zoomed and scaled by the view's FOV. */
+	void PlaceArms();
+	FVector ArmsHandOffset = FVector::ZeroVector;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> MuzzleFlash;
@@ -403,6 +427,12 @@ protected:
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_ZoomLevel)
 	uint8 ZoomLevel = 0;
+	/** World time ZoomLevel last changed here (the zoom animates from it). */
+	float ZoomChangeTime = -1000.f;
+	/** Unzoom at once (reload, put down): no zoom-out. */
+	void ResetZoom();
+	/** Zooming out: the arms lower the sights once the view is back (MF PostZoomOut AnimEnd). */
+	FTimerHandle ZoomAnimTimer;
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Dropped)
 	bool bDropped = false;

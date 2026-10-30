@@ -96,7 +96,10 @@ Only `--push` publishes; it never switches the working checkout.
 ## Validation
 
 `python3 -m unittest discover -s Tools/tests -v` checks configuration and sync tools.
-Native gameplay regression checks live in `Source/DesktopForces/Tests/`. For C++ changes,
+Native gameplay regression checks live in `Source/DesktopForces/Tests/` (ClientContext: run them
+in `-game` on a map, rendering, e.g. `UnrealEditor <uproject> /Game/MF/Maps/MF_TestRange -game
+-RenderOffscreen -ExecCmds="Automation RunTests DesktopForces" -unattended -TestExit="Automation
+Test Queue Empty"`; `-nullrhi` fails the effect checks). For C++ changes,
 check formatting, build the editor target, and exercise the affected behavior.
 For gameplay/network changes, include the relevant mode and server/client behavior.
 For Python changes, check syntax and run the affected pipeline step on a small input.

@@ -31,6 +31,7 @@ AM4A1::AM4A1() {
 	AltAccuracy = 0.07f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(385.f, -133.55f, 141.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.653f;
 	ClassicFireSound = TEXT("m4a1.M4A1fire");
 	ClassicReloadSound = TEXT("m4a1.M4A1Reload");

@@ -35,6 +35,8 @@ ARifle::ARifle() {
 	MaxTraceDistance = 45000.f; // MF 20000
 	MaxZoomLevel = 1;
 	ZoomScale = 3.f;
+	ZoomedViewOffset = FVector(0.f, 0.f, -1000.f); // MF ZoomedInViewOffset
+	bInstantZoom = true;
 	ZoomedMoveScale = 0.f; // can't walk while scoped (MF: "no use to players on the move")
 	RecoilPower = 1.f;
 	MuzzleFlashSize = 40.f;
@@ -137,12 +139,9 @@ void ARifle::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool
 	HitMomentum = SavedMomentum;
 }
 
-float ARifle::GetFOVScale() const {
-	if (ZoomLevel == 0)
-		return 1.f;
+float ARifle::GetZoomScale() const {
 	// MF: ZoomScale = Min + (Max - Min) * alpha^2
-	const float Scale = MinZoomScale + (MaxZoomScale - MinZoomScale) * ZoomScaleAlpha * ZoomScaleAlpha;
-	return 1.f / Scale;
+	return MinZoomScale + (MaxZoomScale - MinZoomScale) * ZoomScaleAlpha * ZoomScaleAlpha;
 }
 
 void ARifle::AdjustZoom(int32 Steps) {

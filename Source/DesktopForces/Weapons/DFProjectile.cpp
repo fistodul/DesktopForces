@@ -195,8 +195,8 @@ AThrownKnife::AThrownKnife() {
 	Movement->MaxSpeed = 0.f; // (Knife_Thrown.MaxSpeed 1000 never applied: PHYS_Falling)
 	Movement->ProjectileGravityScale = 1.f; // PHYS_Falling
 	Movement->bShouldBounce = true; // bBounce
-	Movement->Bounciness = 0.4f; // Bounce: Velocity = 0.4 * reflected
-	Movement->Friction = 0.4f;
+	Movement->Bounciness = 0.4f; // Bounce: Velocity = 0.4 * reflected (both the normal part ...
+	Movement->Friction = 0.6f; // ... and the one along the floor: UE keeps 1 - Friction of it)
 	Movement->BounceVelocityStopSimulatingThreshold = 45.f; // speed < 20 uu: lies still
 	Collision->InitSphereRadius(9.f); // CollisionRadius 4
 	Damage = 60.f;
@@ -217,7 +217,7 @@ void AThrownKnife::BeginPlay() {
 }
 
 void AThrownKnife::HitVictim(AActor* Other, const FHitResult& Hit) {
-	if (!Other || (Other == GetInstigator() && !bCanHitOwner))
+	if (!Other || Other == GetInstigator())
 		return;
 	const ADFCharacter* Victim = Cast<ADFCharacter>(Other);
 	const bool bHead = Victim && Victim->IsHeadshot(GetActorLocation());
@@ -240,7 +240,7 @@ void AThrownKnife::OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 			Return(); // Safe.ProcessTouch: the owner takes it back
 		return;
 	}
-	if (Cast<APawn>(Other) && (Other != GetInstigator() || bCanHitOwner)) {
+	if (Cast<APawn>(Other) && Other != GetInstigator()) {
 		HitVictim(Other, Sweep);
 		Movement->Velocity = FVector::ZeroVector; // stops in them and drops
 		Movement->bShouldBounce = false;
@@ -256,11 +256,9 @@ void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVel
 		BecomeSafe(nullptr);
 		return;
 	}
-	bCanHitOwner = true;
-	if (AActor* Inst = GetInstigator())
-		Collision->IgnoreActorWhenMoving(Inst, false);
 	// HitWall: sticks in anything that isn't a floor (walls, slopes, ceilings); only a floor
-	// (UE1 Landed: a walkable surface) makes it bounce, damped, until it lies still
+	// (UE1 Landed: a walkable surface) makes it bounce, damped, until it lies still. Bouncing
+	// keeps it harmless to its thrower (MF's bCanHitOwner comes with HitWall, which sticks it)
 	if (Hit.ImpactNormal.Z < 0.7f) {
 		if (USoundBase* S = DF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
 			DF::PlaySoundAtLocation(this, S, Hit.ImpactPoint);

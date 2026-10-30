@@ -222,7 +222,12 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP
     geometry (`rage_warehouse.wood.ware_wood_*`), so likely a brush that lost faces in conversion
     (or a one-sided face). Not in the red loadout room (11100, 8600) or the red trailer yard
-    (9600, 3600). Find it with `DFCam` (hide the HUD), then `DFTraceMat` on it.
+    (9600, 3600). 2026-10-30: Filip no longer sees it on desktop; check the phone (mobile
+    renderer / 256 px textures) before closing. Same map: the floor grate in front of the red
+    base's Armadillo garage (3967, 3825, -216; `ware_metal_37`, thin bright bars on black)
+    shimmers when moving. One face, no z-fighting; trilinear mips made no visible difference
+    (the bars draw from the top mip there). Candidates: a softer mip / LOD bias for that
+    texture, or AA.
 
 11. **Systems performance follow-up** (2026-10-30): StateTree dependencies removed after
     an asset-reference audit; editor build and six gameplay suites pass. Bot decisions remain

@@ -35,6 +35,7 @@ AHeavyMachineGun::AHeavyMachineGun() {
 	MaxTraceDistance = 11250.f; // MF 5000
 	MaxZoomLevel = 1; // MF models "deployed" as zoom level 1
 	ZoomScale = 1.f;
+	ZoomInTime = ZoomOutTime = 0.f; // its own PreZoomIn / PostZoomOut: deploying, no view zoom
 	ZoomedMoveScale = 0.f; // can't move while deployed
 	RecoilPower = 0.3f;
 	ClassicFireSound = TEXT("WeaponSFX_HeavyMachineGun.Fire");

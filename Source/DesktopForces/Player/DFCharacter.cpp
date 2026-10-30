@@ -241,10 +241,14 @@ void ADFCharacter::Tick(float DeltaSeconds) {
 	if (GetNetMode() != NM_DedicatedServer)
 		UpdateFootsteps(DeltaSeconds);
 
-	// Zoom: MF interpolates the FOV over ZoomInTime (~0.35 s)
+	// Zoom: the weapon eases the FOV over MF's ZoomInTime / ZoomOutTime; other changes (the
+	// rifle's mouse wheel zoom) glide
 	const float Target = GetDesiredFOV();
 	const float FOV = FirstPersonCamera->FieldOfView;
-	if (!FMath::IsNearlyEqual(FOV, Target, 0.05f))
+	const float Blend = CurrentWeapon ? CurrentWeapon->GetZoomBlend() : 0.f;
+	if (Blend > 0.f && Blend < 1.f)
+		FirstPersonCamera->SetFieldOfView(Target);
+	else if (!FMath::IsNearlyEqual(FOV, Target, 0.05f))
 		FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(FOV, Target, DeltaSeconds, 12.f));
 
 	// Recoil: MF ViewRecoil ran once per frame at ~30 fps: pitch up and random yaw by

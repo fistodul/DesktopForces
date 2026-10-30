@@ -34,6 +34,7 @@ AMachineGun::AMachineGun() {
 	AltAccuracy = 0.1f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
+	ZoomedViewOffset = FVector(240.f, -50.f, 180.f); // MF ZoomedInViewOffset
 	RecoilPower = 0.8f;
 	TracerEvery = 5;
 	MuzzleFlashSize = 40.f;

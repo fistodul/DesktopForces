@@ -31,6 +31,8 @@ AWA2000::AWA2000() {
 	AltAccuracy = 0.f;
 	MaxZoomLevel = 1;
 	ZoomScale = 6.f;
+	ZoomedViewOffset = FVector(140.f, -50.f, 80.f); // MF ZoomedInViewOffset
+	bInstantZoom = true;
 	RecoilPower = 3.5f;
 	MaxTraceDistance = 45000.f;
 	ZoomedMoveScale = 0.f;

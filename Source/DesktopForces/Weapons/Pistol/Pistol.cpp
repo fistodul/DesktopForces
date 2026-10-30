@@ -35,6 +35,7 @@ APistol::APistol() {
 	AltAccuracy = 0.05f;
 	MaxZoomLevel = 1;
 	ZoomScale = 1.5f;
+	ZoomedViewOffset = FVector(140.f, -50.f, 80.f); // MF ZoomedInViewOffset
 	RecoilPower = 1.f;
 	TracerEvery = 1;
 	MuzzleFlashSize = 30.f;

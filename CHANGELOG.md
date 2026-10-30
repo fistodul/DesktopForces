@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-30 — Zoom like MF, crosshair, nitro steering, thrown knife
+
+- Zooming follows RageWeapon PreZoomIn / PostZoomOut: sights up, then the view zooms over
+  ZoomInTime while the arms move by ZoomedInViewOffset (ported for every zooming weapon) and
+  keep their size (CalcDrawOffset's 0.9 / current FOV). Iron sights and red dots now sit on
+  the crosshair.
+- Scopes (sniper rifle, rocket launcher, WA2000): the arms and the mask switch over when the
+  raising animation ends; before, the animation played on inside the scope's hole.
+- Crosshair blended over the view instead of added to it: it no longer changes size and
+  brightness with what is behind it.
+- Nitro alone (TurboCars, crouch) no longer steers the wrong way: the wheels held / coast-braked
+  against it, and braking steered wheels pull the nose the other way.
+- Thrown knife: floor bounces no longer arm it against its thrower (MF's bCanHitOwner comes
+  only with sticking in a wall), and it slides along the floor like MF's (0.4 x velocity).
+
 ## 2026-10-30 — Bot timing; StateTree and animation budgeting out
 
 - Disable unused StateTree plugins and remove their module dependencies after checking
