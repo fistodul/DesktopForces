@@ -223,7 +223,8 @@ an average CPU saving. Existing Unreal navigation and the MF combat behavior rem
 
 The CSV / Insights timing scopes used for these captures (`DFBots`: decisions, enemy
 selection, sight traces, steering; `DFVehicles`: wheel simulation) were temporary and are kept
-in the same git stash, not in the source.
+in the verified `stash-backups/stash-0.bundle` recovery archive beside the test artifacts,
+not in the source. Both reviewed stash entries were dropped after archiving.
 
 ### Animation: Budget Allocator tried and removed
 
@@ -233,13 +234,22 @@ warehouse off/on/off capture at 1024×576 measured the budgeted animation scope 
 0.224 / 0.017 / 0.224 ms per frame, but overall game-thread means stayed near 22.5–22.7 ms:
 no measurable frame-time gain (the existing URO and `OnlyTickPoseWhenRendered` already skip
 offscreen soldiers). The plugin, the component switch and its test were removed again; the
-work is kept in a git stash ("codex 2026-10-30 uncommitted ..."). See Epic's
+work is retained in that recovery bundle. See Epic's
 [allocator guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-budget-allocator-in-unreal-engine)
 before trying it again with a visible-crowd benchmark.
 
 Earlier `MF_TestRange` captures are excluded: respawning initially reset the camera, and the
 arena's saved map reported missing/rated player starts and repeated spawn failures under TDM.
-The test fixture needs repair before it can serve as a crowd benchmark.
+On 2026-10-30, a read-only map audit found 15 actors and no player starts. The map lost its
+MFPlayerStart, MFMapInfo and loadout-crate exports during the earlier redirect-removal resave
+(`85a6eef`); the maintained generator still contained the correct actors. Regenerating through
+`mfport.py import --steps testmap` restores four neutral starts, two per team, the loadout
+crates, map information and navigation. Lighting was rebaked with zero errors/warnings.
+The new `DesktopForces.Maps.TestRange.TeamStarts` regression test failed on the old asset and
+passes on the regenerated one, checking both teams' selection and navmesh under every start.
+A 30-second offscreen TDM run retained 24 bot controllers with no missing-start warnings
+and no unresolved respawns. One occupied start needed three collision retries before spawning
+successfully. No compatibility redirects or runtime fallback starts were added.
 
 ### Vehicles: a useful suspension reference, not a drop-in pawn replacement
 
@@ -262,7 +272,24 @@ Compare matched mass, gravity, wheel geometry and terrain: MF gravity is -2137.5
 the template uses the usual -980 baseline. Comparing their raw FPS or handling on unrelated
 maps would not isolate vehicle simulation. A physics-thread suspension experiment is worth
 considering if the current force model proves frame-rate-sensitive. No migration is justified
-by the source comparison alone; the template build and runtime comparison remain pending.
+by the source comparison alone.
+
+The supplied VehicleProject now builds with UE 5.8.4 (`-NoUBA -MaxParallelActions=2`), without
+source or config edits. Three bounded NullRHI runs used its stock SportsCar, no steering and
+five seconds of throttle after two seconds settling. Recorded straight-line displacements
+were 55.82 m at 30 FPS, 54.89 m at 60 FPS, and 50.98 m at 120 FPS; sample intervals were
+4.999 / 5.005 / 5.012 seconds. All runs exited normally. These single-run smoke samples vary
+by about 9%, so the template defaults do not establish frame-rate-independent handling.
+They also do not compare equivalent vehicles: the template's car, gravity, terrain and rig
+differ from DF. Keep DF handling for now; use Chaos Vehicles as a reference for a matched
+suspension prototype if handling measurements justify the conversion.
+
+DF's existing content/vehicle fixture also passed at 30, 60 and 120 FPS. Two-second truck
+turbo speed gains were 644.4 / 640.2 / 637.1 cm/s; the overturned Humvee recovered to
+up.Z = 1.000 at every cap, with maximum sampled rotation steps of 6.4 / 5.9 / 1.7 degrees.
+These exercise current DF handling and do not constitute a matched Chaos Vehicles migration
+benchmark. The final current-code regression run passed all six suites (five gameplay plus
+the new map-start test), and all 27 Python tests passed.
 
 ### Repeated static props: concrete candidates, not measured draw savings
 
@@ -295,9 +322,12 @@ has been made.
 
 Nine local Starter Content base-colour textures were exported in a scratch project before
 the pause. Source sizes were 1024–2048 px; the staging tool produced a 512 px concrete sample.
-`T_Concrete_Poured_D` is a candidate for `rage_warehouse.concrete.ware_concrete_9`, but brightness,
-colour and tiling still need an in-scene comparison. The sample is outside active overrides
-so another agent's conversion cannot silently apply an unreviewed texture.
+`T_Concrete_Poured_D` was tested against `rage_warehouse.concrete.ware_concrete_9` in
+`MF-RandomLand` using the same fixed camera before and after. It removes the original slab
+lines and changes the floor's appearance too much for this substitution. The candidate was
+rejected: the original material was restored byte-for-byte and the imported replacement asset
+removed. `concrete-before.png` and `concrete-after.png` retain the comparison outside the repo.
+No active local override remains. A slab/tile texture is a better candidate for this target.
 
 Do not substitute by name alone: `rage_urban.brck07S` has transparent pixels that opaque
 Starter brick would erase, and `rage_dock.ground.dock_ground_7` is a metal grate, not gravel.
@@ -327,5 +357,5 @@ python3 Tools/play.py mf-warehouse tdm 24 -nullrhi -nosound -unattended -trace=c
 Repeat at 6 and 48 bots. NullRHI helps isolate CPU work but cannot assess visible animation or
 GPU cost; repeat with `-RenderOffscreen` instead of `-nullrhi` for rendered tests. Warm assets,
 keep camera/map settings fixed, and report game/render/GPU timings separately. CSV captures above
-used the same launcher with scheduled `csvprofile START` / `STOP` (and the stashed scopes); the
+used the same launcher with scheduled `csvprofile START` / `STOP` (and the archived temporary scopes); the
 trace command is provided for deeper follow-up.

@@ -215,8 +215,9 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    another generator); sounds need free/CC0 or team-made replacements.
    - Selected Starter/Fab image staging is available through `mfport.py replacements`:
      local-only provenance, maximum 512 px, and rejection of opaque replacements for holes.
-     One Starter concrete sample passed staging, but no replacement was applied to game assets.
-     Scene review remains pending; see [systems follow-up](Performance.md#systems-follow-up-2026-10-29).
+     The Starter poured-concrete sample passed staging but was rejected after an in-scene
+     comparison: it removes this target's slab pattern. Its material change and asset were
+     dropped; seek a slab/tile replacement. See [systems follow-up](Performance.md#systems-follow-up-2026-10-29).
 10. **Flat crate in mf-warehouse** (Filip's phone screenshot `Screenshot_20261028-224646.webp`,
     not in the repo: it shows classic textures): outdoors under the sunset sky,
     a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP
@@ -232,9 +233,11 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
 11. **Systems performance follow-up** (2026-10-30): StateTree dependencies removed after
     an asset-reference audit; editor build and six gameplay suites pass. Bot decisions remain
     at 5 Hz, with staggered initial timers reducing measured 48-bot timing spikes. Animation
-    budgeting was tried and removed (no frame-time gain). The saved MF_TestRange map needs its
-    TDM player starts checked before crowd profiling. Vehicle
-    comparison and replacement-art results are recorded in
+    budgeting was tried and removed (no frame-time gain). MF_TestRange was regenerated and
+    rebaked after its old resave lost the gameplay actors. A regression test now verifies four
+    neutral starts, two per team, team selection and navigation coverage. VehicleProject builds
+    and runs at 30/60/120 FPS; DF recovery/turbo checks pass at all three caps. No matched test
+    establishes a reason to migrate vehicle physics. Comparison and replacement-art results are in
     [Performance](Performance.md#systems-follow-up-2026-10-29). Spatial prop instancing remains
     a candidate, pending a measured prototype and rebake.
 12. **Optional dynamic lighting for strong PCs: Lumen / "Lumen Lite"** (Filip, 2026-10-29). Today

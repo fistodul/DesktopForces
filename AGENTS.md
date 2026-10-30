@@ -139,6 +139,9 @@ Report what was checked and any checks blocked by missing engine, content, or di
 - When `-TestExit="Automation Test Queue Empty"` forces exit, Linux can return code 1 even
   after every test succeeds. Verify all expected `Test Completed. Result={Success}` entries
   and the explicit TestExit reason; do not generally treat exit code 1 as success.
+- After class/package redirect removal, a map loading without warnings does not prove its
+  gameplay actors survived the resave. Compare actor counts/types and test starts/navigation;
+  MF_TestRange once retained geometry while losing every player start and loadout crate.
 - No weekly quota meter is exposed through the current tools. Do not claim a precise remaining
   percentage. Keep a progress checkpoint and report any actual quota/approval rejection.
 
