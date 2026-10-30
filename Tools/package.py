@@ -178,6 +178,23 @@ def split_downloads(paks: Path, chunk_lists: Path, out: Path, build_id: str, pla
     return upload
 
 
+def game_version(project: Path) -> str:
+    """The version a build carries (GeneralProjectSettings.ProjectVersion): its commit's date,
+    `20261030`, as releases are named. UE lets a client join a server only with the same
+    ProjectVersion, so builds of another day are refused instead of desyncing; builds of one day
+    play together on every platform (the commit's date: building it later doesn't change it)."""
+    stamp = subprocess.run(['git', '-C', str(project), 'log', '-1', '--format=%cd', '--date=format:%Y%m%d'], capture_output=True, text=True).stdout.strip()
+    return stamp or 'local'
+
+
+def with_project_version(ini: str, version: str) -> str:
+    """DefaultGame.ini text with [/Script/EngineSettings.GeneralProjectSettings] ProjectVersion set."""
+    text, n = re.subn(r'(?m)^ProjectVersion=[^\r\n]*', f'ProjectVersion={version}', ini)
+    if n != 1:
+        raise Fail('DefaultGame.ini: expected one ProjectVersion= line')
+    return text
+
+
 # --- the build ------------------------------------------------------------------------------
 
 def package(a: argparse.Namespace) -> None:
@@ -241,7 +258,10 @@ def package(a: argparse.Namespace) -> None:
 
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'
     uproject_text = uproject.read_text()
-    print(f'Packaging {a.platform} {a.config}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
+    version = game_version(project)  # before anything below changes the project
+    game_ini = project / 'Config/DefaultGame.ini'
+    game_ini_bytes = game_ini.read_bytes()  # restored byte for byte (line endings too)
+    print(f'Packaging {a.platform} {a.config} {version}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
     if a.dry_run:
         print('(dry run)')
     try:
@@ -252,6 +272,7 @@ def package(a: argparse.Namespace) -> None:
             build_id_file.parent.mkdir(parents=True, exist_ok=True)  # staged as UFS (DefaultGame.ini)
             build_id_file.unlink(missing_ok=True)
             shutil.rmtree(out, ignore_errors=True)  # paks from an earlier build would be mounted too
+            game_ini.write_bytes(with_project_version(game_ini_bytes.decode('utf-8'), version).encode('utf-8'))
             if a.public:
                 # the content plugins off in the project for this build only, back whatever happens
                 data = json.loads(uproject_text)
@@ -280,12 +301,13 @@ def package(a: argparse.Namespace) -> None:
         if not a.dry_run:
             build_id_file.unlink(missing_ok=True)
             uproject.write_text(uproject_text)
+            game_ini.write_bytes(game_ini_bytes)
 
     if a.zip and not a.dry_run:
-        stamp = datetime.date.today().strftime('%Y%m%d')
-        archive = shutil.make_archive(str(out.parent / f'DesktopForces-{a.platform}-{a.config}{suffix}-{stamp}'), 'zip', out.parent, out.name)
+        # named by the version, the date releases go by: DesktopForces-<Platform>-<Config>[-public]-<version>
+        archive = shutil.make_archive(str(out.parent / f'DesktopForces-{a.platform}-{a.config}{suffix}-{version}'), 'zip', out.parent, out.name)
         print(f'Zip: {archive}')
-    print(f'Done: {out}' + (f' (content build {build_id})' if build_id else ''))
+    print(f'Done: {out}, version {version}' + (f' (content build {build_id})' if build_id else ''))
     if a.downloads:
         print(f'  upload the contents of {out}-downloads/Downloads/ to the download server (DownloadServer in DefaultGame.ini)')
         print(f'  {out}-downloads/Sideload/: the classic pack - for your own devices only (Docs/Building.md)')

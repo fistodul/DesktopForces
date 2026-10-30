@@ -37,6 +37,13 @@ class DownloadsTests(unittest.TestCase):
             self.assertEqual(part, ['pakchunk1-Android_ASTC_s1.ucas', '4', 'SHA1:' + hashlib.sha1(b'part').hexdigest().upper(), '1', 'pakchunk1-Android_ASTC_s1.ucas'])
             self.assertFalse(any('pakchunk3' in line for line in lines))
 
+    def test_project_version_stamp(self):
+        ini = '[/Script/EngineSettings.GeneralProjectSettings]\r\nProjectName=X\r\nProjectVersion=dev\r\nOther=1\r\n'
+        self.assertEqual(package.with_project_version(ini, '20261030'), ini.replace('=dev', '=20261030'))
+        with self.assertRaises(package.Fail):
+            package.with_project_version('ProjectName=X\n', 'v')
+        self.assertRegex(package.game_version(Path(__file__).resolve().parents[2]), r'^\d{8}$')
+
     def test_a_chunk_with_classic_content_is_never_uploaded(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

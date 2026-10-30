@@ -80,6 +80,13 @@ engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs, for every platform
 | `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: the packs for the public server (upload its contents) |
 | `Saved/Packages/<…>-downloads/Sideload/` | `--downloads`: the classic pack, for the team only |
 
+Each build carries its version, its commit's date (`20261030`, as releases are named; editor runs
+say `dev`): `ProjectVersion`, stamped into `DefaultGame.ini` while packaging. It is the network
+version: players join only servers of the same version, whatever their platform, so one day's
+builds play together and other days' are refused instead of desyncing (two builds of one day with
+different code would still be let in: rebuild every platform after a fix that changes networking).
+`--zip` names the archive after it; Credits shows it.
+
 `Build/<Platform>/` holds Unreal's own build data (pak file order, chunk layout, generated Android
 sources), not builds.
 
