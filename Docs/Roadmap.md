@@ -207,7 +207,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    launcher art and the community maps' own sound packages moved to community; the 51 custom maps
    by authors not asked yet and their packages to unverified (a public download now). Done in
    place by `mfport.py import --steps repack` (no re-bake).
-9. **Replacement art for borrowed classic assets** (user idea, 2026-10-29): community maps still
+9. **Replacement art for borrowed classic assets** (user idea, 2026-10-29): start with the
+   [replacement art handoff](ReplacementArtHandoff.md) for candidates, rejected mappings and next steps. Community maps still
    use ~300 classic packages (textures in `aq`, `Mio`, `rage_*`, `car_park`, `Dam` ...; sounds in
    `levelSFX`, `TropicsSFX`, `Aquarius` ...), so without the classic pack they show missing
    textures and play no ambient sounds (mf-Tropics on the 9a). `mfport.py packs` lists them;
