@@ -859,8 +859,11 @@ private:
 			+ SVerticalBox::Slot().MaxHeight(380.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(PackRows, SVerticalBox)]]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
 			[
-				SNew(STextBlock).Font(Font(10)).AutoWrapText(true).ColorAndOpacity(Hint)
-				.Text(LOCTEXT("DlClassic", "Classic Mobile Forces maps aren't offered: they are converted from your own copy of the original game."))
+				// packs (downloaded or dropped in by hand) work only with the build they were made for
+				SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Hint).Text_Lambda([this]() {
+					const UDFDownloads* D = UDFDownloads::Get(Owner.Get());
+					return D && D->IsAvailable() ? FText::Format(LOCTEXT("DlBuild", "Content build {0}"), FText::FromString(D->GetBuildId())) : FText::GetEmpty();
+				})
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[

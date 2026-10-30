@@ -78,7 +78,7 @@ engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs, for every platform
 |---|---|
 | `Saved/Packages/<Platform>-<Config>[-public]/` | the game build (Shipping: release; Development: console and logs) |
 | `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: the packs for the public server (upload its contents) |
-| `Saved/Packages/<…>-downloads/Sideload/` | `--downloads`: the classic pack, for the team only |
+| `Saved/Packages/<…>-downloads/Sideload/` (and with `--team`: `Private/`, `DesktopForces-Classic-*.zip`) | `--downloads`: the classic pack / every pack, for the team only |
 
 Each build carries its version, its commit's date (`20261030`, as releases are named; editor runs
 say `dev`): `ProjectVersion`, stamped into `DefaultGame.ini` while packaging. It is the network
@@ -146,6 +146,20 @@ The packager refuses to put a chunk into `Downloads/` whose cooker list names a 
 **Classic content never goes on a public server.** For your own devices, copy the `Sideload/`
 files into the game's `Saved/Paks/` (mounted at start; on Android
 `/sdcard/Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/DesktopForces/Saved/Paks/`).
+To hand it to the team through a private channel, give them
+`<output>-downloads/DesktopForces-Classic-<Platform>-<version>.zip` (`--team`; a copy): the same
+files laid out to unzip over the install (desktop: the folder with `DesktopForces.exe` /
+`DesktopForces.sh`, into
+`DesktopForces/Content/Paks/`; Android: the phone's storage from a computer over USB, into the path
+above), with a README naming the content build id it was made with: it works only with that game
+build (the Downloads page shows it).
+
+A team server can offer every pack, classic included: with `--team`,
+`<output>-downloads/Private/<Platform>/<content build id>/` holds all of them (hard links to the
+same files, no extra space; copies where the file system has no hard links) with their own
+manifest. Copy the contents of `Private/` to the team's server (never `mf.nofisto.com` or another
+public one; keep its address within the team), and each player sets that server in Options > Game
+> Download server. The Downloads page lists whatever the manifest offers; chunk 3 is named Classic (`DownloadPacks` in `DefaultGame.ini`).
 
 In game, downloads go to the app's own storage (`PersistentDownloadDir/PakCache`), one file at a
 time, each checked against its SHA1; a stopped download goes on from the last whole file

@@ -15,8 +15,10 @@ starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
 
 Output: Saved/Packages/<Platform>-<Config>[-public]/ (every platform);
 --downloads also writes <output>-downloads/Downloads/<Platform>/<content build id>/ (upload it)
-and <output>-downloads/Sideload/ (the classic pack: never upload it). Engine: as Tools/play.py
-(UE_ROOT, mfport.toml `ue_root`).
+and <output>-downloads/Sideload/ (the classic pack: never upload it); with --team also
+Private/<Platform>/<content build id>/ (every pack, classic too: for a team server only) and
+DesktopForces-Classic-<Platform>-<version>.zip (the classic pack, to unzip over a team member's
+install). Engine: as Tools/play.py (UE_ROOT, mfport.toml `ue_root`).
 
 The classic plugin holds content converted from YOUR copy of Mobile Forces: a build with it is
 for you and the team, never for sharing; so is Unverified in a build handed around. --public
@@ -34,6 +36,7 @@ import re
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
@@ -139,12 +142,29 @@ def chunk_of(name: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def split_downloads(paks: Path, chunk_lists: Path, out: Path, build_id: str, platform_name: str) -> Path:
+def manifest_line(path: Path, chunk: int) -> str:
+    """ChunkDownloader's manifest line: name <tab> size <tab> version (SHA1:, checked after
+    download) <tab> chunk <tab> url (relative to the manifest)."""
+    sha1 = hashlib.sha1()
+    with path.open('rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            sha1.update(block)
+    return f'{path.name}\t{path.stat().st_size}\tSHA1:{sha1.hexdigest().upper()}\t{chunk}\t{path.name}'
+
+
+def write_manifest(folder: Path, lines: list[str], build_id: str, platform_name: str) -> None:
+    manifest = [f'$NUM_ENTRIES = {len(lines)}', f'$BUILD_ID = {build_id}', *lines]
+    (folder / f'BuildManifest-{platform_name}.txt').write_text('\n'.join(manifest) + '\n', newline='\n')
+
+
+def split_downloads(paks: Path, chunk_lists: Path, out: Path, build_id: str, platform_name: str, team: bool = False) -> Path:
     """Move every pack but core (chunk 0) out of the staged build: one whose cooker list
     (pakchunkN.txt) names no classic package to <out>/Downloads/<platform>/<build id>/ with
     ChunkDownloader's BuildManifest-<platform>.txt (the game asks <server>/<platform>/<build id>/),
     one with classic content - converted from the player's own Mobile Forces, never on a public
-    server - to <out>/Sideload/. No chunk ids are listed here: a new pack needs no change."""
+    server - to <out>/Sideload/. With team, <out>/Private/<platform>/<build id>/ gets every pack,
+    classic too, with its own manifest (hard links: no extra space where the file system has
+    them): a team server's folder. No chunk ids are listed here: a new pack needs no change."""
     if not all((build_id, platform_name)):
         raise Fail('split_downloads: empty build id or platform')
     files = sorted(p for p in paks.glob('pakchunk*') if chunk_of(p.name) not in (None, 0))
@@ -155,27 +175,57 @@ def split_downloads(paks: Path, chunk_lists: Path, out: Path, build_id: str, pla
             raise Fail(f'no cooker list for pakchunk{n}: {listing}')
         public[n] = CLASSIC_MARK not in listing.read_text(errors='replace').lower()
     upload, sideload = out / 'Downloads' / platform_name / build_id, out / 'Sideload'
-    for d in (out / 'Downloads', sideload):
+    private = out / 'Private' / platform_name / build_id
+    for d in (out / 'Downloads', sideload, out / 'Private'):
         shutil.rmtree(d, ignore_errors=True)
-    upload.mkdir(parents=True)
-    sideload.mkdir(parents=True)
-    lines = []
+    for d in (upload, sideload, *([private] if team else [])):
+        d.mkdir(parents=True)
+    lines, all_lines = [], []
     for p in files:
         n = chunk_of(p.name)
-        if not public[n]:
-            shutil.move(p, sideload / p.name)
-            continue
-        dest = upload / p.name
+        dest = (upload if public[n] else sideload) / p.name
         shutil.move(p, dest)
-        sha1 = hashlib.sha1()
-        with dest.open('rb') as f:
-            for block in iter(lambda: f.read(1 << 20), b''):
-                sha1.update(block)
-        # name <tab> size <tab> version (SHA1:, checked after download) <tab> chunk <tab> url
-        lines.append(f'{p.name}\t{dest.stat().st_size}\tSHA1:{sha1.hexdigest().upper()}\t{n}\t{p.name}')
-    manifest = [f'$NUM_ENTRIES = {len(lines)}', f'$BUILD_ID = {build_id}', *lines]
-    (upload / f'BuildManifest-{platform_name}.txt').write_text('\n'.join(manifest) + '\n', newline='\n')
+        line = manifest_line(dest, n)
+        all_lines.append(line)
+        if public[n]:
+            lines.append(line)
+        if team:
+            try:
+                os.link(dest, private / p.name)
+            except OSError:  # a file system without hard links
+                shutil.copy2(dest, private / p.name)
+    write_manifest(upload, lines, build_id, platform_name)
+    if team:
+        write_manifest(private, all_lines, build_id, platform_name)
     return upload
+
+
+# where a pack dropped in by hand is mounted at start: the install's own Content/Paks on the
+# desktop; Saved/Paks in the app's storage on Android (the APK holds Content/Paks)
+SIDELOAD_DIRS = {
+    'Android': 'Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/DesktopForces/Saved/Paks',
+}
+
+
+def classic_zip(out: Path, platform_name: str, build_id: str, label: str = '') -> Path | None:
+    """<out>/DesktopForces-Classic-<label>.zip from <out>/Sideload/, laid out to be
+    unzipped over the install (desktop: the folder with the game's executable; Android: the
+    phone's storage root, from a computer over USB). For the team only, like Sideload/."""
+    files = sorted((out / 'Sideload').glob('pakchunk*'))
+    if not files:
+        return None
+    where = SIDELOAD_DIRS.get(platform_name, 'DesktopForces/Content/Paks')
+    target = "the phone's storage (over USB from a computer)" if platform_name == 'Android' else 'the folder with the game (DesktopForces.exe / DesktopForces.sh)'
+    readme = (f'Desktop Forces classic pack for {platform_name} build {build_id}.\n'
+              f'Converted from the original Mobile Forces: for the team only, never share it publicly.\n\n'
+              f'Unzip into {target}; the files land in {where}/.\n'
+              f'It only works with game build {build_id} (Downloads page). Remove the files to drop the pack.\n')
+    archive = out / f'DesktopForces-Classic-{label or platform_name + "-" + build_id}.zip'
+    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_STORED) as z:  # iostore containers are compressed already
+        z.writestr('README-Classic.txt', readme)
+        for p in files:
+            z.write(p, f'{where}/{p.name}')
+    return archive
 
 
 def game_version(project: Path) -> str:
@@ -295,7 +345,9 @@ def package(a: argparse.Namespace) -> None:
             run([*uat, *cook], a.dry_run, env=env)
             if not a.dry_run:
                 split_downloads(stage / uproject.stem / 'Content/Paks', project / 'Saved/Cooked' / stage_name / uproject.stem / 'Metadata/ChunkManifest',
-                                out.with_name(out.name + '-downloads'), build_id, platform_name)
+                                out.with_name(out.name + '-downloads'), build_id, platform_name, a.team)
+                if a.team:
+                    classic_zip(out.with_name(out.name + '-downloads'), platform_name, build_id, f'{a.platform}-{version}')
             run([*uat, '-skipcook', '-skipstage', '-skippak', '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
     finally:
         if not a.dry_run:
@@ -311,6 +363,9 @@ def package(a: argparse.Namespace) -> None:
     if a.downloads:
         print(f'  upload the contents of {out}-downloads/Downloads/ to the download server (DownloadServer in DefaultGame.ini)')
         print(f'  {out}-downloads/Sideload/: the classic pack - for your own devices only (Docs/Building.md)')
+        if a.team:
+            print(f'  {out}-downloads/Private/: every pack, classic too - for a team server only, never a public one')
+            print(f'  {out}-downloads/DesktopForces-Classic-*.zip: the classic pack to unzip over a team member\'s install')
 
 
 def main(argv: list[str]) -> int:
@@ -319,12 +374,15 @@ def main(argv: list[str]) -> int:
     ap.add_argument('config', nargs='?', choices=['Shipping', 'Development'], default='Shipping')
     ap.add_argument('--public', action='store_true', help='leave out the Classic and Unverified plugins')
     ap.add_argument('--downloads', action='store_true', help='core pack only in the build; the other packs for the server')
+    ap.add_argument('--team', action='store_true', help='with --downloads: also a team server folder and a classic pack zip')
     ap.add_argument('--maps', help='comma-separated map names (default: every built map)')
     ap.add_argument('--zip', action='store_true', help='also pack the build into one .zip next to it')
     ap.add_argument('--compile-only', action='store_true', help='build the editor and game code, no cook')
     ap.add_argument('--clean', action='store_true', help="delete this host's Binaries / Intermediate/Build first")
     ap.add_argument('--dry-run', action='store_true', help='print the commands instead of running them')
     a = ap.parse_args(argv)
+    if a.team and not a.downloads:
+        ap.error('--team needs --downloads')
     try:
         package(a)
     except (Fail, OSError) as exc:
