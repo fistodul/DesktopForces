@@ -271,6 +271,11 @@ def package(a: argparse.Namespace) -> None:
     out = out.with_name(out.name + suffix)
     env = android_env() if a.platform == 'Android' else os.environ.copy()
 
+    # the asset registry's cached folder listing can outlive content moved or copied in (Repack, a
+    # sync), and the cooker then can't find packages that are on disk: rescan, it takes seconds
+    if not a.dry_run:
+        (project / 'Intermediate/CachedAssetRegistryDiscovery.bin').unlink(missing_ok=True)
+
     # content packs -> their own paks (bGenerateChunks): label each pack root (cheap once they exist)
     editor_cmd = ue / 'Engine/Binaries' / host / ('UnrealEditor-Cmd.exe' if WINDOWS else 'UnrealEditor-Cmd')
     labels_log = project / 'Saved/Logs/PackLabels.log'
@@ -307,7 +312,7 @@ def package(a: argparse.Namespace) -> None:
     cook = ['-ubtargs=-NoUBA', '-build', '-cook', '-stage', '-prereqs'] + ([f'-map={"+".join(maps)}'] if maps else [])
 
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'
-    uproject_text = uproject.read_text()
+    uproject_bytes = uproject.read_bytes()  # restored byte for byte (line endings too)
     version = game_version(project)  # before anything below changes the project
     game_ini = project / 'Config/DefaultGame.ini'
     game_ini_bytes = game_ini.read_bytes()  # restored byte for byte (line endings too)
@@ -325,7 +330,7 @@ def package(a: argparse.Namespace) -> None:
             game_ini.write_bytes(with_project_version(game_ini_bytes.decode('utf-8'), version).encode('utf-8'))
             if a.public:
                 # the content plugins off in the project for this build only, back whatever happens
-                data = json.loads(uproject_text)
+                data = json.loads(uproject_bytes)
                 off = ('MobileForcesClassic', 'MobileForcesUnverified')
                 data['Plugins'] = [p for p in data.get('Plugins', []) if p['Name'] not in off] + [{'Name': n, 'Enabled': False} for n in off]
                 uproject.write_text(json.dumps(data, indent='\t') + '\n')
@@ -352,7 +357,7 @@ def package(a: argparse.Namespace) -> None:
     finally:
         if not a.dry_run:
             build_id_file.unlink(missing_ok=True)
-            uproject.write_text(uproject_text)
+            uproject.write_bytes(uproject_bytes)
             game_ini.write_bytes(game_ini_bytes)
 
     if a.zip and not a.dry_run:

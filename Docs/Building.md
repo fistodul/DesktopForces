@@ -90,6 +90,12 @@ different code would still be let in: rebuild every platform after a fix that ch
 `Build/<Platform>/` holds Unreal's own build data (pak file order, chunk layout, generated Android
 sources), not builds.
 
+Before cooking, `package.py` deletes `Intermediate/CachedAssetRegistryDiscovery.bin`, the asset
+registry's cached folder listing. A stale listing kept content that had moved or been copied in out
+of the registry, and the cook failed with thousands of `Unable to find package for cooking` warnings
+and `Content is missing from cook` errors for files that were on disk. If an editor or commandlet
+started by hand shows the same symptoms, delete that file; `CachedAssetRegistry/` can stay.
+
 Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<Platform>`):
 
 | Chunk | Pack | Content | Size (3-map Linux build) |

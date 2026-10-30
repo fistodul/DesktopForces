@@ -25,7 +25,6 @@
 namespace {
 	const FLinearColor White(1.f, 1.f, 1.f);
 	const FLinearColor Yellow(1.f, 0.85f, 0.2f);
-	const FLinearColor Dim(0.f, 0.f, 0.f, 0.55f);
 	const FLinearColor Grey(0.5f, 0.5f, 0.5f);
 	const float BlockSizes[5] = { 32.f, 48.f, 64.f, 96.f, 128.f }; // RageHUD HUDSize 0-4
 	// MF HUD palette: blue boxes with light borders

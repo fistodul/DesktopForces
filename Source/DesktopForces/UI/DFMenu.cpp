@@ -65,8 +65,10 @@ namespace {
 	bool FullscreenIsBorderless() {
 #if PLATFORM_ANDROID || PLATFORM_IOS
 		return true;
-#else
+#elif PLATFORM_LINUX
 		return FPlatformApplicationMisc::FullscreenSameAsWindowedFullscreen();
+#else
+		return false;
 #endif
 	}
 } // namespace
