@@ -914,6 +914,7 @@ private:
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SBox).MinDesiredWidth(130.f)
+					.Visibility_Lambda([Status]() { const FDFPackStatus* S = Status(); return S && S->bBundled ? EVisibility::Collapsed : EVisibility::Visible; })
 					[
 						SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(10.f, 6.f))
 						.OnClicked_Lambda([this, Chunk]() { PackAction(Chunk); return FReply::Handled(); })
@@ -944,7 +945,7 @@ private:
 		const FText Done = FText::AsMemory(S->Downloaded, &Digits, nullptr, EMemoryUnitStandard::SI);
 		switch (S->State) {
 		case EDFPackState::Installed:
-			return FText::Format(LOCTEXT("DlInstalled", "Installed ({0})"), Size);
+			return FText::Format(S->bBundled ? LOCTEXT("DlBundled", "Included with the game ({0})") : LOCTEXT("DlInstalled", "Installed ({0})"), Size);
 		case EDFPackState::Downloading:
 			return FText::Format(LOCTEXT("DlProgress", "{0} of {1}"), Done, Size);
 		case EDFPackState::Queued:

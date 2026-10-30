@@ -77,15 +77,32 @@ engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs, for every platform
 | Folder | What |
 |---|---|
 | `Saved/Packages/<Platform>-<Config>[-public]/` | the game build (Shipping: release; Development: console and logs) |
-| `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: the packs for the public server (upload its contents) |
-| `Saved/Packages/<…>-downloads/Sideload/` (and with `--team`: `Private/`, `DesktopForces-Classic-*.zip`) | `--downloads`: the classic pack / every pack, for the team only |
+| `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: the packs for the download server, the modded community release (upload its contents) |
+| `Saved/Packages/<…>-downloads/Sideload/` (and with `--team`: `Private/`) | `--downloads`: the classic pack / every pack, for the team only |
+| `Saved/Packages/<version>/` | `--zip`, `--team`: what's handed around, named below |
+
+Everything shared follows one name, `DesktopForces-<Platform>[-Development]-<version>[-<Edition>]`:
+the order of Unreal's own files, which can't be renamed (`DesktopForces-Android-Shipping-arm64.apk`,
+`pakchunk1-Windows.pak`, the `Windows-Shipping` folder name), without the `Shipping` every release
+has. The version says which release; a new build of the same day replaces that day's files.
+
+| File (Windows, `20261030`) | Made by | What | Share with |
+|---|---|---|---|
+| `DesktopForces-Windows-20261030.zip` | `--downloads --zip` | core pack; the rest downloads in game | the download server (modded community release) |
+| `DesktopForces-Windows-20261030-Full.zip` | `--downloads --team`, or `--zip` alone | every pack, classic too: unzip and play | the team |
+| `DesktopForces-Windows-20261030-Classic.zip` | `--downloads --team` | the classic pack, unzipped over the same build | the team |
+| `DesktopForces-Windows-20261030-Public.zip` | `--public --zip` | no Classic or Unverified | anyone |
+
+A `--downloads` Android build is one file, `DesktopForces-Android-<version>.apk`, with its
+`-Classic.zip` beside it; `--team` makes no Android Full zip (an APK stops at 2 GB). Linux is a
+`.zip` too; `unzip` keeps the executable bits.
 
 Each build carries its version, its commit's date (`20261030`, as releases are named; editor runs
 say `dev`): `ProjectVersion`, stamped into `DefaultGame.ini` while packaging. It is the network
 version: players join only servers of the same version, whatever their platform, so one day's
 builds play together and other days' are refused instead of desyncing (two builds of one day with
 different code would still be let in: rebuild every platform after a fix that changes networking).
-`--zip` names the archive after it; Credits shows it.
+Shared files are named after it; Credits shows it.
 
 `Build/<Platform>/` holds Unreal's own build data (pak file order, chunk layout, generated Android
 sources), not builds.
@@ -102,7 +119,7 @@ Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<P
 |---|---|---|---|
 | 0 | core | the game: `/Game/MF`, engine content, anything unlabelled | 51 MB |
 | 1 | community | `/Game/Maps`, `/Game/MF/Community`, `/Game/MF/Replacements` (agreed authors) | 225 MB |
-| 2 | unverified | `/MobileForcesUnverified` (custom maps and mods not cleared yet) | 5 MB |
+| 2 | unverified | `/MobileForcesUnverified` (custom maps and mods not cleared yet: the modded community release, not `--public`) | 5 MB |
 | 3 | classic | `/MobileForcesClassic` (from your MF install: never share it) | 442 MB |
 
 A pack is just its three files (`.pak`, `.ucas`, `.utoc`). Drop them into `Content/Paks` to add the
@@ -153,12 +170,14 @@ The packager refuses to put a chunk into `Downloads/` whose cooker list names a 
 files into the game's `Saved/Paks/` (mounted at start; on Android
 `/sdcard/Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/DesktopForces/Saved/Paks/`).
 To hand it to the team through a private channel, give them
-`<output>-downloads/DesktopForces-Classic-<Platform>-<version>.zip` (`--team`; a copy): the same
+`Saved/Packages/<version>/DesktopForces-<Platform>-<version>-Classic.zip` (`--team`; a copy): the same
 files laid out to unzip over the install (desktop: the folder with `DesktopForces.exe` /
 `DesktopForces.sh`, into
 `DesktopForces/Content/Paks/`; Android: the phone's storage from a computer over USB, into the path
 above), with a README naming the content build id it was made with: it works only with that game
-build (the Downloads page shows it).
+build (the Downloads page shows it). On the desktop `--team` also makes a `-Full.zip` from the same
+cook, the build with every pack in place. Packs that come with the install show as "Included with
+the game" on the Downloads page, with nothing to download or delete.
 
 A team server can offer every pack, classic included: with `--team`,
 `<output>-downloads/Private/<Platform>/<content build id>/` holds all of them (hard links to the

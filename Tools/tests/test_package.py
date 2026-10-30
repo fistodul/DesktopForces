@@ -57,10 +57,28 @@ class DownloadsTests(unittest.TestCase):
             paks, lists = self.make(root, '')
             package.split_downloads(paks, lists, root / 'Out', 'b1', 'Linux')
             self.assertFalse((root / 'Out/Private').exists())  # team folder only on request
-            with zipfile.ZipFile(package.classic_zip(root / 'Out', 'Linux', 'b1')) as z:
+            with zipfile.ZipFile(package.classic_zip(root / 'Out', 'Linux', 'b1', root / 'Classic.zip')) as z:
                 names = z.namelist()
             self.assertIn('DesktopForces/Content/Paks/pakchunk3-Android_ASTC.pak', names)
             self.assertFalse(any('pakchunk1' in n for n in names))
+
+    def test_share_names_follow_unreals_order(self):
+        self.assertEqual(package.share_name('Windows', 'Shipping', '20261030'), 'DesktopForces-Windows-20261030')
+        self.assertEqual(package.share_name('Android', 'Shipping', '20261030', 'Classic'), 'DesktopForces-Android-20261030-Classic')
+        self.assertEqual(package.share_name('Linux', 'Development', '20261030', 'Full'), 'DesktopForces-Linux-Development-20261030-Full')
+
+    def test_full_zip_is_the_build_with_the_packs_in_place(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with zipfile.ZipFile(root / 'Base.zip', 'w') as z:
+                z.writestr('Windows-Shipping/DesktopForces.exe', 'game')
+            (root / 'pakchunk3-Windows.pak').write_bytes(b'pack')
+            full = package.full_zip(root / 'Base.zip', root / 'Full.zip', [root / 'pakchunk3-Windows.pak'], 'Windows-Shipping/DesktopForces/Content/Paks')
+            with zipfile.ZipFile(full) as z:
+                self.assertEqual(z.read('Windows-Shipping/DesktopForces/Content/Paks/pakchunk3-Windows.pak'), b'pack')
+                self.assertEqual(z.read('Windows-Shipping/DesktopForces.exe'), b'game')
+            with zipfile.ZipFile(root / 'Base.zip') as z:
+                self.assertEqual(len(z.namelist()), 1)  # the base build stays as it was
 
     def test_a_chunk_with_classic_content_is_never_uploaded(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -4,7 +4,7 @@ starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
 
     python3 Tools/package.py                          this machine's platform, Shipping
     python3 Tools/package.py Linux Development        with the console and logs
-    python3 Tools/package.py Windows --zip            (on Windows) and one .zip to hand around
+    python3 Tools/package.py Windows --zip            (on Windows) and one file to hand around
     python3 Tools/package.py --public                 without the Classic and Unverified plugins
     python3 Tools/package.py Android Development --maps MF_TestRange,mf-warehouse
                                                       an arm64 APK (ASTC textures) with two maps
@@ -16,13 +16,19 @@ starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
 Output: Saved/Packages/<Platform>-<Config>[-public]/ (every platform);
 --downloads also writes <output>-downloads/Downloads/<Platform>/<content build id>/ (upload it)
 and <output>-downloads/Sideload/ (the classic pack: never upload it); with --team also
-Private/<Platform>/<content build id>/ (every pack, classic too: for a team server only) and
-DesktopForces-Classic-<Platform>-<version>.zip (the classic pack, to unzip over a team member's
-install). Engine: as Tools/play.py (UE_ROOT, mfport.toml `ue_root`).
+Private/<Platform>/<content build id>/ (every pack, classic too: for a team server only).
+Engine: as Tools/play.py (UE_ROOT, mfport.toml `ue_root`).
+
+What's handed around goes to Saved/Packages/<version>/, named as Unreal orders its own files:
+    DesktopForces-<Platform>[-Development]-<version>[-<Edition>].zip (Android: .apk)
+    (none)   --downloads: the core pack; the others download in game
+    -Full    every pack: no --downloads, or --team (from the same cook; not Android)
+    -Public  --public: no Classic or Unverified
+    -Classic --team: the classic pack, to unzip over the same build's install
 
 The classic plugin holds content converted from YOUR copy of Mobile Forces: a build with it is
-for you and the team, never for sharing; so is Unverified in a build handed around. --public
-leaves both out.
+for you and the team, never for sharing. Unverified (authors not asked yet) belongs to the modded
+community release: the download server, but not a --public build, which leaves both out.
 """
 from __future__ import annotations
 
@@ -207,8 +213,23 @@ SIDELOAD_DIRS = {
 }
 
 
-def classic_zip(out: Path, platform_name: str, build_id: str, label: str = '') -> Path | None:
-    """<out>/DesktopForces-Classic-<label>.zip from <out>/Sideload/, laid out to be
+def share_name(platform_name: str, config: str, version: str, edition: str = '') -> str:
+    """What a build is called wherever it's shared. The order is Unreal's, whose names can't change
+    (DesktopForces-Android-Shipping-arm64.apk, pakchunk1-Windows.pak); Shipping goes unsaid."""
+    return '-'.join(filter(None, ('DesktopForces', platform_name, '' if config == 'Shipping' else config, version, edition)))
+
+
+def full_zip(base: Path, archive: Path, paks: list[Path], paks_dir: str) -> Path:
+    """<archive>: the build's <base> zip with the packs added where the game mounts them at start."""
+    shutil.copy2(base, archive)
+    with zipfile.ZipFile(archive, 'a', zipfile.ZIP_STORED) as z:  # iostore containers are compressed already
+        for p in paks:
+            z.write(p, f'{paks_dir}/{p.name}')
+    return archive
+
+
+def classic_zip(out: Path, platform_name: str, build_id: str, archive: Path) -> Path | None:
+    """<archive> from <out>/Sideload/, laid out to be
     unzipped over the install (desktop: the folder with the game's executable; Android: the
     phone's storage root, from a computer over USB). For the team only, like Sideload/."""
     files = sorted((out / 'Sideload').glob('pakchunk*'))
@@ -220,7 +241,6 @@ def classic_zip(out: Path, platform_name: str, build_id: str, label: str = '') -
               f'Converted from the original Mobile Forces: for the team only, never share it publicly.\n\n'
               f'Unzip into {target}; the files land in {where}/.\n'
               f'It only works with game build {build_id} (Downloads page). Remove the files to drop the pack.\n')
-    archive = out / f'DesktopForces-Classic-{label or platform_name + "-" + build_id}.zip'
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_STORED) as z:  # iostore containers are compressed already
         z.writestr('README-Classic.txt', readme)
         for p in files:
@@ -269,6 +289,7 @@ def package(a: argparse.Namespace) -> None:
     suffix = '-public' if a.public else ''
     out = project / f'Saved/Packages/{a.platform}-{a.config}'
     out = out.with_name(out.name + suffix)
+    downloads_out = out.with_name(out.name + '-downloads')
     env = android_env() if a.platform == 'Android' else os.environ.copy()
 
     # the asset registry's cached folder listing can outlive content moved or copied in (Repack, a
@@ -314,6 +335,8 @@ def package(a: argparse.Namespace) -> None:
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'
     uproject_bytes = uproject.read_bytes()  # restored byte for byte (line endings too)
     version = game_version(project)  # before anything below changes the project
+    release = project / 'Saved/Packages' / version
+    edition = 'Public' if a.public else '' if a.downloads or a.maps else 'Full'
     game_ini = project / 'Config/DefaultGame.ini'
     game_ini_bytes = game_ini.read_bytes()  # restored byte for byte (line endings too)
     print(f'Packaging {a.platform} {a.config} {version}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
@@ -350,9 +373,10 @@ def package(a: argparse.Namespace) -> None:
             run([*uat, *cook], a.dry_run, env=env)
             if not a.dry_run:
                 split_downloads(stage / uproject.stem / 'Content/Paks', project / 'Saved/Cooked' / stage_name / uproject.stem / 'Metadata/ChunkManifest',
-                                out.with_name(out.name + '-downloads'), build_id, platform_name, a.team)
+                                downloads_out, build_id, platform_name, a.team)
                 if a.team:
-                    classic_zip(out.with_name(out.name + '-downloads'), platform_name, build_id, f'{a.platform}-{version}')
+                    release.mkdir(parents=True, exist_ok=True)
+                    classic_zip(downloads_out, platform_name, build_id, release / f'{share_name(a.platform, a.config, version, "Classic")}.zip')
             run([*uat, '-skipcook', '-skipstage', '-skippak', '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
     finally:
         if not a.dry_run:
@@ -360,17 +384,27 @@ def package(a: argparse.Namespace) -> None:
             uproject.write_bytes(uproject_bytes)
             game_ini.write_bytes(game_ini_bytes)
 
-    if a.zip and not a.dry_run:
-        # named by the version, the date releases go by: DesktopForces-<Platform>-<Config>[-public]-<version>
-        archive = shutil.make_archive(str(out.parent / f'DesktopForces-{a.platform}-{a.config}{suffix}-{version}'), 'zip', out.parent, out.name)
-        print(f'Zip: {archive}')
+    if (a.zip or a.team) and not a.dry_run:
+        release.mkdir(parents=True, exist_ok=True)
+        name = share_name(a.platform, a.config, version, edition)
+        if a.platform == 'Android' and a.downloads:  # one file: the APK holds the core pack
+            apks = list(out.glob('DesktopForces*.apk'))  # not AFS_*, Unreal's file-server helper
+            if len(apks) != 1:
+                raise Fail(f'expected one APK in {out}: {apks}')
+            shutil.copy2(apks[0], release / f'{name}.apk')
+        else:
+            base = Path(shutil.make_archive(str(release / name), 'zip', out.parent, out.name))
+            if a.team and not a.public and a.platform != 'Android':  # an APK stops at 2 GB
+                full_zip(base, release / f'{share_name(a.platform, a.config, version, "Full")}.zip',
+                         sorted((downloads_out / 'Private' / STAGE_NAMES[a.platform][1] / build_id).glob('pakchunk*')),
+                         f'{out.name}/{uproject.stem}/Content/Paks')
+        print(f'To share, in {release}:', *sorted(p.name for p in release.iterdir() if p.name.startswith(share_name(a.platform, a.config, version))), sep='\n  ')
     print(f'Done: {out}, version {version}' + (f' (content build {build_id})' if build_id else ''))
     if a.downloads:
-        print(f'  upload the contents of {out}-downloads/Downloads/ to the download server (DownloadServer in DefaultGame.ini)')
-        print(f'  {out}-downloads/Sideload/: the classic pack - for your own devices only (Docs/Building.md)')
+        print(f'  upload the contents of {downloads_out}/Downloads/ to the download server (DownloadServer in DefaultGame.ini)')
+        print(f'  {downloads_out}/Sideload/: the classic pack - for your own devices only (Docs/Building.md)')
         if a.team:
-            print(f'  {out}-downloads/Private/: every pack, classic too - for a team server only, never a public one')
-            print(f'  {out}-downloads/DesktopForces-Classic-*.zip: the classic pack to unzip over a team member\'s install')
+            print(f'  {downloads_out}/Private/: every pack, classic too - for a team server only, never a public one')
 
 
 def main(argv: list[str]) -> int:
@@ -379,9 +413,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument('config', nargs='?', choices=['Shipping', 'Development'], default='Shipping')
     ap.add_argument('--public', action='store_true', help='leave out the Classic and Unverified plugins')
     ap.add_argument('--downloads', action='store_true', help='core pack only in the build; the other packs for the server')
-    ap.add_argument('--team', action='store_true', help='with --downloads: also a team server folder and a classic pack zip')
+    ap.add_argument('--team', action='store_true', help='with --downloads: also a team server folder, a Classic zip and a Full zip')
     ap.add_argument('--maps', help='comma-separated map names (default: every built map)')
-    ap.add_argument('--zip', action='store_true', help='also pack the build into one .zip next to it')
+    ap.add_argument('--zip', action='store_true', help='also the build as one file to share, in Saved/Packages/<version>/')
     ap.add_argument('--compile-only', action='store_true', help='build the editor and game code, no cook')
     ap.add_argument('--clean', action='store_true', help="delete this host's Binaries / Intermediate/Build first")
     ap.add_argument('--dry-run', action='store_true', help='print the commands instead of running them')

@@ -9,7 +9,7 @@ enum class EDFPackState : uint8 {
 	NotInstalled, // on the server (maybe partly downloaded already)
 	Queued,
 	Downloading,
-	Installed, // downloaded and mounted: its maps are in the menu
+	Installed, // mounted: its maps are in the menu
 	Failed,
 };
 
@@ -20,6 +20,7 @@ struct FDFPackStatus {
 	EDFPackState State = EDFPackState::NotInstalled;
 	uint64 Size = 0; // all its files, bytes
 	uint64 Downloaded = 0;
+	bool bBundled = false; // came with the install, UE mounted it: nothing to download or delete
 };
 
 /**
@@ -64,7 +65,7 @@ public:
 	void Download(int32 Chunk);
 	/** Stop a download (finished files are kept: Download goes on from there) or unqueue it. */
 	void Cancel(int32 Chunk);
-	/** Unmount a pack and delete its files. Only from the menu: nothing of it may be in use. */
+	/** Unmount a downloaded pack and delete its files. Only from the menu: nothing of it may be in use. */
 	void Delete(int32 Chunk);
 
 	/** Pack list or a pack's state changed. */
@@ -99,6 +100,8 @@ private:
 	TArray<FFile> Files;
 	TArray<FDFPackStatus> Packs;
 	TSet<int32> Mounted;
+	/** Packs in the install's own pak folders (a Full zip, a Classic zip unzipped over it). */
+	TSet<int32> Bundled;
 	TSet<int32> Failed;
 	TArray<int32> Queue;
 	int32 Active = INDEX_NONE;

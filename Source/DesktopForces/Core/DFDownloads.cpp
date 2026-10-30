@@ -128,15 +128,19 @@ void UDFDownloads::OnManifest() {
 		F.Version = Fields[2];
 		F.Chunk = FCString::Atoi(*Fields[3]);
 	}
+	Bundled.Reset();
+	for (const FFile& F : Files)
+		if (F.Name.EndsWith(TEXT(".pak")) && (IFileManager::Get().FileExists(*(FPaths::ProjectContentDir() / TEXT("Paks") / F.Name)) || IFileManager::Get().FileExists(*(FPaths::ProjectSavedDir() / TEXT("Paks") / F.Name))))
+			Bundled.Add(F.Chunk);
 	bManifestReady = true;
-	UE_LOG(LogDF, Log, TEXT("Downloads: manifest of %s, %d files"), *BuildId, Files.Num());
+	UE_LOG(LogDF, Log, TEXT("Downloads: manifest of %s, %d files, %d packs with the install"), *BuildId, Files.Num(), Bundled.Num());
 	// packs downloaded before: mount them
 	TSharedPtr<FChunkDownloader> D = FChunkDownloader::Get();
 	TArray<int32> Chunks;
 	D->GetAllChunkIds(Chunks);
 	bool bMounted = false;
 	for (int32 Chunk : Chunks)
-		if (!Mounted.Contains(Chunk) && Active != Chunk && D->GetChunkStatus(Chunk) == FChunkDownloader::EChunkStatus::Cached)
+		if (!Mounted.Contains(Chunk) && !Bundled.Contains(Chunk) && Active != Chunk && D->GetChunkStatus(Chunk) == FChunkDownloader::EChunkStatus::Cached)
 			bMounted |= Mount(Chunk);
 	if (bMounted)
 		OnContentChanged.Broadcast();
@@ -145,7 +149,7 @@ void UDFDownloads::OnManifest() {
 }
 
 void UDFDownloads::Download(int32 Chunk) {
-	if (!bManifestReady || Mounted.Contains(Chunk) || Active == Chunk || Queue.Contains(Chunk) || !Files.ContainsByPredicate([Chunk](const FFile& F) { return F.Chunk == Chunk; }))
+	if (!bManifestReady || Mounted.Contains(Chunk) || Bundled.Contains(Chunk) || Active == Chunk || Queue.Contains(Chunk) || !Files.ContainsByPredicate([Chunk](const FFile& F) { return F.Chunk == Chunk; }))
 		return;
 	Failed.Remove(Chunk);
 	Queue.Add(Chunk);
@@ -164,6 +168,8 @@ void UDFDownloads::Cancel(int32 Chunk) {
 }
 
 void UDFDownloads::Delete(int32 Chunk) {
+	if (Bundled.Contains(Chunk))
+		return;
 	Queue.Remove(Chunk);
 	Failed.Remove(Chunk);
 	const bool bWasActive = Active == Chunk;
@@ -281,7 +287,8 @@ void UDFDownloads::Refresh() {
 		} else {
 			P.Name = FText::Format(LOCTEXT("PackN", "Pack {0}"), P.Chunk);
 		}
-		if (Mounted.Contains(P.Chunk)) {
+		P.bBundled = Bundled.Contains(P.Chunk);
+		if (P.bBundled || Mounted.Contains(P.Chunk)) {
 			P.State = EDFPackState::Installed;
 			P.Downloaded = P.Size;
 		} else if (Active == P.Chunk) {
@@ -297,7 +304,7 @@ void UDFDownloads::Refresh() {
 	// progress alone isn't a change (the menu reads it every frame)
 	bool bChanged = Old.Num() != Packs.Num();
 	for (int32 i = 0; !bChanged && i < Packs.Num(); ++i)
-		bChanged = Old[i].Chunk != Packs[i].Chunk || Old[i].State != Packs[i].State;
+		bChanged = Old[i].Chunk != Packs[i].Chunk || Old[i].State != Packs[i].State || Old[i].bBundled != Packs[i].bBundled;
 	if (bChanged)
 		OnPacksChanged.Broadcast();
 }
