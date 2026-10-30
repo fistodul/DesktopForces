@@ -222,12 +222,13 @@ void ADFHUD::DrawCrosshair(ADFCharacter* C) {
 		// RageHUD.DrawCrossHair: 32 px at 640 wide; STY_Subtractive GreyColor (only the shape:
 		// the texture alpha is its brightness), then the team colour added twice. Added, it took
 		// the colour of what it was over (a pale smudge on bright walls, a solid block on dark
-		// ones): it is blended over instead, the same on everything.
+		// ones): it is blended over instead, the same on everything. The texture's own colour is
+		// half its alpha, so only the alpha is used.
 		const float Size = 32.f * Canvas->ClipX / 640.f * FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
 		const FIntRect UV = DF::CrosshairBounds(UDFUserSettings::Get().Crosshair);
 		const float PX = FMath::RoundToFloat(CX - Size * 0.5f), PY = FMath::RoundToFloat(CY - Size * 0.5f);
 		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
-		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), SetColour(TeamSet()), SE_BLEND_Translucent);
+		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), SetColour(TeamSet()), SE_BLEND_TranslucentAlphaOnly);
 		return;
 	}
 	const float Scale = FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
