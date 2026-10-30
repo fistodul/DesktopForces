@@ -224,13 +224,14 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     (or a one-sided face). Not in the red loadout room (11100, 8600) or the red trailer yard
     (9600, 3600). Find it with `DFCam` (hide the HUD), then `DFTraceMat` on it.
 
-11. **Systems performance follow-up** (2026-10-29): source/template review complete; Unreal
-    execution remains paused while another agent owns the Android build lane. Check StateTree
-    asset references before removing its unused module/plugin pair. Profile existing bot
-    sensing; prepare an opt-in animation allocator using budgeted meshes, not just a plugin
-    switch. Compare custom wheel forces with the supplied VehicleProject at 30/60/120 FPS.
-    Prototype spatial instancing for repeated non-colliding grass after measuring existing
-    dynamic batching. Plans and evidence: [Performance](Performance.md#systems-follow-up-2026-10-29).
+11. **Systems performance follow-up** (2026-10-30): StateTree dependencies removed after
+    an asset-reference audit; editor build and six gameplay suites pass. Bot decisions remain
+    at 5 Hz, with staggered initial timers reducing measured 48-bot timing spikes. Animation
+    budgeting was tried and removed (no frame-time gain). The saved MF_TestRange map needs its
+    TDM player starts checked before crowd profiling. Vehicle
+    comparison and replacement-art results are recorded in
+    [Performance](Performance.md#systems-follow-up-2026-10-29). Spatial prop instancing remains
+    a candidate, pending a measured prototype and rebake.
 12. **Optional dynamic lighting for strong PCs: Lumen / "Lumen Lite"** (Filip, 2026-10-29). Today
     every map is baked (Lightmass) and Lumen is off at project level
     (`r.DynamicGlobalIlluminationMethod=0`, `r.ReflectionMethod=0` in `DefaultEngine.ini`).

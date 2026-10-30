@@ -56,7 +56,8 @@ void ADFBotController::OnPossess(APawn* InPawn) {
 			DecideVehicleUse(C);
 	}
 
-	GetWorldTimerManager().SetTimer(ThinkTimer, this, &ADFBotController::Think, 0.2f, true, 0.3f);
+	// Spread sight traces from bots spawned together without reducing their decision rate.
+	GetWorldTimerManager().SetTimer(ThinkTimer, this, &ADFBotController::Think, 0.2f, true, FMath::FRandRange(0.2f, 0.4f));
 }
 
 void ADFBotController::Tick(float DeltaSeconds) {

@@ -133,6 +133,9 @@ Report what was checked and any checks blocked by missing engine, content, or di
 - Coordinate a single Unreal execution lane across agents: builds/UAT share locks, and starting
   another editor or commandlet can restart Zen during a cook. An idle process list does not
   revoke an explicit request to keep Unreal work paused; wait for the lane owner to release it.
+- When `-TestExit="Automation Test Queue Empty"` forces exit, Linux can return code 1 even
+  after every test succeeds. Verify all expected `Test Completed. Result={Success}` entries
+  and the explicit TestExit reason; do not generally treat exit code 1 as success.
 - No weekly quota meter is exposed through the current tools. Do not claim a precise remaining
   percentage. Keep a progress checkpoint and report any actual quota/approval rejection.
 

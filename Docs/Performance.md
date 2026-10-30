@@ -178,8 +178,8 @@ No runtime configuration or asset content was changed for this assessment.
 
 This follow-up inspects the supplied `VehicleProject`, local Starter Content, UE 5.8.4
 source and converted map manifests. It does not establish runtime performance gains.
-Engine work is paused at the user's request while another agent owns the Android build
-lane. No plugin or runtime behavior changed in this follow-up.
+The user released the shared Unreal build lane on 2026-10-30. The validation results below
+separate measured changes from the remaining experiments.
 
 ### Bots: retain Unreal navigation; do not migrate for an assumed speed gain
 
@@ -187,7 +187,7 @@ lane. No plugin or runtime behavior changed in this follow-up.
 Its main decision loop runs every 0.2 seconds. Enemy selection scans characters and performs
 visibility traces; vehicle steering still updates each frame. StateTree would organize these
 behaviors but would not replace their sensing, weapon, objective or steering implementations.
-The only project source dependencies found are the two StateTree module entries in Build.cs.
+The original project dependencies were only two StateTree module entries in Build.cs.
 
 The installed StateTree component supports scheduled ticks, enabled by default through
 `StateTree.Component.ScheduledTickEnabled`. It is not inherently a per-frame polling system.
@@ -195,32 +195,51 @@ Its visual state organization and debugger may help larger behavior sets, but a 
 claim requires equivalent behavior and measurements. See Epic's
 [StateTree overview](https://dev.epicgames.com/documentation/en-us/unreal-engine/state-tree-in-unreal-engine).
 
-Recommendation: retain the current controller and profile its sensing first. Before removing
-StateTree/GameplayStateTree, check asset references, then remove both project plugin/module
-dependencies together and validate a build, cook and multi-magazine bot combat run. Those
-checks remain pending; ChunkDownloader must remain enabled. Expected removal benefit is
-build/load footprint, not a demonstrated frame-time improvement.
+The asset registry scan found 38,387 assets, no StateTree assets, and no referencers of
+`/Script/StateTreeModule` or `/Script/GameplayStateTreeModule`. Both plugins are now disabled
+and their module dependencies removed. The Linux editor build and six gameplay suites passed;
+the resulting build receipt has no StateTree entries. ChunkDownloader remains enabled.
+This is dependency cleanup, not evidence that StateTree itself is slow.
 
-### Animation: prepare an opt-in integration, not just a plugin checkbox
+CPU captures on `mf-warehouse`, NullRHI, 60 FPS cap, 20-second samples after a 9-second warmup:
 
-Soldiers already use `OnlyTickPoseWhenRendered` and update-rate optimization (URO).
-An allocator integration needs `USkeletalMeshComponentBudgeted`; enabling the plugin alone
-would not budget the current components. Registration takes ownership of tick scheduling
-and disables URO. Budgeting can lower animation update frequency, so compare visible poses
-and gameplay before selecting a default. See Epic's
-[Animation Budget Allocator guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-budget-allocator-in-unreal-engine).
+| Requested bots | Mean Think time/frame | 95th percentile | Mean enemy-selection time/frame |
+|---|---:|---:|---:|
+| 6 | 0.041 ms | 0.276 ms | 0.025 ms |
+| 24 | 0.272 ms | 2.071 ms | 0.182 ms |
+| 48 | 0.773 ms | 6.367 ms | 0.550 ms |
 
-Integration plan, not implemented yet:
+These scopes include nested work; do not add Think, FindEnemy and SightTrace together.
+NullRHI's CSV `GameThreadTime` was zero, so it is not used as a total CPU measurement.
+None of these warehouse runs logged spawn failures. Live combat, respawns and asset loading
+vary between runs; these are exploratory measurements, not a deterministic StateTree A/B test.
 
-1. Use the budgeted component for third-person soldier meshes; leave first-person arms alone.
-2. Default the experiment off. Preserve existing URO when off, and do not register dedicated
-   server meshes. Coordinate the world allocator state with `a.Budget.Enabled`.
-3. Register/unregister through the existing 0.5-second soldier update, after model changes.
-   Restore normal ticking/URO on disable. Do not treat `IsLocallyControlled()` alone as a
-   human-player check: authority-side AI can also be locally controlled.
-4. Compare 6, 24 and 48 visible bots with the same camera and animation workload. Check
-   off/on/off toggling, death, seated poses, weapon attachments and network clients. Confirm
-   skipped animation updates do not drive authoritative gameplay events.
+The original 0.3-second initial timer delay aligned bots spawned together. At 48 bots, 101 of
+1,130 frames spent over 2 ms in Think, mostly recurring every 11–12 frames. Initial delay now
+varies from 0.2 to 0.4 seconds; the recurring interval remains 0.2 seconds per bot. Two repeat
+48-bot captures measured 95th-percentile Think costs of **1.656 and 1.393 ms**, with means of
+0.929 and 0.844 ms. This spreads bursts; it does not reduce the amount of AI work or establish
+an average CPU saving. Existing Unreal navigation and the MF combat behavior remain in use.
+
+The CSV / Insights timing scopes used for these captures (`DFBots`: decisions, enemy
+selection, sight traces, steering; `DFVehicles`: wheel simulation) were temporary and are kept
+in the same git stash, not in the source.
+
+### Animation: Budget Allocator tried and removed
+
+A 2026-10-30 experiment put the third-person soldier mesh on `USkeletalMeshComponentBudgeted`
+behind `a.Budget.Enabled` (first-person arms and dedicated servers outside it). A 48-bot
+warehouse off/on/off capture at 1024×576 measured the budgeted animation scope at
+0.224 / 0.017 / 0.224 ms per frame, but overall game-thread means stayed near 22.5–22.7 ms:
+no measurable frame-time gain (the existing URO and `OnlyTickPoseWhenRendered` already skip
+offscreen soldiers). The plugin, the component switch and its test were removed again; the
+work is kept in a git stash ("codex 2026-10-30 uncommitted ..."). See Epic's
+[allocator guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-budget-allocator-in-unreal-engine)
+before trying it again with a visible-crowd benchmark.
+
+Earlier `MF_TestRange` captures are excluded: respawning initially reset the camera, and the
+arena's saved map reported missing/rated player starts and repeated spawn failures under TDM.
+The test fixture needs repair before it can serve as a crowd benchmark.
 
 ### Vehicles: a useful suspension reference, not a drop-in pawn replacement
 
@@ -298,8 +317,8 @@ Evidence artifacts are outside the repository in
 texture inventory/previews, and Python test output. The 34 unreplaced texture keys found in
 converted community-map manifests are not a count of all remaining cooked classic dependencies.
 
-After the build lane is released, first capture the existing baseline, then test one change
-at a time. A bounded CPU capture can use:
+For future CPU traces, keep one Unreal job active and test one change at a time. A bounded
+capture can use:
 
 ```bash
 python3 Tools/play.py mf-warehouse tdm 24 -nullrhi -nosound -unattended -trace=cpu,frame,bookmark -statnamedevents -DFQuitAfter=45
@@ -307,5 +326,6 @@ python3 Tools/play.py mf-warehouse tdm 24 -nullrhi -nosound -unattended -trace=c
 
 Repeat at 6 and 48 bots. NullRHI helps isolate CPU work but cannot assess visible animation or
 GPU cost; repeat with `-RenderOffscreen` instead of `-nullrhi` for rendered tests. Warm assets,
-keep camera/map settings fixed, and report game/render/GPU timings separately. These commands
-are a test plan and have not been run during the paused build lane.
+keep camera/map settings fixed, and report game/render/GPU timings separately. CSV captures above
+used the same launcher with scheduled `csvprofile START` / `STOP` (and the stashed scopes); the
+trace command is provided for deeper follow-up.

@@ -14,8 +14,6 @@ public class DesktopForces : ModuleRules
 			"EnhancedInput",
 			"AIModule",
 			"NavigationSystem",
-			"StateTreeModule",
-			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
 			"SlateCore",

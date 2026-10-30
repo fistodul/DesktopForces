@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-30 — Bot timing; StateTree and animation budgeting out
+
+- Disable unused StateTree plugins and remove their module dependencies after checking
+  38,387 assets for StateTree types and references. Keep existing Unreal navigation.
+- Stagger bots' initial decision timers while retaining the 0.2-second interval. Two 48-bot
+  follow-up captures reduced 95th-percentile decision time from 6.37 ms to 1.66 / 1.39 ms;
+  this spreads work across frames and does not claim lower average AI cost.
+- Animation Budget Allocator for third-person soldiers: tried, no measurable frame-time gain,
+  removed again (Performance). Its code and the temporary CSV timing scopes are in a git stash.
+
 ## 2026-10-29 — Selected replacement textures and systems review
 
 - Add `mfport.py replacements <selection.json>` to stage chosen local source images at no
