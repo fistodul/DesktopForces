@@ -43,7 +43,9 @@ second; rifle hums while charging and chimes at full power (PoweredUp); the HMG 
 tripod / magazine / step back over its 2.5 s (ActivateGun01-03), picking it up 1 s (Pickup);
 rockets roar in flight (RocketFly).
 
-**Water** (RageWaterZone, ZoneInfo bWaterZone): a water volume over the zone; swimming at
+**Water** (RageWaterZone, ZoneInfo bWaterZone): a water volume over the zone, only when the BSP
+bound that ZoneInfo to it (one left in unsealed zone 0 does nothing in UE1: MB-EndagaDam,
+mf-Hydroworks); swimming goes where you look, Jump up and Crouch down (PlayerSwimming), at
 WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for UnderWaterTime
 20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
 hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
@@ -188,7 +190,7 @@ while the raising animation plays.
   The map's Holdout point is locked for 50 s ("Get ready" at 10, a countdown from 5); then a team
   that stands on it alone for 10 s takes the round; stepping off, or an enemy stepping on, starts
   the count over. Wiping out the other team takes the round too. 5 rounds, 10 min.
-- **DeBall** (`deball`, MF-mods MoBall renamed, `Game/DeBall`): football with vehicles. A rubber ball
+- **MoBall** (`moball`, MF-mods MoBall renamed, `Game/MoBall`): football with vehicles. A rubber ball
   (MF `ball.COL`: 1 m radius) appears at the trailer generator; vehicles, soldiers and shots push
   it (by the square root of the damage, shotgun pellets 40 % of the time); into the other team's
   trailer park (192 + 128 uu, 64 up or down) scores, the ball goes 5 s later and a new one comes.
@@ -238,7 +240,7 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 
 | Weapon | Group | Carry | Clip × clips | Damage | Spread (Acc / zoomed) | Fire time | Reload | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Knife | 1 | 0 | — | 30 slash (range 90) | — | ~0.55 s | — | alt: throw, 60 (head 250); sticks in walls, bounces off floors; walk over it to take it back, else back 6 s after it stops |
+| Knife | 1 | 0 | — | 30 slash (range 90) | — | ~0.55 s | — | alt: throw, 60 (head 250); sticks where it hits (walls and floors alike); walk over it to take it back, else back 6 s after it stops |
 | Pistol | 2 | 1 | 8 × 6 | 26 (head 40) | 0.4 / 0.05 | 0.342 s | 1.55 s | alt: aim 1.5× |
 | Machine gun | 3 | 2 | 48 × 5 | 20 | 0.7 / 0.1 | 0.117 s | 2.25 s | alt: aim 2× (single shots, 0.333 s) |
 | Shotgun | 4 | 2 | 2 × 20 | 10 pellets × 12 per barrel | 0.8 / 1.0 | 0.472 s | 0.867 s | fire = one barrel, alt = both (one if only one is loaded; MF: a barrel per button, both buttons within 0.1 s = both); any clip size works; `?Boomstick` 12 × 15, 22 clips; range 5000 |
@@ -293,7 +295,8 @@ Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(r
 
 **Parachutes** (Gregaras, the community servers' mutPack bCanUseParachutes): hold Jump while
 falling faster than a normal jump can return (jump speed + 100 cm/s) and a canopy opens; the fall slows to 200 uu/s and you
-glide the way you look. Let go of Jump and it folds. `?Parachutes=0` turns them off.
+glide the way you look (RagePlayer.RageTick: the speed along the ground is kept and turned to the view every tick, so strafing
+only adds speed). Let go of Jump and it folds. `?Parachutes=0` turns them off.
 Entering any vehicle seat closes it on the server and on the owning client.
 
 **Minefields** (mineGenerator.u, mf-Pobojowisko_VerII): the map's mines sit on the ground,
@@ -326,7 +329,7 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   graph at each RoadPoint's MaxSpeed, steers round parked cars, backs out when stuck (after six
   tries the vehicle counts as stuck for 30 s) and gets out at the node nearest its goal, in water
   or on its roof. Seated bots fight from the seat (the gunner aims the turret); they get out once
-  the driver has gone and it stopped. Bots told to follow get in with you. In DeBall a bot at
+  the driver has gone and it stopped. Bots told to follow get in with you. In MoBall a bot at
   the wheel never gets out: it drives at the ball, straight when it can see it, else along the
   road graph towards it (MoBallGame.FindSpecialAttractionForX).
 - **Armed APC** (MF-mods ArmedAPC, `?APCs=ArmedAPC`, rockets `?APCs=ArmedAPCRocket`, at the Armadillo generators): the

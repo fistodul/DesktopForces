@@ -1,6 +1,6 @@
 # Roadmap
 
-Legend: ✅ done · 🟡 partial · ⬜ todo
+Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 
 ## Foundation
 - ✅ UE 5.8 project: forward/mobile rendering, no post, static lighting, ~80 plugins off, Low scalability defaults
@@ -29,8 +29,12 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Sky: each map's SkyZone captured into a cubemap for the sky material
 - ✅ Minimap textures (MiniMapInfo)
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
-- ⬜ Texture arrays / trim sheets per map to cut draw calls
-- ⬜ Zone-based level streaming / HLOD for big outdoor maps
+- ⬜ Mounted gun aim: the crosshair marks where the gun points, which trails the view while the turret turns; make the gun converge on the view's aim point
+- ⬜ Phone frame rates: check the menu's refresh-based list on a phone (`GetMaxRefreshRate` may stay 60 there: use `FAndroidMisc::GetSupportedNativeDisplayRefreshRates`), and step the cap down by itself when frame time stays over budget (thermal throttling)
+- ⬜ Kill credit left over from the code review: predator missile, sentry and seeker mines still read the owner's controller when they hit, and a gunner's or driver's shots too; projectiles, trip bombs and molotovs keep it from launch
+- ⏸ Texture arrays per map to cut draw calls: tried on mf-The_Bank and mf-nc, no measured gain, kept off ([Performance](Performance.md#arrays-and-streaming-measured-2026-11-01)); phone not tested
+- ⬜ Full rebake of all maps (about 17 hours, overnight): shadowless water sheets on the other 24 water maps, 32 px minimum prop lightmaps, no texture arrays left in mf-nc and mf-The_Bank. static mesh winding fix (`t3d.orient_triangles`: culled faces, bench ribbons, one-way see-through; only mf-waterfront has it so far), instanced props on every map with many repeats, which also about halves their bake (default 8 in `mapedits.py`) (mf-Tajga, mf-Treasure_Finders, mf-Tropics, mf-Sardine_City, mf-City_Rush and the other nine over 300; see [Performance](Performance.md#instanced-props-2026-11-02)). While there, compare lighting and other things against videos of MF gameplay (waterfront reads too bright, HMG and jeep gun animations, MAC-10 hand speed, steering)
+- ⏸ Zone-based level streaming / HLOD for big outdoor maps: held back, same section
 - ✅ VMF (Source) converter → same formats (`mflib/vmf.py`, `vmf_materials.toml`), floor-plan tool (`debug/floorplan.py`)
 
 ## Gameplay
@@ -47,10 +51,10 @@ Legend: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Chat (T/Y, Say/TeamSay), team orders menu (V, keys or mouse) with bot orders, MF message list
 - ✅ N teams (`UDFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `DFNavTest` / `DFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
-- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret, wheel blow-outs, petrol caps, bots driving (MF road graph) / riding; ⬜ bots in boats, DeBall bot drivers
+- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret, wheel blow-outs, petrol caps, bots driving (MF road graph) / riding; ⬜ bots in boats, MoBall bot drivers
 - ✅ Ladders: grab when close / falling in, climb down from the top, floor walks again; ✅ swimming / drowning, water / pain zones
 - ✅ Map actors: teleporters, placed items (respawning), periodic sounds, movers (scenery, spinners, bump doors), invisible walls, spawn room doors, coop maps' placed RageBots, particle effects (ParticleEffect / FireyExample: fires, smoke, sparks, rain); ⬜ trigger / special event chains (Treasure_Finders lighthouse, bells), LaserBeam
-- ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, DeBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
+- ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, MoBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
 - ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
 - ✅ More MF-mods: heli + heliHmg, piper / piperTs (plane), vote, mutPack replaceVehicles / addVehicles; jeep gun model (UE1 vertex Mesh reader)
 - ✅ server weapon mods (AK-74, M4A1, FAMAS, G36, SC-20K, Ultimax, MAC-10, Glock, Desert Eagle, M24, WA 2000, M1887, M18 smoke; community pack since 2026-10-29), parachutes; improvedRL (Gian: `?ImprovedRL=1`), OPWeapons (`?OPWeapons=1`), BoxPhysics (`WoodenBox`), Desert Eagle moved to core (2026-10-22); FNG's server mutators as options (map rotation, server messages, NoWeapons, AllVehicles, LowGrav; [Hosting.md](Hosting.md)); ⬜ player skins (Serious, SwatSkin: unverified)
@@ -276,7 +280,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       `\list\\gamename\desktopforces\final\`), then query each server itself over UDP for name,
       map, mode, players and ping (as UE1 did); a LAN tab broadcasts the same `\status\` query to
       the query ports on the local subnet, so one protocol covers both;
-    - menu: a server browser page in Join (sort by ping / players, filter mode / map, the pack a
+    - menu (done 2026-11-01 without sorting choice, filters or LAN: fixed ping order): a server browser page in Join (sort by ping / players, filter mode / map, the pack a
       map needs from Downloads), refresh, double click joins;
     - hosts forward UDP 7777 and 7778 (no NAT traversal in this protocol); IPv4 only; test with a
       local master first (333networks MasterServer runs anywhere), then `master.nofisto.com`.

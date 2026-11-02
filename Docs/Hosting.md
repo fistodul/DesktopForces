@@ -38,7 +38,7 @@ the project without `Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`, `.g
 docker run --rm -u 1000:1000 -v "$COPY":/project -e HOME=/home/ue4 \
   ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4 \
   /home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCookRun \
-  -project=/project/DesktopForces.uproject -noP4 -utf8output -server -noclient \
+  -project=/project/DesktopForces.uproject -noP4 -utf8output -ubtargs="-NoUBA" -server -noclient \
   -serverplatform=Linux -serverconfig=Development -build -cook \
   -map=/Game/MF/Maps/MF_TestRange+/MobileForcesClassic/Maps/mf-warehouse \
   -stage -pak -archive -archivedirectory=/project/ServerBuild
@@ -49,7 +49,8 @@ docker run --rm --network host -u 1000:1000 -v "$COPY/ServerBuild/LinuxServer":/
   -port=7777 -nomaster -log
 ```
 
-Tried 2026-11-02: 2 maps cook in 3 minutes to 783 MB, a Linux client built with the Launcher engine
+`-NoUBA` matters: with UBA, clang in the container once crash-looped for 2 hours without ending the
+build, so give it a `timeout` too. Tried 2026-11-02: 2 maps cook in 3 minutes to 783 MB, a Linux client built with the Launcher engine
 joins it. `-map` picks what's cooked; the query port is the game port + 1. Classic content in a
 server image stays private, as with the download packs.
 

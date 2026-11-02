@@ -19,7 +19,7 @@ build uses mobile-class settings too.
 - Mobile: forward path, `r.MobileHDR=0` (LDR → no post-process pass at all), no local lights
   at runtime (`r.Mobile.Forward.EnableLocalLights=0`).
 - Nanite, virtual textures, Substrate off. Shader targets SM5 (DX11/Vulkan) + ES3.1 only.
-- Texture streaming off (textures are ≤ 512 px, `NeverStream`). Texture quality Low samples
+- Texture streaming off (textures are ≤ 1024 px, `NeverStream`). Texture quality Low samples
   one mip down (`r.MipMapLODBias=1`: 512 px textures draw as 256); `max_texture_size = 256` in
   `mfport.toml` imports everything at 256 for the smallest memory. A converted MF map's
   textures are ~50 MB at 512 px, so 4 GB VRAM cards have lots of room.
@@ -28,15 +28,18 @@ build uses mobile-class settings too.
   multiply-add in the lit materials (`BaseColor × MPC_MF.Ambient`, the map's ambient floor).
 
 ## Content
-- Textures imported at original resolution up to 512 px (`max_texture_size`); Android/iOS
+- Textures imported at original resolution up to 512 px (`max_texture_size`), or 1024 px when
+  listed in `Tools/mfport/detail.toml` (weapons, walls seen up close; Detail group, 512 px on
+  phones); strips of 4:1 or longer keep their short side (Strip group, 1024 px long on phones);
+  Android/iOS
   device profiles cook World/UI textures down to 256 px. No alpha channel unless masked
   (half the memory with BC1/ETC2).
 - Navmesh is baked into each map by the importer (no runtime generation).
 - Level geometry is merged into ~2048 uu (46 m) grid chunks, one draw per material per chunk;
   collision lives in separate invisible meshes so render meshes carry no physics.
 - Lightmap resolution follows surface area (16 uu texels), capped at 1024.
-- Planned: texture arrays / trim sheets per map to collapse materials (1–3 draws per chunk),
-  HLOD/level streaming by MF zone for the big outdoor maps.
+- Texture arrays: tried, no gain. Trim sheets and HLOD / zone streaming: held back, see
+  [the measurements](#arrays-and-streaming-measured-2026-11-01).
 
 ## Code
 - Actors don't tick unless they must. `ADFCharacter` ticks only when locally controlled
@@ -359,3 +362,72 @@ GPU cost; repeat with `-RenderOffscreen` instead of `-nullrhi` for rendered test
 keep camera/map settings fixed, and report game/render/GPU timings separately. CSV captures above
 used the same launcher with scheduled `csvprofile START` / `STOP` (and the archived temporary scopes); the
 trace command is provided for deeper follow-up.
+
+## Arrays and streaming: measured 2026-11-01
+
+All 86 maps ran with 6 bots at 1280 x 720 on Linux (`-game`, editor build, RTX PRO 500 laptop):
+no crash, median frame 7.8 ms, 95th percentile across maps 13.8 ms, slowest 19.6 ms, median 56 and
+at most 383 draws per frame. All 15 game modes ran with 8 bots without a warning. A test of one mip
+down on four maps at 1080p with 8 bots showed no cost from the 1024 px textures, but its CSV
+windows were too short and uneven to prove more than that: use a fixed camera path and a longer
+capture for a real number. A cooked build and a Pixel 9a run are still missing.
+
+An offline estimate over 87 maps (world geometry, whole map, not per frame) leaves this share of
+today's world draws: 68 % with one texture array, 55 % with two, 50 % with three. The median map
+has 38 world textures: 14, 26 and 29 of them fit those arrays, the rest stay normal materials
+(see-through, additive, unlit, odd sizes). Arrays need one size and format each, so one per common
+group (usually 512, then 1024). Some maps gain little (mf-The_Bank: 627 to 448), mf-Toreford gets
+it all from one (739 to 266).
+
+### Texture arrays tried on the two largest maps (2026-11-01): no gain, kept off
+
+`texture_arrays = N` in `map_edits.toml` still works (DFImporter `PlanTextureArrays`, `M_MF_OpaqueArray`)
+but no map uses it. mf-The_Bank (2 arrays, 27 textures) and mf-nc (2 arrays, 262 textures), same four
+cameras, no bots, 1920x1080, 1200 frames, median / p95:
+
+| Map | | Draws | Frame ms | Render thread ms |
+|---|---|---|---|---|
+| mf-The_Bank | single textures | 257 / 269 | 13.0 / 20.5 | 12.1 / 20.5 |
+| mf-The_Bank | arrays | 259 / 269 | 12.1-12.3 / 19.7 | 11.4-11.8 / 19.8 |
+| mf-nc | single textures, unbaked | 243 / 439 | - | - |
+| mf-nc | arrays | 243 / 407 | 14.9-16.0 / 24.3-26.9 | 12.2-13.1 / 22.2-22.7 |
+
+Draws did not move at the median, the peak on mf-nc fell 7 %, frame time stayed inside the spread of
+repeat runs. The arrays add 59 MB (mf-nc) and 5.3 MB (mf-The_Bank) on disk, a copy of textures the
+other maps still need, plus an extra UV channel on every vertex, and need a rebake to switch. The
+offline estimate above counted every section of a map; a real view draws few of those. Draws are
+not what limits this game on PC. Not measured on a phone: none was connected.
+
+## Dark surfaces: what worked (2026-11-01)
+
+Measured on mf-waterfront and mf-warehouse, no rebake unless noted:
+
+| Change | Result |
+|---|---|
+| 4 Lightmass bounces instead of 2 (rebake) | under 1.2 % brighter at four cameras, 15 % more bake time: not used |
+| `AmbientFloor` 0.35 to 0.7 | pixels under 30 of 255 in warehouse views: 20.6 % to 2.8 %, 10.4 % to 3.8 %; none blown out |
+| `ShadeFloor` 0.1 (MPC, one add) | world polygons in zones with no ambient |
+| `MovingActorLight` 0.4 (custom primitive data 0, one add) | vehicles, pickups, flags: they get no baked light at all |
+
+Frame time was not measured for these; the material cost is two adds. Runs of the same map differ by
+several ms here, so a change this small can't be seen in them.
+
+## Instanced props (2026-11-02)
+
+`instance_props = N` in `map_edits.toml`: props without collision placed N or more times in an 80 m
+cell become one `UHierarchicalInstancedStaticMeshComponent` there (DFLevelBuilder). By cell because
+visibility and lightmaps work per component: one component per mesh for the whole map left most of
+them unbaked and near black. Props with collision stay separate: crates baked near black as instances
+even by cell, and the cause is not known. Needs a rebake of the map.
+
+mf-Pobojowisko_VerII, 4388 props, four fixed cameras, no bots, 1500 frames, median / p95:
+
+| | Mesh components | Draws | Triangles | Frame ms | Game ms | Render ms | Bake |
+|---|---|---|---|---|---|---|---|
+| separate actors | 5055 | 359 / 537 | 12369 / 39449 | 8.4 / 14.3 | 6.3 / 11.4 | 7.9 / 14.2 | 34 min |
+| `instance_props = 8` | 2408 | 326 / 418 | 5889 / 17909 | 8.4 / 13.8 | 5.9 / 10.6 | 8.1 / 13.5 | 18 min |
+
+Same image at all four cameras (mean difference 0.3 to 0.6 of 255). Frame time at the median doesn't
+change on a PC: the gain is half the triangles, a fifth fewer peak draws and half the components.
+Not measured on a phone. It's the default now (8, `mapedits.py`): other maps get it when rebuilt (Roadmap).
+

@@ -33,7 +33,7 @@ of how to extend the game:
 | `Game/Vote` | `vote` (Gregaras) | console commands (`Exec` + server RPC) into the game mode, replicated state on `ADFGameState`, a HUD readout |
 | `Game/Arena` | `arenaMode` (Gregaras) | a round mode on top of Holdout: own capture rules in `UpdatePoints`, no respawn within a round |
 | `Game/BattleRoyale` | `battleRoyale` (Gregaras) | no-respawn rounds, nav-mesh scatter spawning, shootable loot props, a placeable-platform weapon, a shrinking damage zone |
-| `Game/DeBall` | `MoBall` (renamed DeBall) | a physics actor as the objective, goals from legacy actors, item limits (`ADFGameState::AllowedItemGroups`) |
+| `Game/MoBall` | `MoBall` | a physics actor as the objective, goals from legacy actors, item limits (`ADFGameState::AllowedItemGroups`) |
 | `Game/Coop` | `CoopMode` (Animeman for Akvari) | humans vs bots on fixed teams (`ChooseTeam`), loadout limits (`ADFGameState::LoadoutAccess`, `LoadoutDenied`) |
 | `Game/Zombie` | `ZombieGame` (Animeman) | an asymmetric mode on top of Tug: per-team stats (`ADFCharacter::SetBodyScale`, `MaxHealth`, `MaxCarry`), item variants (`GetWeaponClassFor`), per-team loadout (`TeamLoadoutAccess`), team names (`TeamNameOverrides`), spawn rules (`IsStartAllowed`), a damage filter component |
 

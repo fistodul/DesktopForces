@@ -47,7 +47,7 @@ and Ctrl+Shift+`,` (GPU profile) stay.
 
 Without a map on the command line the game starts at the **main menu** (play: map, game type -
 MF's own first, then the community's - bots, skill, time limit, LAN host; join an address;
-options in tabs: **Video** resolution, display mode, graphics level (UE's Low … Cinematic), brightness,
+options in tabs: **Video** resolution, display mode, graphics level (UE's Low … Cinematic), brightness, gamma (PC),
 field of view, bullet holes / scorch marks (FPS, VSync and render scale in **Advanced**); **Audio** volume, music; **Controls** mouse, every
 key (click it, press the new one; a key already in use swaps); **Game** name, crosshair shape/size, HUD
 size, console; **Defaults** puts MF's options back, Apply keeps them). Options live in
@@ -85,15 +85,15 @@ your machine and need cheats on too). The admin commands above work the same way
 | `SetTeam N` | join team N (0 blue, 1 red, …) and respawn there |
 | `KillEnemy` | kill every enemy (everyone else in deathmatch) |
 | `KillPawns` | kill every bot |
-| `KillAll Class` | kill / remove every actor of a class, e.g. `KillAll DFCharacter` |
+| `KillAll Class` | MF's: kill / remove every actor of a class, by class name, e.g. `KillAll DFCharacter`, `KillAll LoadoutBlocker` |
 | `AllAmmo` | full ammo |
-| `GiveWeapon Name` | give yourself a weapon, e.g. `GiveWeapon RocketLauncher`, `GiveWeapon Molotov` |
+| `GiveWeapon Name` | give yourself a weapon, e.g. `GiveWeapon RocketLauncher`, `GiveWeapon Molotov`; ignores the carry limit |
 | `SetWeapons Name` | give every bot that weapon |
 | `SetTime S` | seconds left in the match |
 | `SetSpeed X` | walk speed multiplier |
 | `SetJumpZ V` | jump velocity, cm/s (default 731 = MF 325) |
 | `Slomo X` | game speed (UE) |
-| `Summon Class` | spawn an actor in front of you by its class name (UE), e.g. `summon Buggy`, `summon WoodenBox` |
+| `Summon Class` | UE's own: spawn an actor in front of you by its class name, `summon Buggy`, `summon ArmedAPC`, `summon HeliHmg`. Rockets fly by themselves, as in MF: `summon rocket` (bind it to a key) |
 | `Teleport` | to where you aim (UE) |
 | `ViewSelf` | camera back to yourself (UE; MF's ViewMe) |
 
@@ -145,3 +145,10 @@ unavailable. `Summon` uses a loaded/cooked actor class, e.g. `/Script/DesktopFor
   to replace normal Use. This is a standalone action, not a modifier chord.
 - `FeignDeath`: toggle the low, damageable fake-death pose. Default key: Left Alt.
   Fire or Jump also requests getting up without performing that action on the same press.
+
+## Server list testing
+
+- `-master=host:port` uses that master alone, for the beacon and the browser (default: `MasterServers`, `DefaultGame.ini`).
+- `-nomaster` or `?Public=0`: no announcing.
+- `DFServers` refreshes the list and logs it (`Server browser: ...`).
+

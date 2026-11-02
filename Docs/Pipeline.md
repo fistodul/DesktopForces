@@ -24,13 +24,13 @@ Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine o
 |---|---|
 | `mfport.py map mf-warehouse` | BSP world geometry → chunked `.mfmesh`; static meshes → `.mfmesh`; actors → `level.json` |
 | `mfport.py props` | gameplay meshes from Rage.u / RageGame.u / RageWeapons.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers; `LodMesh`: weapon models, rockets, det key) → `.mfmesh` |
-| `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`), read straight from the packages (see below) |
+| `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`, ≤ `detail_texture_size` for `detail.toml`), read straight from the packages (see below) |
 | `mfport.py effects` | MF sprite particles (`mflib/effects.py`): the effect textures' AnimNext chains → flipbook atlases, plus emitter descriptions for the scripted effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, EffectsFix smoke puffs, wall hits, blood) and every map's ParticleEffect / FireyExample → `Effects/effects.json`. Run after `map` |
 | `mfport.py skeletal` | skeletal meshes with their animations → glTF (`Skeletal/<package>/*.glb`, `skeletal.json`): the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava, 302 animations each) and every first-person weapon (`<X>PlayerMesh` in the weapon packages); the importer's `skeletal` step brings them in through Interchange (`<pack>/Soldiers/…`, `<pack>/Weapons/…`) and puts MF's textures (team skins) on |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
-| `mfport.py vmf mfs-warehouse` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
+| `mfport.py vmf mfs-warehouse mfs-iceworld mfs-abandoned_town` | Source (Hammer) map from `vmf_maps.toml` → same formats, aligned to the MF map; MF-derived props from compiled `.mdl` |
 | `mfport.py merge mf-warehouse` | builds `mf-warehouse-merged` from the original + MFS by the picks in `merge/mf-warehouse.toml` |
 | `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,effects,skeletal,sounds,music,maps`; maps also get their navmesh baked; `effects`: flipbooks, particle materials, `/MobileForcesClassic/Effects/P_<Name>` systems). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers, blockers (invisible walls, spawn room doors) and particle effects of already built maps in place (no rebuild, the bake stays) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
@@ -167,7 +167,7 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   `level.py`), and the lit masters add a small unshadowed floor:
   `BaseColor × lerp(MPC_MF.Ambient, VertexColor.rgb × MPC_MF.AmbientScale, VertexColor.a)`.
   World geometry carries its zone's ambient in the vertex colour (alpha 1), props and actors
-  (alpha 0) use the map's main ambient. `AmbientScale` = `AmbientFloor` (0.35, `DefaultGame.ini`)
+  (alpha 0) use the map's main ambient. `AmbientScale` = `AmbientFloor` (0.7, `DefaultGame.ini`)
   × the player's Brightness, set by `ADFMapInfo`. Per-zone light this way costs nothing: no
   extra meshes or draw calls (earlier versions split chunks per zone). Lightmass ignores
   emissive (`EmissiveBoost 0`: UE1 unlit surfaces never lit anything).
@@ -243,7 +243,7 @@ for the importer):
 | community | `/Game/Maps/<map>`, `/Game/MF/Community` | `[community.maps]` / `[community.packages]`: maps and mods whose authors agreed, their own packages |
 | replaced | `/Game/MF/Replacements` | textures with replacement art in `overrides/` (community pack) |
 | unverified | `/MobileForcesUnverified` (plugin) | everything else that isn't retail: custom maps and mods whose authors haven't been asked yet, their texture / sound packages; an in-game download, not committed; moves to `[community]` once cleared |
-| ours | `/Game/MF` | generated art (`Tools/artgen`: crate, decals, DeBall goal net), materials, meshes made by the importer (`SM_MF_Ring`) |
+| ours | `/Game/MF` | generated art (`Tools/artgen`: crate, decals, MoBall goal net), materials, meshes made by the importer (`SM_MF_Ring`) |
 
 A pack change for content already imported: `mfport.py import --steps repackplan` logs what
 would move, `--steps repack` moves it (AssetTools rename with references fixed: maps keep their
@@ -299,7 +299,7 @@ python3 Tools/mfport/mfport.py replacements /absolute/path/selection.json
 
 This writes PNGs under ignored `Tools/mfport/overrides/licensed/`, with local provenance
 (source, URL, licence label, SHA256 and output size). The longest side is capped at 512 px,
-or the configured `max_texture_size` if smaller. Aspect ratio and alpha are retained;
+or `size_limit` for that key (`max_texture_size`, `detail_texture_size` for `detail.toml`) if smaller. Aspect ratio and alpha are retained;
 the source file is unchanged. Duplicate targets and opaque replacements for transparent
 originals are rejected before any images are written. This is a basic alpha check, not a
 substitute for reviewing holes, edge coverage, tiling, colour and UV scale in the scene.
@@ -409,3 +409,21 @@ Original and uncleared maps stay in the local Classic plugin under existing pack
 `mfport.py import <map> --steps collision` refreshes complex mesh collision sidedness
 from converted material metadata without rebuilding render geometry or invalidating lighting.
 Two-sided surfaces block queries from either side; non-solid surfaces remain non-solid.
+
+## Mobile Forces Source maps
+
+`vmf_maps.toml` lists them; their HL2 materials map to our replacement art in
+`vmf_materials.toml` (`unmapped_materials` in `level.json` must stay empty). Displacements are read
+(iceworld's ground). Sky faces go in shadowless chunks, drawn with the entry's `sky` picture when
+the map has no sky zone. `light_environment` becomes the sun and ambient. `spawns` adds starts to
+maps made for one mode.
+
+Order matters: repoint runs before maps inside one importer run, so do
+
+```bash
+python3 Tools/mfport/mfport.py vmf mfs-iceworld
+python3 Tools/mfport/mfport.py import mfs-iceworld --steps maps
+python3 Tools/mfport/mfport.py import mfs-iceworld --steps repoint
+python3 Tools/mfport/mfport.py light mfs-iceworld
+```
+
