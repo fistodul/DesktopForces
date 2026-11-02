@@ -204,6 +204,17 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> WheelMeshes;
+	/** Vehicle.AxelMesh / SuspensionMesh with aAxelOffset / aSuspensionOffset (body space, one per
+	 *  wheel; empty: none). They run from the joint on the body to the wheel as it moves. */
+	FString AxleMeshName;
+	FString SuspensionMeshName;
+	TArray<FVector> AxleOffsets;
+	TArray<FVector> SuspensionOffsets;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> AxleMeshes;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> SuspensionMeshes;
+	void UpdateAxles();
 
 	/** Tyre queries for weapon hits (MF WheelCollision) and pawn movement. */
 	UPROPERTY(Transient)
@@ -273,9 +284,9 @@ protected:
 	float BrakeDecel = 1200.f;
 	/** Suspension travel (cm) and how stiff / damped (1 = holds the car at half travel). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
-	float SuspensionTravel = 30.f;
+	float SuspensionTravel = 42.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
-	float SuspensionStiffness = 2.f;
+	float SuspensionStiffness = 1.6f; // soft enough to see: 2 sat almost rigid
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float SuspensionDamping = 0.35f;
 	/** Sideways grip (fraction of the slide cancelled per second-ish). */
@@ -284,6 +295,15 @@ protected:
 	/** Fraction of tyre-force roll leverage retained (0 at centre of mass, 1 at road). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float TractionRollInfluence = 0.35f;
+	/** Share of the steering lock left at top speed. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float SteerAtTopSpeed = 0.45f;
+	/** How far the steered wheels turn on screen (armoured skirts don't leave them room). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float WheelTurnShown = 1.f;
+	/** Half the width soldiers keep from the body, if more than the physics box (mirrors). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float PawnHalfWidth = 0.f;
 
 	/** TurboCars nitro: push forward at this many cm/s^2 up to NitroMaxSpeed (cm/s). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
@@ -365,10 +385,10 @@ protected:
 	/** VehicleFlag: a team flag on a pole while a team member drives (Vehicle.SetTeam). */
 	void UpdateFlag();
 	UPROPERTY(Transient)
-	TObjectPtr<UStaticMeshComponent> FlagPole;
-	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> FlagCloth;
 	uint8 FlagTeam = 255;
+	bool bFlagDriven = false;
+	float WaterCheck = 0.f;
 	FTimerHandle FlagTimer;
 
 	/** Occupants by seat (index = seat; 0 stays empty: that's Driver). */

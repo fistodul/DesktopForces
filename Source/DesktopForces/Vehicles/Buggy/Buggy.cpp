@@ -17,7 +17,8 @@ ABuggy::ABuggy() {
 	AccelTime = 5.f;
 	SteerLock = 40.f; // Lock 40
 	Armour = 0.367f;
-	SuspensionTravel = 30.f;
+	SuspensionTravel = 42.f;
+	SteerAtTopSpeed = 0.8f; // light and low: turned too slowly flat out
 	// Buggy.COL wheel spheres; rear-wheel drive (DriveType 1)
 	Wheels = {
 		DF::RageWheel(FVector(202.6f, 71.5f, 15.4f), 41.f, true, false, TEXT("Rage/BuggyWheelFR")),
@@ -25,6 +26,10 @@ ABuggy::ABuggy() {
 		DF::RageWheel(FVector(-85.f, 91.5f, 27.1f), 52.f, false, true, TEXT("Rage/BuggyWheelBR")),
 		DF::RageWheel(FVector(-85.f, -92.4f, 27.1f), 52.f, false, true, TEXT("Rage/BuggyWheelBL")),
 	};
+	AxleMeshName = TEXT("Rage/BuggyAxel");
+	SuspensionMeshName = TEXT("Rage/BuggySuspension");
+	AxleOffsets = { FVector(201.4f, 40.5f, -9.f), FVector(201.4f, -40.5f, -9.f), FVector(-85.5f, 40.5f, 6.75f), FVector(-85.5f, -40.5f, 6.75f) }; // aAxelOffset
+	SuspensionOffsets = { FVector(201.4f, 49.5f, 18.f), FVector(201.4f, -49.5f, 18.f), FVector(-85.5f, 67.5f, 24.75f), FVector(-85.5f, -67.5f, 24.75f) }; // aSuspensionOffset
 	SeatPositions = { FVector(20.25f, 0.f, 85.5f), FVector(-157.5f, 0.f, 162.f) }; // aSeatsPos
 	DoorPositions = { FVector(0.f, 135.f, 56.f), FVector(-315.f, 0.f, 67.5f), FVector(0.f, -135.f, 67.5f) }; // aDoorsPos
 	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive

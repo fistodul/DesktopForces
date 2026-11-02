@@ -1,4 +1,5 @@
 #include "Vehicles/DFVehicleTurret.h"
+#include "Weapons/DFTracer.h"
 #include "Vehicles/DFVehicle.h"
 #include "Core/DFContent.h"
 #include "Core/DFGameSettings.h"
@@ -90,8 +91,10 @@ void UDFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 			Fire(Gunner);
 		}
 	}
-	if (TurretMesh)
+	if (TurretMesh) {
 		TurretMesh->SetRelativeLocationAndRotation(GunPos() - V->GetBoxCenter(), TurretRot);
+		TurretMesh->SetVisibility(!(Gunner && Gunner->IsLocallyControlled() && !Gunner->IsBehindView()));
+	}
 }
 
 void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
@@ -99,6 +102,7 @@ void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
 	FVector Start, Dir;
 	GetMuzzle(Start, Dir);
 	const FRotationMatrix Axes(Dir.Rotation());
+	FVector End = Start + Dir * MaxRange;
 	Dir = (Axes.GetUnitAxis(EAxis::X) + (FMath::FRand() - 0.5f) * Spread * Axes.GetUnitAxis(EAxis::Y) + (FMath::FRand() - 0.5f) * Spread * Axes.GetUnitAxis(EAxis::Z)).GetSafeNormal();
 	if (ProjectileClass) {
 		FActorSpawnParameters SP;
@@ -115,14 +119,22 @@ void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
 		for (ADFCharacter* P : V->GetPassengers())
 			Params.AddIgnoredActor(P);
 		FHitResult Hit;
-		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * MaxRange, ECC_GameTraceChannel2, Params) && Hit.GetActor()) {
+		const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * MaxRange, ECC_GameTraceChannel2, Params);
+		End = bHit ? FVector(Hit.ImpactPoint) : Start + Dir * MaxRange;
+		if (bHit && Hit.GetActor()) {
 			FPointDamageEvent Ev(Damage, Hit, Dir, UDFDamage_Bullet::StaticClass());
 			Hit.GetActor()->TakeDamage(Damage, Ev, Gunner->GetController(), V);
 		}
+		if (ADFVehicleTurretWeapon* W = GunnerWeapon.Get(); W && bHit)
+			W->ShowImpact(Hit.ImpactPoint, Hit.ImpactNormal, Cast<ADFCharacter>(Hit.GetActor()) != nullptr);
 	}
 	if (FireSound)
 		DF::PlaySoundAtLocation(this, FireSound, Start, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
 	V->MakeNoise(1.f, Gunner);
+	if (ADFVehicleTurretWeapon* W = GunnerWeapon.Get()) {
+		TracerCount = TracerCount > 0 ? TracerCount - 1 : 1; // vehWeap TracerEvery 2
+		W->MulticastShot(Start, End, !ProjectileClass && TracerCount == 0);
+	}
 	--ClipAmmo;
 	if (ClipAmmo > 0)
 		FireDelay = FireInterval;
@@ -144,7 +156,7 @@ void UDFVehicleTurret::SeatEntered(ADFCharacter* C, int32 Seat) {
 		return;
 	// TakeTurret: hands off their own weapon, onto the gun
 	GunnerLastWeapon = C->GetCurrentWeapon();
-	if (ADFVehicleTurretWeapon* Gun = Cast<ADFVehicleTurretWeapon>(C->GiveWeapon(ADFVehicleTurretWeapon::StaticClass(), false))) {
+	if (ADFVehicleTurretWeapon* Gun = Cast<ADFVehicleTurretWeapon>(C->GiveWeapon(GunnerWeaponClass ? GunnerWeaponClass.Get() : ADFVehicleTurretWeapon::StaticClass(), false))) {
 		Gun->Turret = this;
 		Gun->HUDIconRect = HUDIconRect;
 		GunnerWeapon = Gun;
@@ -182,7 +194,33 @@ ADFVehicleTurretWeapon::ADFVehicleTurretWeapon() {
 	bHideAmmoCount = true;
 	AIRating = -1.f;
 	HUDIconRect = FIntRect(64, 64, 256, 128); // the HMG's box on the weapon icon sheet
+	bAddToStrip = false;
+	MuzzleFlashSize = 40.f;
+	FireSide = 0.f;
+	FlashS = 0.f;
+	FlashY = 0.05f; // vehWeap
+	FlashYZoom = 0.03f;
 	Mesh1P->SetVisibility(false); // the gun is on the vehicle, nothing in the hands
+}
+
+AJeepGunnerWeapon::AJeepGunnerWeapon() {
+	ViewMesh = TEXT("jeep/jeepWeapMesh"); // PickupViewMesh; the arms load with it
+	ArmsMesh = TEXT("jeepWeapPlayerMesh");
+	// vehWeap sets neither, which would put the gun's back plate on the crosshair: low in view,
+	// because seeing is the point of this seat
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(1.f, 0.f, -10.f);
+	ArmsRoll = 0; // square to the view: the soldier's tilt doesn't suit a mounted gun
+}
+
+void ADFVehicleTurretWeapon::MulticastShot_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer) {
+	if (GetNetMode() == NM_DedicatedServer)
+		return;
+	if (bTracer)
+		ADFTracer::Fire(GetWorld(), Start, End);
+	MuzzleFlashUntil = GetWorld()->GetTimeSeconds() + 0.05f;
+	if (Arms)
+		PlayArmsAnim(EDFWeaponState::Firing, 0.1f);
 }
 
 void ADFVehicleTurretWeapon::StartFire(bool bAlt) {

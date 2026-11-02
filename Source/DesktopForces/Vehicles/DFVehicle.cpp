@@ -1,4 +1,7 @@
 #include "Vehicles/DFVehicle.h"
+#include "World/DFZoneVolume.h"
+#include "World/DFMapActors.h"
+#include "Game/DFPlayerState.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Texture2D.h"
@@ -109,7 +112,8 @@ void ADFVehicle::BeginPlay() {
 	if (!FlagPosition.IsZero() && GetNetMode() != NM_DedicatedServer)
 		GetWorldTimerManager().SetTimer(FlagTimer, this, &ADFVehicle::UpdateFlag, 0.5f, true, 0.1f);
 	Body->SetBoxExtent(BoxExtent);
-	PawnCollider->SetBoxExtent(BoxExtent);
+	// a body wider than its physics box: soldiers shouldn't walk their eyes into it
+	PawnCollider->SetBoxExtent(FVector(BoxExtent.X, FMath::Max(BoxExtent.Y, PawnHalfWidth), BoxExtent.Z));
 	CameraArm->TargetArmLength = CameraDistance;
 	// everything is laid out in MF body space (origin at the MF actor); the box is the root
 	if (!DF::ApplyPropMesh(BodyMesh, *BodyMeshName, 1.f, -BoxCenter))
@@ -126,6 +130,26 @@ void ADFVehicle::BeginPlay() {
 			C->SetRelativeScale3D(FVector(W.Radius / 50.f, W.Radius / 50.f, 0.3f));
 		}
 		WheelMeshes.Add(C);
+		const int32 Index = WheelMeshes.Num() - 1;
+		auto MakeRod = [this](const FString& Name) -> UStaticMeshComponent* {
+			UStaticMeshComponent* Rod = NewObject<UStaticMeshComponent>(this);
+			Rod->SetupAttachment(Body);
+			Rod->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Rod->SetCastShadow(false);
+			Rod->RegisterComponent();
+			if (DF::ApplyPropMesh(Rod, *Name, 1.f, FVector::ZeroVector))
+				return Rod;
+			Rod->DestroyComponent();
+			return nullptr;
+		};
+		if (AxleOffsets.IsValidIndex(Index) && !AxleMeshName.IsEmpty()) {
+			if (UStaticMeshComponent* Rod = MakeRod(AxleMeshName))
+				AxleMeshes.Add(Rod);
+		}
+		if (SuspensionOffsets.IsValidIndex(Index) && !SuspensionMeshName.IsEmpty()) {
+			if (UStaticMeshComponent* Rod = MakeRod(SuspensionMeshName))
+				SuspensionMeshes.Add(Rod);
+		}
 		// MF WheelCollision supplies weapon hits; pawn queries also block on the tyre.
 		USphereComponent* S = NewObject<USphereComponent>(this);
 		S->SetupAttachment(C);
@@ -248,6 +272,12 @@ void ADFVehicle::Tick(float DeltaSeconds) {
 	if (GetNetMode() != NM_DedicatedServer) {
 		UpdateWheelVisuals(DeltaSeconds);
 		UpdateEngineSound();
+		if (IsLocallyControlled() && (WaterCheck -= DeltaSeconds) <= 0.f) { // the soldier's check rests while driving
+			WaterCheck = 0.05f;
+			const APlayerController* PC = Cast<APlayerController>(GetController());
+			if (PC && PC->PlayerCameraManager)
+				ADFMapInfo::SetUnderwater(GetWorld(), ADFZoneVolume::FindWater(GetWorld(), PC->PlayerCameraManager->GetCameraLocation()) != nullptr);
+		}
 		UpdateExpiryWarning();
 	}
 	// controllers send input only while keys are held: let go of everything otherwise
@@ -340,7 +370,7 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		const float Fz = FMath::Max(0.f, K * Compression + C * CompVel);
 		const FVector Contact = Hit.ImpactPoint;
 		// wheel frame: steering turns the front ones (less at speed)
-		const float SteerAngle = W.bSteer ? Steer * SteerLock * FMath::GetMappedRangeValueClamped(FVector2D(0.f, TopSpeed), FVector2D(1.f, 0.45f), FMath::Abs(Speed)) : 0.f;
+		const float SteerAngle = W.bSteer ? Steer * SteerLock * FMath::GetMappedRangeValueClamped(FVector2D(0.f, TopSpeed), FVector2D(1.f, SteerAtTopSpeed), FMath::Abs(Speed)) : 0.f;
 		// A flat tyre leans the body. Ground support must not lean with it and push the
 		// parked car sideways. Tyre friction also acts in the contact plane.
 		const FVector GroundNormal = Hit.ImpactNormal;
@@ -409,8 +439,30 @@ void ADFVehicle::UpdateWheelVisuals(float DeltaSeconds) {
 		const float Drop = HasAuthority() ? SuspensionTravel * 0.5f - LastCompression[i] : 0.f;
 		const FVector Pos = W.Position - BoxCenter - FVector(0.f, 0.f, FMath::Clamp(Drop, -SuspensionTravel * 0.5f, SuspensionTravel * 0.5f));
 		WheelMeshes[i]->SetRelativeLocation(Pos);
-		const float Yaw = W.bSteer ? Steer * SteerLock : 0.f;
+		const float Yaw = W.bSteer ? Steer * SteerLock * WheelTurnShown : 0.f;
 		WheelMeshes[i]->SetRelativeRotation(FRotator(-FMath::RadiansToDegrees(WheelSpin[i]), Yaw, 0.f));
+	}
+	if (AxleMeshes.Num() > 0 && BodyMesh->WasRecentlyRendered(0.2f))
+		UpdateAxles();
+}
+
+void ADFVehicle::UpdateAxles() {
+	// BuggyRI draws these natively: a rod's mesh is along +Z from its origin, stretched to reach
+	auto Stretch = [](UStaticMeshComponent* Rod, const FVector& From, const FVector& To) {
+		const FVector Span = To - From;
+		const float Length = FMath::Max(Rod->GetStaticMesh()->GetBoundingBox().Max.Z, 1.f);
+		Rod->SetRelativeLocationAndRotation(From, FRotationMatrix::MakeFromZ(Span).Rotator());
+		Rod->SetRelativeScale3D(FVector(1.f, 1.f, Span.Size() / Length));
+	};
+	for (int32 i = 0; i < AxleMeshes.Num(); ++i) {
+		const FVector Hub = WheelMeshes[i]->GetRelativeLocation();
+		const FVector Joint = AxleOffsets[i] - BoxCenter;
+		Stretch(AxleMeshes[i], Joint, Hub);
+		AxleMeshes[i]->SetVisibility(WheelMeshes[i]->IsVisible());
+		if (SuspensionMeshes.IsValidIndex(i)) {
+			Stretch(SuspensionMeshes[i], SuspensionOffsets[i] - BoxCenter, FMath::Lerp(Joint, Hub, 0.7f));
+			SuspensionMeshes[i]->SetVisibility(WheelMeshes[i]->IsVisible());
+		}
 	}
 }
 
@@ -502,7 +554,7 @@ bool ADFVehicle::FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const {
 	Params.AddIgnoredActor(C);
 	for (int32 D = 0; D <= FMath::Max(1, DoorPositions.Num()); ++D) {
 		const FVector Try = D < FMath::Max(1, DoorPositions.Num()) ? DoorExit(D) : Roof;
-		if (!GetWorld()->OverlapAnyTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params)) {
+		if (!GetWorld()->OverlapBlockingTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params)) { // not Any: water and other zones overlap soldiers
 			OutSpot = Try;
 			return true;
 		}
@@ -668,6 +720,7 @@ void ADFVehicle::LockDown() {
 // --- damage --------------------------------------------------------------------------------------
 
 float ADFVehicle::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	Damage *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), BoxExtent.Y);
 	if (!HasAuthority() || bBlownUp || Damage <= 0.f)
 		return 0.f;
 	const UDFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UDFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
@@ -961,6 +1014,13 @@ void AVehicleGenerator::BeginPlay() {
 void AVehicleGenerator::Generate() {
 	if (Spawned.IsValid() || !VehicleClass)
 		return;
+	// VehicleGenerator.CreateVehicle gives up while something stands there (IsPhysicalCollision):
+	// some maps put two generators on one spot
+	for (TActorIterator<ADFVehicle> It(GetWorld()); It; ++It)
+		if (FVector::Dist(It->GetActorLocation(), GetActorLocation()) < 150.f) {
+			GetWorldTimerManager().SetTimer(Timer, this, &AVehicleGenerator::Generate, 5.f, false);
+			return;
+		}
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
 	// VehicleGenerator.CreateVehicle: 100 uu above the generator
@@ -1081,13 +1141,19 @@ FDFWheelSetup DF::RageWheel(const FVector& Pos, float Radius, bool bSteer, bool 
 
 void ADFVehicle::UpdateFlag() {
 	const ADFGameState* GS = GetWorld()->GetGameState<ADFGameState>();
-	const uint8 Team = Driver && GS && GS->IsTeamGame() ? Driver->GetTeam() : DF::NoTeam;
-	if (Team == FlagTeam)
+	// MF's PRI.Team: without teams, the side the player picked; none picked, a neutral flag
+	const ADFPlayerState* DriverState = Driver ? Driver->GetPlayerState<ADFPlayerState>() : nullptr;
+	const uint8 Team = !Driver ? DF::NoTeam : GS && GS->IsTeamGame() ? Driver->GetTeam()
+		: DriverState                                                ? DriverState->PreferredTeam
+																	 : DF::NoTeam;
+	const bool bDriven = Driver != nullptr;
+	if (Team == FlagTeam && bDriven == bFlagDriven)
 		return;
 	FlagTeam = Team;
-	if (!FlagPole) {
-		// a pole and a pennant (MF's waving VehicleFlag is a skeletal mesh not converted yet)
-		UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	bFlagDriven = bDriven;
+	if (!FlagCloth) {
+		// a pennant at FlagPos, the tip of the vehicle's own antenna (MF's waving VehicleFlag is a
+		// skeletal mesh not converted yet)
 		UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
 		auto Make = [this](UStaticMesh* Mesh) {
 			UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
@@ -1099,22 +1165,18 @@ void ADFVehicle::UpdateFlag() {
 			C->RegisterComponent();
 			return C;
 		};
-		FlagPole = Make(Cylinder);
-		FlagPole->SetRelativeLocation(FlagPosition - BoxCenter + FVector(0.f, 0.f, 60.f));
-		FlagPole->SetRelativeScale3D(FVector(0.025f, 0.025f, 1.2f)); // 2.5 cm thick, 120 cm tall
 		FlagCloth = Make(Plane);
-		FlagCloth->SetRelativeLocation(FlagPosition - BoxCenter + FVector(-25.f, 0.f, 100.f));
+		FlagCloth->SetRelativeLocation(FlagPosition - BoxCenter + FVector(-20.f, 0.f, 0.f));
 		FlagCloth->SetRelativeRotation(FRotator(0.f, 0.f, 90.f)); // upright, along the car
-		FlagCloth->SetRelativeScale3D(FVector(0.5f, 0.32f, 1.f)); // 50 x 32 cm
+		FlagCloth->SetRelativeScale3D(FVector(-0.4f, 0.26f, 1.f)); // 40 x 26 cm, the tied edge at the antenna
 		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_VehicleFlag.M_MF_VehicleFlag")))
 			FlagCloth->CreateDynamicMaterialInstance(0, M);
 	}
-	const bool bShow = Team != DF::NoTeam;
-	FlagPole->SetVisibility(bShow);
+	const bool bShow = bDriven;
 	FlagCloth->SetVisibility(bShow);
 	if (bShow) {
 		if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(FlagCloth->GetMaterial(0)))
-			M->SetTextureParameterValue(TEXT("Texture"), DF::LoadClassic<UTexture2D>(FString::Printf(TEXT("Textures/Rage/Skins/VehicleFlagTex%d"), Team % 2)));
+			M->SetTextureParameterValue(TEXT("Texture"), DF::LoadClassic<UTexture2D>(Team <= 1 ? FString::Printf(TEXT("Textures/Rage/Skins/VehicleFlagTex%d"), Team) : FString(TEXT("Textures/Rage/Skins/VehicleFlagNeutral"))));
 	}
 }
 

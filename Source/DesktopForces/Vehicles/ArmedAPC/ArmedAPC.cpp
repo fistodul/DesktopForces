@@ -19,7 +19,7 @@ AArmedAPC::AArmedAPC() {
 	Turret->TurretMeshName = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	Turret->TurretDrawScale = 1.25f;
 	Turret->FireInterval = 0.1f;
-	Turret->MaxClipAmmo = 100;
+	Turret->MaxClipAmmo = 300; // as the jeep; MF 100
 	Turret->ReloadTime = 4.f;
 	Turret->Spread = 0.03f;
 	Turret->Damage = 25.f;

@@ -11,9 +11,10 @@ AJeep::AJeep() {
 	MassKg = 1000.f; // handling JEEP Mass 1000
 	TopSpeedKmh = 60.f * 1.609344f; // MaxSpeed 60 (mph)
 	AccelTime = 6.f;
+	FlagPosition = FVector(-202.5f, -97.9f, 132.75f); // FlagPos x 2.25
 	SteerLock = 40.f; // Lock 60 is the full lock; drives like the Humvee's 40
 	Armour = 0.68f;
-	SuspensionTravel = 30.f;
+	SuspensionTravel = 42.f;
 	SuspensionDamping = 0.45f;
 	EngineStartSound = TEXT("Sounds/jeep/engine_start");
 	EngineLoopSound = TEXT("Sounds/jeep/Engine");
@@ -48,6 +49,7 @@ AJeep::AJeep() {
 
 	Gun = CreateDefaultSubobject<UDFVehicleTurret>(TEXT("Gun"));
 	Gun->GunnerSeat = 2; // hmgSeat 2
+	Gun->GunnerWeaponClass = AJeepGunnerWeapon::StaticClass();
 	Gun->TurretPivot = FVector(-51.75f, -3.4f, 157.5f); // vehicleWeapPos (-23, -1.5, 70)
 	Gun->GunOffset = FVector::ZeroVector; // vehWeapFake sits at vehicleWeapPos
 	Gun->MuzzleOffset = FVector(107.f, 0.f, 0.f); // jeepWeapMesh barrel end X 47.6
@@ -56,7 +58,7 @@ AJeep::AJeep() {
 	Gun->TurnRate = 720.f; // the gunner's own view
 	Gun->TurretMeshName = TEXT("jeep/jeepWeapMesh"); // vehWeapFake Mesh
 	Gun->FireInterval = 0.117f; // MachineGun
-	Gun->MaxClipAmmo = 3000; // vehWeap MaxClipAmmo 3000
+	Gun->MaxClipAmmo = 300; // vehWeap had 3000, a reload that never comes; MaxClipAmmo 3000
 	Gun->ReloadTime = 4.f;
 	Gun->Spread = 0.03f; // Accuracy 0.3
 	Gun->Damage = 20.f; // MachineGun HitDamage

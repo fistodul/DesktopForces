@@ -44,6 +44,10 @@ public:
 	// tuning (vehicle constructors; MF values in comments)
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")
 	int32 GunnerSeat = 1;
+	/** What the gunner holds. The gun on the vehicle hides from a first-person gunner either way:
+	 *  from the seat it fills the view. */
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	TSubclassOf<class ADFVehicleTurretWeapon> GunnerWeaponClass;
 	/** Where it turns (vehicle body space, cm), the gun's offset from there and the muzzle's. */
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")
 	FVector TurretPivot = FVector::ZeroVector;
@@ -108,6 +112,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<USoundBase> ReloadSound;
 	TWeakObjectPtr<class ADFVehicleTurretWeapon> GunnerWeapon;
+	int32 TracerCount = 0;
 	TWeakObjectPtr<ADFWeapon> GunnerLastWeapon;
 };
 
@@ -122,5 +127,21 @@ public:
 	virtual void StopFire(bool bAlt) override;
 	virtual void StartReload() override;
 	virtual bool DrawHUD(UCanvas* Canvas) override;
+	/** On the seat you only have the gun (InCarState blocks the switch); leaving hands yours back. */
+	virtual bool LocksSelection() const override { return true; } // it exists only on the seat
+	/** Everyone's flash and tracer for a shot the server's turret fired. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastShot(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer);
+	/** Bullet hole or blood where a shot landed. */
+	void ShowImpact(const FVector& At, const FVector& Normal, bool bFlesh) { MulticastImpactFX(At, Normal, bFlesh); }
 	TWeakObjectPtr<UDFVehicleTurret> Turret;
+};
+
+/** The jeep's gun in the gunner's hands: vehWeap, PlayerViewMesh jeepWeapPlayerMesh. */
+UCLASS(NotPlaceable)
+class DESKTOPFORCES_API AJeepGunnerWeapon : public ADFVehicleTurretWeapon {
+	GENERATED_BODY()
+
+public:
+	AJeepGunnerWeapon();
 };

@@ -55,7 +55,7 @@ APiper::APiper() {
 	DoorPositions = { FVector(22.5f, -148.5f, 57.375f), FVector(22.5f, 148.5f, 57.375f) }; // aDoorsPos
 	Propeller = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Propeller"));
 	Propeller->SetupAttachment(Body);
-	Propeller->SetRelativeLocation(FVector(270.f, -2.25f, 90.f) - BoxCenter); // propellerPos
+	Propeller->SetRelativeLocation(FVector(405.f, -4.f, 50.f) - BoxCenter); // behind the spinner of the mesh's nose
 	Propeller->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Propeller->SetCanEverAffectNavigation(false);
 	Propeller->SetCastShadow(false);
@@ -93,7 +93,7 @@ void APiper::OnRep_Livery() {
 void APiper::Tick(float DeltaSeconds) {
 	const float Ticks = DeltaSeconds * 60.f;
 	const bool bPilot = GetDriver() != nullptr && !IsBlownUp();
-	EnginePitch = FMath::Clamp(EnginePitch + (bPilot ? 1.f : -1.f) * 0.15f * Ticks, 0.f, 60.f);
+	EnginePitch = FMath::Clamp(FMath::Max(EnginePitch, bPilot ? 15.f : 0.f) + (bPilot ? 1.f : -1.f) * 0.15f * Ticks, 0.f, 60.f);
 	const float Spin = bPilot ? FMath::Max(EnginePitch - 15.f, 0.f) : EnginePitch;
 	PropellerRoll = FMath::Fmod(PropellerRoll + Spin * 100.f * Ticks * 360.f / 65536.f, 360.f); // propellerSpinAmountMultiplier 100
 	Propeller->SetRelativeRotation(FRotator(0.f, 0.f, PropellerRoll));

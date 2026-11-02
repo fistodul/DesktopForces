@@ -17,8 +17,10 @@ AHumvee::AHumvee() {
 	AccelTime = 7.f;
 	SteerLock = 40.f;
 	Armour = 0.68f;
-	SuspensionTravel = 30.f;
+	SuspensionTravel = 42.f;
 	SuspensionDamping = 0.45f;
+	TractionRollInfluence = 0.15f; // tall: leaned too far in fast corners
+	PawnHalfWidth = 155.f; // the mirrors
 	// humvee.COL; four-wheel drive (DriveType 2). The wheels hang 12 cm below the COL spots:
 	// handling RideHeight 0.7, the highest of MF's cars (buggy 0.4, truck 0.5), sat on the ground
 	Wheels = {

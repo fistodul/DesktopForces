@@ -15,9 +15,12 @@ ATruck::ATruck() {
 	MassKg = 3000.f;
 	TopSpeedKmh = 50.f * DF::Mph;
 	AccelTime = 9.f;
+	TractionRollInfluence = 0.15f; // tall: nearly rolled at full speed
+	SteerAtTopSpeed = 0.55f;
+	PawnHalfWidth = 187.f; // the mirrors
 	SteerLock = 35.f; // Lock 60 is a lot for a 6x6 at speed
 	Armour = 0.78f;
-	SuspensionTravel = 35.f;
+	SuspensionTravel = 47.f;
 	SuspensionDamping = 0.5f;
 	// truck.COL: six wheels, front ones steer, all driven
 	Wheels = {
@@ -31,6 +34,7 @@ ATruck::ATruck() {
 	SeatPositions = { FVector(182.8f, -70.3f, 68.f), FVector(182.8f, 70.3f, 68.f), FVector(0.f, 0.f, 123.75f), FVector(-154.7f, 0.f, 123.75f), FVector(-337.5f, 0.f, 123.75f) };
 	SeatSits = { true, true }; // aSeatsSit
 	SeatsNearDriver = { 1 }; // MF aSeatNearDrivers: paired front seats share driver access
+	FlagPosition = FVector(124.9f, -103.5f, 213.75f); // FlagPos x 2.25
 	DoorPositions = { FVector(196.9f, -270.f, 0.f), FVector(196.9f, 270.f, 0.f), FVector(-506.f, 0.f, 0.f) };
 	// handling.hnd2: GraphTorque / GraphRPM, Ratios, ReverseRatio, FinalDrive
 	SetHandling({ 530.f, 530.f, 530.f, 530.f, 530.f, 530.f, 530.f, 540.f, 90.f, 0.f },

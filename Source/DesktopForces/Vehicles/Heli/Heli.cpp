@@ -24,6 +24,7 @@ namespace {
 } // namespace
 
 AHeli::AHeli() {
+	FlagPosition = FVector(-112.5f, 11.25f, 180.f); // FlagPos x 2.25
 	DisplayName = LOCTEXT("Heli", "Heli");
 	bBotsDrive = false; // BotDesireability: only with a player at the controls
 	BodyMeshName = TEXT("heli/heliMesh");
@@ -86,7 +87,8 @@ void AHeli::Tick(float DeltaSeconds) {
 	// turn (pitch - 15) x 100 (main) / x 200 (tail) UE1 units a tick, slowing down: pitch x 100 / 200
 	const float Ticks = DeltaSeconds * 60.f;
 	const bool bPilot = GetDriver() != nullptr && !IsBlownUp();
-	EnginePitch = FMath::Clamp(EnginePitch + (bPilot ? 1.f : -1.f) * PitchChange * Ticks, 0.f, IdlePitch);
+	// from SoundPitch 15, as the engine sound: starting at 0 left the rotors still for 1.7 s
+	EnginePitch = FMath::Clamp(FMath::Max(EnginePitch, bPilot ? 15.f : 0.f) + (bPilot ? 1.f : -1.f) * PitchChange * Ticks, 0.f, IdlePitch);
 	const float Spin = bPilot ? FMath::Max(EnginePitch - 15.f, 0.f) : EnginePitch;
 	MainRotorYaw = FMath::Fmod(MainRotorYaw + Spin * 100.f * Ticks * 360.f / 65536.f, 360.f);
 	TailRotorPitch = FMath::Fmod(TailRotorPitch + Spin * 200.f * Ticks * 360.f / 65536.f, 360.f);
@@ -234,7 +236,7 @@ AHeliHmg::AHeliHmg() {
 		G->TurnRate = 720.f;
 		G->TurretMeshName = TEXT("jeep/jeepWeapMesh");
 		G->FireInterval = 0.117f;
-		G->MaxClipAmmo = 3000;
+		G->MaxClipAmmo = 300; // as the jeep
 		G->ReloadTime = 4.f;
 		G->Spread = 0.03f;
 		G->Damage = 20.f;
