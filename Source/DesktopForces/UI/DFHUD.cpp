@@ -152,12 +152,15 @@ void ADFHUD::DrawHUD() {
 	SizeIndex = Size;
 	RS = Block / 64.f;
 	const bool bArt = LoadMFArt();
+	InventoryHits.Reset();
 
 	if (C && C->IsAlive()) {
 		if (C->IsInLoadout())
 			bArt ? DrawLoadoutMF(C, PC) : DrawLoadout(C, PC);
-		else
+		else {
+			DrawMuzzleFlash(C);
 			DrawCrosshair(C);
+		}
 		if (bArt) {
 			DrawPainMF();
 			if (!C->IsInLoadout() && !(PC && PC->IsScoreboardShown()) && !(GS && GS->HasMatchEnded()))
@@ -181,6 +184,8 @@ void ADFHUD::DrawHUD() {
 	} else if (GS) {
 		DrawDeadScreen(GS, PC);
 	}
+	if (C && ADFMapInfo::bUnderwater)
+		Box(0.f, 0.f, Canvas->ClipX, Canvas->ClipY, FLinearColor(0.05f, 0.3f, 0.55f, 0.22f)); // a zone's ViewFog
 	DrawMessages();
 	if (GS && !GS->VoteText.IsEmpty()) {
 		// voteHUDrender: top left under the minimap
@@ -200,6 +205,26 @@ void ADFHUD::DrawHUD() {
 		if ((PC && PC->IsScoreboardShown()) || GS->HasMatchEnded())
 			DrawScoreboard(GS);
 	}
+}
+
+void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
+	// RageWeapon.RenderMuzzleFlash: on the canvas, where the barrel points on screen; at the hip
+	// off to the weapon hand, zoomed under the sights. Its pixels were for a 640 x 480 screen.
+	const ADFWeapon* W = C->GetCurrentWeapon();
+	if (!W || !W->IsMuzzleFlashing() || C->IsBehindView())
+		return;
+	if (!TexFlare)
+		TexFlare = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
+	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
+	const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
+																						: 0.f;
+	const bool bZoomed = W->IsZoomed();
+	const float PixelScale = Canvas->ClipX / 640.f;
+	const float Size = W->MuzzleFlashSize * 2.2f * PixelScale * FMath::FRandRange(0.8f, 1.2f);
+	const float X = Canvas->ClipX * 0.5f - (bZoomed ? W->FlashSZoom : W->FlashS) * PixelScale - Size * 0.5f + Canvas->ClipX * Side * (bZoomed ? 0.f : -W->FireSide * W->FlashO) + FMath::FRandRange(-4.f, 4.f);
+	const float Y = Canvas->ClipY * (0.5f + (bZoomed ? W->FlashYZoom : W->FlashY)) - (bZoomed ? W->FlashSZoom : W->FlashS) * Canvas->ClipY / 480.f - Size * 0.5f + FMath::FRandRange(-4.f, 4.f);
+	const float Bright = FMath::FRandRange(0.5f, 1.f);
+	DrawTexRect(TexFlare, X, Y, Size, Size, 0.f, 0.f, 128.f, 128.f, FLinearColor(Bright, Bright, Bright), SE_BLEND_Additive);
 }
 
 void ADFHUD::DrawCrosshair(ADFCharacter* C) {
@@ -225,10 +250,13 @@ void ADFHUD::DrawCrosshair(ADFCharacter* C) {
 		// ones): it is blended over instead, the same on everything. The texture's own colour is
 		// half its alpha, so only the alpha is used.
 		const float Size = 32.f * Canvas->ClipX / 640.f * FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
-		const FIntRect UV = DF::CrosshairBounds(UDFUserSettings::Get().Crosshair);
-		const float PX = FMath::RoundToFloat(CX - Size * 0.5f), PY = FMath::RoundToFloat(CY - Size * 0.5f);
-		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
-		DrawTexRect(X, PX, PY, Size, Size, UV.Min.X, UV.Min.Y, UV.Width(), UV.Height(), SetColour(TeamSet()), SE_BLEND_TranslucentAlphaOnly);
+		const FIntRect Shape = DF::CrosshairBounds(UDFUserSettings::Get().Crosshair); // this much is Size across
+		const FIntRect UV = DF::CrosshairDrawRect(UDFUserSettings::Get().Crosshair);
+		const float Texel = Size / Shape.Width(), QuadW = UV.Width() * Texel, QuadH = UV.Height() * Texel;
+		const float PX = FMath::RoundToFloat(CX - Size * 0.5f + (UV.Min.X - Shape.Min.X) * Texel), PY = FMath::RoundToFloat(CY - Size * 0.5f + (UV.Min.Y - Shape.Min.Y) * Texel);
+		const float ToTex = X->GetSizeX() / 32.f; // the bounds are in 32 px units
+		DrawTexRect(X, PX, PY, QuadW, QuadH, UV.Min.X * ToTex, UV.Min.Y * ToTex, UV.Width() * ToTex, UV.Height() * ToTex, FLinearColor(0.f, 0.f, 0.f, 0.5f), SE_BLEND_Translucent);
+		DrawTexRect(X, PX, PY, QuadW, QuadH, UV.Min.X * ToTex, UV.Min.Y * ToTex, UV.Width() * ToTex, UV.Height() * ToTex, SetColour(TeamSet()), SE_BLEND_TranslucentAlphaOnly);
 		return;
 	}
 	const float Scale = FMath::Clamp(UDFUserSettings::Get().CrosshairSize, 0.25f, 2.f);
@@ -302,7 +330,7 @@ void ADFHUD::DrawWeaponBar(ADFCharacter* C) {
 	// it uses; free blocks stay as empty frames so you see what still fits
 	TArray<ADFWeapon*> Items;
 	for (ADFWeapon* W : C->GetInventory())
-		if (W)
+		if (W && W->bAddToStrip)
 			Items.Add(W);
 	Items.StableSort([](const ADFWeapon& A, const ADFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
 	const float BlockW = 44.f * UIScale, Gap = 3.f * UIScale, CellH = 30.f * UIScale;
@@ -316,6 +344,7 @@ void ADFHUD::DrawWeaponBar(ADFCharacter* C) {
 	for (ADFWeapon* W : Items) {
 		const float CW = WidthOf(FMath::Max(1, W->GetCarrySize(this)));
 		DrawItemCell(W, X, Y, CW, CellH, EDFCellState::Owned, AmmoText(W, true), ADFWeapon::SlotKeyName(W->GetSlotKey()));
+		InventoryHits.Emplace(FBox2D(FVector2D(X, Y), FVector2D(X + CW, Y + CellH + 15.f * UIScale)), W);
 		if (W == C->GetCurrentWeapon())
 			Frame(X - 2.f, Y - 2.f, CW + 4.f, CellH + 4.f, FLinearColor::Transparent, Yellow);
 		X += CW + Gap;
@@ -605,7 +634,8 @@ void ADFHUD::DrawLoadout(ADFCharacter* C, ADFPlayerController* PC) {
 		const FIntRect& R = CDO->HUDIconRect;
 		const float CellW = FMath::Max(CellH * 1.25f, FMath::Min(CellH * 4.f, CellH * float(R.Width()) / FMath::Max(1, R.Height())));
 		DrawItemCell(CDO, X, Y, CellW, CellH, State, AmmoText(Have ? Have : CDO, Have != nullptr), ADFWeapon::SlotKeyName(Key));
-		LoadoutHits.Emplace(FBox2D(FVector2D(X, Y), FVector2D(X + CellW, Y + CellH)), i);
+		// the whole item: its ammo bar under the cell too
+		LoadoutHits.Emplace(FBox2D(FVector2D(X, Y), FVector2D(X + CellW, Y + CellH + 15.f * UIScale)), i);
 		if (Key == OpenSlot)
 			Text(FString::FromInt(InRow % 10), X + CellW - 14.f * UIScale, Y, Yellow, 1.1f);
 		if (i == PC->LoadoutCursor)
@@ -741,27 +771,27 @@ namespace {
 	// Box_Sets_* rows in Rage.Boxes per set (Y): blue 128, red 64, white 0, grey 192
 	const float BoxRowY[4] = { 128.f, 64.f, 0.f, 192.f };
 
-	UTexture2D* LoadTex(const TCHAR* Path) {
-		return LoadObject<UTexture2D>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UTexture2D* LoadTex(const TCHAR* Name) {
+		return DF::LoadClassic<UTexture2D>(FString(TEXT("Textures/Rage/")) + Name);
 	}
 } // namespace
 
 bool ADFHUD::LoadMFArt() {
 	if (!bTriedArt) {
 		bTriedArt = true;
-		TexBoxes = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/Boxes.Boxes"));
-		TexBacks = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/Backs.Backs"));
-		TexIcons = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/Icons.Icons"));
-		TexLoadoutBack[0] = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/LoadoutBackBlue.LoadoutBackBlue"));
-		TexLoadoutBack[1] = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/LoadoutBackRed.LoadoutBackRed"));
-		TexPain[0] = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/OwBlue.OwBlue"));
-		TexPain[1] = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/OwRed.OwRed"));
-		TexScoreBoxes = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/ScoreBoxes.ScoreBoxes"));
-		TexScoreIcons = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/ScoreIcons.ScoreIcons"));
-		TexMiniIcons = LoadTex(TEXT("/MobileForcesClassic/Textures/Rage/MinimapNewIcons.MinimapNewIcons"));
+		TexBoxes = LoadTex(TEXT("Boxes"));
+		TexBacks = LoadTex(TEXT("Backs"));
+		TexIcons = LoadTex(TEXT("Icons"));
+		TexLoadoutBack[0] = LoadTex(TEXT("LoadoutBackBlue"));
+		TexLoadoutBack[1] = LoadTex(TEXT("LoadoutBackRed"));
+		TexPain[0] = LoadTex(TEXT("OwBlue"));
+		TexPain[1] = LoadTex(TEXT("OwRed"));
+		TexScoreBoxes = LoadTex(TEXT("ScoreBoxes"));
+		TexScoreIcons = LoadTex(TEXT("ScoreIcons"));
+		TexMiniIcons = LoadTex(TEXT("MinimapNewIcons"));
 		for (int32 i = 0; i < 24; ++i) {
 			const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));
-			TexCrosshair[i] = LoadTex(*FString::Printf(TEXT("/MobileForcesClassic/Textures/Rage/%s.%s"), *Name, *Name));
+			TexCrosshair[i] = LoadObject<UTexture2D>(nullptr, *FString::Printf(TEXT("/Game/MF/UI/HUD/%s.%s"), *Name, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
 		}
 	}
 	return TexBoxes && TexBacks && TexIcons;
@@ -816,10 +846,24 @@ void ADFHUD::DrawPainMF() {
 }
 
 int32 ADFHUD::LoadoutItemAt(const FVector2D& Point) const {
+	// a fingertip is wider than the gaps: the nearest item within reach of the tap
+	int32 Best = INDEX_NONE;
+	float BestDist = FingerReach;
 	for (const TPair<FBox2D, int32>& Hit : LoadoutHits)
-		if (Hit.Key.IsInside(Point))
+		if (const float Dist = Hit.Key.ComputeSquaredDistanceToPoint(Point); Dist == 0.f)
 			return Hit.Value;
-	return INDEX_NONE;
+		else if (Dist < BestDist * BestDist) {
+			BestDist = FMath::Sqrt(Dist);
+			Best = Hit.Value;
+		}
+	return Best;
+}
+
+ADFWeapon* ADFHUD::InventoryItemAt(const FVector2D& Point) const {
+	for (const TPair<FBox2D, TWeakObjectPtr<ADFWeapon>>& Hit : InventoryHits)
+		if (Hit.Key.ExpandBy(FingerReach * 0.5f).IsInside(Point))
+			return Hit.Value.Get();
+	return nullptr;
 }
 
 FString ADFHUD::LoadoutKeyName() {
@@ -903,6 +947,8 @@ void ADFHUD::DrawWeapIconMF(const ADFWeapon* W, float X, float Y, int32 Set, con
 		const float IW = R.Width() * RS * Block / FMath::Max(1.f, R.Height() * RS);
 		DrawTexRect(Icon, X + Count * Block * 0.5f - IW * 0.5f, Y, IW, Block, R.Min.X, R.Min.Y, R.Width(), R.Height(),
 			Set == 3 ? ColourSets[3] * 3.f : FLinearColor::White, SE_BLEND_Translucent);
+	} else { // a mod's item whose pack isn't here
+		Text(W->DisplayName.ToString(), X + Count * Block * 0.5f, Y + Block * 0.3f, Set == 3 ? Grey : White, 0.6f * RS, true);
 	}
 	// ammo bottom right (small font), key top left in a pale team colour
 	if (!Ammo.IsEmpty()) {
@@ -937,7 +983,7 @@ void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC) {
 	// RageHUD.DrawInventory at (ClipX/2 - 3.5 blocks, bottom): carried items, knife one block
 	TArray<ADFWeapon*> Items;
 	for (ADFWeapon* W : C->GetInventory())
-		if (W)
+		if (W && W->bAddToStrip)
 			Items.Add(W);
 	Items.StableSort([](const ADFWeapon& A, const ADFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
 	const bool bLoadout = C->IsInLoadout();
@@ -950,6 +996,7 @@ void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC) {
 	int32 Left = C->MaxCarry;
 	for (ADFWeapon* W : Items) {
 		DrawWeapIconMF(W, X, Y, W == Selected ? 2 : TeamSet(), AmmoText(W, true), ADFWeapon::SlotKeyName(W->GetSlotKey()));
+		InventoryHits.Emplace(FBox2D(FVector2D(X, Y), FVector2D(X + FMath::Max(1, W->GetCarrySize(this)) * Block, Y + Block)), W);
 		X += FMath::Max(1, W->GetCarrySize(this)) * Block;
 		Left -= W->GetCarrySize(this);
 	}

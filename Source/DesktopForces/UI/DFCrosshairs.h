@@ -36,6 +36,13 @@ namespace DF {
 		return Bounds[FMath::Clamp(Shape, 0, UE_ARRAY_COUNT(Bounds) - 1)];
 	}
 
+	/** Bounds plus a texel of margin: a ring reaches the bounds at full strength, and cut off
+	 *  right there its outermost points came out flat. */
+	inline FIntRect CrosshairDrawRect(int32 Shape) {
+		const FIntRect B = CrosshairBounds(Shape);
+		return FIntRect(FMath::Max(B.Min.X - 1, 0), FMath::Max(B.Min.Y - 1, 0), FMath::Min(B.Max.X + 1, 32), FMath::Min(B.Max.Y + 1, 32));
+	}
+
 	// Keep the original texture IDs for saved profiles. D/F/H are smaller variants of E/G/N;
 	// size is now independent, so only their larger versions appear when cycling shapes.
 	inline int32 NextCrosshair(int32 Current, int32 Delta) {

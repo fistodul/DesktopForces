@@ -111,10 +111,16 @@ protected:
 	void DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC);
 	/** Where each loadout item was drawn last (screen pixels -> its index): taps pick them. */
 	TArray<TPair<FBox2D, int32>> LoadoutHits;
+	/** The same for the carried items in the bottom strip. */
+	TArray<TPair<FBox2D, TWeakObjectPtr<ADFWeapon>>> InventoryHits;
+	/** How far off an item a tap still counts, in screen pixels. */
+	static constexpr float FingerReach = 24.f;
 
 public:
-	/** The loadout item drawn at a screen point, or INDEX_NONE. */
+	/** The loadout item drawn at a screen point (or a fingertip from it), or INDEX_NONE. */
 	int32 LoadoutItemAt(const FVector2D& Point) const;
+	/** The carried item drawn at a screen point in the bottom strip, or null. */
+	ADFWeapon* InventoryItemAt(const FVector2D& Point) const;
 
 protected:
 	void DrawPainMF();
@@ -122,6 +128,9 @@ protected:
 	void DrawMiniMapMF(ADFCharacter* C);
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> TexMiniIcons;
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> TexFlare;
+	void DrawMuzzleFlash(class ADFCharacter* C);
 	UPROPERTY(Transient)
 	TObjectPtr<class ADFMapInfo> MapInfo;
 	bool bLookedForMapInfo = false;

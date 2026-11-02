@@ -22,5 +22,6 @@ public:
 private:
 	TWeakObjectPtr<ADFPlayerController> Controller;
 	/** A round, see-through button holding Action down (or running Command on a tap). */
+	EVisibility PlayButtonsVisibility() const;
 	TSharedRef<SWidget> Button(const FText& Label, FName Action, float Size, const TCHAR* Command = nullptr);
 };

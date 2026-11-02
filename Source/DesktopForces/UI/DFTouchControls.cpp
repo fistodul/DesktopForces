@@ -25,7 +25,7 @@ void SDFTouchControls::Construct(const FArguments& InArgs, ADFPlayerController* 
 		SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Center).Padding(0.f, 0.f, 40.f, 60.f)
 		[
-			SNew(SVerticalBox).Visibility(EVisibility::SelfHitTestInvisible)
+			SNew(SVerticalBox).Visibility(this, &SDFTouchControls::PlayButtonsVisibility)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(4.f)[Button(LOCTEXT("Fire", "FIRE"), TEXT("Fire"), 200.f)]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(4.f)
 			[
@@ -36,7 +36,7 @@ void SDFTouchControls::Construct(const FArguments& InArgs, ADFPlayerController* 
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 110.f)
 		[
-			SNew(SHorizontalBox).Visibility(EVisibility::SelfHitTestInvisible)
+			SNew(SHorizontalBox).Visibility(this, &SDFTouchControls::PlayButtonsVisibility)
 			+ SHorizontalBox::Slot().AutoWidth().Padding(6.f)[Button(LOCTEXT("Crouch", "CROUCH"), TEXT("Crouch"), 130.f)]
 			+ SHorizontalBox::Slot().AutoWidth().Padding(6.f)[Button(LOCTEXT("Use", "USE"), TEXT("Use"), 130.f)]
 			+ SHorizontalBox::Slot().AutoWidth().Padding(6.f)[Button(LOCTEXT("Jump", "JUMP"), TEXT("Jump"), 140.f)]
@@ -53,6 +53,12 @@ void SDFTouchControls::Construct(const FArguments& InArgs, ADFPlayerController* 
 		]
 	];
 	// clang-format on
+}
+
+EVisibility SDFTouchControls::PlayButtonsVisibility() const {
+	// nothing to fire or jump with in the loadout, and its rows reach under these
+	const ADFPlayerController* PC = Controller.Get();
+	return PC && PC->IsLoadoutOpen() ? EVisibility::Hidden : EVisibility::SelfHitTestInvisible;
 }
 
 TSharedRef<SWidget> SDFTouchControls::Button(const FText& Label, FName Action, float Size, const TCHAR* Command) {

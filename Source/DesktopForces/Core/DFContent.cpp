@@ -34,12 +34,17 @@ UObject* DF::LoadClassicObject(UClass* Class, const FString& Rel) {
 	if (const FString* Path = Resolved.Find(Rel))
 		return Path->IsEmpty() ? nullptr : StaticLoadObject(Class, nullptr, **Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 	TArray<FString, TInlineAllocator<UE_ARRAY_COUNT(ContentRoots)>> Packages;
+	const FString Name = FPaths::GetBaseFilename(Rel);
 	if (Rel.StartsWith(TEXT("/")))
 		Packages.Add(Rel); // a package path
 	else
 		for (const TCHAR* Root : ContentRoots)
 			Packages.Add(FString(Root) / Rel);
-	const FString Name = FPaths::GetBaseFilename(Rel);
+	// the game's own stand-ins (Tools/artgen, core pak), when no pack has the original
+	if (Rel.StartsWith(TEXT("Textures/")))
+		Packages.Add(FString(TEXT("/Game/MF/UI/HUD/")) + Name);
+	else if (Rel.StartsWith(TEXT("Props/")))
+		Packages.Add(FString(TEXT("/Game/MF/Meshes/Weapons/")) + Name);
 	for (const FString& Package : Packages) {
 		if (!FPackageName::DoesPackageExist(Package))
 			continue;
