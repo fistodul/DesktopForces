@@ -212,6 +212,9 @@ class LevelConverter:
                 # sky windows go in their own chunks: drawn, but they cast no shadow, so sunlight
                 # and the sky's ambient come in through them (UE1 sunlight lit what saw the sky)
                 sky = key.endswith('|sky')
+                # water surfaces neither: UE1 lit the sea floor through them
+                if not key.endswith(('|opaque', '|masked')) and (poly.zone in self.water_zones or (poly.back_zone or 0) in self.water_zones):
+                    sky = True
                 ck = (cell, sky)
                 mb = chunks.get(ck)
                 if mb is None:
@@ -243,7 +246,7 @@ class LevelConverter:
         """Coarser texels when the map would need more than LIGHTMAP_BUDGET lightmap texels.
 
         Every static mesh instance gets its own lightmap, so props count once per placement;
-        small props go down to 8 x 8 (they are mostly evenly lit anyway)."""
+        small props stop at 32 x 32: at 8 their samples land inside them and they bake black."""
         uses: dict[str, int] = {}
         for rec in spawns:
             if rec['type'] == 'static_mesh':
@@ -253,7 +256,7 @@ class LevelConverter:
 
         def plan(texel: float) -> tuple[int, dict, dict]:
             cres = {w['mesh']: int(min(1024, max(32, _next_pow2(w['lightmap_size_uu'] / texel)))) for w in chunks}
-            mres = {n: int(min(256, max(8, _next_pow2(m['lightmap_size_uu'] / texel)))) for n, m in meshes.items()}
+            mres = {n: int(min(256, max(32, _next_pow2(m['lightmap_size_uu'] / texel)))) for n, m in meshes.items()}
             total = sum(r * r for r in cres.values()) + sum(mres[n] ** 2 * uses.get(n, 0) for n in mres)
             return total, cres, mres
 
@@ -270,6 +273,12 @@ class LevelConverter:
             m['lightmap_resolution'] = mres[n]
             self._set_lightmap(self.out / (m['mesh'] + '.mfmesh.json'), mres[n])
         print(f'  lightmaps: {total / 1e6:.1f}M texels at {texel * UU_TO_CM:.0f} cm (unbudgeted {start / 1e6:.1f}M)')
+
+    @staticmethod
+    def _set_collision(path: Path, kind: str):
+        data = json.loads(path.read_text())
+        data['collision'] = kind
+        path.write_text(json.dumps(data, indent=1))
 
     @staticmethod
     def _set_lightmap(path: Path, res: int):
@@ -320,7 +329,7 @@ class LevelConverter:
                 mb = MeshBuilder(name)
                 mb.collision = 'complex'
                 area = 0.0
-                for tri in t3d.static_mesh_triangles(blk):
+                for tri in t3d.orient_triangles(t3d.static_mesh_triangles(blk)):
                     tex = tri.texture
                     key = material_key(tex, tri.poly_flags | self.texture_flags(tex))
                     self._use(key)
@@ -333,8 +342,6 @@ class LevelConverter:
                         ln = math.sqrt(_dot(geo_n, geo_n)) or 1.0
                         unit = tuple(c / ln for c in geo_n)
                         vs = [(v[0], unit, v[2]) for v in vs]
-                    elif _dot(geo_n, avg_n) < 0:
-                        vs = [vs[0], vs[2], vs[1]]
                     mb.add_triangle(key, *vs)
                     area += _area(p)
                 mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / LIGHTMAP_TEXEL))))
@@ -457,10 +464,12 @@ class LevelConverter:
         actors = self.convert_actors(level)
         mapedits.apply(self.map, actors)   # map_edits.toml
         ambients = self.zone_ambients(model, actors)
+        waters = {a['name'] for a in actors if a['class'] == 'RageWaterZone' or str(a['props'].get('bWaterZone', '')).lower() == 'true'}
+        self.water_zones = {i for i, name in enumerate(model.zones) if name in waters}
         world = self.convert_world(model, ambients)
         meshes = self.convert_static_meshes(level)
         bounds = self.zone_bounds(model)
-        mapper = ActorMapper(bounds, meshes)
+        mapper = ActorMapper(bounds, meshes, model.zones)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
         spawns += self.convert_movers(pkg, level)
@@ -468,6 +477,9 @@ class LevelConverter:
         if roads:
             spawns.append(dict(type='road_network', name='RoadNetwork', location=[0.0, 0.0, 0.0], **roads))
         self.apply_lightmap_budget(world, meshes, spawns)
+        for name in mapedits.hull_collision(self.map):
+            if name in meshes:
+                self._set_collision(self.out / (meshes[name]['mesh'] + '.mfmesh.json'), 'hull')
         # UE1 zone ambient (flat light everywhere in a zone) becomes mostly UE-native lighting:
         # the map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
         # windows pick up) and bounced light fills the rest; a small unshadowed floor stays in the
@@ -482,9 +494,11 @@ class LevelConverter:
             'map': self.map,
             'uu_to_cm': UU_TO_CM,
             'world': world,
+            'texture_arrays': mapedits.texture_arrays(self.map),
+            'instance_props': mapedits.instance_props(self.map),
             'static_meshes': meshes,
             'spawns': spawns,
-            'lightmass': {'environment_color': env_color, 'environment_intensity': env_intensity, 'bounces': LIGHTMASS_BOUNCES},
+            'lightmass': {'environment_color': env_color, 'environment_intensity': env_intensity, 'bounces': mapedits.bounces(self.map, LIGHTMASS_BOUNCES)},
             'actors': actors,
             'zones': model.zones,
             'zone_bounds': {str(z): [list(lo), list(hi)] for z, (lo, hi) in bounds.items()},

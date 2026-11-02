@@ -65,6 +65,8 @@ public:
 	/** Community and unverified maps' packages: classic material instances with replacement art
 	 *  become their own pack's, in place (no rebuild, no re-bake). */
 	bool RepointMaps(const TArray<FString>& Maps);
+	/** Bring the lit masters up to date (their graph is patched when loaded). */
+	void UpdateMasters();
 	/** Flipbooks of Tools/artgen/flipbooks.py into /Game/MF/Replacements/Effects. */
 	bool ImportEffectArt();
 	/** Sounds of Tools/artgen/ambience.py into /Game/MF/Replacements/Sounds. */
@@ -86,6 +88,8 @@ public:
 	UMaterialInterface* EnsureSkyMaterial();
 	/** Lit masters: Emissive = BaseColor * MPC_MF.Ambient (map ambient floor, see ADFMapInfo). */
 	bool AddAmbientFloor(UMaterial* M);
+	/** Moving meshes have no lightmap: their light comes as a per-mesh value (DF::SetMovingLight). */
+	bool AddActorLight(UMaterial* M);
 	class UMaterialParameterCollection* EnsureAmbientCollection();
 	/** HUD art / fonts (Rage, RageWeapons, MobileForceFonts packages). */
 	static bool IsUITexture(const FString& Key);
@@ -96,6 +100,10 @@ public:
 	 * the materials using it (M_MF_Crate: loadout crates with a team-coloured stencil).
 	 */
 	bool ImportArt();
+	/** The core game's own HUD atlases and weapon models: `--steps hud`. */
+	bool ImportHUDArt();
+	/** Collision meshes solid from both sides, in place: `--steps twosided`. */
+	void MakeCollisionTwoSided();
 	/** Gameplay meshes from the game packages (work/out/Props, mfport.py props) -> /MobileForcesClassic/Props/<Package>/<Mesh>. */
 	bool ImportProps();
 	void EnsureCrateMaterial();
@@ -138,9 +146,20 @@ public:
 
 	/** Material for an mfport material key "package.group.texture|mode". Created on demand. */
 	UMaterialInterface* GetMaterial(const FString& Key);
+	/** One folder of Tools/artgen/out (empty: all of it) -> /Game/MF. */
+	void ImportArtFolder(const FString& Folder);
 
 	/** Build (or rebuild) a static mesh asset from a .mfmesh.json file. */
 	UStaticMesh* BuildStaticMesh(const FString& JsonFile, const FString& AssetPath);
+	/** Level's "texture_arrays": N arrays of the textures costing most draws (BuildStaticMesh merges them). */
+	void PlanTextureArrays(const FString& MapName, const FString& MapDir, const TSharedPtr<FJsonObject>& Level);
+	UMaterialInterface* GetArrayMaster();
+	struct FDFArraySlice {
+		UMaterialInterface* Material = nullptr;
+		int32 Index = 0;
+	};
+	/** Material key -> array and slice, for the map being built. */
+	TMap<FString, FDFArraySlice> TextureArrays;
 
 	USoundWave* FindSound(const FString& DFPath) const;
 	/** The original texture (its replacement if the original is missing). */

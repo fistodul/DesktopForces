@@ -118,8 +118,9 @@ def _team(value) -> str:
 
 
 class ActorMapper:
-    def __init__(self, zone_bounds: dict[int, tuple], static_meshes: dict):
+    def __init__(self, zone_bounds: dict[int, tuple], static_meshes: dict, zone_actors: list | None = None):
         self.zone_bounds = zone_bounds
+        self.zone_actors = zone_actors
         self.static_meshes = static_meshes
         self.ambient = []          # (brightness, hue, saturation) per zone info, for the global ambient
 
@@ -215,6 +216,10 @@ class ActorMapper:
             if t3d.parse_bool(props.get('bGravityZone')) and props.get('ZoneGravity'):
                 gravity = [c * UU_TO_CM for c in t3d.parse_vector(props.get('ZoneGravity'))]
             box = self.zone_bounds.get(a['zone'])
+            # the BSP build binds a ZoneInfo to the zone it stands in, and zone 0, a map's unsealed
+            # rest, takes none: left there it does nothing (MB-EndagaDam's river basin, no water)
+            if self.zone_actors is not None and a['name'] not in self.zone_actors:
+                box = None
             if box and min(hi - lo for lo, hi in zip(box[0], box[1])) < 10.0:
                 box = None   # flat zone bounds (a sheet): nothing to stand in
             if box and (water or pain or any(vel) or gravity):

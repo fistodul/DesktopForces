@@ -38,3 +38,24 @@ def apply(map_name: str, actors: list[dict]) -> None:
         })
     if edits.get('add_vehicles'):
         print(f'  map edit: {len(edits["add_vehicles"])} vehicle generators added')
+
+
+def hull_collision(map_name: str) -> list[str]:
+    """Static meshes that collide as one smooth shape, by name (a ladder lying on a slope)."""
+    return _edits_for(map_name).get('hull_collision', [])
+
+
+def texture_arrays(map_name: str) -> int:
+    """Texture arrays to build for a map's world (DFImporter PlanTextureArrays)."""
+    return _edits_for(map_name).get('texture_arrays', 0)
+
+
+def bounces(map_name: str, default: int) -> int:
+    """Lightmass indirect bounces: more light in rooms the sun doesn't reach, for bake time only."""
+    return _edits_for(map_name).get('bounces', default)
+
+
+def instance_props(map_name: str) -> int:
+    """Meshes without collision placed this often in a cell become one instanced component (0: never)."""
+    return _edits_for(map_name).get('instance_props', 8)
+

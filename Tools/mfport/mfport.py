@@ -56,8 +56,10 @@ def cmd_vmf(cfg, names):
     for n in names:
         p = presets[n]
         src = Path(__file__).resolve().parent / p["vmf"]
+        if not src.exists():     # this checkout can be a symlink elsewhere: MoFo sits beside the game
+            src = cfg.game_dir.parent / p["vmf"].removeprefix('../../../MoFo/')
         VmfConverter(cfg, src, n, scale=p.get('scale', 1.0), offset=tuple(p.get('offset', (0, 0, 0))),
-                     yaw=p.get('yaw', 0.0), zscale=p.get('zscale'), prop_scale=p.get('prop_scale')).run()
+                     yaw=p.get('yaw', 0.0), zscale=p.get('zscale'), prop_scale=p.get('prop_scale'), extra_spawns=p.get('spawns'), sky_texture=p.get('sky'), spawn_lift=p.get('spawn_lift'), mood=p.get('mood')).run()
 
 
 def collect_usage(cfg) -> dict[str, set[str]]:
@@ -186,6 +188,12 @@ def main():
             sys.path.insert(0, str(config.PROJECT_DIR / 'Tools' / 'artgen'))
             import artgen
             artgen.main([])
+        if 'hud' in a.steps.split(','):
+            sys.path.insert(0, str(config.PROJECT_DIR / 'Tools' / 'artgen'))
+            import hudart
+            import weaponmesh
+            hudart.main()
+            weaponmesh.main()
         rc = ue.run_importer(cfg, a.steps, a.names if a.step == 'import' else a.names or None)
         if rc:
             sys.exit(rc)

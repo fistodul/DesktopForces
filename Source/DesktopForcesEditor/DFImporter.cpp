@@ -1,4 +1,15 @@
 #include "DFImporter.h"
+#include "Materials/MaterialExpressionSubtract.h"
+#include "Materials/MaterialExpressionWorldPosition.h"
+#include "Materials/MaterialExpressionCameraPositionWS.h"
+#include "Materials/MaterialExpressionNormalize.h"
+#include "PhysicsEngine/ConvexElem.h"
+#include "Materials/MaterialExpressionAdd.h"
+#include "Materials/MaterialExpressionComponentMask.h"
+#include "Materials/MaterialExpressionAppendVector.h"
+#include "Materials/MaterialExpressionLightmassReplace.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
+#include "Engine/Texture2DArray.h"
 #include "DFImportUtil.h"
 #include "Sound/SoundAttenuation.h"
 #include "DesktopForcesEditor.h"
@@ -360,6 +371,7 @@ bool FDFImporter::ImportTextures() {
 		bool bAlpha;
 		bool bUI;
 		bool bReplacement;
+		bool bDetail;
 	};
 	TArray<FTexKey> Keys;
 	// a texture already imported from the same file (AssetImportData keeps its MD5) isn't imported
@@ -383,7 +395,7 @@ bool FDFImporter::ImportTextures() {
 			bUI = IsUITexture(Key); // manifests from before the "ui" flag
 		const FString File = FPaths::ConvertRelativePathToFull(WorkDir / Info->GetStringField(TEXT("file")));
 		if (IsUpToDate(TextureAssetPath(Key), File)) {
-			Unchanged.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false });
+			Unchanged.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false, Info->HasField(TEXT("detail")) });
 		} else {
 			UAssetImportTask* Task = NewObject<UAssetImportTask>();
 			Task->Filename = File;
@@ -393,13 +405,13 @@ bool FDFImporter::ImportTextures() {
 			Task->bReplaceExisting = true;
 			Task->bSave = false;
 			Tasks.Add(Task);
-			Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false });
+			Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, false, Info->HasField(TEXT("detail")) });
 		}
 		FString Replacement;
 		if (Info->TryGetStringField(TEXT("replacement"), Replacement)) {
 			const FString RepFile = FPaths::ConvertRelativePathToFull(WorkDir / Replacement);
 			if (IsUpToDate(ReplacementAssetPath(Key), RepFile)) {
-				Unchanged.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, true });
+				Unchanged.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, true, Info->HasField(TEXT("detail")) });
 				continue;
 			}
 			UAssetImportTask* Rep = NewObject<UAssetImportTask>();
@@ -410,7 +422,7 @@ bool FDFImporter::ImportTextures() {
 			Rep->bReplaceExisting = true;
 			Rep->bSave = false;
 			Tasks.Add(Rep);
-			Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, true });
+			Keys.Add({ Key, Info->GetBoolField(TEXT("alpha")), bUI, true, Info->HasField(TEXT("detail")) });
 		}
 	}
 	const int32 NumImported = Keys.Num();
@@ -430,7 +442,11 @@ bool FDFImporter::ImportTextures() {
 		}
 		// Mobile-friendly: world group, never streamed (they're tiny), no alpha channel unless masked
 		const bool bUI = Keys[i].bUI;
-		const TextureGroup Group = bUI ? TEXTUREGROUP_UI : TEXTUREGROUP_World;
+		const int32 Longest = FMath::Max(Tex->Source.GetSizeX(), Tex->Source.GetSizeY()), Shortest = FMath::Min(Tex->Source.GetSizeX(), Tex->Source.GetSizeY());
+		const bool bStrip = Longest > 512 && Longest >= 4 * Shortest; // a long side phones need more of than their limit
+		const TextureGroup Group = bUI ? TEXTUREGROUP_UI : bStrip ? TEXTUREGROUP_Project02
+			: Keys[i].bDetail                                     ? TEXTUREGROUP_Project01 // seen up close (Tools/mfport/detail.toml)
+																  : TEXTUREGROUP_World;
 		const TextureCompressionSettings Compression = bUI ? TC_EditorIcon : TC_Default;
 		const TextureMipGenSettings Mips = bUI ? TMGS_NoMipmaps : TMGS_FromTextureGroup;
 		// HUD art and bitmap fonts: uncompressed, never mipped; fonts point sampled (crisp glyphs),
@@ -637,12 +653,12 @@ bool FDFImporter::ImportProps() {
 	return Ok > 0;
 }
 
-bool FDFImporter::ImportArt() {
+void FDFImporter::ImportArtFolder(const FString& Folder) {
 	// Tools/artgen/out/<folder>/<name>.png|wav -> /Game/MF/<folder>/<name> (artgen.py makes them:
 	// generated textures and the team's SourceArt, nothing from the original game)
 	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Tools/artgen/out"));
 	TArray<FString> Files;
-	IFileManager::Get().FindFilesRecursive(Files, *Dir, TEXT("*.*"), true, false);
+	IFileManager::Get().FindFilesRecursive(Files, *(Dir / Folder), TEXT("*.*"), true, false);
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	TArray<UAssetImportTask*> Tasks;
 	TArray<FString> Textures;
@@ -675,7 +691,7 @@ bool FDFImporter::ImportArt() {
 			Tex->MipGenSettings = bUI ? TMGS_NoMipmaps : TMGS_FromTextureGroup;
 			Tex->NeverStream = true;
 			Tex->SRGB = true;
-			Tex->CompressionSettings = Path.Contains(TEXT("/Icons/")) ? TC_EditorIcon : TC_Default; // small icons stay crisp
+			Tex->CompressionSettings = Path.Contains(TEXT("/Icons/")) || Path.Contains(TEXT("/UI/HUD/")) ? TC_EditorIcon : TC_Default; // small icons stay crisp
 			Tex->PostEditChange();
 			SaveAsset(Tex);
 		} else if (USoundWave* Wave = Cast<USoundWave>(Asset)) {
@@ -684,6 +700,10 @@ bool FDFImporter::ImportArt() {
 			SaveAsset(Wave);
 		}
 	}
+}
+
+bool FDFImporter::ImportArt() {
+	ImportArtFolder(FString());
 	EnsureCrateMaterial();
 	EnsureDecalMaterials();
 	EnsureGoalAssets();
@@ -691,6 +711,63 @@ bool FDFImporter::ImportArt() {
 	EnsureVehicleMaterials();
 	EnsureMuzzleFlashMaterial();
 	return true;
+}
+
+void FDFImporter::MakeCollisionTwoSided() {
+	// meshes built before bDoubleSidedGeometry: no rebake, they have no lighting of their own
+	FAssetRegistryModule& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> Assets;
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UStaticMesh::StaticClass()->GetClassPathName());
+	Filter.bRecursivePaths = true;
+	for (const TCHAR* Root : { TEXT("/Game/Maps"), TEXT("/Game/MF/Maps"), TEXT("/MobileForcesUnverified/Maps"), TEXT("/MobileForcesClassic/Maps") })
+		Filter.PackagePaths.Add(Root);
+	Registry.Get().GetAssets(Filter, Assets);
+	int32 Done = 0;
+	for (const FAssetData& A : Assets) {
+		if (!A.AssetName.ToString().StartsWith(TEXT("Collision_")))
+			continue;
+		UStaticMesh* Mesh = Cast<UStaticMesh>(A.GetAsset());
+		UBodySetup* Body = Mesh ? Mesh->GetBodySetup() : nullptr;
+		if (!Body || Body->bDoubleSidedGeometry)
+			continue;
+		Body->bDoubleSidedGeometry = true;
+		Body->InvalidatePhysicsData();
+		Body->CreatePhysicsMeshes();
+		Done += SaveAsset(Mesh) ? 1 : 0;
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("Two-sided collision: %d meshes"), Done);
+}
+
+bool FDFImporter::ImportHUDArt() {
+	// the core game's own HUD and weapons (Tools/artgen/hudart.py, weaponmesh.py), in the core pak;
+	// DF::LoadClassicObject turns to them when no pack has the originals
+	ImportArtFolder(TEXT("UI/HUD"));
+	ImportArtFolder(TEXT("Art/Weapons"));
+	UTexture2D* Metal = LoadObject<UTexture2D>(nullptr, TEXT("/Game/MF/Art/Weapons/T_MF_WeaponMetal.T_MF_WeaponMetal"));
+	if (!Metal)
+		return false;
+	bool bCreated = false;
+	UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(TEXT("/Game/MF/Materials"), TEXT("MI_MF_WeaponMetal"), bCreated);
+	MIC->SetParentEditorOnly(GetMasterMaterial(TEXT("Opaque")));
+	MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Metal);
+	MIC->PostEditChange();
+	SaveAsset(MIC);
+	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Tools/artgen/out/Meshes/Weapons"));
+	TArray<FString> Files;
+	IFileManager::Get().FindFiles(Files, *(Dir / TEXT("*.mfmesh.json")), true, false);
+	int32 Ok = 0;
+	for (const FString& File : Files) {
+		const FString Name = File.LeftChop(FString(TEXT(".mfmesh.json")).Len());
+		UStaticMesh* Mesh = BuildStaticMesh(Dir / File, TEXT("/Game/MF/Meshes/Weapons") / Name);
+		if (!Mesh)
+			continue;
+		Mesh->GetStaticMaterials()[0].MaterialInterface = MIC;
+		Mesh->PostEditChange();
+		Ok += SaveAsset(Mesh) ? 1 : 0;
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("HUD art: %d / %d weapon meshes"), Ok, Files.Num());
+	return Ok == Files.Num();
 }
 
 void FDFImporter::EnsureDecalMaterials() {
@@ -1037,7 +1114,7 @@ void FDFImporter::EnsureMuzzleFlashMaterial() {
 }
 
 void FDFImporter::EnsureGoalAssets() {
-	// MoBall goals (ADeBallGoal): an open ring, 1 m round and 1 m tall from its base (the
+	// MoBall goals (AMoBallGoal): an open ring, 1 m round and 1 m tall from its base (the
 	// actor scales it), with an additive team-tinted net (Tools/artgen goalfield) both sides
 	bool bCreated = false;
 	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_GoalField"), bCreated);
@@ -1198,11 +1275,52 @@ UMaterialInterface* FDFImporter::EnsureSkyMaterial() {
 		SaveAsset(M);
 		UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_Sky"));
 	}
+	if (!M->TwoSided) { // ADFSkyCapture's shell is seen from inside
+		M->TwoSided = true;
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+	}
 	MasterCache.Add(TEXT("Sky"), M);
 	return M;
 }
 
 void FDFImporter::FixMasterMaterialUsage() {
+	// masked sheets on walls (emblems, signs) lie in the wall's plane: UE1 drew BSP in order, a
+	// depth buffer fights over it. A centimetre towards the camera settles it, nothing rebaked
+	for (const TCHAR* Mode : { TEXT("Masked"), TEXT("MaskedUnlit") }) {
+		const FString Path = FString::Printf(TEXT("/Game/MF/Materials/M_MF_%s.M_MF_%s"), Mode, Mode);
+		UMaterial* M = LoadObject<UMaterial>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!M)
+			continue;
+		UMaterialExpressionMultiply* Bias = Cast<UMaterialExpressionMultiply>(M->GetEditorOnlyData()->WorldPositionOffset.Expression);
+		if (Bias && Cast<UMaterialExpressionNormalize>(Bias->A.Expression))
+			continue;
+		// by hand: the camera vector node is pixel shader only and fails the whole material here
+		UMaterialExpressionCameraPositionWS* Eye = NewObject<UMaterialExpressionCameraPositionWS>(M);
+		M->GetExpressionCollection().AddExpression(Eye);
+		UMaterialExpressionWorldPosition* Here = NewObject<UMaterialExpressionWorldPosition>(M);
+		Here->WorldPositionShaderOffset = WPT_ExcludeAllShaderOffsets;
+		M->GetExpressionCollection().AddExpression(Here);
+		UMaterialExpressionSubtract* ToEye = NewObject<UMaterialExpressionSubtract>(M);
+		ToEye->A.Connect(0, Eye);
+		ToEye->B.Connect(0, Here);
+		M->GetExpressionCollection().AddExpression(ToEye);
+		UMaterialExpressionNormalize* View = NewObject<UMaterialExpressionNormalize>(M);
+		View->VectorInput.Connect(0, ToEye);
+		M->GetExpressionCollection().AddExpression(View);
+		if (!Bias) {
+			Bias = NewObject<UMaterialExpressionMultiply>(M);
+			Bias->ConstB = 1.f;
+			M->GetExpressionCollection().AddExpression(Bias);
+		}
+		Bias->A.Connect(0, View);
+		M->GetEditorOnlyData()->WorldPositionOffset.Connect(0, Bias);
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+		UE_LOG(LogDFEditor, Display, TEXT("%s: sheets pulled off their walls"), *M->GetName());
+	}
 	for (const TCHAR* Mode : { TEXT("Opaque"), TEXT("Masked"), TEXT("MaskedUnlit"), TEXT("Unlit"), TEXT("Additive"),
 			 TEXT("Modulated"), TEXT("TeamTint") }) {
 		const FString Path = FString::Printf(TEXT("/Game/MF/Materials/M_MF_%s.M_MF_%s"), Mode, Mode);
@@ -1213,6 +1331,13 @@ void FDFImporter::FixMasterMaterialUsage() {
 			SaveAsset(M);
 			UE_LOG(LogDFEditor, Display, TEXT("%s: static lighting usage set"), *M->GetName());
 		}
+		// a master that doesn't compile takes every instance down with it: say so
+		if (M)
+			if (const FMaterialResource* Res = M->GetMaterialResource(GMaxRHIShaderPlatform)) {
+				const_cast<FMaterialResource*>(Res)->FinishCompilation();
+				for (const FString& Err : Res->GetCompileErrors())
+					UE_LOG(LogDFEditor, Error, TEXT("%s: %s"), *M->GetName(), *Err);
+			}
 	}
 }
 
@@ -1234,6 +1359,12 @@ void FDFImporter::EnsureTeamTintMaterial() {
 	M->PostEditChange();
 	SaveAsset(M);
 	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_TeamTint"));
+}
+
+void FDFImporter::UpdateMasters() {
+	GetMasterMaterial(TEXT("Opaque"));
+	GetMasterMaterial(TEXT("Masked"));
+	EnsureSkyMaterial();
 }
 
 UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
@@ -1289,6 +1420,8 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 	}
 	if ((Mode == TEXT("Opaque") || Mode == TEXT("Masked")) && AddAmbientFloor(M))
 		UE_LOG(LogDFEditor, Display, TEXT("M_MF_%s: ambient floor from MPC_MF"), *Mode);
+	if ((Mode == TEXT("Opaque") || Mode == TEXT("Masked")) && AddActorLight(M))
+		UE_LOG(LogDFEditor, Display, TEXT("M_MF_%s: actor light"), *Mode);
 	if (const FMaterialResource* Res = M->GetMaterialResource(GMaxRHIShaderPlatform)) {
 		const_cast<FMaterialResource*>(Res)->FinishCompilation();
 		for (const FString& Err : Res->GetCompileErrors())
@@ -1296,6 +1429,151 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 	}
 	MasterCache.Add(Mode, M);
 	return M;
+}
+
+UMaterialInterface* FDFImporter::GetArrayMaster() {
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_OpaqueArray"), bCreated);
+	if (bCreated) {
+		// M_MF_Opaque, sampling slice TexCoord[2].x of an array: many textures, one draw
+		UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+		auto Add = [M](auto* Expression) {
+			M->GetExpressionCollection().AddExpression(Expression);
+			return Expression;
+		};
+		auto Const = [&](float V) {
+			UMaterialExpressionConstant* C = NewObject<UMaterialExpressionConstant>(M);
+			C->R = V;
+			return Add(C);
+		};
+		UMaterialExpressionTextureCoordinate* UV = Add(NewObject<UMaterialExpressionTextureCoordinate>(M));
+		UMaterialExpressionTextureCoordinate* SliceUV = Add(NewObject<UMaterialExpressionTextureCoordinate>(M));
+		SliceUV->CoordinateIndex = 2;
+		UMaterialExpressionComponentMask* SliceX = Add(NewObject<UMaterialExpressionComponentMask>(M));
+		SliceX->Input.Connect(0, SliceUV);
+		SliceX->R = true;
+		UMaterialExpressionAppendVector* Coord = Add(NewObject<UMaterialExpressionAppendVector>(M));
+		Coord->A.Connect(0, UV);
+		Coord->B.Connect(0, SliceX);
+		UMaterialExpressionTextureSampleParameter2DArray* Tex = Add(NewObject<UMaterialExpressionTextureSampleParameter2DArray>(M));
+		Tex->ParameterName = TEXT("Textures");
+		bool bNew = false;
+		// sRGB, as the arrays that replace it: a mismatch is a sampler warning in every map
+		UTexture2DArray* Default = FindOrCreateAsset<UTexture2DArray>(TEXT("/Game/MF/Materials"), TEXT("TA_MF_Default"), bNew);
+		UTexture2D* Grey = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+		Default->SourceTextures = { Grey, Grey };
+		Default->SRGB = true;
+		Default->UpdateSourceFromSourceTextures(bNew);
+		Default->SourceTextures.Reset();
+		SaveAsset(Default);
+		Tex->Texture = Default;
+		Tex->Coordinates.Connect(0, Coord);
+		// Lightmass renders materials without mesh data: it would bounce slice 0 for everything
+		UMaterialExpressionLightmassReplace* Bake = Add(NewObject<UMaterialExpressionLightmassReplace>(M));
+		Bake->Realtime.Connect(0, Tex);
+		Bake->Lightmass.Connect(0, Const(0.3f));
+		M->SetShadingModel(MSM_DefaultLit);
+		E->BaseColor.Connect(0, Bake);
+		E->Specular.Connect(0, Const(0.f));
+		E->Roughness.Connect(0, Const(1.f));
+		M->SetMaterialUsage(MATUSAGE_StaticLighting);
+		M->PreEditChange(nullptr);
+		M->PostEditChange();
+		SaveAsset(M);
+	}
+	if (UTexture2DArray* Default = LoadObject<UTexture2DArray>(nullptr, TEXT("/Game/MF/Materials/TA_MF_Default.TA_MF_Default")); Default && !Default->SRGB) {
+		Default->SRGB = true;
+		Default->PostEditChange();
+		SaveAsset(Default);
+	}
+	if (AddAmbientFloor(M))
+		UE_LOG(LogDFEditor, Display, TEXT("M_MF_OpaqueArray: ambient floor from MPC_MF"));
+	if (const FMaterialResource* Res = M->GetMaterialResource(GMaxRHIShaderPlatform)) {
+		const_cast<FMaterialResource*>(Res)->FinishCompilation();
+		for (const FString& Err : Res->GetCompileErrors())
+			UE_LOG(LogDFEditor, Error, TEXT("M_MF_OpaqueArray: %s"), *Err);
+	}
+	return M;
+}
+
+void FDFImporter::PlanTextureArrays(const FString& MapName, const FString& MapDir, const TSharedPtr<FJsonObject>& Level) {
+	TextureArrays.Reset();
+	const int32 MaxArrays = Level->HasField(TEXT("texture_arrays")) ? Level->GetIntegerField(TEXT("texture_arrays")) : 0;
+	if (MaxArrays <= 0)
+		return;
+	// how many draws each opaque texture costs: a section per chunk
+	TMap<FString, int32> Draws;
+	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("world"))) {
+		const TSharedPtr<FJsonObject> W = V->AsObject();
+		if (!W->GetBoolField(TEXT("render")) || W->GetBoolField(TEXT("sky")))
+			continue;
+		const TSharedPtr<FJsonObject> Mesh = LoadJson(MapDir / (W->GetStringField(TEXT("mesh")) + TEXT(".mfmesh.json")));
+		if (!Mesh)
+			continue;
+		const TArray<TSharedPtr<FJsonValue>>& Materials = Mesh->GetArrayField(TEXT("materials"));
+		for (const TSharedPtr<FJsonValue>& Sec : Mesh->GetArrayField(TEXT("sections")))
+			Draws.FindOrAdd(Materials[Sec->AsObject()->GetIntegerField(TEXT("material"))]->AsString())++;
+	}
+	struct FGroup {
+		TArray<TPair<FString, UTexture2D*>> Keys;
+		int32 Draws = 0;
+	};
+	TMap<FString, FGroup> Groups;
+	const FString PackageName = Packs.MapPackage(MapName);
+	const bool bOwnArt = bBuildingCommunityMap || !PackageName.StartsWith(Packs.ClassicRoot);
+	const FString Root = (bBuildingCommunityMap ? Packs.CommunityRoot : FPaths::GetPath(FPaths::GetPath(PackageName))) / TEXT("Arrays") / MapName;
+	for (const TPair<FString, int32>& D : Draws) {
+		FString TexKey, Mode;
+		if (!D.Key.Split(TEXT("|"), &TexKey, &Mode) || Mode != TEXT("opaque") || TexKey.StartsWith(TEXT("Engine")))
+			continue;
+		// the pack's own art: an array is a copy, so RepointMaps has nothing to swap later
+		UTexture2D* Tex = FindTextureFor(TexKey, bOwnArt);
+		if (!Tex || !Tex->Source.IsValid())
+			continue;
+		// what an array needs its slices to share, and what a texture's quality depends on
+		const FString Group = FString::Printf(TEXT("%dx%d_%d_%d_%d"), Tex->Source.GetSizeX(), Tex->Source.GetSizeY(), (int32)Tex->Source.GetFormat(),
+			(int32)Tex->LODGroup, Tex->SRGB ? 1 : 0);
+		FGroup& G = Groups.FindOrAdd(Group);
+		G.Keys.Emplace(D.Key, Tex);
+		G.Draws += D.Value;
+	}
+	Groups.ValueSort([](const FGroup& A, const FGroup& B) { return A.Draws > B.Draws; });
+	int32 Made = 0;
+	for (TPair<FString, FGroup>& It : Groups) {
+		FGroup& G = It.Value;
+		if (Made >= MaxArrays || G.Keys.Num() < 2)
+			break;
+		G.Keys.SetNum(FMath::Min(G.Keys.Num(), 256)); // the phones' limit
+		G.Keys.Sort([](const TPair<FString, UTexture2D*>& A, const TPair<FString, UTexture2D*>& B) { return A.Key < B.Key; });
+		bool bCreated = false;
+		UTexture2DArray* Array = FindOrCreateAsset<UTexture2DArray>(Root, FString::Printf(TEXT("TA_%s_%d"), *MapName.Replace(TEXT("-"), TEXT("_")), Made), bCreated);
+		Array->SourceTextures.Reset();
+		for (const TPair<FString, UTexture2D*>& K : G.Keys)
+			Array->SourceTextures.Add(K.Value);
+		const UTexture2D* First = G.Keys[0].Value;
+		Array->LODGroup = First->LODGroup;
+		Array->SRGB = First->SRGB;
+		Array->CompressionNoAlpha = true; // opaque: BC1 as the single textures
+		Array->MipGenSettings = First->MipGenSettings;
+		Array->PreEditChange(nullptr);
+		if (!Array->UpdateSourceFromSourceTextures(bCreated)) {
+			UE_LOG(LogDFEditor, Warning, TEXT("%s: array %s failed, its textures stay single"), *MapName, *It.Key);
+			continue;
+		}
+		Array->PostEditChange();
+		Array->SourceTextures.Reset(); // the pixels are in: no editor references into other packs
+		SaveAsset(Array);
+		bool bMICreated = false;
+		UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(Root, FString::Printf(TEXT("MI_%s_%d"), *MapName.Replace(TEXT("-"), TEXT("_")), Made), bMICreated);
+		MIC->SetParentEditorOnly(GetArrayMaster());
+		MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Textures")), Array);
+		MIC->PostEditChange();
+		SaveAsset(MIC);
+		for (int32 I = 0; I < G.Keys.Num(); ++I)
+			TextureArrays.Add(G.Keys[I].Key, { MIC, I });
+		UE_LOG(LogDFEditor, Display, TEXT("%s: array %d (%s): %d textures, %d draws"), *MapName, Made, *It.Key, G.Keys.Num(), G.Draws);
+		++Made;
+	}
 }
 
 UMaterialParameterCollection* FDFImporter::EnsureAmbientCollection() {
@@ -1307,6 +1585,13 @@ UMaterialParameterCollection* FDFImporter::EnsureAmbientCollection() {
 		P.ParameterName = TEXT("Ambient");
 		P.DefaultValue = FLinearColor::Black;
 		C->VectorParameters.Add(P);
+		bChanged = true;
+	}
+	if (!C->ScalarParameters.ContainsByPredicate([](const FCollectionScalarParameter& P) { return P.ParameterName == TEXT("ShadeFloor"); })) {
+		FCollectionScalarParameter P;
+		P.ParameterName = TEXT("ShadeFloor");
+		P.DefaultValue = 0.f;
+		C->ScalarParameters.Add(P);
 		bChanged = true;
 	}
 	if (!C->ScalarParameters.ContainsByPredicate([](const FCollectionScalarParameter& P) { return P.ParameterName == TEXT("AmbientScale"); })) {
@@ -1321,6 +1606,57 @@ UMaterialParameterCollection* FDFImporter::EnsureAmbientCollection() {
 		SaveAsset(C);
 	}
 	return C;
+}
+
+bool FDFImporter::AddActorLight(UMaterial* M) {
+	// Emissive's map ambient + custom primitive data 0: 0 on everything baked, one add in the shader.
+	// Its zone ambient + MPC ShadeFloor: outdoors UE1's shade came from its lights, Lightmass
+	// leaves faces in zones without ambient near black
+	UMaterialExpressionLinearInterpolate* Lerp = nullptr;
+	bool bActorLight = false, bShadeFloor = false;
+	for (const TObjectPtr<UMaterialExpression>& E : M->GetExpressions()) {
+		const UMaterialExpressionScalarParameter* P = Cast<UMaterialExpressionScalarParameter>(E);
+		bActorLight |= P && P->ParameterName == TEXT("ActorLight");
+		const UMaterialExpressionCollectionParameter* CP = Cast<UMaterialExpressionCollectionParameter>(E);
+		bShadeFloor |= CP && CP->ParameterName == TEXT("ShadeFloor");
+		UMaterialExpressionLinearInterpolate* L = Cast<UMaterialExpressionLinearInterpolate>(E);
+		if (L && Cast<UMaterialExpressionVertexColor>(L->Alpha.Expression))
+			Lerp = L;
+	}
+	if (!Lerp || (bActorLight && bShadeFloor))
+		return false;
+	if (!bActorLight) {
+		UMaterialExpressionScalarParameter* Light = NewObject<UMaterialExpressionScalarParameter>(M);
+		Light->ParameterName = TEXT("ActorLight");
+		Light->DefaultValue = 0.f;
+		Light->bUseCustomPrimitiveData = true;
+		Light->PrimitiveDataIndex = 0;
+		M->GetExpressionCollection().AddExpression(Light);
+		UMaterialExpressionAdd* Sum = NewObject<UMaterialExpressionAdd>(M);
+		Sum->A.Connect(0, Lerp->A.Expression);
+		Sum->A.SetMask(1, 1, 1, 1, 0);
+		Sum->B.Connect(0, Light);
+		M->GetExpressionCollection().AddExpression(Sum);
+		Lerp->A.Connect(0, Sum);
+		Lerp->A.SetMask(0, 0, 0, 0, 0);
+	}
+	if (!bShadeFloor) {
+		UMaterialParameterCollection* Collection = EnsureAmbientCollection();
+		UMaterialExpressionCollectionParameter* Shade = NewObject<UMaterialExpressionCollectionParameter>(M);
+		Shade->Collection = Collection;
+		Shade->ParameterName = TEXT("ShadeFloor");
+		Shade->ParameterId = Collection->GetParameterId(TEXT("ShadeFloor"));
+		M->GetExpressionCollection().AddExpression(Shade);
+		UMaterialExpressionAdd* World = NewObject<UMaterialExpressionAdd>(M);
+		World->A.Connect(0, Lerp->B.Expression);
+		World->B.Connect(0, Shade);
+		M->GetExpressionCollection().AddExpression(World);
+		Lerp->B.Connect(0, World);
+	}
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	return true;
 }
 
 bool FDFImporter::AddAmbientFloor(UMaterial* M) {
@@ -1494,12 +1830,13 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	TVertexInstanceAttributesRef<FVector2f> UVs = Attr.GetVertexInstanceUVs();
 	TVertexInstanceAttributesRef<FVector4f> Colors = Attr.GetVertexInstanceColors();
 	TPolygonGroupAttributesRef<FName> SlotNames = Attr.GetPolygonGroupMaterialSlotNames();
-	UVs.SetNumChannels(1);
+	const bool bArrays = !TextureArrays.IsEmpty() && bRender;
+	UVs.SetNumChannels(bArrays ? 3 : 1); // 1 is the lightmap's, 2 the array slice
 
 	// Weld positions so lightmap UV generation sees connected surfaces
 	TMap<FVector3f, FVertexID> Welded;
-	TArray<FVertexInstanceID> Instances;
-	Instances.SetNum(NumVerts);
+	TArray<FVertexID> VertexOf;
+	VertexOf.SetNum(NumVerts);
 	for (int32 i = 0; i < NumVerts; ++i) {
 		const float* P = V + i * Stride;
 		const FVector3f Pos(P[0], P[1], P[2]);
@@ -1509,30 +1846,56 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 			Positions[New] = Pos;
 			VID = &Welded.Add(Pos, New);
 		}
-		const FVertexInstanceID VI = MD.CreateVertexInstance(*VID);
+		VertexOf[i] = *VID;
+	}
+	// instances per section: mfmesh shares vertices across materials, the array slice can't be
+	auto MakeInstance = [&](uint32 Index, float Slice) {
+		const float* P = V + Index * Stride;
+		const FVertexInstanceID VI = MD.CreateVertexInstance(VertexOf[Index]);
 		Normals[VI] = FVector3f(P[3], P[4], P[5]);
 		UVs.Set(VI, 0, FVector2f(P[6], P[7]));
+		if (bArrays)
+			UVs.Set(VI, 2, FVector2f(Slice, 0.f));
 		// alpha 1 = this zone's ambient in RGB; alpha 0 = use the map's main ambient (props)
 		Colors[VI] = bZoneColors ? FVector4f(P[8], P[9], P[10], 1.f) : FVector4f(0.f, 0.f, 0.f, 0.f);
-		Instances[i] = VI;
-	}
+		return VI;
+	};
 
 	const TArray<TSharedPtr<FJsonValue>>& Materials = J->GetArrayField(TEXT("materials"));
 	TArray<FStaticMaterial> StaticMaterials;
+	TMap<UMaterialInterface*, FPolygonGroupID> ArrayGroups; // a mesh draws each array once
 	for (const TSharedPtr<FJsonValue>& Sec : J->GetArrayField(TEXT("sections"))) {
 		const TSharedPtr<FJsonObject> S = Sec->AsObject();
 		const int32 MatIndex = S->GetIntegerField(TEXT("material"));
 		const int32 First = S->GetIntegerField(TEXT("first_index"));
 		const int32 NumTris = S->GetIntegerField(TEXT("num_triangles"));
 		const FString Key = Materials.IsValidIndex(MatIndex) ? Materials[MatIndex]->AsString() : FString();
-		const FName Slot(*FString::Printf(TEXT("M%d"), StaticMaterials.Num()));
-		const FPolygonGroupID PG = MD.CreatePolygonGroup();
-		SlotNames[PG] = Slot;
-		StaticMaterials.Add(FStaticMaterial(bRender ? GetMaterial(Key) : nullptr, Slot, Slot));
+		const FDFArraySlice* Slice = bArrays ? TextureArrays.Find(Key) : nullptr;
+		const FPolygonGroupID* Shared = Slice ? ArrayGroups.Find(Slice->Material) : nullptr;
+		FPolygonGroupID PG;
+		if (Shared) {
+			PG = *Shared;
+		} else {
+			const FName Slot(*FString::Printf(TEXT("M%d"), StaticMaterials.Num()));
+			PG = MD.CreatePolygonGroup();
+			SlotNames[PG] = Slot;
+			UMaterialInterface* Material = !bRender ? nullptr : Slice ? Slice->Material
+																	  : GetMaterial(Key);
+			StaticMaterials.Add(FStaticMaterial(Material, Slot, Slot));
+			if (Slice)
+				ArrayGroups.Add(Slice->Material, PG);
+		}
+		const float SliceIndex = Slice ? Slice->Index : 0.f;
+		TMap<uint32, FVertexInstanceID> Made;
+		auto InstanceOf = [&](uint32 Index) {
+			if (const FVertexInstanceID* Found = Made.Find(Index))
+				return *Found;
+			return Made.Add(Index, MakeInstance(Index, SliceIndex));
+		};
 		for (int32 t = 0; t < NumTris; ++t) {
 			const uint32 A = Idx[First + t * 3], B = Idx[First + t * 3 + 1], C = Idx[First + t * 3 + 2];
 			// mfmesh triangles wind cross(v1-v0, v2-v0) along the normal; UE wants the opposite
-			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { Instances[A], Instances[C], Instances[B] };
+			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { InstanceOf(A), InstanceOf(C), InstanceOf(B) };
 			MD.CreateTriangle(PG, Tri);
 		}
 	}
@@ -1562,6 +1925,7 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	SM->CreateBodySetup();
 	UBodySetup* Body = SM->GetBodySetup();
 	Body->CollisionTraceFlag = Collision == TEXT("complex") ? CTF_UseComplexAsSimple : CTF_UseDefault;
+	Body->bDoubleSidedGeometry = true; // UE1's BSP was solid behind a face: a mesh only has the face
 	// MF thin two-sided surfaces (notably grating platforms) must also collide from
 	// either side. Render culling alone does not affect Chaos triangle collision.
 	Body->bDoubleSidedGeometry = Collision == TEXT("complex") && Materials.ContainsByPredicate([](const TSharedPtr<FJsonValue>& Value) {
@@ -1569,6 +1933,18 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	});
 	if (Collision == TEXT("none"))
 		Body->bNeverNeedsCookedCollisionData = true;
+	if (Collision == TEXT("hull")) {
+		// one smooth shape round the mesh: a ramp of rungs walks like a ramp
+		FKConvexElem Hull;
+		for (int32 i = 0; i < NumVerts; ++i)
+			Hull.VertexData.Add(FVector(V[i * Stride], V[i * Stride + 1], V[i * Stride + 2]));
+		Hull.UpdateElemBox();
+		Body->AggGeom.ConvexElems.Reset();
+		Body->AggGeom.ConvexElems.Add(Hull);
+		Body->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+		Body->InvalidatePhysicsData();
+		Body->CreatePhysicsMeshes();
+	}
 	SM->Build(true);
 	SM->PostEditChange();
 	SaveAsset(SM);

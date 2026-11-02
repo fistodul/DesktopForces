@@ -160,6 +160,49 @@ def solid_faces(solid: KV):
     return faces
 
 
+def displacement(side: KV, n, poly) -> list[tuple]:
+    """A displaced face as (quad, flat quad, normal) per grid cell: `quad` is where it ended up,
+    `flat` where it started, which the texture axes keep using. Rows run from the corner nearest
+    `startposition` to the next one going clockwise seen from outside (CCoreDispInfo)."""
+    info = side.find('dispinfo')[0]
+    if len(poly) != 4:
+        return []
+    if _dot(_cross(_sub(poly[1], poly[0]), _sub(poly[2], poly[0])), n) > 0:
+        poly = list(reversed(poly))
+    start = _v(info.keys['startposition'].strip('[]'))
+    first = min(range(4), key=lambda i: _dot(_sub(poly[i], start), _sub(poly[i], start)))
+    a, b, c, d = (poly[(first + i) % 4] for i in range(4))
+    size = 2 ** int(info.keys['power']) + 1
+    elevation = float(info.keys.get('elevation', 0))
+
+    def block(name, width):
+        rows = info.find(name)
+        if not rows:
+            return None
+        values = [[float(x) for x in rows[0].keys[f'row{r}'].split()] for r in range(size)]
+        return [[tuple(row[c * width:(c + 1) * width]) if width > 1 else row[c] for c in range(size)] for row in values]
+    normals, distances, offsets = block('normals', 3), block('distances', 1), block('offsets', 3)
+    flat, moved = [], []
+    for r in range(size):
+        left = _add(a, _mul(_sub(b, a), r / (size - 1)))
+        right = _add(d, _mul(_sub(c, d), r / (size - 1)))
+        flat.append([_add(left, _mul(_sub(right, left), col / (size - 1))) for col in range(size)])
+        moved.append([])
+        for col in range(size):
+            p = _add(_add(flat[r][col], _mul(normals[r][col], distances[r][col])), _mul(n, elevation))
+            moved[r].append(_add(p, offsets[r][col]) if offsets else p)
+    out = []
+    for r in range(size - 1):
+        for col in range(size - 1):
+            cell = [(r, col), (r + 1, col), (r + 1, col + 1), (r, col + 1)]
+            quad = [moved[i][j] for i, j in cell]
+            normal = _norm(_cross(_sub(quad[2], quad[0]), _sub(quad[1], quad[0])))
+            if _dot(normal, n) < 0:
+                normal = _mul(normal, -1)
+            out.append((quad, [flat[i][j] for i, j in cell], normal))
+    return out
+
+
 def _axis(s: str):
     m = re.match(r'\[\s*([-\d.e]+)\s+([-\d.e]+)\s+([-\d.e]+)\s+([-\d.e]+)\s*\]\s*([-\d.e]+)', s or '')
     if not m:
@@ -181,13 +224,21 @@ def load_material_map() -> dict[str, str]:
 class VmfConverter:
     def __init__(self, cfg: Config, vmf_path: Path, name: str, scale: float = 1.0,
                  offset=(0.0, 0.0, 0.0), yaw: float = 0.0, zscale: float | None = None,
-                 prop_scale: float | None = None):
+                 prop_scale: float | None = None, extra_spawns: list | None = None, sky_texture: str | None = None, spawn_lift: dict | None = None, mood: dict | None = None):
+        mood = mood or {}
         self.cfg = cfg
         self.path = vmf_path
         self.name = name
         self.scale = scale
         self.zscale = scale if zscale is None else zscale          # remakes may squash height differently
         self.prop_scale = scale if prop_scale is None else prop_scale
+        self.extra_spawns = extra_spawns or []
+        self.sky_texture = sky_texture
+        self.spawn_lift = spawn_lift or {}
+        self.ambient = mood.get('ambient', 0.5)     # how lit the map feels, by entry: the Source
+        self.sun = mood.get('sun', 2.0)             # values don't carry over
+        self.fog = mood.get('fog')
+        self.environment = {'environment_color': [0.3, 0.3, 0.32], 'environment_intensity': 0.4}
         self.offset = offset
         self.yaw = math.radians(yaw)
         self.out = cfg.out_dir / 'Maps' / name
@@ -228,6 +279,36 @@ class VmfConverter:
         # Hammer is right-handed (Y left); Unreal is left-handed (Y right): mirror Y
         return ((x + self.offset[0]) * UU_TO_CM, (-y + self.offset[1]) * UU_TO_CM, (z + self.offset[2]) * UU_TO_CM)
 
+    def add_backstop(self, chunks: dict) -> None:
+        """A box of sky round everything: gaps in a map show sky, not the void's black."""
+        all_points = [v[0] for mb in [m for (_, sky), m in chunks.items() if not sky] for tris in mb.tris.values() for t in tris for v in t]
+        if not all_points:
+            return
+        margin = 40000.0
+        lo = [min(p[i] for p in all_points) - margin for i in range(3)]
+        hi = [max(p[i] for p in all_points) + margin for i in range(3)]
+        mb = chunks.setdefault(((0, 0), True), MeshBuilder('Sky_backstop', collision='none'))
+        key = f'{self.sky_texture}|opaque_unlit'
+        self.usage.setdefault(self.sky_texture.lower(), set()).add('opaque_unlit')
+        x0, y0, z0, x1, y1, z1 = lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]
+        pivot = (0.5 * CHUNK * UU_TO_CM, 0.5 * CHUNK * UU_TO_CM, 0.0)
+        faces = [[(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0)], [(x0, y0, z1), (x0, y1, z1), (x1, y1, z1), (x1, y0, z1)],
+                 [(x0, y0, z0), (x0, y0, z1), (x1, y0, z1), (x1, y0, z0)], [(x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1)],
+                 [(x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1)], [(x1, y0, z0), (x1, y0, z1), (x1, y1, z1), (x1, y1, z0)]]
+        for face in faces:
+            n = _norm(_cross(_sub(face[1], face[0]), _sub(face[2], face[0])))
+            uv = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+            verts = [(tuple(p[i] - (pivot[i] if i < 2 else 0.0) for i in range(3)), n, t) for p, t in zip(face, uv)]
+            mb.add_triangle(key, verts[0], verts[1], verts[2])
+            mb.add_triangle(key, verts[0], verts[2], verts[3])
+
+    @staticmethod
+    def face_parts(side: KV, n, poly):
+        """(side, normal, (flat outline, outline)) of a face, one per grid cell when displaced."""
+        if side.find('dispinfo'):
+            return [(side, normal, (flat, quad)) for quad, flat, normal in displacement(side, n, poly)]
+        return [(side, n, (poly, poly))]
+
     def run(self) -> Path:
         root = parse_kv(self.path.read_text(encoding='latin-1', errors='replace'))
         world = root.find('world')[0]
@@ -239,14 +320,22 @@ class VmfConverter:
         coll: dict[tuple, MeshBuilder] = {}
         nfaces = 0
         for solid in solids:
-            for side, n, poly in solid_faces(solid):
+            faces = solid_faces(solid)
+            # a displaced brush is only its displaced sides: the rest of it isn't drawn or solid
+            displaced = any(side.find('dispinfo') for side, _, _ in faces)
+            parts = [part for face in faces if face[0].find('dispinfo') or not displaced for part in self.face_parts(*face)]
+            for side, n, (flat, poly) in parts:
                 mat = side.keys.get('material', '').upper()
                 if mat in DROP_TOOLS or mat.startswith('TOOLS/TOOLSNODRAW'):
                     continue
                 render = mat not in COLLISION_TOOLS
                 key = None
-                if mat in SKY_TOOLS:
-                    key, size, mode = 'rage_warehouse.sky.sky_00|sky', (256, 256), 'sky'
+                sky = mat in SKY_TOOLS
+                if sky and self.sky_texture:
+                    # no sky zone to show through the window: a picture of a sky, unlit
+                    key, size = f'{self.sky_texture}|opaque_unlit', (8192, 8192)
+                elif sky:
+                    key, size = 'rage_warehouse.sky.sky_00|sky', (256, 256)
                 elif render:
                     tex, size = self.material_key(mat)
                     key = f'{tex or "Engine.DefaultTexture"}|opaque'
@@ -264,8 +353,11 @@ class VmfConverter:
 
                     def uv(p):
                         return ((_dot(p, ua) / us + uo) / size[0], (_dot(p, va) / vs + vo) / size[1])
-                    uvs = list(reversed([uv(p) for p in poly]))
-                    mb = chunks.setdefault(cell, MeshBuilder(f'World_{cell[0]}_{cell[1]}'.replace('-', 'm'), collision='none'))
+                    uvs = list(reversed([uv(p) for p in flat]))
+                    # sky goes in its own chunks: they cast no shadow (level.py), or the skybox
+                    # keeps the sun and the ambient out of the whole map
+                    name = f'{"Sky" if sky else "World"}_{cell[0]}_{cell[1]}'.replace('-', 'm')
+                    mb = chunks.setdefault((cell, sky), MeshBuilder(name, collision='none'))
                     tex = key.split('|')[0]
                     self.usage.setdefault(tex.lower(), set()).add(key.split('|')[1])
                     vs_ = [(_sub(v, pivot), nn, t) for v, t in zip(verts, uvs)]
@@ -273,16 +365,23 @@ class VmfConverter:
                 cb = coll.setdefault(cell, MeshBuilder(f'Collision_{cell[0]}_{cell[1]}'.replace('-', 'm'), render=False))
                 self._fan(cb, 'Engine.DefaultTexture|collision', [(_sub(v, pivot), nn, (0, 0)) for v in verts], nn)
                 nfaces += 1
+        if self.sky_texture:
+            self.add_backstop(chunks)
         world_out = []
-        for cell, mb in list(chunks.items()) + list(coll.items()):
+        for (cell, sky), mb in list(chunks.items()) + [((c, False), m) for c, m in coll.items()]:
             mb.write(self.out / 'geo')
             pivot = ((cell[0] + 0.5) * CHUNK * UU_TO_CM, (cell[1] + 0.5) * CHUNK * UU_TO_CM, 0.0)
-            world_out.append({'mesh': f'geo/{mb.name}', 'location': pivot, 'render': mb.render,
-                              'triangles': mb.triangle_count, 'lightmap_resolution': 256})
+            world_out.append({'mesh': f'geo/{mb.name}', 'location': pivot, 'render': mb.render, 'sky': sky,
+                              'triangles': mb.triangle_count, 'lightmap_resolution': 4 if sky else 256})
         spawns = self.entities(root)
+        if self.fog:
+            spawns.append({'name': 'Fog', 'type': 'height_fog', 'location': [0.0, 0.0, 0.0], **self.fog})
+        for i, spot in enumerate(self.extra_spawns):    # a map made for one mode has too few starts
+            spawns.append({'name': f'extra_start_{i}', 'location': list(spot), 'rotation': {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}, 'type': 'actor',
+                           'class': '/Script/DesktopForces.DFPlayerStart', 'props': {'TeamNumber': str(i % 2)}})
         data = {'map': self.name, 'source': str(self.path), 'uu_to_cm': UU_TO_CM, 'vmf_scale': self.scale,
                 'world': world_out, 'static_meshes': {}, 'spawns': spawns, 'actors': [],
-                'lightmass': {'environment_color': [0.3, 0.3, 0.32], 'environment_intensity': 0.4},
+                'lightmass': self.environment,
                 'texture_usage': {k: sorted(v) for k, v in self.usage.items()},
                 'unmapped_materials': dict(self.unmapped.most_common()),
                 'skipped_models': dict(self.skipped_models.most_common())}
@@ -343,12 +442,22 @@ class VmfConverter:
             pitch, yaw, roll = (_v(ent.keys['angles']) if 'angles' in ent.keys else (0.0, 0.0, 0.0))
             rot = {'pitch': -pitch, 'yaw': -(yaw + math.degrees(self.yaw)), 'roll': roll}
             base = {'name': f'{cls}_{ent.keys.get("id", "")}', 'location': loc, 'rotation': rot}
-            if cls in ('info_player_deathmatch', 'info_player_start'):
+            if base['name'] in self.spawn_lift:      # a start under the terrain: nothing stops the fall
+                base['location'] = (loc[0], loc[1], loc[2] + self.spawn_lift[base['name']])
+            if cls in ('info_player_deathmatch', 'info_player_start', 'info_player_teamspawn'):
                 out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.DFPlayerStart'}, props={'TeamNumber': '255'}))
             elif cls in ('info_player_combine', 'info_player_captain_blue'):
                 out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.DFPlayerStart'}, props={'TeamNumber': '0'}))
             elif cls in ('info_player_rebel', 'info_player_captain_red'):
                 out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.DFPlayerStart'}, props={'TeamNumber': '1'}))
+            elif cls == 'light_environment':
+                # the sun: Source's `pitch` is how far it points down (negative); nearly level
+                # suns (iceworld's 2 degrees) are raised so walls don't shadow the whole map
+                col = [float(x) for x in ent.keys.get('_light', '255 255 255 200').split()[:4]]
+                sky = [float(x) for x in ent.keys.get('_ambient', '180 190 210 40').split()[:4]]
+                self.environment = {'environment_color': [c / 255 for c in sky[:3]], 'environment_intensity': self.ambient}
+                out.append(dict(base, type='directional_light', rotation=dict(rot, pitch=min(-25.0, float(ent.keys.get('pitch', -45)))),
+                                color=[c / 255 for c in col[:3]], intensity=self.sun))
             elif cls in ('light', 'light_spot'):
                 col = [float(x) for x in ent.keys.get('_light', '255 255 255 200').split()[:4]]
                 while len(col) < 4:

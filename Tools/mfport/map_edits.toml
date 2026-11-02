@@ -4,6 +4,11 @@
 # themselves (the converted map has the vehicle generators, like any it was made with):
 #   add_vehicles   extra vehicle generators (Gregaras' mutPack addVehicles default spots;
 #                  "...Unboxed" map versions were merged into the regular maps)
+#   texture_arrays how many texture arrays for the world (draws merged per chunk)
+#   bounces        Lightmass indirect bounces (default in level.py)
+#   instance_props meshes without collision placed this often in an 80 m cell share one
+#                  instanced component (default 8, 0 = never); halves a busy map's bake
+#   hull_collision static meshes that collide as one smooth shape (rung ramps)
 #   generators     change a map's generators: { class = "<MF generator class>",
 #                  vehicle = "<MF vehicle class>" } turns every one of that class into a
 #                  VehicleGenerator of that vehicle
@@ -91,6 +96,7 @@ add_vehicles = [
 ]
 
 ["mf-waterfront"]
+hull_collision = ["redladder", "blueladder"]   # ramps up to the roofs: rungs would catch your feet
 add_vehicles = [
   { vehicle = "heli.heli", location = [14724.0, -17174.2, -459.0], yaw = -130.17 },
   { vehicle = "heli.heli", location = [14688.0, 23391.0, -486.0], yaw = 130.74 },

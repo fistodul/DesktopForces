@@ -38,6 +38,12 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		Importer.ImportProps();
 	if (Steps.Contains(TEXT("art")))
 		Importer.ImportArt();
+	if (Steps.Contains(TEXT("actorlight")))
+		Importer.UpdateMasters();
+	if (Steps.Contains(TEXT("hud")) && !Importer.ImportHUDArt())
+		++Errors;
+	if (Steps.Contains(TEXT("twosided")))
+		Importer.MakeCollisionTwoSided();
 	if (Steps.Contains(TEXT("repack")) && !Importer.Repack(Steps.Contains(TEXT("repackplan"))))
 		return 1; // "repackplan": only log what would move
 	if (Steps.Contains(TEXT("packs")))

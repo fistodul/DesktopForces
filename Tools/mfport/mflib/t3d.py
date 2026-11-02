@@ -179,6 +179,56 @@ def static_mesh_triangles(block: Block) -> list[SMTriangle]:
     return tris
 
 
+def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
+    """Wind each connected piece of a static mesh one way: neighbours cross a shared edge in
+    opposite directions, and the piece as a whole faces along its vertex normals.
+
+    Vertex normals are smoothed, so one triangle's can point away from its own face: going by
+    them triangle by triangle turned some round, and the renderer culled those."""
+    def key(p):
+        return (round(p[0], 2), round(p[1], 2), round(p[2], 2))
+
+    edges: dict[tuple, list[tuple[int, bool]]] = {}
+    for i, tri in enumerate(tris):
+        ps = [key(v[0]) for v in tri.verts]
+        for a, b in ((0, 1), (1, 2), (2, 0)):
+            if ps[a] != ps[b]:
+                edges.setdefault((min(ps[a], ps[b]), max(ps[a], ps[b])), []).append((i, ps[a] < ps[b]))
+    links: list[list[tuple[int, bool]]] = [[] for _ in tris]
+    for pair in edges.values():
+        if len(pair) == 2 and pair[0][0] != pair[1][0]:   # three or more: not a surface to follow
+            (i, up_i), (j, up_j) = pair
+            same = up_i == up_j   # both cross it the same way: one of them must turn
+            links[i].append((j, same))
+            links[j].append((i, same))
+    seen = [False] * len(tris)
+    for start in range(len(tris)):
+        if seen[start]:
+            continue
+        seen[start] = True
+        flip = {start: False}
+        queue = [start]
+        for i in queue:
+            for j, differs in links[i]:
+                if not seen[j]:
+                    seen[j] = True
+                    flip[j] = flip[i] != differs
+                    queue.append(j)
+        agreement = 0.0
+        for i, turned in flip.items():
+            p = [v[0] for v in tris[i].verts]
+            u = [p[1][k] - p[0][k] for k in range(3)]
+            w = [p[2][k] - p[0][k] for k in range(3)]
+            n = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
+            avg = [sum(v[1][k] for v in tris[i].verts) for k in range(3)]
+            agreement += sum(n[k] * avg[k] for k in range(3)) * (-1.0 if turned else 1.0)
+        for i, turned in flip.items():
+            if turned != (agreement < 0):
+                v = tris[i].verts
+                tris[i].verts = [v[0], v[2], v[1]]
+    return tris
+
+
 @dataclass
 class BrushPoly:
     texture: str

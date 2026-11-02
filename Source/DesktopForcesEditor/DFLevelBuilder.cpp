@@ -25,6 +25,9 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Engine/DirectionalLight.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/PointLight.h"
 #include "Engine/SpotLight.h"
@@ -39,7 +42,7 @@
 #include "World/Teleporter.h"
 #include "World/DFPickupSpot.h"
 #include "World/DFMover.h"
-#include "World/DFBlocker.h"
+#include "World/LoadoutBlocker.h"
 #include "World/DFBotSpot.h"
 #include "GameFramework/RotatingMovementComponent.h"
 #include "Weapons/DFWeapon.h"
@@ -215,7 +218,7 @@ namespace {
 			return B;
 		}
 		if (Type == TEXT("blocker")) {
-			ADFBlocker* B = World->SpawnActor<ADFBlocker>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			ALoadoutBlocker* B = World->SpawnActor<ALoadoutBlocker>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
 			B->Team = Team(R->GetStringField(TEXT("team")));
 			B->bBlockVehicles = R->GetBoolField(TEXT("vehicles"));
 			B->SetCylinder(R->GetNumberField(TEXT("radius")), R->GetNumberField(TEXT("height")));
@@ -365,6 +368,35 @@ namespace {
 	}
 } // namespace
 
+/** Level's "instance_props": a mesh placed at least that often in one 80 m cell is one component
+ *  there, not an actor each. By cell: visibility and lightmaps work per component. */
+static FString PropKey(const TSharedPtr<FJsonObject>& R) {
+	const TArray<TSharedPtr<FJsonValue>>& At = R->GetArrayField(TEXT("location"));
+	const int32 CellX = FMath::FloorToInt(At[0]->AsNumber() / 8000.0), CellY = FMath::FloorToInt(At[1]->AsNumber() / 8000.0);
+	return FString::Printf(TEXT("%s|%d|%d|%d"), *R->GetStringField(TEXT("mesh")), R->GetBoolField(TEXT("collision")) ? 1 : 0, CellX, CellY);
+}
+
+static UHierarchicalInstancedStaticMeshComponent* InstanceGroup(UWorld* World, const FActorSpawnParameters& SP, const TSharedPtr<FJsonObject>& R, const TMap<FString, int32>& Uses,
+	TMap<FString, UHierarchicalInstancedStaticMeshComponent*>& Groups, int32 Minimum, UStaticMesh* Mesh) {
+	const FString Key = PropKey(R);
+	// solid props bake near black as instances (crates in mf-Pobojowisko_VerII): only what you walk through
+	if (Minimum <= 0 || R->GetBoolField(TEXT("collision")) || Uses.FindRef(Key) < Minimum)
+		return nullptr;
+	if (UHierarchicalInstancedStaticMeshComponent** Found = Groups.Find(Key))
+		return *Found;
+	AActor* Holder = World->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SP);
+	UHierarchicalInstancedStaticMeshComponent* C = NewObject<UHierarchicalInstancedStaticMeshComponent>(Holder, NAME_None, RF_Transactional);
+	C->SetMobility(EComponentMobility::Static);
+	C->SetStaticMesh(Mesh);
+	if (!R->GetBoolField(TEXT("collision")))
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Holder->SetRootComponent(C);
+	Holder->AddInstanceComponent(C);
+	C->RegisterComponent();
+	Groups.Add(Key, C);
+	return C;
+}
+
 bool FDFImporter::BuildMap(const FString& MapName) {
 	const FString MapDir = WorkDir / TEXT("Maps") / MapName;
 	FString Text;
@@ -378,6 +410,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 	const FString PackageName = Packs.MapPackage(MapName); // community: /Game/Maps, else the classic or unverified plugin
 	TGuardValue<bool> CommunityMaterials(bBuildingCommunityMap, Packs.IsCommunityMap(MapName));
 	DeleteOldMap(PackageName);
+	PlanTextureArrays(MapName, MapDir, Level);
 	UPackage* Pkg = CreatePackage(*PackageName);
 	Pkg->SetPackageFlags(PKG_ContainsMap);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Editor, false, FName(*MapName), Pkg, true);
@@ -389,6 +422,14 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	FBox WorldBounds(ForceInit);
 	int32 Spawned = 0;
+
+	const int32 InstanceProps = Level->HasField(TEXT("instance_props")) ? Level->GetIntegerField(TEXT("instance_props")) : 0;
+	TMap<FString, int32> PropUses;
+	TMap<FString, UHierarchicalInstancedStaticMeshComponent*> PropGroups;
+	if (InstanceProps > 0)
+		for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns")))
+			if (const TSharedPtr<FJsonObject> R = V->AsObject(); R->GetStringField(TEXT("type")) == TEXT("static_mesh"))
+				PropUses.FindOrAdd(PropKey(R))++;
 
 	// --- world geometry chunks -----------------------------------------------------------
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("world"))) {
@@ -443,6 +484,11 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			UStaticMesh* Mesh = LoadOrBuildMesh(MapDir, R->GetStringField(TEXT("mesh")), MapName);
 			if (!Mesh)
 				continue;
+			if (UHierarchicalInstancedStaticMeshComponent* Group = InstanceGroup(World, SP, R, PropUses, PropGroups, InstanceProps, Mesh)) {
+				Group->AddInstance(FTransform(Rotation, Loc, Vec(R, TEXT("scale"))), true);
+				++Spawned;
+				continue;
+			}
 			AStaticMeshActor* A = World->SpawnActor<AStaticMeshActor>(Loc, Rotation, SP);
 			A->SetActorScale3D(Vec(R, TEXT("scale")));
 			UStaticMeshComponent* C = A->GetStaticMeshComponent();
@@ -540,6 +586,15 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			Actor = Info;
 		} else if (Type == TEXT("legacy")) {
 			Actor = SpawnLegacy(World, R, SP);
+		} else if (Type == TEXT("height_fog")) {
+			// Source maps' env_fog_controller, chosen per map in vmf_maps.toml
+			AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			UExponentialHeightFogComponent* C = Fog->GetComponent();
+			const TArray<TSharedPtr<FJsonValue>>& Col = R->GetArrayField(TEXT("color"));
+			C->SetFogInscatteringColor(FLinearColor(Col[0]->AsNumber(), Col[1]->AsNumber(), Col[2]->AsNumber()));
+			C->SetFogDensity(R->GetNumberField(TEXT("density")));
+			C->SetFogHeightFalloff(R->GetNumberField(TEXT("falloff")));
+			Actor = Fog;
 		}
 
 		if (Actor) {
@@ -637,7 +692,7 @@ bool FDFImporter::PatchMapData(const FString& MapName) {
 	int32 Removed = 0, Added = 0;
 	bool bNavChanged = false;
 	for (TActorIterator<AActor> It(World); It; ++It) {
-		if (It->IsA<ADFZoneVolume>() || It->IsA<ALoadoutZone>() || It->IsA<ADFZoneBox>() || It->IsA<ADFRoadNetwork>() || It->IsA<ATeleporter>() || It->IsA<ADFPeriodicSound>() || It->IsA<ADFPickupSpot>() || It->IsA<ADFMover>() || It->IsA<ADFBlocker>() || It->IsA<ADFBotSpot>() || It->ActorHasTag(ParticleEffectTag) || (It->IsA<ADFLegacyActor>() && IsVehicleGenerator(Cast<ADFLegacyActor>(*It)->MFClass.ToString()))) {
+		if (It->IsA<ADFZoneVolume>() || It->IsA<ALoadoutZone>() || It->IsA<ADFZoneBox>() || It->IsA<ADFRoadNetwork>() || It->IsA<ATeleporter>() || It->IsA<ADFPeriodicSound>() || It->IsA<ADFPickupSpot>() || It->IsA<ADFMover>() || It->IsA<ALoadoutBlocker>() || It->IsA<ADFBotSpot>() || It->ActorHasTag(ParticleEffectTag) || (It->IsA<ADFLegacyActor>() && IsVehicleGenerator(Cast<ADFLegacyActor>(*It)->MFClass.ToString()))) {
 			World->EditorDestroyActor(*It, true);
 			++Removed;
 		}
@@ -654,7 +709,7 @@ bool FDFImporter::PatchMapData(const FString& MapName) {
 		if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); }, [this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); }, [this, &MapName](const TArray<TSharedPtr<FJsonValue>>& E) { return GetMapEffect(MapName, E); })) {
 			Data->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;
-			bNavChanged |= Data->IsA<ADFMover>() || Data->IsA<ADFBlocker>();
+			bNavChanged |= Data->IsA<ADFMover>() || Data->IsA<ALoadoutBlocker>();
 		}
 	}
 	bNavChanged |= LinkTeleporters(World);

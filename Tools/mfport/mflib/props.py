@@ -120,17 +120,13 @@ def _static_meshes(cfg: Config, pkg_name: str, tex_info: dict, out_root: Path,
             mb = MeshBuilder(blk.name)
             mb.collision = 'complex'
             area = 0.0
-            for tri in t3d.static_mesh_triangles(blk):
+            for tri in t3d.orient_triangles(t3d.static_mesh_triangles(blk)):
                 tex = tri.texture or 'Engine.DefaultTexture'
                 info = tex_info.get(tex.lower(), {})
                 key = material_key(tex, tri.poly_flags | (PF_MASKED if info.get('masked') else 0) | info.get('polyflags', 0))
                 usage.setdefault(tex.lower(), set()).add(key.split('|')[1].split('_')[0])
                 p = [v[0] for v in tri.verts]
                 verts = [((v[0][0] * UU_TO_CM, v[0][1] * UU_TO_CM, v[0][2] * UU_TO_CM), v[1], v[2]) for v in tri.verts]
-                geo_n = _cross(_sub(p[1], p[0]), _sub(p[2], p[0]))
-                avg_n = tuple(sum(v[1][i] for v in tri.verts) for i in range(3))
-                if _dot(avg_n, avg_n) > 1e-12 and _dot(geo_n, avg_n) < 0:
-                    verts = [verts[0], verts[2], verts[1]]
                 mb.add_triangle(key, *verts)
                 area += _area(p)
             mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / 16.0))))

@@ -17,3 +17,24 @@ zscale = 1.159
 offset = [7499.9, 1948.5, -42.2]
 # MF props were recompiled for MFS at 0.75 scale: 1/0.75 brings them back to MF size
 prop_scale = 1.3333
+
+# Mobile Forces Source's own maps: no MF original to line up with. MFS is ~0.68x MF's size, so
+# the warehouse's scale, height and prop scale bring them to MF's proportions.
+[mfs-iceworld]
+mood = { ambient = 0.7, sun = 1.2, fog = { color = [0.45, 0.62, 0.85], density = 0.012, falloff = 0.002 } }   # blue, snowy, a little foggy
+sky = "icebase.ib_Skyblue"
+spawn_lift = { info_player_deathmatch_462 = 190.0 }    # cm: 140 under the terrain as placed
+vmf = "../../../MoFo/Mobile-Forces-Source/mp/game/mobileforcessource/mapsrc/mfs-iceworld.vmf"
+scale = 1.4797
+zscale = 1.159
+prop_scale = 1.3333
+
+[mfs-abandoned_town]
+mood = { ambient = 0.6, sun = 1.6, fog = { color = [0.3, 0.3, 0.33], density = 0.006, falloff = 0.002 } }   # dark and gloomy
+sky = "rage_lumberyard.sky.sky_00"
+vmf = "../../../MoFo/mfs-abandoned_town2.vmf"
+scale = 1.4797
+zscale = 1.159
+prop_scale = 1.3333
+# the map came with two starts: more, spread over open ground (cm, from its floors)
+spawns = [[-3134, -16709, 423], [-5705, -22129, 170], [1857, -20001, 501], [-6395, -28048, 232], [-7713, -12941, 141], [2091, -25749, 138], [2295, -6848, 146], [3592, -14161, 143], [-701, -3418, 120], [-1172, -28744, 138], [-9958, -25432, 138], [-1400, -23341, 475], [-4460, -31393, 136], [3418, -10472, 373]]
