@@ -133,6 +133,8 @@ public:
 	int32 GetTotalAmmo() const { return TotalAmmo; }
 	int32 GetAmmoCount() const { return ClipAmmo + TotalAmmo; }
 	bool HasAmmoInClip() const { return ClipAmmo > 0; }
+	/** A shot's effects play here, not through OnRep_BurstCounter: a listen host gets no RepNotify. */
+	bool ShowsFireHere() const { return IsLocallyControlled() || GetNetMode() == NM_Standalone || GetNetMode() == NM_ListenServer; }
 	/** Take Count from the clip (nothing while HasInfiniteAmmo). */
 	void UseAmmo(int32 Count = 1);
 	/** Clips that never run dry: the game's (?OPWeapons: every item, single-use ones too) or
@@ -153,6 +155,9 @@ public:
 	/** Firing while zoomed in (MF AccurateAimFire animation). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Timing")
 	float ZoomedFireTime = 0.5f;
+	/** Alt fire's time on a weapon whose alt fire is its own mode (M1887's fan); 0: FireTime. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF")
+	float AltFireTime = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Timing")
 	float ReloadTime = 1.3f;
@@ -203,9 +208,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
 	int32 Pellets = 1;
 
-	/** Muzzle flash size (RageWeapon bMuzzleFlash: FlashYellow at the muzzle), cm; 0: none. */
+	/** Muzzle flash size (RageWeapon bDrawMuzzleFlash, drawn by the HUD), 0: none. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float MuzzleFlashSize = 0.f;
+	/** RageWeapon.RenderMuzzleFlash: MF draws the flash on the canvas, not at the model. Shares of
+	 *  the screen below the centre (FlashY) and sideways per unit of FireOffset.Y (FlashO), a pixel
+	 *  shift (FlashS), and the same while zoomed, where FireOffset.Y usually is 0: mid-screen. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float FlashY = 0.08f;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float FlashO = -0.042f;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float FlashS = -6.f;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float FlashYZoom = 0.1f;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float FlashSZoom = 0.f;
+	/** -FireOffsetA.Y: how far the muzzle sits to the side at the hip. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float FireSide = 5.f;
 
 	/** Spent case thrown out on each shot (a converted prop: "RageWeapons/MachineGunBullet";
 	 *  empty: none). */
@@ -255,6 +276,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "DF")
 	bool IsZoomed() const { return ZoomLevel > 0; }
+	/** Listed in the carried items at the bottom of the HUD (not a seat's gun). */
+	bool bAddToStrip = true;
+	/** Holding this, nothing else can be picked (a seat's gun). */
+	virtual bool LocksSelection() const { return false; }
 
 	/** How far the view has zoomed, 0-1 (MF PreZoomIn / PostZoomOut's eased ZoomAlpha). */
 	float GetZoomBlend() const;
@@ -352,9 +377,7 @@ public:
 	FVector ArmsHandOffset = FVector::ZeroVector;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UStaticMeshComponent> MuzzleFlash;
-	FTimerHandle MuzzleFlashTimer;
-	void ShowMuzzleFlash();
+	float MuzzleFlashUntil = 0.f;
 
 	/** First-person model (placeholder until the MF weapon meshes are converted). */
 	UPROPERTY(VisibleAnywhere, Category = "DF|FX")
@@ -414,6 +437,8 @@ public:
 
 	/** HUD hook: crosshair / scope overlay. Return true if the weapon drew its own crosshair. */
 	virtual bool DrawHUD(UCanvas* Canvas) { return false; }
+	/** The muzzle flash is showing (first person, for the HUD). */
+	bool IsMuzzleFlashing() const;
 
 	/** Extra status line for the HUD (e.g. rifle power). */
 	virtual FString GetHUDStatus() const;

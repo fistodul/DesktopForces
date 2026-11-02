@@ -52,6 +52,7 @@ ADFProjectile::ADFProjectile() {
 
 void ADFProjectile::BeginPlay() {
 	Super::BeginPlay();
+	Shooter = GetInstigatorController();
 	if (!PropMesh.IsEmpty())
 		DF::ApplyPropMesh(Mesh, *PropMesh); // the MF model, life size; the sphere stays without it
 	Movement->OnProjectileStop.AddDynamic(this, &ADFProjectile::OnStop);
@@ -118,7 +119,7 @@ void ADFProjectile::Explode(const FVector& Location, const FVector& Normal) {
 	if (bExploded)
 		return;
 	bExploded = true;
-	AController* InstigatorController = GetInstigatorController();
+	AController* InstigatorController = Shooter.Get(); // at launch: its pawn may be dead by now
 	if (DamageRadius > 0.f) {
 		// MF HurtRadius: damage * (1 - dist / radius), linear
 		TArray<AActor*> Ignore;
@@ -150,6 +151,7 @@ ARocket::ARocket() {
 	Movement->InitialSpeed = 2700.f; // MF Rocket.speed 1200 uu/s
 	Movement->MaxSpeed = 7200.f; // MF MaxSpeed 3200
 	Movement->ProjectileGravityScale = 0.f;
+	Movement->bAutoActivate = true; // Rocket.BeginState: it flies by itself, `summon rocket` too
 	Damage = 135.f;
 	DamageRadius = 900.f; // MF HurtRadius 400
 	Momentum = 225000.f; // MF MomentumTransfer 100000
@@ -194,10 +196,7 @@ AThrownKnife::AThrownKnife() {
 	Movement->InitialSpeed = 3375.f; // RageKnife.ThrowKnife: ProjectileSpeed 10 * 150 uu/s
 	Movement->MaxSpeed = 0.f; // (Knife_Thrown.MaxSpeed 1000 never applied: PHYS_Falling)
 	Movement->ProjectileGravityScale = 1.f; // PHYS_Falling
-	Movement->bShouldBounce = true; // bBounce
-	Movement->Bounciness = 0.4f; // Bounce: Velocity = 0.4 * reflected (both the normal part ...
-	Movement->Friction = 0.6f; // ... and the one along the floor: UE keeps 1 - Friction of it)
-	Movement->BounceVelocityStopSimulatingThreshold = 45.f; // speed < 20 uu: lies still
+	Movement->bShouldBounce = true; // bBounce: OnKnifeBounce sticks it where it hits
 	Collision->InitSphereRadius(9.f); // CollisionRadius 4
 	Damage = 60.f;
 	DamageRadius = 0.f;
@@ -229,7 +228,7 @@ void AThrownKnife::HitVictim(AActor* Other, const FHitResult& Hit) {
 		H.Location = GetActorLocation();
 	}
 	FPointDamageEvent Ev(D, H, GetVelocity().GetSafeNormal(), T);
-	Other->TakeDamage(D, Ev, GetInstigatorController(), this);
+	Other->TakeDamage(D, Ev, Shooter.Get(), this);
 }
 
 void AThrownKnife::OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep) {
@@ -256,15 +255,12 @@ void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVel
 		BecomeSafe(nullptr);
 		return;
 	}
-	// HitWall: sticks in anything that isn't a floor (walls, slopes, ceilings); only a floor
-	// (UE1 Landed: a walkable surface) makes it bounce, damped, until it lies still. Bouncing
-	// keeps it harmless to its thrower (MF's bCanHitOwner comes with HitWall, which sticks it)
-	if (Hit.ImpactNormal.Z < 0.7f) {
-		if (USoundBase* S = DF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
-			DF::PlaySoundAtLocation(this, S, Hit.ImpactPoint);
-		SetActorRotation(ImpactVelocity.Rotation());
-		BecomeSafe(Hit.GetComponent());
-	}
+	// HitWall -> Stick, floors too: with bBounce, UE1 falling physics calls HitWall for every
+	// surface (MF's grenades bounce off floors the same way), so Landed and Bounce never ran
+	if (USoundBase* S = DF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
+		DF::PlaySoundAtLocation(this, S, Hit.ImpactPoint);
+	SetActorRotation(ImpactVelocity.Rotation());
+	BecomeSafe(Hit.GetComponent());
 }
 
 void AThrownKnife::OnKnifeStop(const FHitResult& Hit) {

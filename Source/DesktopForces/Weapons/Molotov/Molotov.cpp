@@ -29,6 +29,7 @@ AMolotovFire::AMolotovFire() {
 
 void AMolotovFire::BeginPlay() {
 	Super::BeginPlay();
+	Shooter = GetInstigatorController(); // the thrower may die in the flames' lifetime
 	SetLifeSpan(BurnDuration + FMath::FRand());
 	if (HasAuthority())
 		GetWorldTimerManager().SetTimer(BurnTimer, this, &AMolotovFire::Burn, 0.1f, true);
@@ -58,7 +59,7 @@ void AMolotovFire::Burn() {
 		const bool bVisible = !GetWorld()->LineTraceSingleByChannel(Block, Origin, A->GetActorLocation(), ECC_Visibility, FCollisionQueryParams(SCENE_QUERY_STAT(MolotovLOS), false, A));
 		if (bVisible || D.Size() <= FireRadius * 0.5f) {
 			FDamageEvent Ev(UDFDamage_Fire::StaticClass());
-			A->TakeDamage(float(Damage), Ev, GetInstigatorController(), this);
+			A->TakeDamage(float(Damage), Ev, Shooter.Get(), this);
 		}
 	}
 }

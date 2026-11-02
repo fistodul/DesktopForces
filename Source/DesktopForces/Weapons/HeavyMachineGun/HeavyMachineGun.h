@@ -30,6 +30,7 @@ protected:
 	TObjectPtr<UStaticMeshComponent> Tripod3P;
 	void PlayArms(FName Name, float Rate);
 	void SpinTick();
+	void PlayArmsSpin();
 	FTimerHandle SpinTimer;
 	FTimerHandle DeploySoundTimer;
 	float SpinRate = 0.f; // MF FireAnimRate

@@ -13,6 +13,9 @@ AM4A1::AM4A1() {
 	RequiredContent = TEXT("Props/m4a1/M4A1PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/m4a1/Skins/M4A1image");
+	FlashY = 0.142f;
+	FlashO = -0.032f;
+	FlashS = 62.f;
 	HUDIconRect = FIntRect(0, 203, 120, 263); // WeaponIcon X=0 Y=203 W=120 H=60
 	DisplayName = LOCTEXT("M4A1", "M4A1");
 	InventoryGroup = 3;

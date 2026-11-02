@@ -16,7 +16,7 @@ class DESKTOPFORCES_API ADFShellCase : public AActor {
 public:
 	ADFShellCase();
 	/** Mesh: a converted prop ("RageWeapons/MachineGunBullet"); View: the shooter's eyes. */
-	static void Eject(UWorld* World, const FString& Mesh, float Scale, const FVector& Eye, const FRotator& View, const FVector& InheritVelocity);
+	static void Eject(UWorld* World, const FString& Mesh, float Scale, const FVector& Eye, const FRotator& View, const FVector& Port, const FVector& InheritVelocity);
 
 protected:
 	UFUNCTION()

@@ -12,6 +12,9 @@ AGlock::AGlock() {
 	ArmsOffset = FVector(0.2f, -0.8f, -2.2f);
 	RequiredContent = TEXT("Props/glock/glockPickupCarryMesh");
 	bAddToLoadout = true;
+	FlashY = 0.1f;
+	FlashO = -0.018f;
+	FlashS = 0.f;
 	HUDIcon = TEXT("Textures/glock/Skins/glockimage");
 	HUDIconRect = FIntRect(0, 193, 120, 271); // WeaponIcon X=0 Y=193 W=120 H=78
 	DisplayName = LOCTEXT("Glock", "Glock 18");

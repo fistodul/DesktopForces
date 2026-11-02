@@ -26,6 +26,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	TWeakObjectPtr<AController> Shooter;
 	void Burn();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Molotov")

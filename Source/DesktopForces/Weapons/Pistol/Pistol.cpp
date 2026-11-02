@@ -39,6 +39,10 @@ APistol::APistol() {
 	RecoilPower = 1.f;
 	TracerEvery = 1;
 	MuzzleFlashSize = 30.f;
+	FlashY = 0.08f; // RageWeapons Pistol
+	FlashO = -0.042f;
+	FlashS = -6.f;
+	FlashYZoom = 0.1f;
 	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass
 	CasingScale = 1.f; // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_Pistol.Fire");

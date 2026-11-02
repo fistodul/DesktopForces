@@ -53,6 +53,7 @@ bool ATripBomb::IsFriendlyTo(const AActor* Other) const {
 
 void ATripBomb::BeginPlay() {
 	Super::BeginPlay();
+	Shooter = GetInstigatorController(); // the planter may be dead when it goes off
 	if (HasAuthority())
 		GetWorldTimerManager().SetTimer(Timer, this, &ATripBomb::Arm, 1.f, false); // MF: SetTimer(1)
 }
@@ -110,7 +111,7 @@ void ATripBomb::Detonate(const FVector& At, float Damage) {
 	GetWorldTimerManager().ClearTimer(Timer);
 	TArray<AActor*> Ignore;
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, 900.f, 1.f,
-		UDFDamage_Explosion::StaticClass(), Ignore, this, GetInstigatorController(), ECC_Visibility);
+		UDFDamage_Explosion::StaticClass(), Ignore, this, Shooter.Get(), ECC_Visibility);
 	MulticastExplodeFX(GetActorLocation());
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);

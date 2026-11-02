@@ -13,6 +13,7 @@ ASC20K::ASC20K() {
 	RequiredContent = TEXT("Props/F2000/SC20KPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/F2000/Skins/SC20Kimage");
+	MuzzleFlashSize = 0.f; // the mod moves it off screen: FlashS -1890
 	HUDIconRect = FIntRect(0, 3, 128, 72); // WeaponIcon X=0 Y=3 W=128 H=69
 	DisplayName = LOCTEXT("SC20K", "SC-20K");
 	InventoryGroup = 6;

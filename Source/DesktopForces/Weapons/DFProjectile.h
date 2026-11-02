@@ -91,6 +91,8 @@ protected:
 	void UpdateHoming();
 	TWeakObjectPtr<AActor> HomingTarget;
 	FVector LaunchDir = FVector::ZeroVector;
+	/** Who gets the kills: the pawn's controller is gone once it dies. */
+	TWeakObjectPtr<AController> Shooter;
 	FTimerHandle HomingTimer;
 
 	UPROPERTY(VisibleAnywhere, Category = "DF")

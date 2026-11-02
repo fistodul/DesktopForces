@@ -37,13 +37,12 @@ ADFShellCase::ADFShellCase() {
 	InitialLifeSpan = 3.f;
 }
 
-void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& InheritVelocity) {
+void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& Port, const FVector& InheritVelocity) {
 	if (!World || World->GetNetMode() == NM_DedicatedServer || MeshName.IsEmpty())
 		return;
 	const FRotationMatrix Axes(View);
 	const FVector X = Axes.GetUnitAxis(EAxis::X), Y = Axes.GetUnitAxis(EAxis::Y), Z = Axes.GetUnitAxis(EAxis::Z);
-	// EjectBrass: in front of the eyes, a little right and down (30 uu ahead, ~7 uu right)
-	const FVector At = Eye + X * 50.f + Y * 16.f - Z * 14.f;
+	const FVector At = Eye + X * Port.X + Y * Port.Y + Z * Port.Z;
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ADFShellCase* S = World->SpawnActor<ADFShellCase>(At, View, SP);

@@ -1,4 +1,5 @@
 #include "Weapons/SeekerMines/SeekerMines.h"
+#include "Core/DFProps.h"
 #include "Core/DFContent.h"
 #include "World/DFEffectActor.h"
 #include "Core/DFGameSettings.h"
@@ -165,6 +166,7 @@ void ASeekerMine::StartDetonating() {
 }
 
 float ASeekerMine::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	DamageAmount *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), 0.f);
 	if (HasAuthority() && !bDetonating && DamageAmount > 0.f) {
 		Health -= FMath::CeilToInt(DamageAmount);
 		if (Health <= 0)

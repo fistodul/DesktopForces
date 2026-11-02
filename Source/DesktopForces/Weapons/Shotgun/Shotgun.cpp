@@ -38,6 +38,12 @@ AShotgun::AShotgun() {
 	RecoilPower = 0.42f;
 	TracerEvery = 2;
 	MuzzleFlashSize = 50.f; // RageWeapons TracerEvery
+	FlashY = 0.04f;
+	FlashO = -0.11f;
+	FlashS = -38.f;
+	FlashYZoom = 0.04f;
+	FireSide = 1.f;
+	AltFireTime = 0.5f; // the faster fan
 	ClassicFireSound = TEXT("WeaponSFX_Shotgun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Shotgun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");
@@ -75,7 +81,7 @@ void AShotgun::FireShot(bool bBoth) {
 		++BurstCounter;
 		TraceFire(bBoth ? AltAccuracy : Accuracy, Pellets * Barrels, bBoth);
 	}
-	if (IsLocallyControlled() || GetNetMode() == NM_Standalone)
+	if (ShowsFireHere())
 		PlayFireEffects(bBoth);
 }
 

@@ -34,8 +34,13 @@ AM24::AM24() {
 	ZoomedViewOffset = FVector(450.f, -80.95f, 156.5f); // MF ZoomedInViewOffset
 	RecoilPower = 4.0f;
 	MaxTraceDistance = 45000.f; // like the sniper rifle
-	CasingMesh = TEXT("RageWeapons/RifleBullet"); // RageRifle_BulletCase
+	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass: Pistol_BulletCase at the hip (the scope hides the rifle case)
 	MuzzleFlashSize = 40.f;
+	// the mod kept the pistol's numbers, which sit on this long gun's body: at the barrel instead
+	FlashY = 0.055f;
+	FlashO = -0.0115f;
+	FlashS = 0.f;
+	FlashYZoom = 0.1f;
 	ClassicFireSound = TEXT("M24.M24Fire");
 	ClassicReloadSound = TEXT("M24.M24Reload");
 	ClassicSelectSound = TEXT("M24.M24Select");

@@ -225,6 +225,7 @@ void ASentryTurret::OutOfAmmo() {
 }
 
 float ASentryTurret::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	DamageAmount *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), 0.f);
 	if (HasAuthority() && !bDead && DamageAmount > 0.f) {
 		Health -= FMath::CeilToInt(DamageAmount);
 		if (Health <= 0)

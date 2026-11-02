@@ -37,6 +37,11 @@ AM87::AM87() {
 	MaxZoomLevel = 0;
 	DamageType = UDFDamage_Shotgun::StaticClass();
 	MuzzleFlashSize = 50.f;
+	// the mod kept the pistol's numbers, which sit on this long gun's body: at the barrel instead
+	FlashY = 0.055f;
+	FlashO = -0.0155f;
+	FlashS = 0.f;
+	FlashYZoom = 0.1f;
 	ClassicFireSound = TEXT("m871.m87fire");
 	ClassicReloadSound = TEXT("m871.m87reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");

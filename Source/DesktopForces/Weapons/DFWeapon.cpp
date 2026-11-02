@@ -374,7 +374,8 @@ bool ADFWeapon::TryFire(bool bAlt) {
 			StartReload();
 		return false;
 	}
-	const float Duration = ZoomLevel > 0 ? ZoomedFireTime : FireTime;
+	const float Duration = ZoomLevel > 0 ? ZoomedFireTime : bAlt && AltFireTime > 0.f ? AltFireTime
+																					  : FireTime;
 	SetState(EDFWeaponState::Firing, Duration);
 	FireShot(bAlt);
 	return true;
@@ -439,7 +440,7 @@ void ADFWeapon::FireShot(bool bAlt) {
 			C->MakeNoise(1.f, C);
 	}
 
-	if (IsLocallyControlled() || GetNetMode() == NM_Standalone)
+	if (ShowsFireHere())
 		PlayFireEffects(bAlt);
 }
 
@@ -525,8 +526,8 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (C && C->IsLocallyControlled())
 		C->AddRecoil(RecoilPower * 6.f);
-	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f && GetNetMode() != NM_DedicatedServer)
-		ShowMuzzleFlash();
+	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f)
+		MuzzleFlashUntil = GetWorld()->GetTimeSeconds() + 0.05f;
 	if (Arms && C && C->IsLocallyControlled()) {
 		const float Left = State == EDFWeaponState::Firing ? GetWorldTimerManager().GetTimerRemaining(StateTimer) : 0.f;
 		PlayArmsAnim(EDFWeaponState::Firing, Left > 0.f ? Left : (IsZoomed() ? ZoomedFireTime : FireTime), bAlt);
@@ -534,43 +535,21 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 	if (UDFSoldierAnimInstance* Anim = C ? C->GetSoldierAnim() : nullptr)
 		Anim->OnFire(bAlt); // knife stab, grenade / trip bomb throw
 	if (C && !CasingMesh.IsEmpty()) {
-		// EjectBrass, from where the shooter looks
+		// EjectBrass: Owner.Location + CalcDrawOffset() + 30 X + (2.8 FireOffset.Y + 5) Y - Z, or
+		// 30 X + 2.8 Y - 6 Z under the sights; the weapon's hand sets the side (uu here x 2.25)
 		FVector Eye;
 		FRotator View;
 		C->GetActorEyesViewPoint(Eye, View);
-		ADFShellCase::Eject(GetWorld(), CasingMesh, CasingScale, Eye, View, C->GetVelocity());
+		const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
+		const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
+																							: 0.f;
+		const FVector Draw = (IsZoomed() ? FVector(30.f, 2.8f, -6.f) : FVector(30.f, 2.8f * FireSide * Side + 5.f * Side, -1.f)) + FVector(ArmsOffset.X, Side * ArmsOffset.Y, ArmsOffset.Z);
+		ADFShellCase::Eject(GetWorld(), CasingMesh, CasingScale, Eye, View, Draw * 2.25f, C->GetVelocity());
 	}
 }
 
-void ADFWeapon::ShowMuzzleFlash() {
-	if (!bHasViewMesh || !Mesh1P->GetStaticMesh())
-		return;
-	if (MuzzleFlash && Arms && MuzzleFlash->GetAttachParent() != Arms) {
-		MuzzleFlash->DestroyComponent();
-		MuzzleFlash = nullptr;
-	}
-	if (!MuzzleFlash) {
-		MuzzleFlash = NewObject<UStaticMeshComponent>(this);
-		MuzzleFlash->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
-		MuzzleFlash->SetMaterial(0, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_MuzzleFlash.M_MF_MuzzleFlash"), nullptr, LOAD_NoWarn | LOAD_Quiet));
-		MuzzleFlash->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		MuzzleFlash->SetCastShadow(false);
-		MuzzleFlash->SetOnlyOwnerSee(true);
-		USceneComponent* On = Arms ? static_cast<USceneComponent*>(Arms) : Mesh1P;
-		MuzzleFlash->SetupAttachment(On);
-		MuzzleFlash->RegisterComponent();
-		// at the front of the model, a little below its top (where barrels are), facing back at the eye
-		const FBox B = Arms ? Arms->GetSkeletalMeshAsset()->GetBounds().GetBox() : Mesh1P->GetStaticMesh()->GetBoundingBox();
-		MuzzleFlash->SetRelativeLocation(FVector(B.Max.X + 2.f, B.GetCenter().Y, B.Max.Z - B.GetSize().Z * 0.2f));
-	}
-	// a random turn and frame-ish size each shot (FlashYellow A01-A04 in MF)
-	MuzzleFlash->SetRelativeRotation(FRotator(90.f, 0.f, 0.f)); // the plane's face towards the eye
-	MuzzleFlash->AddLocalRotation(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f));
-	const USceneComponent* On = MuzzleFlash->GetAttachParent();
-	const float Size = MuzzleFlashSize * FMath::FRandRange(0.8f, 1.2f) / FMath::Max(On ? On->GetRelativeScale3D().GetMax() : 1.f, 0.01f) / 100.f;
-	MuzzleFlash->SetRelativeScale3D(FVector(Size));
-	MuzzleFlash->SetVisibility(true);
-	GetWorldTimerManager().SetTimer(MuzzleFlashTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { if (MuzzleFlash)  MuzzleFlash->SetVisibility(false); }), 0.05f, false);
+bool ADFWeapon::IsMuzzleFlashing() const {
+	return GetWorld()->GetTimeSeconds() < MuzzleFlashUntil;
 }
 
 void ADFWeapon::OnRep_BurstCounter() {
@@ -732,6 +711,8 @@ void ADFWeapon::ForceInactive() {
 	bPendingReload = false;
 	ZoomLevel = 0;
 	ZoomChangeTime = -1000.f;
+	if (ADFCharacter* C = GetOwnerCharacter())
+		C->UpdateCarrySpeed(); // the zoom's walking speed goes with it
 	SetActorHiddenInGame(true);
 }
 

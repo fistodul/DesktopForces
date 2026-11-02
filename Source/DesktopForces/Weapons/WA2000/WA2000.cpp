@@ -38,6 +38,11 @@ AWA2000::AWA2000() {
 	ZoomedMoveScale = 0.f;
 	CasingMesh = TEXT("RageWeapons/RifleBullet"); // RageRifle_BulletCase
 	MuzzleFlashSize = 40.f;
+	// the mod kept the pistol's numbers, which sit on this long gun's body: at the barrel instead
+	FlashY = 0.09f;
+	FlashO = -0.0105f;
+	FlashS = 0.f;
+	FlashYZoom = 0.1f;
 	ClassicFireSound = TEXT("wa2000.wa2000_Fire");
 	ClassicReloadSound = TEXT("wa2000.wa2000_reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");

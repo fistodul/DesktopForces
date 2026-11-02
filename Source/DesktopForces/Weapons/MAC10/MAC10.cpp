@@ -32,6 +32,10 @@ AMAC10::AMAC10() {
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
 	ZoomedViewOffset = FVector(480.f, 31.f, 280.f); // MF ZoomedInViewOffset
+	// the mod kept the rifle's numbers, which sit on the gun's body: at the barrel instead
+	FlashS = 0.f;
+	FlashY = 0.04f;
+	FlashYZoom = 0.05f;
 	RecoilPower = 1.f;
 	ClassicFireSound = TEXT("MAC10.MAC10Fire");
 	ClassicReloadSound = TEXT("MAC10.MAC10Reload");

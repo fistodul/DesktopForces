@@ -12,6 +12,7 @@ ADesertEagle::ADesertEagle() {
 	ArmsOffset = FVector(1.f, -1.4f, -2.4f);
 	RequiredContent = TEXT("Props/desert/DesertPickupCarryMesh");
 	bAddToLoadout = true;
+	MuzzleFlashSize = 0.f; // the mod moves it off screen: FlashY 900000
 	HUDIcon = TEXT("Textures/desert/Skins/Desertimage");
 	HUDIconRect = FIntRect(0, 178, 120, 256); // WeaponIcon X=0 Y=178 W=120 H=78
 	DisplayName = LOCTEXT("DesertEagle", "Desert Eagle");

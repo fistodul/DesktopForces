@@ -38,6 +38,13 @@ AHeavyMachineGun::AHeavyMachineGun() {
 	ZoomInTime = ZoomOutTime = 0.f; // its own PreZoomIn / PostZoomOut: deploying, no view zoom
 	ZoomedMoveScale = 0.f; // can't move while deployed
 	RecoilPower = 0.3f;
+	TracerEvery = 5; // RageWeapons defaults
+	MuzzleFlashSize = 40.f;
+	FlashY = 0.045f;
+	FlashO = 0.f;
+	FlashS = 0.f;
+	FlashYZoom = 0.085f;
+	FireSide = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_HeavyMachineGun.Fire");
 	ClassicSelectSound = TEXT("WeaponSFX_HeavyMachineGun.Select");
 }
@@ -104,22 +111,35 @@ void AHeavyMachineGun::SpinTick() {
 				++BurstCounter;
 				TraceFire(FMath::Lerp(Accuracy, AltAccuracy, SpinRate / MaxSpin), 1, false);
 			}
-			if (IsLocallyControlled() || GetNetMode() == NM_Standalone)
+			if (ShowsFireHere())
 				PlayFireEffects(false);
 		}
+		PlayArmsSpin();
 		return;
 	}
-	// Spin down (MF ZoomedIn.Tick), then stop
+	// Spin down (MF ZoomedIn.Tick), then stop; ClientFiring is over at the release: alt fire
+	// and the rest work while the barrels run out
+	if (State == EDFWeaponState::Firing)
+		State = EDFWeaponState::Idle;
 	SpinRate -= SpinAccel * Dt;
+	if (State == EDFWeaponState::Idle) // not over a reload or a put-down started in the run-out
+		PlayArmsSpin();
 	if (SpinRate <= MinSpin) {
 		SpinRate = 0.f;
 		ShotAccumulator = 0.f;
 		GetWorldTimerManager().ClearTimer(SpinTimer);
-		State = EDFWeaponState::Idle;
-		if (!HasAmmoInClip() && HasAuthority()) {
+		if (!HasAmmoInClip() && HasAuthority() && State == EDFWeaponState::Idle && ZoomLevel > 0) {
 			if (ADFCharacter* C = GetOwnerCharacter())
 				C->SwitchToBestWeapon();
 		}
+	}
+}
+
+void AHeavyMachineGun::PlayArmsSpin() {
+	// the Fire sequence is one turn of the barrels, its frame driven by the spin rate (ClientFiring.Tick)
+	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr) {
+		Anim->SetIdle(TEXT("ActivateStill"));
+		Anim->Play(TEXT("Fire"), FMath::Max(SpinRate, 0.1f), 0.f, true);
 	}
 }
 
