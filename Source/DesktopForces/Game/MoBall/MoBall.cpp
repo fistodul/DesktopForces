@@ -1,4 +1,4 @@
-#include "Game/DeBall/DeBall.h"
+#include "Game/MoBall/MoBall.h"
 #include "DesktopForces.h"
 #include "Core/DFContent.h"
 #include "Core/DFProps.h"
@@ -18,7 +18,7 @@
 
 // --- ball ------------------------------------------------------------------------------------
 
-ADeBall::ADeBall() {
+AMoBall::AMoBall() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	SetReplicatingMovement(true);
@@ -44,7 +44,7 @@ ADeBall::ADeBall() {
 	}
 }
 
-void ADeBall::BeginPlay() {
+void AMoBall::BeginPlay() {
 	Super::BeginPlay();
 	// Rage.BallMesh is ~1.06 m across: scaled to the 2 m collision sphere
 	DF::ApplyPropMesh(Mesh, TEXT("Rage/BallMesh"), 1.9f);
@@ -55,7 +55,7 @@ void ADeBall::BeginPlay() {
 	Sphere->SetPhysMaterialOverride(Rubber);
 }
 
-float ADeBall::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+float AMoBall::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
 	// TestMoBallProp.TakeDamage: shots push it (shotgun pellets 40 % of the time), never hurt it
 	if (!HasAuthority() || Damage <= 0.f)
 		return 0.f;
@@ -76,20 +76,20 @@ float ADeBall::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AContro
 	return 0.f;
 }
 
-void ADeBall::FellOutOfWorld(const UDamageType& DmgType) {
+void AMoBall::FellOutOfWorld(const UDamageType& DmgType) {
 	Destroy();
 }
 
-void ADeBall::Expire(float Seconds) {
+void AMoBall::Expire(float Seconds) {
 	if (!bExpiring) {
 		bExpiring = true;
 		SetLifeSpan(Seconds);
 	}
 }
 
-void ADeBall::Destroyed() {
+void AMoBall::Destroyed() {
 	if (HasAuthority()) {
-		if (ADeBallGame* GM = GetWorld()->GetAuthGameMode<ADeBallGame>())
+		if (AMoBallGame* GM = GetWorld()->GetAuthGameMode<AMoBallGame>())
 			GM->BallGone(this);
 	}
 	Super::Destroyed();
@@ -97,7 +97,7 @@ void ADeBall::Destroyed() {
 
 // --- goal ------------------------------------------------------------------------------------
 
-ADeBallGoal::ADeBallGoal() {
+AMoBallGoal::AMoBallGoal() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	bAlwaysRelevant = true;
@@ -108,25 +108,25 @@ ADeBallGoal::ADeBallGoal() {
 	RootComponent = Ring;
 }
 
-void ADeBallGoal::BeginPlay() {
+void AMoBallGoal::BeginPlay() {
 	Super::BeginPlay();
 	Ring->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/MF/Meshes/SM_MF_Ring.SM_MF_Ring"), nullptr, LOAD_NoWarn | LOAD_Quiet));
 	OnRep_Team();
 }
 
-void ADeBallGoal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+void AMoBallGoal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ADeBallGoal, Team);
+	DOREPLIFETIME(AMoBallGoal, Team);
 }
 
-bool ADeBallGoal::Contains(const FVector& P) const {
+bool AMoBallGoal::Contains(const FVector& P) const {
 	// MoBallGoal.TestOverlap: within CollisionRadius 192 + 128 uu, CollisionHeight up or down
 	// (+ the ball's size); measured from the trailer park, not the ring's base
 	const FVector D = P - Centre;
 	return FMath::Abs(D.Z) < HalfHeight && FVector2D(D).Size() < Radius;
 }
 
-void ADeBallGoal::Init(uint8 InTeam) {
+void AMoBallGoal::Init(uint8 InTeam) {
 	Team = InTeam;
 	Centre = GetActorLocation();
 	// the ring stands on the ground under the trailer park, as tall as the scoring cylinder
@@ -140,15 +140,15 @@ void ADeBallGoal::Init(uint8 InTeam) {
 	OnRep_Team();
 }
 
-void ADeBallGoal::OnRep_Team() {
+void AMoBallGoal::OnRep_Team() {
 	const FLinearColor C = GetDefault<UDFGameSettings>()->GetTeamColor(Team);
 	Ring->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
 }
 
 // --- mode ------------------------------------------------------------------------------------
 
-ADeBallGame::ADeBallGame() {
-	GameName = TEXT("DeBall");
+AMoBallGame::AMoBallGame() {
+	GameName = TEXT("MoBall");
 	MFGameClass = TEXT("MoBallGame");
 	NumTeams = 2;
 	ScoreLimit = 4; // MoBallGame: goals to win
@@ -157,19 +157,19 @@ ADeBallGame::ADeBallGame() {
 	bVehicles = true; // bAlwaysUseVehicles
 }
 
-void ADeBallGame::InitGameState() {
+void AMoBallGame::InitGameState() {
 	Super::InitGameState();
 	if (ADFGameState* GS = GetGameState<ADFGameState>(); GS && bRestrictWeapons)
 		GS->AllowedItemGroups = AllowedItemGroups;
 }
 
-void ADeBallGame::HandleMatchHasStarted() {
+void AMoBallGame::HandleMatchHasStarted() {
 	Super::HandleMatchHasStarted();
 	// PostBeginPlay: goals at the trailer parks, the ball at the trailer generator
 	for (ADFLegacyActor* L : ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerPark"))) {
 		FActorSpawnParameters SP;
 		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		if (ADeBallGoal* G = GetWorld()->SpawnActor<ADeBallGoal>(L->GetActorLocation(), FRotator::ZeroRotator, SP)) {
+		if (AMoBallGoal* G = GetWorld()->SpawnActor<AMoBallGoal>(L->GetActorLocation(), FRotator::ZeroRotator, SP)) {
 			G->Init(L->Team == 1 ? uint8(1) : uint8(0));
 			Goals.Add(G);
 		}
@@ -177,32 +177,32 @@ void ADeBallGame::HandleMatchHasStarted() {
 	const TArray<ADFLegacyActor*> Gen = ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerGenerator"));
 	BallStart = Gen.Num() ? Gen[0]->GetActorTransform() : FTransform::Identity;
 	BallStart.AddToTranslation(FVector(0.f, 0.f, 225.f)); // Location + (0, 0, 100 uu)
-	UE_LOG(LogDF, Log, TEXT("DeBall: %d goals (%s), ball at %s"), Goals.Num(),
-		*FString::JoinBy(Goals, TEXT(", "), [](const ADeBallGoal* G) { return G->GetActorLocation().ToCompactString(); }), *BallStart.GetLocation().ToCompactString());
+	UE_LOG(LogDF, Log, TEXT("MoBall: %d goals (%s), ball at %s"), Goals.Num(),
+		*FString::JoinBy(Goals, TEXT(", "), [](const AMoBallGoal* G) { return G->GetActorLocation().ToCompactString(); }), *BallStart.GetLocation().ToCompactString());
 	SpawnBall();
-	GetWorldTimerManager().SetTimer(GoalTimer, this, &ADeBallGame::CheckGoals, 0.1f, true);
+	GetWorldTimerManager().SetTimer(GoalTimer, this, &AMoBallGame::CheckGoals, 0.1f, true);
 }
 
-void ADeBallGame::SpawnBall() {
+void AMoBallGame::SpawnBall() {
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	Ball = GetWorld()->SpawnActor<ADeBall>(ADeBall::StaticClass(), BallStart, SP);
+	Ball = GetWorld()->SpawnActor<AMoBall>(AMoBall::StaticClass(), BallStart, SP);
 	Event(TEXT("New ball!"), DF::NoTeam); // MoBallMessage 2
 }
 
-void ADeBallGame::BallGone(ADeBall* Gone) {
+void AMoBallGame::BallGone(AMoBall* Gone) {
 	if (Gone == Ball && IsMatchInProgress()) {
 		Ball = nullptr;
-		GetWorldTimerManager().SetTimer(SpawnTimer, this, &ADeBallGame::SpawnBall, 2.f, false);
+		GetWorldTimerManager().SetTimer(SpawnTimer, this, &AMoBallGame::SpawnBall, 2.f, false);
 	}
 }
 
-void ADeBallGame::CheckGoals() {
+void AMoBallGame::CheckGoals() {
 	ADFGameState* GS = GetGameState<ADFGameState>();
 	if (!Ball || Ball->IsExpiring() || !GS || !IsMatchInProgress())
 		return;
 	const FVector B = Ball->GetActorLocation();
-	for (const ADeBallGoal* G : Goals) {
+	for (const AMoBallGoal* G : Goals) {
 		if (G && G->Contains(B)) {
 			const uint8 Scorer = 1 - G->Team; // into your own goal: the others score
 			GS->TeamScores[Scorer] += 1;
@@ -215,7 +215,7 @@ void ADeBallGame::CheckGoals() {
 	}
 }
 
-void ADeBallGame::OnTimeLimit() {
+void AMoBallGame::OnTimeLimit() {
 	const ADFGameState* GS = GetGameState<ADFGameState>();
 	if (!GS || GS->TeamScores.Num() < 2)
 		return;
@@ -229,11 +229,11 @@ void ADeBallGame::OnTimeLimit() {
 	FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(GS->TeamScores[0] > GS->TeamScores[1] ? 0 : 1).ToString()));
 }
 
-AActor* ADeBallGame::GetBotDriveTarget(AController* Bot) const {
+AActor* AMoBallGame::GetBotDriveTarget(AController* Bot) const {
 	return Ball;
 }
 
-void ADeBallGame::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const {
+void AMoBallGame::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const {
 	if (Ball)
 		OutGoals.Add(Ball); // FindSpecialAttractionForX: everyone goes for the ball
 }

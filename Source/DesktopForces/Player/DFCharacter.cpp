@@ -29,6 +29,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Scalability.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "World/DFMapActors.h"
 
 ADFCharacter::ADFCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UDFCharacterMovement>(ACharacter::CharacterMovementComponentName)) {
@@ -47,6 +49,7 @@ ADFCharacter::ADFCharacter(const FObjectInitializer& ObjectInitializer)
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, BaseEyeHeight));
+	CrouchedEyeHeight = BaseEyeHeight; // the camera stays put on the capsule: shots start at the eye
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->SetFieldOfView(DefaultFOV);
 	FirstPersonCamera->PostProcessBlendWeight = 0.f;
@@ -206,8 +209,11 @@ void ADFCharacter::ApplyUserSettings() {
 }
 
 void ADFCharacter::Destroyed() {
-	if (HasAuthority())
+	if (HasAuthority()) {
+		if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>())
+			GM->CharacterRemoved(this); // left, kicked, shuffled: no Killed for those
 		ClearInventory(false);
+	}
 	Super::Destroyed();
 }
 
@@ -236,6 +242,12 @@ void ADFCharacter::Tick(float DeltaSeconds) {
 		GetMesh()->SetOwnerNoSee(!bBehind);
 		if (CurrentWeapon)
 			CurrentWeapon->UpdateFirstPersonView(bBehind);
+		if (bParachute)
+			UpdateParachuteRopes();
+		if ((WaterCheck -= DeltaSeconds) <= 0.f) {
+			WaterCheck = 0.05f; // the eye under the surface shows at once
+			ADFMapInfo::SetUnderwater(GetWorld(), ADFZoneVolume::FindWater(GetWorld(), FirstPersonCamera->GetComponentLocation()) != nullptr);
+		}
 		UpdateViewBob(DeltaSeconds);
 	}
 	if (GetNetMode() != NM_DedicatedServer)
@@ -313,6 +325,11 @@ void ADFCharacter::Heal(int32 Amount) {
 		Health = FMath::Min(MaxHealth, Health + Amount);
 }
 
+void ADFCharacter::Revive(int32 NewHealth) {
+	if (HasAuthority())
+		Health = FMath::Clamp(NewHealth, 1, MaxHealth);
+}
+
 int32 ADFCharacter::AbsorbWithArmour(int32 Damage, const UDFDamageType* Type) {
 	// buffs / shields first (IDFDamageFilter components), then inventory by absorb priority
 	TInlineComponentArray<UActorComponent*> Comps(this);
@@ -333,6 +350,9 @@ int32 ADFCharacter::AbsorbWithArmour(int32 Damage, const UDFDamageType* Type) {
 float ADFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
 	// CanBeDamaged: UE's `God` cheat; spawn protection: MF startup loadout + 5 s
 	if (!HasAuthority() || !IsAlive() || Damage <= 0.f || !CanBeDamaged() || IsSpawnProtected())
+		return 0.f;
+	Damage *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), GetCapsuleComponent()->GetScaledCapsuleRadius());
+	if (Damage <= 0.f)
 		return 0.f;
 	if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>()) {
 		Damage = GM->ModifyDamage(Damage, this, EventInstigator, DamageCauser);
@@ -607,10 +627,10 @@ bool ADFCharacter::CanCarry(TSubclassOf<ADFWeapon> WeaponClass) const {
 	return GetCurrentCarry() + CDO->GetCarrySize(this) <= MaxCarry && CountOfClass(WeaponClass) < CDO->MaxCanCarry;
 }
 
-ADFWeapon* ADFCharacter::GiveWeapon(TSubclassOf<ADFWeapon> WeaponClass, bool bEquip) {
+ADFWeapon* ADFCharacter::GiveWeapon(TSubclassOf<ADFWeapon> WeaponClass, bool bEquip, bool bOverLimit) {
 	if (const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>(); GM && WeaponClass)
 		WeaponClass = GM->GetWeaponClassFor(this, WeaponClass); // a mode's own variant (Zombie mode)
-	if (!HasAuthority() || !CanCarry(WeaponClass))
+	if (!HasAuthority() || !WeaponClass || (!bOverLimit && !CanCarry(WeaponClass)))
 		return nullptr;
 	FActorSpawnParameters SP;
 	SP.Owner = this;
@@ -690,7 +710,7 @@ void ADFCharacter::UpdateCarrySpeed() {
 }
 
 void ADFCharacter::EquipWeapon(ADFWeapon* Weapon) {
-	if (!Weapon || Weapon == CurrentWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath)
+	if (!Weapon || Weapon == CurrentWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath || (CurrentWeapon && CurrentWeapon->LocksSelection()))
 		return;
 	if (GetLocalRole() < ROLE_Authority)
 		ServerEquipWeapon(Weapon);
@@ -901,6 +921,20 @@ void ADFCharacter::SetParachute(bool bOpen) {
 	}
 }
 
+void ADFCharacter::UpdateParachuteRopes() {
+	// their ends would hang in the corners of your own view
+	if (!ParachuteMesh)
+		return;
+	if (!HiddenRopes) {
+		UMaterialInstanceDynamic* Hide = UMaterialInstanceDynamic::Create(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Masked.M_MF_Masked")), this);
+		if (UTexture* Clear = LoadObject<UTexture>(nullptr, TEXT("/Game/MF/UI/HUD/Clear.Clear")))
+			Hide->SetTextureParameterValue(TEXT("Texture"), Clear);
+		HiddenRopes = Hide;
+		Ropes = ParachuteMesh->GetMaterial(0);
+	}
+	ParachuteMesh->SetMaterial(0, IsLocallyControlled() && !IsBehindView() ? HiddenRopes.Get() : Ropes.Get());
+}
+
 void ADFCharacter::OnRep_Parachute() {
 	if (GetNetMode() == NM_DedicatedServer)
 		return;
@@ -913,8 +947,10 @@ void ADFCharacter::OnRep_Parachute() {
 		ParachuteMesh->RegisterComponent();
 		DF::ApplyPropMesh(ParachuteMesh, TEXT("parachute/Parachute"));
 	}
-	if (ParachuteMesh)
+	if (ParachuteMesh) {
 		ParachuteMesh->SetVisibility(bParachute);
+		UpdateParachuteRopes();
+	}
 	if (bParachute)
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/parachute/parachute_sound")), GetActorLocation(), 1.f, 1600.f);
 }

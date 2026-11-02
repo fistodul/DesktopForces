@@ -97,6 +97,7 @@ public:
 	virtual void FlagCaptured(AFlag* Flag, ADFCharacter* By);
 	virtual void FlagPickedUp(AFlag* Flag, ADFCharacter* By);
 	virtual void FlagDropped(AFlag* Flag, ADFCharacter* Was);
+	virtual void CharacterRemoved(ADFCharacter* Character) override;
 	virtual void FlagWentHome(AFlag* Flag);
 	/** Lay untouched for 25 s after a drop: default home with a "returned" line. */
 	virtual void FlagTimedOut(AFlag* Flag);

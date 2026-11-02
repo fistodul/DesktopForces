@@ -106,18 +106,37 @@ void ADFPlayerController::TouchAction(FName Action, bool bPressed) {
 }
 
 bool ADFPlayerController::InputTouch(const FTouchId TouchId, const ETouchType::Type Type, const FVector2D& TouchLocation, const float Force, const uint64 Timestamp) {
-	if (Type == ETouchType::Began && IsLoadoutOpen())
-		if (const ADFHUD* HUD = GetHUD<ADFHUD>()) {
-			const TArray<TSubclassOf<ADFWeapon>> Items = GetLoadoutItems();
-			const int32 i = HUD->LoadoutItemAt(TouchLocation);
-			if (Items.IsValidIndex(i)) {
-				LoadoutCursor = i;
-				LoadoutOpenSlot = 0;
-				ServerLoadoutPick(Items[i]); // takes it, or puts it back when carried
-				return true;
-			}
+	if (const ADFHUD* HUD = GetHUD<ADFHUD>(); HUD && Type == ETouchType::Began) {
+		const TArray<TSubclassOf<ADFWeapon>> Items = GetLoadoutItems();
+		const int32 i = IsLoadoutOpen() ? HUD->LoadoutItemAt(TouchLocation) : INDEX_NONE;
+		if (Items.IsValidIndex(i)) {
+			LoadoutCursor = i;
+			LoadoutOpenSlot = 0;
+			ServerLoadoutPick(Items[i]); // takes it, or puts it back when carried
+			return true;
 		}
+		if (ADFWeapon* W = HUD->InventoryItemAt(TouchLocation)) {
+			TapCarriedItem(W);
+			return true;
+		}
+	}
 	return Super::InputTouch(TouchId, Type, TouchLocation, Force, Timestamp);
+}
+
+void ADFPlayerController::TapCarriedItem(ADFWeapon* Item) {
+	ADFCharacter* C = GetMFCharacter();
+	if (!C)
+		return;
+	if (!C->IsInLoadout()) {
+		C->EquipWeapon(Item);
+		return;
+	}
+	const int32 i = GetLoadoutInventory().IndexOfByKey(Item); // the knife can't be put back
+	if (i != INDEX_NONE) {
+		LoadoutCursor = GetLoadoutItems().Num() + i;
+		LoadoutOpenSlot = 0;
+		LoadoutSelect();
+	}
 }
 
 void ADFPlayerController::AcknowledgePossession(APawn* P) {
@@ -403,7 +422,10 @@ void ADFPlayerController::OnMove(const FInputActionValue& Value) {
 		return;
 	const FVector2D V = Value.Get<FVector2D>();
 	const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
-	C->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X), V.Y);
+	// UE1 PlayerSwimming and CheatFlying (fly, ghost): ahead is where you look, up and down
+	// included; on land along the ground
+	const FRotator Ahead = C->GetCharacterMovement()->IsSwimming() || C->GetCharacterMovement()->IsFlying() ? GetControlRotation() : Yaw;
+	C->AddMovementInput(FRotationMatrix(Ahead).GetUnitAxis(EAxis::X), V.Y);
 	C->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), V.X);
 }
 
@@ -432,6 +454,7 @@ void ADFPlayerController::OnJump() {
 			return;
 		}
 		C->Jump();
+		bSwimUp = true;
 		if (UDFCharacterMovement* M = Cast<UDFCharacterMovement>(C->GetCharacterMovement()))
 			M->bWantsParachute = true; // held: the parachute while falling
 	}
@@ -439,6 +462,7 @@ void ADFPlayerController::OnJump() {
 
 void ADFPlayerController::OnJumpReleased() {
 	bVehicleHandbrake = false;
+	bSwimUp = false;
 	if (ADFCharacter* C = GetMFCharacter()) {
 		C->StopJumping();
 		if (UDFCharacterMovement* M = Cast<UDFCharacterMovement>(C->GetCharacterMovement()))
@@ -451,11 +475,13 @@ void ADFPlayerController::OnCrouch() {
 		V->SetNitro(true); // TurboCars: Player.bDuck in the driver's seat
 		return;
 	}
+	bSwimDown = true;
 	if (ADFCharacter* C = GetMFCharacter(); C && !C->IsInLoadout())
 		C->Crouch();
 }
 
 void ADFPlayerController::OnCrouchReleased() {
+	bSwimDown = false;
 	if (ADFVehicle* V = Cast<ADFVehicle>(GetPawn())) {
 		V->SetNitro(false);
 		return;
@@ -715,6 +741,13 @@ void ADFPlayerController::OnMenuSelect() {
 		TryEnterExit(); // MF E = TryEnterExit
 }
 
+void ADFPlayerController::PawnLeavingGame() {
+	// the car stays where it is, its driver goes with the player
+	if (ADFVehicle* V = Cast<ADFVehicle>(GetPawn()))
+		V->Exit(true);
+	Super::PawnLeavingGame();
+}
+
 void ADFPlayerController::TryEnterExit() {
 	ServerTryEnterExit(false);
 }
@@ -862,6 +895,9 @@ void ADFPlayerController::PlayerTick(float DeltaTime) {
 	Super::PlayerTick(DeltaTime);
 	if (IsLocalController()) {
 		TellTime();
+		// UE1 aUp: Jump swims or flies up, Crouch down
+		if (ADFCharacter* C = GetMFCharacter(); C && bSwimUp != bSwimDown && !C->IsInLoadout() && (C->GetCharacterMovement()->IsSwimming() || C->GetCharacterMovement()->IsFlying()))
+			C->AddMovementInput(FVector::UpVector, bSwimUp ? 1.f : -1.f);
 		// no walking in the loadout: the sticks make room for tapping its items
 		if (const bool bSticks = !IsLoadoutOpen(); TouchControls && bSticks != bSticksShown) {
 			bSticksShown = bSticks;
@@ -890,15 +926,21 @@ void ADFPlayerController::PlayerTick(float DeltaTime) {
 			ForcedMoveUntil = 0.f;
 			if (ForcedUp > 0.f && Cast<ACharacter>(P))
 				OnJumpReleased();
+			if (ForcedUp < 0.f && Cast<ACharacter>(P))
+				OnCrouchReleased();
 		} else if (ADFVehicle* V = Cast<ADFVehicle>(P)) {
 			V->SetDriveInput(ForcedMove.X, ForcedMove.Y, ForcedUp > 0.f);
 			V->SetNitro(ForcedUp < 0.f);
 		} else {
 			const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
-			P->AddMovementInput(Yaw.Vector(), ForcedMove.X);
+			const ACharacter* Soldier = Cast<ACharacter>(P);
+			const FRotator Ahead = Soldier && (Soldier->GetCharacterMovement()->IsSwimming() || Soldier->GetCharacterMovement()->IsFlying()) ? GetControlRotation() : Yaw;
+			P->AddMovementInput(Ahead.Vector(), ForcedMove.X);
 			P->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), ForcedMove.Y);
 			if (ForcedUp > 0.f)
 				OnJump(); // held, as the key: jumps again on landing, the parachute while falling
+			else if (ForcedUp < 0.f)
+				OnCrouch();
 		}
 		if (P && Now >= ForcedMoveNextLog) {
 			ForcedMoveNextLog = Now + 0.25f;

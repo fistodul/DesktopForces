@@ -150,7 +150,7 @@ public:
 	bool CanCarry(TSubclassOf<ADFWeapon> WeaponClass) const;
 
 	/** Server: spawn and add a weapon. Returns null if it doesn't fit. */
-	ADFWeapon* GiveWeapon(TSubclassOf<ADFWeapon> WeaponClass, bool bEquip = false);
+	ADFWeapon* GiveWeapon(TSubclassOf<ADFWeapon> WeaponClass, bool bEquip = false, bool bOverLimit = false);
 	/** Server: remove (and destroy) a weapon. */
 	void RemoveWeapon(ADFWeapon* Weapon, bool bDestroy = true);
 	/** Server: drop everything except default weapons. */
@@ -177,6 +177,10 @@ public:
 	void OnWeaponPutDown(ADFWeapon* Weapon);
 
 	void UpdateCarrySpeed();
+	/** Heal doesn't reach a soldier at 0 health: for a mode's PreventDeath. */
+	void Revive(int32 NewHealth);
+	/** Played by someone: their controller is on the vehicle while they drive. */
+	bool IsInPlay() const { return GetController() != nullptr || Cast<APawn>(GetAttachParentActor()) != nullptr; }
 
 	UPROPERTY(BlueprintAssignable, Category = "DF")
 	FDFOnInventoryChanged OnInventoryChanged;
@@ -287,6 +291,12 @@ protected:
 	bool bParachute = false;
 	UFUNCTION()
 	void OnRep_Parachute();
+	void UpdateParachuteRopes();
+	float WaterCheck = 0.f;
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInterface> HiddenRopes;
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInterface> Ropes;
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> ParachuteMesh;
 

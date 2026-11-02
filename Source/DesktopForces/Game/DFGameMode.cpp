@@ -1,4 +1,5 @@
 #include "Game/DFGameMode.h"
+#include "Core/DFServerBeacon.h"
 #include "World/MineGenerator.h"
 #include "AI/DFNavigationSystem.h"
 #include "Vehicles/DFVehicle.h"
@@ -80,6 +81,26 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	const FString Skill = UGameplayStatics::ParseOption(Options, TEXT("BotSkill"));
 	if (!Skill.IsEmpty())
 		BotSkill = FMath::Clamp(FCString::Atof(*Skill), 0.f, 1.f);
+}
+
+void ADFGameMode::RemovePawnOf(AController* Controller) {
+	if (ADFVehicle* V = Controller ? Cast<ADFVehicle>(Controller->GetPawn()) : nullptr)
+		V->Exit(true); // the controller is back on its soldier: destroying the car would leave him behind
+	APawn* P = Controller ? Controller->GetPawn() : nullptr;
+	if (ADFCharacter* C = Cast<ADFCharacter>(P))
+		C->ClearInventory(false);
+	if (P)
+		P->Destroy();
+}
+
+void ADFGameMode::StartPlay() {
+	Super::StartPlay();
+	const ENetMode Mode = GetNetMode();
+	UDFServerBeacon* Beacon = GetGameInstance()->GetSubsystem<UDFServerBeacon>();
+	if (Beacon && Mode == NM_Standalone)
+		Beacon->Stop(); // left a hosted game: no more announcing a server that's gone
+	if (Beacon && (Mode == NM_DedicatedServer || Mode == NM_ListenServer))
+		Beacon->Start(GetWorld()->URL.Port, UGameplayStatics::GetIntOption(OptionsString, TEXT("Public"), 1) != 0);
 }
 
 void ADFGameMode::InitGameState() {
@@ -740,11 +761,7 @@ void ADFGameMode::RestartRound() {
 		AController* C = It->Get();
 		if (!C || !C->PlayerState || C->PlayerState->IsSpectator())
 			continue;
-		if (APawn* P = C->GetPawn()) {
-			if (ADFCharacter* MC = Cast<ADFCharacter>(P))
-				MC->ClearInventory(false);
-			P->Destroy();
-		}
+		RemovePawnOf(C);
 		RestartPlayer(C);
 	}
 }

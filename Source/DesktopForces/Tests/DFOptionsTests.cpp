@@ -47,6 +47,13 @@ bool FDFOptionsTest::RunTest(const FString& Parameters) {
 	Settings.bConsole = bOldConsole;
 	Settings.ApplyConsole();
 
+	const float OldGamma = Settings.Gamma;
+	Settings.Gamma = 1.6f;
+	Settings.ApplyGamma();
+	TestEqual(TEXT("Gamma reaches the engine"), GEngine->DisplayGamma, 1.6f);
+	Settings.Gamma = OldGamma;
+	Settings.ApplyGamma();
+
 	TSet<int32> Shapes;
 	int32 Shape = 0;
 	for (int32 I = 0; I < 21; ++I) {

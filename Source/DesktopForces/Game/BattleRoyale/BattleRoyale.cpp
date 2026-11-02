@@ -154,7 +154,7 @@ void ABattleRoyale::ScoreKill(ADFPlayerState* Killer, ADFPlayerState* Victim) {
 int32 ABattleRoyale::AliveCount(ADFCharacter** OutLast) const {
 	int32 N = 0;
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
-		if (It->IsAlive() && It->GetController()) {
+		if (It->IsAlive() && It->IsInPlay()) {
 			++N;
 			if (OutLast)
 				*OutLast = *It;

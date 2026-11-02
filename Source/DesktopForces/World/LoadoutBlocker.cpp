@@ -1,4 +1,4 @@
-#include "World/DFBlocker.h"
+#include "World/LoadoutBlocker.h"
 #include "Game/CTF/Flag.h"
 #include "Game/DFGameMode.h"
 #include "Game/DFPlayerState.h"
@@ -10,7 +10,7 @@
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
-ADFBlocker::ADFBlocker() {
+ALoadoutBlocker::ALoadoutBlocker() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true; // so a server-side Destroy (no team game) reaches clients
 	Shape = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Shape"));
@@ -27,12 +27,12 @@ ADFBlocker::ADFBlocker() {
 	RootComponent = Shape;
 }
 
-void ADFBlocker::SetCylinder(float Radius, float HalfHeight) {
+void ALoadoutBlocker::SetCylinder(float Radius, float HalfHeight) {
 	Shape->SetWorldScale3D(FVector(Radius / 50.f, Radius / 50.f, HalfHeight / 50.f));
 	Reach = Radius + 600.f;
 }
 
-void ADFBlocker::BeginPlay() {
+void ALoadoutBlocker::BeginPlay() {
 	Super::BeginPlay();
 	Reach = FMath::Max(Reach, Shape->Bounds.SphereRadius + 600.f);
 	if (bBlockVehicles) {
@@ -50,10 +50,10 @@ void ADFBlocker::BeginPlay() {
 	}
 	Shape->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block); // projectiles
 	Shape->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block); // weapon traces
-	GetWorldTimerManager().SetTimer(PassTimer, this, &ADFBlocker::UpdatePasses, 0.25f, true, 0.f);
+	GetWorldTimerManager().SetTimer(PassTimer, this, &ALoadoutBlocker::UpdatePasses, 0.25f, true, 0.f);
 }
 
-void ADFBlocker::UpdatePasses() {
+void ALoadoutBlocker::UpdatePasses() {
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
 		ADFCharacter* C = *It;
 		if (FVector::DistSquared(C->GetActorLocation(), GetActorLocation()) > Reach * Reach)

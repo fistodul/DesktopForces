@@ -35,6 +35,7 @@ public:
 	int32 PreferredModel = -1;
 
 	/** Requested on join; the game mode still enforces its team rules. */
+	UPROPERTY(Replicated)
 	uint8 PreferredTeam = DF::NoTeam;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")

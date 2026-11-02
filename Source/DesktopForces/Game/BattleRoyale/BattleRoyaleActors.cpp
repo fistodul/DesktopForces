@@ -114,6 +114,7 @@ void ABRTower::ApplyLook() {
 }
 
 float ABRTower::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	Damage *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), 0.f);
 	if (!HasAuthority() || Damage <= 0.f || IsActorBeingDestroyed())
 		return 0.f;
 	const int32 D = FMath::Max(1, FMath::RoundToInt(Damage));
@@ -341,7 +342,7 @@ void ABRSafeZone::Tick(float DeltaSeconds) {
 void ABRSafeZone::HurtOutside() {
 	TArray<ADFCharacter*> Outside;
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)
-		if (It->IsAlive() && It->GetController() && !IsInside(It->GetActorLocation()))
+		if (It->IsAlive() && It->IsInPlay() && !IsInside(It->GetActorLocation()))
 			Outside.Add(*It);
 	for (ADFCharacter* C : Outside) {
 		FDamageEvent Ev(UDFDamage_SafeZone::StaticClass());

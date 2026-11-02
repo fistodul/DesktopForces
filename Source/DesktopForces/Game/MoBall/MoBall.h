@@ -3,18 +3,18 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Game/DFGameMode.h"
-#include "DeBall.generated.h"
+#include "MoBall.generated.h"
 
 class USphereComponent;
 class UStaticMeshComponent;
 
-/** The DeBall ball (MF-mods MoBall's TestMoBallProp): a big rubber ball, pushed by vehicles, soldiers and shots. */
+/** The MoBall ball (MF-mods MoBall's TestMoBallProp): a big rubber ball, pushed by vehicles, soldiers and shots. */
 UCLASS()
-class DESKTOPFORCES_API ADeBall : public AActor {
+class DESKTOPFORCES_API AMoBall : public AActor {
 	GENERATED_BODY()
 
 public:
-	ADeBall();
+	AMoBall();
 	virtual void BeginPlay() override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
@@ -25,24 +25,24 @@ public:
 	bool IsExpiring() const { return bExpiring; }
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "DeBall")
+	UPROPERTY(VisibleAnywhere, Category = "MoBall")
 	TObjectPtr<USphereComponent> Sphere;
-	UPROPERTY(VisibleAnywhere, Category = "DeBall")
+	UPROPERTY(VisibleAnywhere, Category = "MoBall")
 	TObjectPtr<UStaticMeshComponent> Mesh;
 	bool bExpiring = false;
 };
 
 /**
- * A DeBall goal (MoBallGoal): MF drew a faint translucent ring at each trailer park; this one
+ * A MoBall goal (MoBallGoal): MF drew a faint translucent ring at each trailer park; this one
  * shows the real scoring cylinder, an additive net in the team's colour (SM_MF_Ring,
  * M_MF_GoalField; Tools/artgen goalfield).
  */
 UCLASS(NotPlaceable)
-class DESKTOPFORCES_API ADeBallGoal : public AActor {
+class DESKTOPFORCES_API AMoBallGoal : public AActor {
 	GENERATED_BODY()
 
 public:
-	ADeBallGoal();
+	AMoBallGoal();
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -61,37 +61,37 @@ protected:
 	UFUNCTION()
 	void OnRep_Team();
 
-	UPROPERTY(VisibleAnywhere, Category = "DeBall")
+	UPROPERTY(VisibleAnywhere, Category = "MoBall")
 	TObjectPtr<UStaticMeshComponent> Ring;
 	/** The trailer park: the middle of the scoring cylinder (server). */
 	FVector Centre = FVector::ZeroVector;
 };
 
 /**
- * DeBall (MF-mods MoBall, renamed): football with vehicles. The ball appears at the map's trailer
+ * MoBall (MF-mods MoBall, renamed): football with vehicles. The ball appears at the map's trailer
  * generator; pushing it into the other team's goal (a trailer park) scores. Loadouts only hand
  * out knives, pistols and gadgets (groups 1, 2, 9, 10, 11). First to 4 goals; a draw at the end
  * of the 15 minutes goes to sudden death. Maps: MB-*, or any map with a trailer generator.
  */
 UCLASS(Config = Game)
-class DESKTOPFORCES_API ADeBallGame : public ADFGameMode {
+class DESKTOPFORCES_API AMoBallGame : public ADFGameMode {
 	GENERATED_BODY()
 
 public:
-	ADeBallGame();
+	AMoBallGame();
 	virtual void InitGameState() override;
 	virtual void HandleMatchHasStarted() override;
 	virtual void GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const override;
 	/** FindSpecialAttractionForX: a bot at the wheel drives at the ball. */
 	virtual AActor* GetBotDriveTarget(AController* Bot) const override;
 
-	void BallGone(ADeBall* Ball);
+	void BallGone(AMoBall* Ball);
 
 	/** Only MB weapons (MoBallGame.bRestrictWeapons): AllowedItemGroups. */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DeBall")
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MoBall")
 	bool bRestrictWeapons = true;
 
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DeBall")
+	UPROPERTY(Config, EditDefaultsOnly, Category = "MoBall")
 	TArray<int32> AllowedItemGroups = { 1, 2, 9, 10, 11 };
 
 protected:
@@ -101,10 +101,10 @@ protected:
 	void CheckGoals();
 
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<ADeBallGoal>> Goals;
+	TArray<TObjectPtr<AMoBallGoal>> Goals;
 	FTransform BallStart;
 	UPROPERTY(Transient)
-	TObjectPtr<ADeBall> Ball;
+	TObjectPtr<AMoBall> Ball;
 	FTimerHandle GoalTimer;
 	FTimerHandle SpawnTimer;
 	bool bOverTime = false;

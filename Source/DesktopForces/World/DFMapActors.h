@@ -50,6 +50,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DF")
 	FLinearColor Ambient = FLinearColor::Black;
 
+	/** The local view went under water or came up (brightens the ambient floor). */
+	static void SetUnderwater(UWorld* World, bool bUnder);
+	static bool bUnderwater;
+	static constexpr float UnderwaterLight = 1.3f;
 	/** Push the current map's ambient floor into MPC_MF (map start, brightness change). */
 	static void ApplyAmbient(UWorld* World);
 

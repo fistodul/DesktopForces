@@ -71,7 +71,7 @@ public:
 		return TeamLoadoutAccess.IsValidIndex(Team) ? TeamLoadoutAccess[Team] : LoadoutAccess;
 	}
 
-	/** Inventory groups loadouts may hand out (DeBall: knife, pistol, gadgets); empty = all. */
+	/** Inventory groups loadouts may hand out (MoBall: knife, pistol, gadgets); empty = all. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
 	TArray<int32> AllowedItemGroups;
 

@@ -233,6 +233,11 @@ void AFlagGame::Killed(AController* Killer, AController* Victim, ADFCharacter* V
 	Super::Killed(Killer, Victim, VictimPawn, DamageType);
 }
 
+void AFlagGame::CharacterRemoved(ADFCharacter* Character) {
+	if (AFlag* F = AFlag::FindCarriedBy(Character))
+		F->Drop();
+}
+
 void AFlagGame::FlagPickedUp(AFlag* Flag, ADFCharacter* By) {
 	// RageCTFMessage / RageSCMessage 6 (pickup): TakenSound
 	Event(FString::Printf(TEXT("%s: I have the %s %s! %s"), *NameOf(By), TeamName(Flag->Team), *ObjectName, *CarryLine), Flag->Team,
@@ -280,9 +285,11 @@ AFlagBase::AFlagBase() {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	bAlwaysRelevant = true;
+	// not the mesh: ApplyPropMesh places it relative to this, the map's spot
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	RootComponent = Mesh;
+	Mesh->SetupAttachment(RootComponent);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cyl(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	if (Cyl.Succeeded()) {
 		Mesh->SetStaticMesh(Cyl.Object); // placeholder plinth (MF RageFlagBase: radius 60 uu)

@@ -20,6 +20,8 @@ UDFUserSettings& UDFUserSettings::Get() {
 
 void UDFUserSettings::ApplyNonResolutionSettings() {
 	Brightness = FMath::Clamp(Brightness, 0.25f, 3.f);
+	Gamma = FMath::Clamp(Gamma, 1.f, 3.f);
+	ApplyGamma();
 	RenderScale = FMath::Clamp(RenderScale, 0.25f, 2.f);
 	CrosshairSize = FMath::Clamp(CrosshairSize, 0.25f, 2.f);
 	// The advanced slider owns render scale; presets never reduce it implicitly.
@@ -40,6 +42,11 @@ void UDFUserSettings::ApplyNonResolutionSettings() {
 				ADFMapInfo::ApplyAmbient(Context.World());
 	}
 	ApplyConsole();
+}
+
+void UDFUserSettings::ApplyGamma() const {
+	if (GEngine)
+		GEngine->DisplayGamma = Gamma;
 }
 
 void UDFUserSettings::ApplyConsole() const {
@@ -77,14 +84,19 @@ void UDFUserSettings::SetToDefaults() {
 	SetFrameRateLimit(30.f);
 	SetVSyncEnabled(true);
 #else
-	SetFrameRateLimit(120.f);
+	SetFrameRateLimit(GetDefaultFrameRateLimit());
 	SetVSyncEnabled(false);
 #endif
+#if PLATFORM_ANDROID || PLATFORM_IOS
 	ScalabilityQuality.SetFromSingleQualityLevel(0);
+#else
+	ScalabilityQuality.SetFromSingleQualityLevel(1); // Medium: low-end PCs can still go down
+#endif
 	ScalabilityQuality.ResolutionQuality = 100.f;
 	PreferredModel = -1;
 	PreferredTeam = -1;
 	Brightness = 1.f;
+	Gamma = 2.2f;
 	MouseSensitivity = 1.f;
 	bInvertMouse = false;
 	FieldOfView = 100.f;

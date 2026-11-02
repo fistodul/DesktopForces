@@ -102,7 +102,7 @@ void ADetonationLock::Tick1() {
 	}
 	// MF state Locked.Timer: one member of the lock's team at a time, random 0-1 s apart
 	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
-		if (It->IsAlive() && It->GetTeam() == Team) {
+		if (It->IsAlive() && It->GetTeam() == Team && !It->IsSpawnProtected()) { // protected: would never die
 			FDamageEvent Ev(UDFDamage_Explosion::StaticClass());
 			It->TakeDamage(20000.f, Ev, Scorer.Get(), this);
 			GetWorldTimerManager().SetTimer(Timer, this, &ADetonationLock::Tick1, FMath::FRand() + 0.01f, false);

@@ -1,4 +1,7 @@
 #include "UI/DFMenu.h"
+#include "RHI.h"
+#include "DynamicRHI.h"
+#include "Core/DFServerBrowser.h"
 #include "Widgets/Layout/SSafeZone.h"
 #include "Widgets/Layout/SDPIScaler.h"
 #include "GameFramework/InputSettings.h"
@@ -281,7 +284,7 @@ private:
 	TArray<TSharedPtr<FString>> ModeNames;
 	TArray<FString> ModePaths;
 	TSharedPtr<FString> SelectedMode;
-	int32 Bots = 6;
+	int32 Bots = 0;
 	float Skill = 0.5f;
 	int32 TimeLimit = 0;
 	bool bListen = false;
@@ -305,6 +308,7 @@ private:
 	TSharedPtr<FString> SelectedFrameRate;
 	bool bVSync = false;
 	float Brightness = 1.f;
+	float Gamma = 2.2f;
 	float Sensitivity = 1.f;
 	float FOV = 100.f;
 	float RenderScale = 1.f;
@@ -404,7 +408,7 @@ private:
 			Box->AddSlot().AutoHeight()[Button(LOCTEXT("Resume", "Resume"), [this]() { DFMenu::Close(Owner.Get()); })];
 		}
 		Box->AddSlot().AutoHeight()[Button(bInGame ? LOCTEXT("NewGame", "New Game") : LOCTEXT("Play", "Play"), [this]() { Switcher->SetActiveWidgetIndex(1); })];
-		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Join", "Join Game"), [this]() { Switcher->SetActiveWidgetIndex(2); })];
+		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Join", "Join Game"), [this]() { Switcher->SetActiveWidgetIndex(2); RefreshServers(); })];
 		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Options", "Options"), [this]() { Switcher->SetActiveWidgetIndex(3); })];
 		if (Downloads.IsValid())
 		{
@@ -442,8 +446,7 @@ private:
 				+ SGridPanel::Slot(0, 2)[Label(LOCTEXT("Bots", "Bots"))]
 				+ SGridPanel::Slot(1, 2).Padding(2.f)
 				[
-					SNew(SSpinBox<int32>).MinValue(0).MaxValue(64).Value(Bots).Font(Font(12))
-					.OnValueChanged_Lambda([this](int32 V) { Bots = V; })
+					MakeBotCount()
 				]
 				+ SGridPanel::Slot(0, 3)[Label(LOCTEXT("Skill", "Bot skill"))]
 				+ SGridPanel::Slot(1, 3).Padding(2.f)[Slider(Skill, 0.f, 1.f, TEXT("%.2f"))]
@@ -468,6 +471,111 @@ private:
 			];
 	}
 
+	UDFServerBrowser* Browser() const {
+		const APlayerController* PC = Owner.Get();
+		return PC && PC->GetGameInstance() ? PC->GetGameInstance()->GetSubsystem<UDFServerBrowser>() : nullptr;
+	}
+
+	FText ServerStatus() const {
+		const UDFServerBrowser* B = Browser();
+		if (!B)
+			return FText::GetEmpty();
+		if (B->IsRefreshing())
+			return LOCTEXT("Searching", "Searching for servers...");
+		return FText::Format(LOCTEXT("ServersFound", "{0} servers"), FText::AsNumber(B->GetServers().Num()));
+	}
+
+	void RefreshServers() {
+		if (UDFServerBrowser* B = Browser())
+			B->Refresh();
+		if (!ServerTimer.IsValid())
+			ServerTimer = RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float) {
+				UpdateServerRows();
+				return EActiveTimerReturnType::Continue;
+			}));
+	}
+
+	void UpdateServerRows() {
+		const UDFServerBrowser* B = Browser();
+		if (!B || !ServerRows.IsValid() || B->GetVersion() == ServerRowsVersion)
+			return;
+		ServerRowsVersion = B->GetVersion();
+		ServerRows->ClearChildren();
+		for (const FDFServerEntry& E : B->GetServers()) {
+			const FString Join = E.Join;
+			const FText Line = FText::FromString(FString::Printf(TEXT("%s   %s   %s   %d/%d   %d ms"), *E.Name, *E.Map, *E.Mode, E.Players, E.MaxPlayers, E.PingMs));
+			ServerRows->AddSlot().AutoHeight().Padding(0.f, 2.f)[Button(Line, [this, Join]() {
+				if (APlayerController* PC = Owner.Get()) {
+					SaveName();
+					DFMenu::Close(PC);
+					PC->ClientTravel(Join + NameOption(), TRAVEL_Absolute);
+				}
+			})];
+		}
+	}
+
+	TSharedPtr<SVerticalBox> ServerRows;
+	TSharedPtr<FActiveTimerHandle> ServerTimer;
+	int32 ServerRowsVersion = -1;
+
+	/** The screen's refresh x 1/2, 1, 2 and Unlimited (0): rates that divide it pace evenly. Phones:
+	 *  nothing above it, and 1/3 from 90 Hz up (40 on a 120 Hz panel); never under 30. */
+	static TArray<float> RecommendedFrameRates() {
+		int32 Hz = FPlatformMisc::GetMaxRefreshRate();
+		FScreenResolutionArray Modes;
+		if (RHIGetAvailableResolutions(Modes, false)) // desktop: GetMaxRefreshRate is 60 on Linux
+			for (const FScreenResolutionRHI& Mode : Modes)
+				Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
+		TArray<float> Rates = { 0.f, 30.f, Hz * 0.5f, float(Hz) };
+#if PLATFORM_ANDROID || PLATFORM_IOS
+		if (Hz >= 90)
+			Rates.Add(Hz / 3.f);
+#else
+		Rates.Add(Hz * 2.f);
+		Rates.Add(UDFUserSettings::GetDefaultFrameRateLimit());
+#endif
+		Rates.RemoveAll([](float R) { return R != 0.f && R < 30.f; });
+		Rates.Sort();
+		TArray<float> Unique;
+		for (float R : Rates)
+			Unique.AddUnique(R);
+		return Unique;
+	}
+
+	/** Bots at the start: buttons to press, or hold to run. */
+	TSharedRef<SWidget> MakeBotCount() {
+		auto Step = [this](const FText& Text, int32 Delta, TSharedPtr<SButton>& Held) {
+			return SAssignNew(Held, SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(14.f, 3.f))
+				.OnPressed_Lambda([this, Delta]() { Bots = FMath::Clamp(Bots + Delta, 0, MaxBots); BotHoldTime = 0.f; })
+				[
+					SNew(STextBlock).Font(Font(14)).Text(Text)
+				];
+		};
+		RegisterActiveTimer(0.05f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float Dt) {
+			const int32 Dir = BotLess.IsValid() && BotLess->IsPressed() ? -1 : BotMore.IsValid() && BotMore->IsPressed() ? 1 : 0;
+			if (Dir == 0) {
+				BotHoldTime = 0.f;
+				return EActiveTimerReturnType::Continue;
+			}
+			BotHoldTime += Dt;
+			const float Held = BotHoldTime - 0.3f; // held: two a second
+			if (Held > 0.f && FMath::FloorToInt(Held * 2.f) != FMath::FloorToInt((Held - Dt) * 2.f))
+				Bots = FMath::Clamp(Bots + Dir, 0, MaxBots);
+			return EActiveTimerReturnType::Continue;
+		}));
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()[Step(LOCTEXT("BotLess", "-"), -1, BotLess)]
+			+ SHorizontalBox::Slot().FillWidth(1.f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Font(Font(13)).Text_Lambda([this]() { return FText::AsNumber(Bots); })
+			]
+			+ SHorizontalBox::Slot().AutoWidth()[Step(LOCTEXT("BotMore", "+"), 1, BotMore)];
+	}
+
+	static constexpr int32 MaxBots = 64;
+	TSharedPtr<SButton> BotLess, BotMore;
+	float BotHoldTime = 0.f;
+
 	TSharedRef<SWidget> MakeJoin()
 	{
 		return SNew(SVerticalBox)
@@ -485,8 +593,18 @@ private:
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
 			[
 				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
-				.Text(LOCTEXT("JoinHint", "IP or host name, optionally with :port (default 7777). A server browser comes later."))
+				.Text(LOCTEXT("JoinHint", "IP or host name, optionally with :port (default 7777), or pick a server below."))
 			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).Font(Font(11)).Text_Lambda([this]() { return ServerStatus(); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth()[Button(LOCTEXT("Refresh", "Refresh"), [this]() { RefreshServers(); })]
+			]
+			+ SVerticalBox::Slot().MaxHeight(300.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ServerRows, SVerticalBox)]]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[
 				SNew(SHorizontalBox)
@@ -535,12 +653,16 @@ private:
 		Video->AddSlot(1, 2).Padding(2.f)[Combo(Qualities, SelectedQuality)];
 		Video->AddSlot(0, 3)[Label(LOCTEXT("Bright", "Brightness"))];
 		Video->AddSlot(1, 3).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))];
-		Video->AddSlot(0, 4)[Label(LOCTEXT("FOV", "Field of view"))];
-		Video->AddSlot(1, 4).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))];
-		Video->AddSlot(0, 5)[Label(LOCTEXT("Decals", "Bullet holes, scorch marks"))];
-		Video->AddSlot(1, 5).Padding(2.f)[Combo(DecalModes, SelectedDecals)];
+#if !PLATFORM_ANDROID && !PLATFORM_IOS // no tonemap pass on phones: it would do nothing
+		Video->AddSlot(0, 4)[Label(LOCTEXT("Gamma", "Gamma"))];
+		Video->AddSlot(1, 4).Padding(2.f)[Slider(Gamma, 1.f, 3.f, TEXT("%.2f"))];
+#endif
+		Video->AddSlot(0, 5)[Label(LOCTEXT("FOV", "Field of view"))];
+		Video->AddSlot(1, 5).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))];
+		Video->AddSlot(0, 6)[Label(LOCTEXT("Decals", "Bullet holes, scorch marks"))];
+		Video->AddSlot(1, 6).Padding(2.f)[Combo(DecalModes, SelectedDecals)];
 
-		Video->AddSlot(0, 6).ColumnSpan(2).Padding(0.f, 8.f)
+		Video->AddSlot(0, 7).ColumnSpan(2).Padding(0.f, 8.f)
 		[
 			SAssignNew(AdvancedArea, SExpandableArea).InitiallyCollapsed(!bAdvancedExpanded)
 			.OnAreaExpansionChanged_Lambda([this](bool Expanded) { bAdvancedExpanded = Expanded; })
@@ -728,18 +850,18 @@ private:
 			// MF CrossHairA..X (the classic pack; nothing shows without it)
 			for (int32 i = 0; i < 24; ++i) {
 				const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));
-				CrosshairTextures.Emplace(DF::LoadClassic<UTexture2D>(TEXT("Textures/Rage/") + Name));
+				CrosshairTextures.Emplace(LoadObject<UTexture2D>(nullptr, *FString::Printf(TEXT("/Game/MF/UI/HUD/%s.%s"), *Name, *Name)));
 			}
 		}
 		UTexture2D* T = CrosshairTextures.IsValidIndex(Crosshair) ? CrosshairTextures[Crosshair].Get() : nullptr;
 		CrosshairBrush.SetResourceObject(T);
-		CrosshairBrush.ImageSize = FVector2D(48.f);
-		const FIntRect Bounds = DF::CrosshairBounds(Crosshair);
+		const FIntRect Shape = DF::CrosshairBounds(Crosshair), Bounds = DF::CrosshairDrawRect(Crosshair);
+		CrosshairBrush.ImageSize = FVector2D(48.f * Bounds.Width() / Shape.Width(), 48.f * Bounds.Height() / Shape.Height());
 		CrosshairBrush.SetUVRegion(FBox2f(FVector2f(Bounds.Min) / 32.f, FVector2f(Bounds.Max) / 32.f));
 		CrosshairBrush.TintColor = FSlateColor(FLinearColor::White);
 	}
 
-	/** Defaults: MF's options back as they ship (the window, resolution and graphics stay); Apply keeps them. */
+	/** Defaults: MF's options back as they ship, the window, resolution and graphics too; Apply keeps them. */
 	void ResetOptions() {
 		TStrongObjectPtr<UDFUserSettings> Defaults(NewObject<UDFUserSettings>());
 		Defaults->SetToDefaults(); // the CDO can contain saved config; do not use it as factory defaults
@@ -747,6 +869,7 @@ private:
 		SelectedModel = Models[0];
 		SelectedTeam = PreferredTeams[0];
 		Brightness = D->Brightness;
+		Gamma = D->Gamma;
 		Sensitivity = D->MouseSensitivity;
 		bInvert = D->bInvertMouse;
 		SelectedHand = Hands[int32(D->WeaponHand)];
@@ -755,7 +878,12 @@ private:
 		FOV = D->FieldOfView;
 		RenderScale = D->RenderScale;
 		bVSync = false;
-		SelectedFrameRate = FrameRates[FrameRateLimits.IndexOfByKey(120.f)];
+		SelectedQuality = Qualities[FMath::Clamp(D->ScalabilityQuality.ViewDistanceQuality, 0, Qualities.Num() - 1)];
+		SelectedWindowMode = WindowModes[FMath::Max(0, WindowModeValues.IndexOfByKey(EWindowMode::WindowedFullscreen))];
+		const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
+		if (const int32 Found = ResolutionSizes.IndexOfByKey(Desktop); Found != INDEX_NONE)
+			SelectedResolution = Resolutions[Found];
+		SelectedFrameRate = FrameRates[FMath::Max(0, FrameRateLimits.IndexOfByKey(D->GetFrameRateLimit()))];
 		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
 		MasterVolume = D->MasterVolume;
 		MusicVolume = D->MusicVolume;
@@ -809,7 +937,7 @@ private:
 			{ LOCTEXT("CrModsG", "Battle Royale, Arena"), LOCTEXT("CrModsGB", "Edgaras \"Gregaras\" Ziaugra (design, Battle Royale models and textures)") },
 			{ LOCTEXT("CrModsA", "Coop, Zombie modes"), LOCTEXT("CrModsAB", "Animeman (for AKVARI)") },
 			{ LOCTEXT("CrModsGL", "Grenade launcher"), LOCTEXT("CrModsGLB", "Gian, Peto, \"Secret Dude\"") },
-			{ LOCTEXT("CrModsMB", "DeBall, Turbo cars, mutPack"), LOCTEXT("CrModsMBB", "the community (mutPack: Gregaras)") },
+			{ LOCTEXT("CrModsMB", "MoBall, Turbo cars, mutPack"), LOCTEXT("CrModsMBB", "the community (mutPack: Gregaras)") },
 			{ LOCTEXT("CrBg", "Menu pictures"), LOCTEXT("CrBgB", "Edgaras \"Gregaras\" Ziaugra") },
 			{ LOCTEXT("CrMusic", "Start-up theme"), LOCTEXT("CrMusicB", "Dawid Edward Kmita") },
 			{ LOCTEXT("CrMFS", "fistodul (formerly World Gamers)"), LOCTEXT("CrMFSB", "Filip Stojanovic, Junaid Malik, Edgaras Ziaugra, Ahmed Isaac Alizai, Augustinas Jatutas, Dawid Edward Kmita") },
@@ -1038,6 +1166,7 @@ private:
 			PreferredTeams.Add(MakeShared<FString>(UDFGameSettings::Get().GetTeamName(Team).ToString()));
 		SelectedTeam = PreferredTeams[FMath::Clamp(S.PreferredTeam + 1, 0, PreferredTeams.Num() - 1)];
 		Brightness = S.Brightness;
+		Gamma = S.Gamma;
 		Sensitivity = S.MouseSensitivity;
 		bInvert = S.bInvertMouse;
 		Hands = { MakeShared<FString>(TEXT("Right")), MakeShared<FString>(TEXT("Left")), MakeShared<FString>(TEXT("Center")), MakeShared<FString>(TEXT("Hidden")) };
@@ -1046,7 +1175,7 @@ private:
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
 		bVSync = S.IsVSyncEnabled();
-		FrameRateLimits = { 0.f, 30.f, 60.f, 90.f, 100.f, 120.f, 144.f, 165.f, 240.f };
+		FrameRateLimits = RecommendedFrameRates();
 		// Keep a saved custom cap selectable after the standard choices.
 		FrameRateLimits.AddUnique(S.GetFrameRateLimit());
 		for (float Limit : FrameRateLimits) {
@@ -1134,6 +1263,7 @@ private:
 		S.PreferredModel = IndexOf(Models, SelectedModel) - 1;
 		S.PreferredTeam = IndexOf(PreferredTeams, SelectedTeam) - 1;
 		S.Brightness = Brightness;
+		S.Gamma = Gamma;
 		S.MouseSensitivity = Sensitivity;
 		S.bInvertMouse = bInvert;
 		S.WeaponHand = EDFWeaponHand(FMath::Max(0, IndexOf(Hands, SelectedHand)));

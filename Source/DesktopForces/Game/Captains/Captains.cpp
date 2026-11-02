@@ -78,6 +78,8 @@ void ACaptains::Logout(AController* Exiting) {
 	const bool bWasCaptain = PS && PS->bCaptain;
 	const uint8 Team = PS ? PS->GetTeam() : DF::NoTeam;
 	Super::Logout(Exiting);
+	if (ADFPlayerState* Left = Exiting ? Exiting->GetPlayerState<ADFPlayerState>() : nullptr)
+		Left->SetTeam(DF::NoTeam); // still in PlayerArray until the controller is destroyed
 	if (bWasCaptain && Team < 2)
 		ChooseRandomCaptain(Team);
 }

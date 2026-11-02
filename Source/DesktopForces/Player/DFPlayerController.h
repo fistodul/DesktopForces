@@ -47,6 +47,7 @@ class DESKTOPFORCES_API ADFPlayerController : public APlayerController {
 	GENERATED_BODY()
 
 public:
+	virtual void PawnLeavingGame() override;
 	ADFPlayerController();
 
 	ADFCharacter* GetMFCharacter() const;
@@ -314,6 +315,7 @@ protected:
 	void OnLook(const FInputActionValue& Value);
 	void OnJump();
 	void OnJumpReleased();
+	bool bSwimUp = false, bSwimDown = false;
 	void OnCrouch();
 	void OnCrouchReleased();
 	void OnWalk();
@@ -350,6 +352,8 @@ public:
 	void TouchAction(FName Action, bool bPressed);
 	/** The touch controls are up (touch screens, or bAlwaysShowTouchInterface). */
 	bool UsesTouch() const { return TouchControls.IsValid(); }
+	/** A carried item tapped in the bottom strip: hold it, or put it back while in the loadout. */
+	void TapCarriedItem(class ADFWeapon* Item);
 	/** Taps on the loadout pick items (ADFHUD::LoadoutItemAt). */
 	virtual bool InputTouch(const FTouchId TouchId, const ETouchType::Type Type, const FVector2D& TouchLocation, const float Force, const uint64 Timestamp) override;
 

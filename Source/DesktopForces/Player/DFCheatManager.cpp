@@ -1,4 +1,5 @@
 #include "Player/DFCheatManager.h"
+#include "Weapons/DFProjectile.h"
 #include "World/DFDecals.h"
 #include "Materials/MaterialInterface.h"
 #include "Engine/DamageEvents.h"
@@ -17,7 +18,6 @@
 #include "Player/DFPlayerController.h"
 #include "Vehicles/DFVehicle.h"
 #include "Weapons/DFWeapon.h"
-#include "UObject/UObjectIterator.h"
 #include "World/DFLadder.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -141,7 +141,7 @@ void UDFCheatManager::DFFire(int32 Alt, float Seconds) {
 
 void UDFCheatManager::DFWalk(float Yaw, float Seconds, float Forward, float Right, float Up) {
 	if (ADFPlayerController* PC = Cast<ADFPlayerController>(GetPlayerController())) {
-		PC->SetControlRotation(FRotator(0.f, Yaw, 0.f));
+		PC->SetControlRotation(FRotator(PC->GetControlRotation().Pitch, Yaw, 0.f));
 		PC->ForceMove(FVector2D(Forward, Right), Seconds, Up);
 	}
 }
@@ -328,8 +328,6 @@ void UDFCheatManager::KillPawns() {
 
 void UDFCheatManager::KillAll(const FString& ClassName) {
 	UClass* Class = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::NativeFirst);
-	if (!Class)
-		Class = FindFirstObject<UClass>(*(TEXT("MF") + ClassName), EFindFirstObjectOptions::NativeFirst);
 	if (!Class || !Class->IsChildOf(AActor::StaticClass()))
 		return;
 	for (TActorIterator<AActor> It(GetWorld(), Class); It; ++It) {
@@ -379,7 +377,7 @@ void UDFCheatManager::GiveWeapon(const FString& WeaponName) {
 	ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn());
 	const TSubclassOf<ADFWeapon> Class = FindWeaponClass(WeaponName);
 	if (C && Class) {
-		if (ADFWeapon* W = C->GiveWeapon(Class, false))
+		if (ADFWeapon* W = C->GiveWeapon(Class, false, true)) // a cheat ignores the carry limit
 			C->EquipWeapon(W);
 	}
 }

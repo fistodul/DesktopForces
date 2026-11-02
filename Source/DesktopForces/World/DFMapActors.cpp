@@ -5,6 +5,9 @@
 #include "TimerManager.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Components/SceneCaptureComponentCube.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Components/AudioComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/World.h"
@@ -22,9 +25,19 @@ ADFMapInfo::ADFMapInfo() {
 
 void ADFMapInfo::BeginPlay() {
 	Super::BeginPlay();
+	bUnderwater = false; // static: a map change under water would carry it over
 	ApplyAmbient(GetWorld());
 	if (Music && GetNetMode() != NM_DedicatedServer)
 		MusicComponent = DF::PlayMusic(this, Music, 0.6f);
+}
+
+bool ADFMapInfo::bUnderwater = false;
+
+void ADFMapInfo::SetUnderwater(UWorld* World, bool bUnder) {
+	if (bUnder != bUnderwater) {
+		bUnderwater = bUnder;
+		ApplyAmbient(World);
+	}
 }
 
 void ADFMapInfo::ApplyAmbient(UWorld* World) {
@@ -34,8 +47,13 @@ void ADFMapInfo::ApplyAmbient(UWorld* World) {
 	FLinearColor Ambient = FLinearColor::Black;
 	for (TActorIterator<ADFMapInfo> It(World); It; ++It)
 		Ambient = It->Ambient;
-	const float Scale = UDFGameSettings::Get().AmbientFloor * UDFUserSettings::Get().Brightness;
-	UKismetMaterialLibrary::SetVectorParameterValue(World, MPC, TEXT("Ambient"), Ambient * Scale);
+	// under water everything shows, in a lit blue haze: MF's zones have no shadow from the surface
+	const float Scale = UDFGameSettings::Get().AmbientFloor * UDFUserSettings::Get().Brightness * (bUnderwater ? UnderwaterLight : 1.f);
+	// actors and props have no zone ambient to fall back on: never quite black (UE1 AmbientGlow)
+	const FLinearColor Props = Ambient * Scale;
+	const float Missing = FMath::Max(0.f, UDFGameSettings::Get().ActorAmbientFloor * UDFUserSettings::Get().Brightness - Props.GetLuminance());
+	UKismetMaterialLibrary::SetVectorParameterValue(World, MPC, TEXT("Ambient"), Props + FLinearColor(Missing, Missing, Missing, 0.f));
+	UKismetMaterialLibrary::SetScalarParameterValue(World, MPC, TEXT("ShadeFloor"), UDFGameSettings::Get().ShadeFloor * UDFUserSettings::Get().Brightness);
 	UKismetMaterialLibrary::SetScalarParameterValue(World, MPC, TEXT("AmbientScale"), Scale); // world: zone ambient in vertex colour
 }
 
@@ -83,6 +101,25 @@ void ADFSkyCapture::BeginPlay() {
 		return;
 	}
 	Capture->TextureTarget = Target;
+	// a shell of sky round the map: holes in it (the backs of far buildings were never meant to
+	// be seen through) show sky, not the black behind everything. One draw, no bake
+	UStaticMesh* Shell = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	UMaterialInterface* SkyMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Sky.M_MF_Sky"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (Shell && SkyMaterial) {
+		UStaticMeshComponent* Backstop = NewObject<UStaticMeshComponent>(this);
+		Backstop->SetUsingAbsoluteLocation(true);
+		Backstop->SetUsingAbsoluteScale(true);
+		Backstop->SetupAttachment(RootComponent);
+		Backstop->SetStaticMesh(Shell);
+		Backstop->SetMaterial(0, SkyMaterial);
+		Backstop->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Backstop->SetCastShadow(false);
+		Backstop->SetCanEverAffectNavigation(false);
+		Backstop->SetWorldLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+		Backstop->SetWorldScale3D(FVector(10000.f)); // 5 km round the origin
+		Backstop->RegisterComponent();
+		Capture->HideComponent(Backstop);
+	}
 	// A few captures over the first seconds: right after load, textures are still streaming
 	// in (and in editor builds shaders may still compile, which renders default materials).
 	// Four 256 px cube captures in total, nothing afterwards.

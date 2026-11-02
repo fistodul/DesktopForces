@@ -162,6 +162,23 @@ public:
 	/** Unshadowed ambient floor = map ambient (MF zone ambient) x this; the rest of it is baked. */
 	UPROPERTY(Config, EditAnywhere, Category = "Look")
 	float AmbientFloor = 0.35f;
+	/** The least unshadowed light on props, vehicles and held weapons: they have no bounce light
+	 *  of their own in the dark. */
+	UPROPERTY(Config, EditAnywhere, Category = "Lighting")
+	float ActorAmbientFloor = 0.22f;
+	/** Extra ambient for meshes that move (vehicles, pickups, flags): they get no baked light at all. */
+	UPROPERTY(Config, EditAnywhere, Category = "Lighting")
+	float MovingActorLight = 0.4f;
+	/** The least unshadowed light on world surfaces, for zones with no ambient of their own. */
+	UPROPERTY(Config, EditAnywhere, Category = "Lighting")
+	float ShadeFloor = 0.1f;
+
+	/** This server's name in server lists. */
+	UPROPERTY(Config, EditAnywhere, Category = "Server")
+	FString ServerName = TEXT("Desktop Forces server");
+	/** Master servers to announce to: host:beacon port (333networks MasterServer, UDP 27900). */
+	UPROPERTY(Config, EditAnywhere, Category = "Server")
+	TArray<FString> MasterServers;
 
 	FText GetTeamName(uint8 TeamId) const;
 	FLinearColor GetTeamColor(uint8 TeamId) const;

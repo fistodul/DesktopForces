@@ -28,6 +28,8 @@ void ATugOfWar::Logout(AController* Exiting) {
 	const uint8 Team = PS ? PS->GetTeam() : DF::NoTeam;
 	InitialTeams.Remove(Exiting);
 	Super::Logout(Exiting);
+	if (ADFPlayerState* Left = Exiting ? Exiting->GetPlayerState<ADFPlayerState>() : nullptr)
+		Left->SetTeam(DF::NoTeam); // still in PlayerArray until the controller is destroyed
 	if (IsMatchInProgress() && !bRoundOver && Team < 2 && TeamSize(Team) == 0 && TeamSize(1 - Team) > 0)
 		RoundEnded(1 - Team);
 }
@@ -53,7 +55,7 @@ bool ATugOfWar::PreventDeath(ADFCharacter* Victim, AController* Killer, TSubclas
 	BroadcastLocalized(this, UDFDeathMessage::StaticClass(), 0, KPS, VPS, DamageType.Get());
 	const uint8 OldTeam = VPS->GetTeam();
 	VPS->SetTeam(KPS->GetTeam());
-	Victim->Heal(Victim->MaxHealth);
+	Victim->Revive(Victim->MaxHealth);
 	BroadcastChat(nullptr, FString::Printf(TEXT("%s joined the %s team"), *VPS->GetPlayerName(), *GetGameState<ADFGameState>()->GetTeamName(KPS->GetTeam()).ToString().ToLower()), false);
 	// TugGame.MovedTeam: their old team is gone -> round to the converter's team
 	if (TeamSize(OldTeam) == 0) {

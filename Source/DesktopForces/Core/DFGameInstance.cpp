@@ -21,6 +21,7 @@ void UDFGameInstance::Init() {
 
 void UDFGameInstance::OnStart() {
 	Super::OnStart();
+	UDFUserSettings::Get().ApplyGamma();
 	UDFUserSettings::Get().ApplyConsole(); // the viewport is up now
 	ScheduleAutoTest();
 }

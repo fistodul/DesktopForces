@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Core/DFTypes.h"
 #include "GameFramework/Actor.h"
-#include "DFBlocker.generated.h"
+#include "LoadoutBlocker.generated.h"
 
 class UStaticMeshComponent;
 
@@ -17,11 +17,11 @@ class UStaticMeshComponent;
  * Placed by `mfport.py import --steps patch`.
  */
 UCLASS()
-class DESKTOPFORCES_API ADFBlocker : public AActor {
+class DESKTOPFORCES_API ALoadoutBlocker : public AActor {
 	GENERATED_BODY()
 
 public:
-	ADFBlocker();
+	ALoadoutBlocker();
 
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UStaticMeshComponent> Shape;

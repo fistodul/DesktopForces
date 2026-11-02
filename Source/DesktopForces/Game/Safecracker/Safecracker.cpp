@@ -87,6 +87,7 @@ void ASafe::Init(uint8 InTeam, bool bInCrackable) {
 }
 
 float ASafe::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	Damage *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), 0.f);
 	// MF RageSafe.TakeDamage: only the defending team's safe, only enemies, scaled down hard
 	if (!HasAuthority() || !bCrackable || bOpen || Health < 0.f)
 		return 0.f;

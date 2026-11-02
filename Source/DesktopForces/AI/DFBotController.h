@@ -121,7 +121,7 @@ protected:
 	FVector DriveDest = FVector::ZeroVector;
 	TArray<int32> Route;
 	int32 RouteStep = 0;
-	/** The mode's drive target (DeBall ball): chased straight, no road, no getting out. */
+	/** The mode's drive target (MoBall ball): chased straight, no road, no getting out. */
 	TWeakObjectPtr<AActor> ChaseTarget;
 	/** Stuck check and backing off, shared by both ways of driving. */
 	void CheckDriveStuck(ADFVehicle* V);

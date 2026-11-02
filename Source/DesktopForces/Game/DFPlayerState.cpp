@@ -5,6 +5,7 @@ void ADFPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFPlayerState, Team);
 	DOREPLIFETIME(ADFPlayerState, PreferredModel);
+	DOREPLIFETIME(ADFPlayerState, PreferredTeam);
 	DOREPLIFETIME(ADFPlayerState, Kills);
 	DOREPLIFETIME(ADFPlayerState, Deaths);
 	DOREPLIFETIME(ADFPlayerState, bCaptain);

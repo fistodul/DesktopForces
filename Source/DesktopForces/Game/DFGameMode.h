@@ -34,6 +34,7 @@ public:
 
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void InitGameState() override;
+	virtual void StartPlay() override;
 	virtual FString InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal = TEXT("")) override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
@@ -54,6 +55,10 @@ public:
 	virtual float ModifyDamage(float Damage, ADFCharacter* Victim, AController* InstigatedBy, AActor* DamageCauser = nullptr) const;
 	/** A pawn died. */
 	virtual void Killed(AController* Killer, AController* Victim, ADFCharacter* VictimPawn, TSubclassOf<UDamageType> DamageType);
+	/** A soldier leaves the world, however that happened (Killed has run first if they died). */
+	virtual void CharacterRemoved(ADFCharacter* Character) {}
+	/** Remove what a controller plays as: the soldier stays out of a vehicle's wreck of a seat. */
+	void RemovePawnOf(AController* Controller);
 	/** A blow would kill Victim: return true to keep them alive (mods: Tug of War converts instead). */
 	virtual bool PreventDeath(ADFCharacter* Victim, AController* Killer, TSubclassOf<UDamageType> DamageType) { return false; }
 
@@ -94,7 +99,7 @@ public:
 	/** Something that isn't a player but bots should shoot at when no enemy is in sight (e.g. a safe). */
 	virtual AActor* GetBotShootTarget(AController* Bot) const { return nullptr; }
 	/** Something a driving bot keeps driving at instead of taking the road to its goal and
-	 *  getting out (DeBall: the ball). */
+	 *  getting out (MoBall: the ball). */
 	virtual AActor* GetBotDriveTarget(AController* Bot) const { return nullptr; }
 
 	// --- votes (Gregaras' vote mutator, MF "mutate callvote" / "mutate vote": CallVote / Vote) -

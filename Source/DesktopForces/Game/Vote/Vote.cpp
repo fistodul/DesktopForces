@@ -44,7 +44,7 @@ void ADFGameMode::CallVote(APlayerController* By, const FString& Args) {
 	FString Text;
 	if (What == TEXT("travel") || What == TEXT("map")) {
 		if (A.Num() < 2 || VoteMapURL(A[1], A.Num() > 2 ? A[2] : FString()).IsEmpty()) {
-			By->ClientMessage(TEXT("Usage: callvote travel <map> [dm|tdm|ctf|holdout|sc|det|cap|trailer|koh|tug|coop|zombie|arena|deball|br]"));
+			By->ClientMessage(TEXT("Usage: callvote travel <map> [dm|tdm|ctf|holdout|sc|det|cap|trailer|koh|tug|coop|zombie|arena|moball|br]"));
 			return;
 		}
 		Text = FString::Printf(TEXT("%s called a vote to travel to %s%s"), *Name, *A[1], A.Num() > 2 ? *FString::Printf(TEXT(" (%s)"), *A[2]) : TEXT(""));
@@ -137,8 +137,7 @@ void ADFGameMode::RunVote(const FString& Command) {
 		AddBots(FMath::Clamp(FCString::Atoi(*A[1]), 1, 32));
 	} else if (What == TEXT("kickbots")) {
 		for (TActorIterator<ADFBotController> It(GetWorld()); It; ++It) {
-			if (APawn* P = It->GetPawn())
-				P->Destroy();
+			RemovePawnOf(*It);
 			It->Destroy();
 		}
 		NumBots = 0;
@@ -178,8 +177,7 @@ void ADFGameMode::RunVote(const FString& Command) {
 			ADFPlayerState* PS = M.Key->GetPlayerState<ADFPlayerState>();
 			if (PS->GetTeam() != M.Value) {
 				PS->SetTeam(M.Value);
-				if (APawn* P = M.Key->GetPawn())
-					P->Destroy();
+				RemovePawnOf(M.Key);
 				RestartPlayer(M.Key);
 			}
 		}

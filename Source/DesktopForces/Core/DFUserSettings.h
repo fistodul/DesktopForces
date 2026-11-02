@@ -24,6 +24,8 @@ class DESKTOPFORCES_API UDFUserSettings : public UGameUserSettings {
 	GENERATED_BODY()
 
 public:
+	/** What SetToDefaults picks on PC. */
+	static float GetDefaultFrameRateLimit() { return 120.f; }
 	UDFUserSettings();
 
 	/** The game's settings object (the engine makes it from GameUserSettingsClassName). */
@@ -46,6 +48,11 @@ public:
 	/** MF Brightness (F11): scales the unshadowed ambient floor, 0.5 - 2. */
 	UPROPERTY(Config)
 	float Brightness = 1.f;
+
+	/** Display gamma (UEngine::DisplayGamma): the whole picture, darks most; PC only, phones have no
+	 *  tonemap pass (r.MobileHDR=False). 2.2 is the engine's default, higher is brighter. */
+	UPROPERTY(Config)
+	float Gamma = 2.2f;
 
 	/** Mouse look multiplier. */
 	UPROPERTY(Config)
@@ -116,6 +123,7 @@ public:
 	 *  ALLOW_CONSOLE, but keeps the code; chat needs its typing line) and let bConsole decide
 	 *  whether the console keys open it. */
 	void ApplyConsole() const;
+	void ApplyGamma() const;
 	bool IsConsoleEnabled() const;
 	virtual void SetToDefaults() override;
 

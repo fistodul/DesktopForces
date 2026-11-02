@@ -181,7 +181,7 @@ void AZombieGame::BecomeZombie(ADFCharacter* C, bool bSpecial) {
 	C->MaxHealth = FMath::RoundToInt(Def->MaxHealth * 3.33f * Boost);
 	UE_LOG(LogDF, Log, TEXT("Zombie: %s is a zombie (boost %.2f, health %d, speed x%.2f%s)"), C->GetPlayerState() ? *C->GetPlayerState()->GetPlayerName() : TEXT("?"), Boost, C->MaxHealth, S.Speed, bNemesis ? TEXT(", NEMESIS") : TEXT(""));
 	C->MaxCarry = Def->MaxCarry - 2;
-	C->Heal(C->MaxHealth);
+	C->Revive(C->MaxHealth); // from PreventDeath they're at 0
 	if (!C->FindComponentByClass<UZombieHide>()) {
 		UZombieHide* Hide = NewObject<UZombieHide>(C);
 		Hide->RegisterComponent();
