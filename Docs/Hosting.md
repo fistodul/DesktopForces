@@ -26,8 +26,32 @@ a headless server; this works with the Launcher / binary engine:
 
 (Windows: `UnrealEditor.exe` / `UnrealEditor-Cmd.exe`.) Map paths: `/Game/Maps/<map>` for the
 core maps, `/MobileForcesClassic/Maps/<map>` for classic ones (the server needs the converted
-classic content too). A standalone server binary (`DesktopForcesServer`) needs an engine built
-from source; it isn't set up yet.
+classic content too).
+
+**Standalone server binary, in a disposable container.** `DesktopForcesServer` needs an engine with
+server targets, which the Launcher engine lacks; Epic's image has them (`docker pull
+ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4`, GitHub account linked to Epic). Work on a copy of
+the project without `Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`, `.git`,
+`Tools/mfport/work`, so nothing in the container touches your own build:
+
+```bash
+docker run --rm -u 1000:1000 -v "$COPY":/project -e HOME=/home/ue4 \
+  ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4 \
+  /home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCookRun \
+  -project=/project/DesktopForces.uproject -noP4 -utf8output -server -noclient \
+  -serverplatform=Linux -serverconfig=Development -build -cook \
+  -map=/Game/MF/Maps/MF_TestRange+/MobileForcesClassic/Maps/mf-warehouse \
+  -stage -pak -archive -archivedirectory=/project/ServerBuild
+
+docker run --rm --network host -u 1000:1000 -v "$COPY/ServerBuild/LinuxServer":/server:ro \
+  -e HOME=/tmp ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4 \
+  /server/DesktopForcesServer.sh "/MobileForcesClassic/Maps/mf-warehouse?game=tdm?Bots=2" \
+  -port=7777 -nomaster -log
+```
+
+Tried 2026-11-02: 2 maps cook in 3 minutes to 783 MB, a Linux client built with the Launcher engine
+joins it. `-map` picks what's cooked; the query port is the game port + 1. Classic content in a
+server image stays private, as with the download packs.
 
 ## Match options (URL)
 
@@ -35,7 +59,7 @@ Add to the map: `map?option=value?option=value`.
 
 | Option | Does |
 |---|---|
-| `game=<mode>` | the mode by its short name: `dm`, `tdm`, `holdout`, `ctf`, `sc` (Safecracker), `det` (Detonation), `trailer`, `cap` (Captains), `koh` (King of the Hill), `arena`, `br` (Battle Royale), `coop`, `deball`, `tug`, `zombie` (`GameModeClassAliases` in `Config/DefaultEngine.ini`; a class path works too) |
+| `game=<mode>` | the mode by its short name: `dm`, `tdm`, `holdout`, `ctf`, `sc` (Safecracker), `det` (Detonation), `trailer`, `cap` (Captains), `koh` (King of the Hill), `arena`, `br` (Battle Royale), `coop`, `moball`, `tug`, `zombie` (`GameModeClassAliases` in `Config/DefaultEngine.ini`; a class path works too) |
 | `Bots=N`, `BotSkill=0..1` | bots added at the start |
 | `TimeLimit=min`, `ScoreLimit=N`, `ScoreLimit=N` | limits (0 = the mode's default) |
 | `Teams=N` | number of teams in team modes (MF: 2) |

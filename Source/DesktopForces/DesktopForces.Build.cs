@@ -8,6 +8,8 @@ public class DesktopForces : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
+			"RHI", "Sockets",
+			"Networking",
 			"CoreUObject",
 			"Engine",
 			"InputCore",
