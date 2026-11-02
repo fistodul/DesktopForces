@@ -47,7 +47,8 @@ def stage(cfg: Config, manifest_file: Path) -> list[dict]:
                     has_holes = 'A' in original.getbands() and original.getchannel('A').getextrema()[0] < 255
                 if has_holes and ('A' not in image.getbands() or image.getchannel('A').getextrema()[0] == 255):
                     raise ValueError(f'{target} needs transparency; an opaque replacement would close its holes')
-            image = textures._limit_size(image, min(512, cfg.max_texture_size))
+            limit = cfg.detail_texture_size if textures.is_detail(target) else min(512, cfg.max_texture_size)
+            image = textures._limit_size(image, limit)
             buffer = io.BytesIO()
             image.save(buffer, format='PNG', optimize=True)
             pixels = buffer.getvalue()

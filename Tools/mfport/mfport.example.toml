@@ -16,6 +16,8 @@ wine = "wine"
 # cook World textures down to 256 (Config/DefaultDeviceProfiles.ini). Remastered
 # overrides can be larger - raise this to keep them.
 max_texture_size = 512
+# Textures listed in detail.toml (weapons, walls walked up to) may reach this instead.
+detail_texture_size = 1024
 
 # Set your install paths in the section for each operating system you use.
 # game_dir holds System/, Maps/, Textures/ ...; ue_root holds Engine/.

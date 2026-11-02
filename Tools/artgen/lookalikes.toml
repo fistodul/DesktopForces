@@ -560,3 +560,78 @@ rust = 0.2
 gen = "panel"
 border = 0.0
 rust = 0.2
+
+# grass: fine blades, not soft blotches
+["Dam.dam_grass"]
+gen = "noise"
+size = [256, 256]
+dark = [38, 62, 30]
+mid = [64, 94, 55]
+light = [104, 140, 88]
+beta = 0.7
+contrast = 1.3
+spots = 0.05
+spot_size = 1
+
+["Dam.sd_grass"]
+gen = "noise"
+size = [256, 256]
+dark = [38, 62, 30]
+mid = [64, 94, 55]
+light = [104, 140, 88]
+beta = 0.7
+contrast = 1.3
+spots = 0.05
+spot_size = 1
+
+# spawn room force fields (added): the same bands in the team colour, on every map
+["RageGame.BlueWall.BlueWall_A00"]
+gen = "siding"
+size = [64, 128]
+dark = [1, 1, 20]
+mid = [22, 22, 108]
+light = [151, 151, 237]
+n = 3
+vertical = false
+gain = 0.6
+
+["RageGame.BlueWall.BlueWall_A01"]
+gen = "siding"
+size = [32, 256]
+dark = [1, 1, 20]
+mid = [22, 22, 108]
+light = [151, 151, 237]
+n = 3
+vertical = false
+gain = 0.6
+
+["RageGame.BlueWall.BlueWall_A06"]
+gen = "siding"
+size = [32, 256]
+dark = [1, 1, 20]
+mid = [22, 22, 108]
+light = [151, 151, 237]
+n = 3
+vertical = false
+gain = 0.6
+
+["RageGame.RedWall.RedWall_A00"]
+gen = "siding"
+size = [64, 128]
+dark = [20, 1, 1]
+mid = [108, 22, 22]
+light = [237, 151, 151]
+n = 3
+vertical = false
+gain = 0.6
+
+["RageGame.RedWall.RedWall_A01"]
+gen = "siding"
+size = [32, 256]
+dark = [20, 1, 1]
+mid = [108, 22, 22]
+light = [237, 151, 151]
+n = 3
+vertical = false
+gain = 0.6
+

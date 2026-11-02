@@ -31,6 +31,7 @@ class Config:
     uproject: Path
     wine: str
     max_texture_size: int
+    detail_texture_size: int = 1024
 
     @property
     def raw_dir(self) -> Path:
@@ -124,4 +125,5 @@ def load() -> Config:
         uproject=uproject,
         wine=str(get('wine', 'wine')),
         max_texture_size=int(get('max_texture_size', 512)),
+        detail_texture_size=int(get('detail_texture_size', 1024)),
     )

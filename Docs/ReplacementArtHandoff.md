@@ -39,8 +39,17 @@ Known limits:
 - **Unverified maps now use generated art even when Classic is installed.** Signs and posters
   lost their words, and windows, lamps and machinery became generic surfaces. Restoring the backup
   brings the originals back; hand tuning in `lookalikes.toml` is the better fix for maps that matter.
-- `--auto` still reads some floors as `corrugated` or `siding`, which shows as stripes (seen in
-  MB-EndagaDam). Give those keys a hand entry.
+- Stripes: `--auto` now needs lines that really run across the original (`line_share` >= 0.2); 154
+  entries read as `corrugated` / `siding` from repeating stains went back to noise, 9 to bricks,
+  12 to signs. Noise contrast is measured in standard deviations, so tones match the original's.
+- Additive use alone no longer makes a `glow`: 46 surfaces (water, concrete) had become a dark blob
+  on black. Entries off the original's brightness by more than 25 % carry a stored `gain`.
+- Texture sizes: `Tools/mfport/detail.toml`. `closeups.py` picks the generated textures covering
+  most of each non-classic map (`--cover 0.8 --min 0.015`). A source with no gain over 512 px
+  (`SAME_AT_DB`, 45 dB after a round trip) stays at 512 even in a listed package.
+- Core game: `Tools/artgen/hudart.py` (HUD atlases, weapon icons, crosshairs) and `weaponmesh.py`
+  (icon outlines extruded to the originals' sizes). `import --steps hud`. Originals win when
+  installed. Still needs Classic: soldiers, game sounds, fonts, pickups, vehicle meshes.
 - The 146 "Classic texture" hits in a raw byte scan are `contentImportPath` import metadata, not
   dependencies. `LoadErrors` is the real test.
 - No sound was listened to: recipes and loudness are checked numerically only.

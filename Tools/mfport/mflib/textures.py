@@ -14,11 +14,14 @@ replacements of any resolution line up.
 """
 from __future__ import annotations
 
+import functools
 import io
 import json
 import struct
+import tomllib
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 from . import ucc
@@ -30,6 +33,7 @@ OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
 LICENSED_DIR = TOOL_DIR / 'overrides' / 'licensed'
 # procedural replacement art from Tools/artgen/lookalike.py (git-ignored; hand-made overrides win)
 GENERATED_DIR = TOOL_DIR / 'work' / 'generated' / 'textures'
+SAME_AT_DB = 45.0
 
 # Textures the game code uses directly (HUD), converted even if no map references them.
 UI_TEXTURES = {
@@ -152,7 +156,8 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             rep = Image.open(override).convert('RGBA' if needs_alpha else 'RGB')
             if needs_alpha and rep.mode == 'RGBA':
                 rep = bleed_alpha(rep)
-            _limit_size(rep, cfg.max_texture_size).save(replacement, optimize=True)
+            rep = _limit_size(rep, size_limit(cfg, key))
+            (lift(rep) if is_lifted(key) else rep).save(replacement, optimize=True)
         if (native := decode_p8(pkg, info, needs_alpha)) is not None:
             img = native
         else:
@@ -173,7 +178,9 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             img.putalpha(lum)
         if needs_alpha and img.mode == 'RGBA' and not modes & {'ui', 'fontalpha', 'lumalpha'}:
             img = bleed_alpha(img)
-        img = _limit_size(img, cfg.max_texture_size)
+        img = _limit_size(img, source_limit(cfg, key, img))
+        if is_lifted(key):
+            img = lift(img, 0.7 if key.lower() in _lifted_less() else 0.55)
         img.save(dst, optimize=True)
         manifest[key] = {
             'file': str(dst.relative_to(cfg.out_dir)),
@@ -182,6 +189,7 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             **({'replacement': str(replacement.relative_to(cfg.out_dir))} if replacement else {}),
             # HUD art / fonts / minimaps: drawn by the canvas, imported without mips
             'ui': bool(modes & {'ui', 'fontalpha', 'lumalpha'}),
+            **({'detail': True} if is_detail(key) else {}),
         }
     return manifest
 
@@ -302,11 +310,69 @@ def _load_bmp(path: Path, alpha: bool) -> Image.Image:
     return img.convert('RGB')
 
 
+@functools.cache
+def _detail_lists() -> tuple[frozenset[str], frozenset[str]]:
+    data = tomllib.loads((TOOL_DIR / 'detail.toml').read_text(encoding='utf-8'))
+    return frozenset(p.lower() for p in data['packages']), frozenset(t.lower() for t in data['textures'])
+
+
+def is_detail(key: str) -> bool:
+    """Seen up close (weapons, walls): may keep more pixels, also on phones (detail.toml)."""
+    packages, keys = _detail_lists()
+    return key.lower() in keys or key.split('.')[0].lower() in packages
+
+
+def is_lifted(key: str) -> bool:
+    return key.lower() in _lifted()
+
+
+@functools.cache
+def _lifted() -> frozenset[str]:
+    data = tomllib.loads((TOOL_DIR / 'detail.toml').read_text(encoding='utf-8'))
+    return frozenset(t.lower() for t in [*data.get('lift', []), *data.get('lift_less', [])])
+
+
+@functools.cache
+def _lifted_less() -> frozenset[str]:
+    data = tomllib.loads((TOOL_DIR / 'detail.toml').read_text(encoding='utf-8'))
+    return frozenset(t.lower() for t in data.get('lift_less', []))
+
+
+def lift(img: Image.Image, gamma: float = 0.55) -> Image.Image:
+    """Mods painted for UE1, whose lighting and gamma lifted near-black skins; UE5 shows them flat black."""
+    table = [round(255 * (v / 255) ** gamma) for v in range(256)]
+    bands = img.split()
+    return Image.merge(img.mode, [b.point(table) if i < 3 else b for i, b in enumerate(bands)])
+
+
+def size_limit(cfg: Config, key: str) -> int:
+    return cfg.detail_texture_size if is_detail(key) else cfg.max_texture_size
+
+
+def source_limit(cfg: Config, key: str, img: Image.Image) -> int:
+    """size_limit, except that a texture with nothing to lose (a soft sky, a scaled-up skin) goes
+    back to max_texture_size: above this match in dB nobody sees the difference."""
+    limit = size_limit(cfg, key)
+    if limit <= cfg.max_texture_size or max(img.size) <= cfg.max_texture_size:
+        return limit
+    rgb = img.convert('RGB')
+    back = _limit_size(rgb, cfg.max_texture_size).resize(rgb.size, Image.BICUBIC)
+    error = np.mean((np.asarray(rgb, np.float32) - np.asarray(back, np.float32)) ** 2)
+    return cfg.max_texture_size if error <= 255 ** 2 / 10 ** (SAME_AT_DB / 10) else limit
+
+
 def _limit_size(img: Image.Image, max_size: int) -> Image.Image:
     w, h = img.size
-    scale = max(w, h) / max_size
-    if scale <= 1:
+    longest, shortest = max(w, h), min(w, h)
+    if longest <= max_size:
         return img
+    if longest >= 4 * shortest:
+        # a strip (a kerb, a skyline): its short side is what shows, so only the long one gives
+        # way, until it holds no more pixels than a square at the limit
+        while longest * shortest > max_size * max_size:
+            longest //= 2
+        return img.resize((longest, h) if w > h else (w, longest), Image.LANCZOS)
+    scale = longest / max_size
     return img.resize((max(1, round(w / scale)), max(1, round(h / scale))), Image.LANCZOS)
 
 

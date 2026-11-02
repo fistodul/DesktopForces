@@ -134,8 +134,9 @@ def g_noise(rng, h, w, t, o):
     """Concrete, plaster, dirt, painted metal, asphalt: layered noise + spots + streaks."""
     dark, mid, light = t
     n = fbm(rng, h, w, o.get('beta', 1.9)) * 0.7 + fbm(rng, h, w, 1.0) * 0.3
-    c = o.get('contrast', 1.0) * 1.3
-    v = 0.5 + (n - 0.5) * c
+    # in standard deviations: fbm's range depends on its one brightest peak, and dark / light are
+    # the original's 10th and 90th percentile, which +-1.28 of them reach at contrast 1
+    v = 0.5 + (n - n.mean()) / (n.std() + 1e-6) * 0.39 * o.get('contrast', 1.0)
     rgb = ramp(v, dark, mid, light)
     if o.get('spots', 0):
         rgb = shade(rgb, 1 - 0.7 * speckle(rng, h, w, o["spots"], o.get("spot_size", 2)))
@@ -585,6 +586,16 @@ def g_sign(rng, h, w, t, o):
     return np.asarray(img, np.float32)
 
 
+def g_bands(rng, h, w, t, o):
+    """Soft colour bands across the texture, top to bottom: stops [[y 0..1, [r, g, b]], ...]
+    (the spawn room force fields)."""
+    stops = o['stops']
+    ys = np.array([s[0] for s in stops], np.float32) * (h - 1)
+    y = np.arange(h, dtype=np.float32)
+    rgb = np.stack([np.interp(y, ys, [s[1][i] for s in stops]) for i in range(3)], axis=1)
+    return np.broadcast_to(rgb[:, None, :], (h, w, 3)).copy()
+
+
 def g_flat(rng, h, w, t, o):
     """Flat colour with a soft vertical gradient (sky fills)."""
     top = rgb_from(o.get('top', t[1]))
@@ -649,7 +660,7 @@ GENERATORS = {
     'corrugated': g_corrugated, 'siding': g_siding, 'treadplate': g_treadplate, 'grate': g_grate,
     'panel': g_panel, 'pipes': g_pipes, 'lamp': g_lamp, 'sign': g_sign, 'flat': g_flat,
     'sky': g_sky, 'glow': g_glow, 'screen': g_screen, 'window': g_window,
-    'lattice': g_lattice, 'tree': g_tree, 'palm': g_palm, 'splat': g_splat,
+    'bands': g_bands, 'lattice': g_lattice, 'tree': g_tree, 'palm': g_palm, 'splat': g_splat,
 }
 
 
@@ -668,10 +679,26 @@ def original(key: str) -> tuple[Image.Image | None, int, int]:
     return None, 256, 256
 
 
+def relief(rng, h, w, strength: float) -> np.ndarray:
+    """Pits and bumps lit from the top left, what a surface shows only when you stand next to it
+    (a brightness factor around 1, tileable)."""
+    bump = fbm(rng, h, w, 2.0)
+    light = (bump - np.roll(bump, 1, axis=0)) + (bump - np.roll(bump, 1, axis=1))
+    return 1 + np.clip(light / (light.std() + 1e-6) * strength, -0.45, 0.45)
+
+
+def detail_textures() -> set[str]:
+    data = tomllib.loads((MFPORT / 'detail.toml').read_text())
+    return {k.lower() for k in data['textures']}
+
+
 def make(key: str, spec: dict) -> Image.Image:
     src, uw, vh = (None, spec['size'][0], spec['size'][1]) if 'size' in spec else original(key)
     scale = spec.get('scale', 2)                      # MF 256 -> 512 (our cap), 128 -> 256
-    w, h = min(512, uw * scale), min(512, vh * scale)
+    cap = 512
+    if key.lower() in detail_textures():              # walked up to: Tools/mfport/detail.toml
+        scale, cap = scale * 2, 1024
+    w, h = min(cap, uw * scale), min(cap, vh * scale)
     rng = np.random.default_rng(zlib.crc32(key.lower().encode()))
     t = tones(src)
     for i, name in enumerate(('dark', 'mid', 'light')):
@@ -680,13 +707,16 @@ def make(key: str, spec: dict) -> Image.Image:
     out = GENERATORS[spec['gen']](rng, h, w, t, spec)
     rgb, alpha = out if isinstance(out, tuple) else (out, None)
     # surface detail on top of every material: fine grit and big soft grime patches
-    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen', 'splat')
+    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen', 'splat', 'bands')
     grit = spec.get('grit', 0.0 if plain else 0.22)
     grime = spec.get('grime', 0.0 if plain else 0.25)
     if grit:
         rgb = shade(rgb, 1 - grit / 2 + grit * fbm(rng, h, w, 0.6))
     if grime:
         rgb = shade(rgb, 1 - grime * np.clip(fbm(rng, h, w, 2.4) - 0.45, 0, 1) * 1.8)
+    rgb = rgb * spec.get('gain', 1.0)                 # as bright as the original, whatever the recipe did
+    if key.lower() in detail_textures() and not plain:
+        rgb = shade(rgb, relief(rng, h, w, spec.get('relief', 0.09)))
     img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), 'RGB')
     if alpha is not None:
         img.putalpha(Image.fromarray(alpha.astype(np.uint8)))
@@ -729,6 +759,14 @@ def periodicity(gray: np.ndarray) -> tuple[int, float, int, float]:
     return out[0], out[1], out[2], out[3]   # columns (x): repeats along x; rows (y)
 
 
+def line_share(gray: np.ndarray, vertical: bool) -> float:
+    """How much of the fine detail runs unbroken across the whole image (0..1): about 0.8 for
+    ribbed metal, below 0.2 for concrete or grass whose stains happen to repeat."""
+    img = Image.fromarray(np.clip(gray, 0, 255).astype(np.uint8))
+    fine = gray - np.asarray(img.filter(ImageFilter.GaussianBlur(8)), np.float32)
+    return float(fine.mean(axis=0 if vertical else 1).var() / (fine.var() + 1e-6))
+
+
 def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
     k = key.lower()
     rgb = img.convert('RGB')
@@ -743,10 +781,11 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
             break
     if 'masked' in modes and gen != 'grate':
         return None                                   # see-through shapes (foliage, decals): later, by hand
-    if 'additive' in modes and gen not in ('glow', 'lamp'):
+    blob = gray[:12].mean() + gray[-12:].mean() + gray[:, :12].mean() + gray[:, -12:].mean() < gray[44:84, 44:84].mean()
+    if 'additive' in modes and blob and gen not in ('glow', 'lamp'):
         gen, opts = 'glow', {}
-    elif gen == 'glow' and 'additive' not in modes:
-        gen, opts = None, {}                          # a wall named after a glow: no black backdrop
+    elif gen == 'glow' and not ('additive' in modes and blob):
+        gen, opts = None, {}                          # water or a wall drawn added: no black backdrop
     nx, px, ny, py = periodicity(gray)
     ex = float(np.abs(np.diff(gray, axis=1)).mean())   # edges across x (vertical lines)
     ey = float(np.abs(np.diff(gray, axis=0)).mean())   # edges across y (horizontal lines)
@@ -772,6 +811,8 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
             opts = {'ridges': int(min(24, n)), 'vertical': bool(strong_x)} if gen == 'corrugated' else {'n': int(n), 'vertical': bool(strong_x)} if gen == 'siding' else {}
         elif gen is None:
             gen = 'noise'
+    if gen in ('corrugated', 'siding') and max(line_share(gray, True), line_share(gray, False)) < 0.2:
+        gen, opts = 'noise', {}                       # a repeat in the stains: stripes would be invented
     if gen == 'noise':
         opts.setdefault('contrast', round(float(np.clip(std / 32.0, 0.4, 1.6)), 2))
         opts.setdefault('beta', 1.8)
