@@ -180,7 +180,7 @@ public:
 	 */
 	/** rocketDamageMultToPlayersOnFoot 2 (rockets fired by players). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Damage")
-	float RocketDamageScaleOnFoot = 2.f;
+	float RocketDamageScaleOnFoot = 1.f; // stock MF; mutPack's changeDamage sets 2
 	/** 1 / botDamageDivToVehicles (5) and 1 / botDamageDivToPlayerVehOccupants (5). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Damage")
 	float BotVehicleDamageScale = 0.2f;

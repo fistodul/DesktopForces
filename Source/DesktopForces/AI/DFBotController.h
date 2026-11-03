@@ -29,6 +29,7 @@ class DESKTOPFORCES_API ADFBotController : public AAIController {
 	GENERATED_BODY()
 
 public:
+	virtual FVector GetFocalPointOnActor(const AActor* Actor) const override;
 	ADFBotController();
 
 	/** 0 = novice .. 1 = godlike. Aim error and reaction scale with it. */
@@ -53,6 +54,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:
+	FVector AimPoint = FVector::ZeroVector;
 	friend class FDFGameplayLifecycleCheck;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;

@@ -1,4 +1,5 @@
 #include "AI/DFBotController.h"
+#include "GameFramework/GameStateBase.h"
 #include "Game/DFGameState.h"
 #include "DesktopForces.h"
 #include "Player/DFCharacter.h"
@@ -113,7 +114,19 @@ bool ADFBotController::CanSee(const ADFCharacter* C, const ADFCharacter* Target)
 	return !GetWorld()->LineTraceTestByChannel(Eyes, Target->GetActorLocation() + FVector(0.f, 0.f, 40.f), ECC_Visibility, Params);
 }
 
+FVector ADFBotController::GetFocalPointOnActor(const AActor* Actor) const {
+	return Actor == Enemy.Get() ? AimPoint : Super::GetFocalPointOnActor(Actor);
+}
+
 void ADFBotController::Think() {
+	if (const AGameStateBase* Over = GetWorld()->GetGameState(); Over && Over->HasMatchEnded()) {
+		StopMovement();
+		if (ADFCharacter* Me = Cast<ADFCharacter>(GetPawn())) {
+			Me->StopFire(false);
+			Me->StopFire(true);
+		}
+		return;
+	}
 	if (ADFVehicle* V = Cast<ADFVehicle>(GetPawn())) {
 		Drive(V);
 		return;
@@ -179,8 +192,12 @@ void ADFBotController::Fight(ADFCharacter* C, ADFCharacter* Target) {
 	// Aim with error that shrinks with skill and grows with distance (MF AdjustAim/AimError)
 	const float Dist = FVector::Dist(Target->GetActorLocation(), C->GetActorLocation());
 	const float Error = Dist * FMath::Lerp(0.08f, 0.015f, Skill);
-	const FVector Aim = Target->GetActorLocation() + FVector(0, 0, 30.f) + FMath::VRand() * Error;
-	SetFocalPoint(Aim, EAIFocusPriority::Gameplay);
+	// the chest: a third up from the middle of the capsule, however tall it is now
+	const FVector Aim = Target->GetActorLocation() + FVector(0, 0, Target->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 0.35f) + FMath::VRand() * Error;
+	// on the pawn, not a point: AAIController zeroes the pitch unless it looks at a pawn, so a bot
+	// could only shoot level, over anyone crouching or below it
+	AimPoint = Aim;
+	SetFocus(Target, EAIFocusPriority::Gameplay);
 
 	// HMG must be deployed before it fires (MF bots: Fire -> ToggleZoom)
 	if (AHeavyMachineGun* HMG = Cast<AHeavyMachineGun>(W); HMG && !HMG->IsZoomed()) {

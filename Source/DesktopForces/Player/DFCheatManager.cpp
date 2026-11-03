@@ -326,20 +326,6 @@ void UDFCheatManager::KillPawns() {
 			It->Die(nullptr, UDFDamage_Suicide::StaticClass(), nullptr);
 }
 
-void UDFCheatManager::KillAll(const FString& ClassName) {
-	UClass* Class = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::NativeFirst);
-	if (!Class || !Class->IsChildOf(AActor::StaticClass()))
-		return;
-	for (TActorIterator<AActor> It(GetWorld(), Class); It; ++It) {
-		if (ADFCharacter* C = Cast<ADFCharacter>(*It)) {
-			if (C->IsAlive() && C != GetPlayerController()->GetPawn())
-				C->Die(nullptr, UDFDamage_Suicide::StaticClass(), nullptr);
-		} else if (*It != GetPlayerController()) {
-			It->Destroy();
-		}
-	}
-}
-
 void UDFCheatManager::TeamGod() {
 	const ADFCharacter* Me = Cast<ADFCharacter>(GetPlayerController()->GetPawn());
 	if (!Me)

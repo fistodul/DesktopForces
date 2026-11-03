@@ -129,9 +129,6 @@ public:
 	/** Kill every bot. */
 	UFUNCTION(Exec)
 	void KillPawns();
-	/** Kill all actors of a class (pawns die, other actors are destroyed), e.g. `KillAll DFCharacter`. */
-	UFUNCTION(Exec)
-	void KillAll(const FString& ClassName);
 	/** Toggle damage immunity for your whole team. */
 	UFUNCTION(Exec)
 	void TeamGod();

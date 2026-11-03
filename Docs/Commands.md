@@ -85,7 +85,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `SetTeam N` | join team N (0 blue, 1 red, …) and respawn there |
 | `KillEnemy` | kill every enemy (everyone else in deathmatch) |
 | `KillPawns` | kill every bot |
-| `KillAll Class` | MF's: kill / remove every actor of a class, by class name, e.g. `KillAll DFCharacter`, `KillAll LoadoutBlocker` |
+| `DestroyAll Class` | UE's own, MF's `KillAll`: remove every actor of a class, by class name, e.g. `DestroyAll LoadoutBlocker`. Soldiers vanish without a kill, you too if your class matches |
 | `AllAmmo` | full ammo |
 | `GiveWeapon Name` | give yourself a weapon, e.g. `GiveWeapon RocketLauncher`, `GiveWeapon Molotov`; ignores the carry limit |
 | `SetWeapons Name` | give every bot that weapon |

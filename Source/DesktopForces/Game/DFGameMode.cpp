@@ -461,6 +461,8 @@ void ADFGameMode::AddBots(int32 Count, float Skill) {
 		if (ADFPlayerState* PS = Bot->GetPlayerState<ADFPlayerState>()) {
 			PS->SetPlayerName(Def.Name);
 			PS->SetIsABot(true);
+			// RageBotInfo: BotGenoTypes[(I / divisor) % NumGenoTypes], both models on each side
+			PS->PreferredModel = (BotsAdded / (IsTeamGame() ? 2 : 1)) % 2;
 			PS->SetTeam(IsTeamGame() ? ChooseTeam(Bot, Def.PreferredTeam) : DF::NoTeam);
 		}
 		++NumBots;
@@ -523,7 +525,14 @@ void ADFGameMode::Killed(AController* Killer, AController* Victim, ADFCharacter*
 	const bool bEndsSpree = VictimPS && VictimPS->Spree > 4; // RageDeathMatch.ScoreKill: Other.Spree > 4 -> EndSpree
 	ScoreKill(KillerPS, VictimPS);
 
-	BroadcastLocalized(this, UDFDeathMessage::StaticClass(), 0, KillerPS, VictimPS, DamageType.Get());
+	// RageMessageDeath: the killer's weapon says how it went (its DeathMessage), unless the damage
+	// type has its own words (burnt, ran over, a trap)
+	UClass* Cause = DamageType.Get();
+	const UDFDamageType* Kind = DamageType ? Cast<UDFDamageType>(DamageType->GetDefaultObject()) : nullptr;
+	const bool bPlainKill = !Kind || Kind->DeathVerb.EqualTo(GetDefault<UDFDamageType>()->DeathVerb) || Kind->IsA<UDFDamage_Headshot>();
+	if (const ADFCharacter* By = Killer ? Cast<ADFCharacter>(Killer->GetPawn()) : nullptr; By && By->GetCurrentWeapon() && bPlainKill && KillerPS != VictimPS)
+		Cause = By->GetCurrentWeapon()->GetClass();
+	BroadcastLocalized(this, UDFDeathMessage::StaticClass(), 0, KillerPS, VictimPS, Cause);
 	if (bEndsSpree)
 		BroadcastLocalized(this, UDFAnnouncement::StaticClass(), UDFAnnouncement::SpreeEnded, KillerPS != VictimPS ? KillerPS : nullptr, VictimPS);
 	if (KillerPS && KillerPS != VictimPS) {
@@ -713,6 +722,11 @@ void ADFGameMode::HandleMatchHasEnded() {
 		It->StopFire(true);
 		It->GetCharacterMovement()->DisableMovement();
 	}
+	for (TActorIterator<ADFVehicle> It(GetWorld()); It; ++It)
+		It->StopForMatchEnd();
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		if (APlayerController* PC = It->Get())
+			PC->SetIgnoreMoveInput(true);
 	BroadcastLocalized(this, UDFAnnouncement::StaticClass(), UDFAnnouncement::MatchEnd);
 	// RPlayer.PlayWinMessage: "Winner" for the best team / player, "You lose" for the rest
 	const ADFGameState* GS = GetGameState<ADFGameState>();

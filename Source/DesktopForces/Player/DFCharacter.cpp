@@ -1,4 +1,5 @@
 #include "Player/DFCharacter.h"
+#include "GameFramework/GameStateBase.h"
 #include "Game/CTF/Flag.h"
 #include "Game/DFGameState.h"
 #include "Core/DFProps.h"
@@ -835,6 +836,8 @@ void ADFCharacter::SwitchToBestWeapon() {
 // --- input-driven actions ----------------------------------------------------------
 
 void ADFCharacter::StartFire(bool bAlt) {
+	if (const AGameStateBase* Over = GetWorld()->GetGameState(); Over && Over->HasMatchEnded())
+		return;
 	if (bFeigningDeath) {
 		ServerSetFeignDeath(false); // fire gets up; it does not also fire a hidden weapon
 		return;
