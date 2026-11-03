@@ -32,6 +32,11 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ⬜ Mounted gun aim: the crosshair marks where the gun points, which trails the view while the turret turns; make the gun converge on the view's aim point
 - ⬜ Phone frame rates: check the menu's refresh-based list on a phone (`GetMaxRefreshRate` may stay 60 there: use `FAndroidMisc::GetSupportedNativeDisplayRefreshRates`), and step the cap down by itself when frame time stays over budget (thermal throttling)
 - ⬜ Kill credit left over from the code review: predator missile, sentry and seeker mines still read the owner's controller when they hit, and a gunner's or driver's shots too; projectiles, trip bombs and molotovs keep it from launch
+- ⬜ Hand-off 2026-11-03, open after the last feedback round:
+  - Not tried in game yet: trip laser on vehicles, exiting a rolled vehicle (view level), rocket APC crosshair, rotor start, flags on Armadillo, Jeep and Heli
+  - Review not done for `DFMenu`, `DFHUD`, `DFCheatManager`, the download code, most of Predator and Totem
+  - Beacon keeps announcing if a host joins another server directly (`Stop` only runs on a standalone map)
+  - `mf-warehouse` explosive table: rocket 202 at the centre (135 x 1.5 hardcore), 100 at about 4.5 m, 8 at the 9 m edge; `RocketDamageScaleOnFoot` is mutPack's optional x2
 - ⏸ Texture arrays per map to cut draw calls: tried on mf-The_Bank and mf-nc, no measured gain, kept off ([Performance](Performance.md#arrays-and-streaming-measured-2026-11-01)); phone not tested
 - ⬜ Full rebake of all maps (about 17 hours, overnight): shadowless water sheets on the other 24 water maps, 32 px minimum prop lightmaps, no texture arrays left in mf-nc and mf-The_Bank. static mesh winding fix (`t3d.orient_triangles`: culled faces, bench ribbons, one-way see-through; only mf-waterfront has it so far), instanced props on every map with many repeats, which also about halves their bake (default 8 in `mapedits.py`) (mf-Tajga, mf-Treasure_Finders, mf-Tropics, mf-Sardine_City, mf-City_Rush and the other nine over 300; see [Performance](Performance.md#instanced-props-2026-11-02)). While there, compare lighting and other things against videos of MF gameplay (waterfront reads too bright, HMG and jeep gun animations, MAC-10 hand speed, steering)
 - ⏸ Zone-based level streaming / HLOD for big outdoor maps: held back, same section
