@@ -304,7 +304,7 @@ private:
 	TArray<TSharedPtr<FString>> Qualities;
 	TSharedPtr<FString> SelectedQuality;
 	TArray<TSharedPtr<FString>> FrameRates;
-	TArray<float> FrameRateLimits;
+	TArray<int32> FrameRateLimits;
 	TSharedPtr<FString> SelectedFrameRate;
 	bool bVSync = false;
 	float Brightness = 1.f;
@@ -518,22 +518,27 @@ private:
 	TSharedPtr<FActiveTimerHandle> ServerTimer;
 	int32 ServerRowsVersion = -1;
 
-	/** Thirds of the screen's refresh and its half, from twice it down, above
-	 *  20 FPS, then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. A custom cap keeps its place. */
-	static TArray<float> RecommendedFrameRates(float Saved) {
+	/** Thirds of the screen's refresh and its half, from twice it down, above 20 FPS
+	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. A custom cap keeps its place. */
+	static TArray<int32> RecommendedFrameRates(int32 Saved) {
 		int32 Hz = FPlatformMisc::GetMaxRefreshRate();
 		FScreenResolutionArray Modes;
-		if (RHIGetAvailableResolutions(Modes, false)) // desktop: GetMaxRefreshRate is 60 on Linux
+
+		// desktop: GetMaxRefreshRate is 60 on Linux
+		if (RHIGetAvailableResolutions(Modes, false)) {
 			for (const FScreenResolutionRHI& Mode : Modes)
 				Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
-		TArray<float> Rates;
-		for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 })
-		{
-			if (Hz * Sixths / 6 > 20)
-				Rates.Add(float(Hz * Sixths / 6));
+		}
+
+		TArray<int32> Rates;
+		for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 }) {
+			const int32 Rate = Hz * Sixths / 6;
+			if (Rate > 20)
+				Rates.Add(Rate);
 		}
 
 		Rates.AddUnique(Saved);
+		Rates.AddUnique(0);
 		return Rates;
 	}
 
@@ -875,8 +880,8 @@ private:
 		const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
 		if (const int32 Found = ResolutionSizes.IndexOfByKey(Desktop); Found != INDEX_NONE)
 			SelectedResolution = Resolutions[Found];
-		if (FrameRateLimits.Contains(D->GetFrameRateLimit()))
-			SelectedFrameRate = FrameRates[FrameRateLimits.IndexOfByKey(D->GetFrameRateLimit())];
+		if (const int32 Row = FrameRateLimits.IndexOfByKey(FMath::RoundToInt(D->GetFrameRateLimit())); Row != INDEX_NONE)
+			SelectedFrameRate = FrameRates[Row];
 		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
 		MasterVolume = D->MasterVolume;
 		MusicVolume = D->MusicVolume;
@@ -1168,10 +1173,11 @@ private:
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
 		bVSync = S.IsVSyncEnabled();
-		FrameRateLimits = RecommendedFrameRates(S.GetFrameRateLimit());
-		for (float Limit : FrameRateLimits) {
-			FrameRates.Add(MakeShared<FString>(Limit == 0.f ? TEXT("Unlimited") : FString::Printf(TEXT("%g FPS"), Limit)));
-			if (Limit == S.GetFrameRateLimit())
+		const int32 SavedLimit = FMath::RoundToInt(S.GetFrameRateLimit()); // UE keeps a float; whole FPS here
+		FrameRateLimits = RecommendedFrameRates(SavedLimit);
+		for (int32 Limit : FrameRateLimits) {
+			FrameRates.Add(MakeShared<FString>(Limit == 0 ? TEXT("Unlimited") : FString::Printf(TEXT("%d FPS"), Limit)));
+			if (Limit == SavedLimit)
 				SelectedFrameRate = FrameRates.Last();
 		}
 		DecalModes = { MakeShared<FString>(TEXT("Off")), MakeShared<FString>(TEXT("Simple")), MakeShared<FString>(TEXT("Full")) };
@@ -1288,7 +1294,7 @@ private:
 		if (const int32 Q = IndexOf(Qualities, SelectedQuality); Q >= 0 && Q < Scalability::GetQualityLevelCounts().ViewDistanceQuality)
 			S.SetOverallScalabilityLevel(Q);
 		if (const int32 F = IndexOf(FrameRates, SelectedFrameRate); FrameRateLimits.IsValidIndex(F))
-			S.SetFrameRateLimit(FrameRateLimits[F]);
+			S.SetFrameRateLimit(float(FrameRateLimits[F]));
 		S.SetVSyncEnabled(bVSync);
 		S.ApplySettings(false);
 		S.ConfirmVideoMode();
