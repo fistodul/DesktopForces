@@ -24,6 +24,7 @@ class DESKTOPFORCES_API ADFZoneVolume : public APhysicsVolume {
 	GENERATED_BODY()
 
 public:
+	virtual void PostInitializeComponents() override;
 	ADFZoneVolume();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;

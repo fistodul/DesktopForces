@@ -1,4 +1,5 @@
 #include "Weapons/TripBombs/TripBomb.h"
+#include "Core/DFProps.h"
 #include "Player/DFCharacter.h"
 #include "Core/DFContent.h"
 #include "World/DFDecals.h"
@@ -92,7 +93,7 @@ void ATripBomb::CheckBeam() {
 	const FVector Start = GetActorLocation();
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFTripBeam), false, this);
-	FCollisionObjectQueryParams Objects(FCollisionObjectQueryParams::AllObjects);
+	const FCollisionObjectQueryParams Objects = DF::SolidObjects();
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, Start, FVector(LaserEnd), Objects, Params) &&
 		FVector::DistSquared(Hit.ImpactPoint, FVector(LaserEnd)) > 4.f * 4.f)
 		Detonate(Hit.ImpactPoint, 200.f); // MF: HurtRadius(200, 400) at the beam break

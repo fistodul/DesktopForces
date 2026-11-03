@@ -13,6 +13,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ATripBombs::ATripBombs() {
+	DeathMessage = NSLOCTEXT("DFKills", "TripBombs", "%k Blew Up %o.");
 	ViewMesh = TEXT("RageWeapons/TripBombsPickupCarryMesh");
 	ArmsMesh = TEXT("TripBombsPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

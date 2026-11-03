@@ -31,7 +31,7 @@ public:
 	uint8 Team = DF::NoTeam;
 
 	/** Same side as the planter: their team in team games, only the planter otherwise. */
-	bool IsFriendlyTo(const AActor* Other) const;
+	virtual bool IsFriendlyTo(const AActor* Other) const;
 
 protected:
 	virtual void BeginPlay() override;

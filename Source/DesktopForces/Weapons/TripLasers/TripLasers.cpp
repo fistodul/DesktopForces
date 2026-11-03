@@ -1,4 +1,8 @@
 #include "Weapons/TripLasers/TripLasers.h"
+#include "Core/DFProps.h"
+#include "Weapons/SentryGun/SentryGun.h"
+#include "Weapons/SeekerMines/SeekerMines.h"
+#include "Vehicles/DFVehicle.h"
 #include "Player/DFCharacter.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
@@ -31,13 +35,20 @@ ATripLaser::ATripLaser() {
 }
 
 void ATripLaser::Arm() {
+	// what it stuck to, if that can move (Owner, AttachedLoc)
+	FHitResult Stuck;
+	FCollisionQueryParams Behind(SCENE_QUERY_STAT(DFTripLaserBase), false, this);
+	if (GetWorld()->LineTraceSingleByObjectType(Stuck, GetActorLocation(), GetActorLocation() - GetActorForwardVector() * 30.f, DF::SolidObjects(), Behind) && Cast<APawn>(Stuck.GetActor())) {
+		PlantedOn = Stuck.GetActor();
+		PlantedAt = Stuck.GetActor()->GetActorTransform();
+	}
 	// TripLaser.Timer: the beam runs through friends to the first other thing, or into the open
 	const FVector Start = GetActorLocation();
 	BeamEnd = Start + GetActorForwardVector() * MaxLaserDistance;
 	LaserEnd = BeamEnd;
 	bAnchored = false;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFTripLaserArm), false, this);
-	FCollisionObjectQueryParams Objects(FCollisionObjectQueryParams::AllObjects);
+	const FCollisionObjectQueryParams Objects = DF::SolidObjects();
 	for (int32 i = 0; i < 16; ++i) {
 		FHitResult Hit;
 		if (!GetWorld()->LineTraceSingleByObjectType(Hit, Start, BeamEnd, Objects, Params))
@@ -55,18 +66,66 @@ void ATripLaser::Arm() {
 }
 
 void ATripLaser::CheckBeam() {
-	// state Active.Tick: the first thing along the beam; an enemy gets burnt and the laser is spent
+	// state Active.Tick: planted on something that moved, it goes
+	if (const AActor* Base = PlantedOn.Get(); Base && !Base->GetActorTransform().Equals(PlantedAt, 0.5f)) {
+		Destroy();
+		return;
+	}
+	// the first thing along the whole beam; a pawn that isn't friendly gets burnt and the laser is
+	// spent. Vehicles are pawns: an empty one sets it off too
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFTripLaserBeam), false, this);
-	FCollisionObjectQueryParams Objects(FCollisionObjectQueryParams::AllObjects);
+	const FCollisionObjectQueryParams Objects = DF::SolidObjects();
 	if (!GetWorld()->LineTraceSingleByObjectType(Hit, GetActorLocation(), BeamEnd, Objects, Params))
 		return;
-	ADFCharacter* C = Cast<ADFCharacter>(Hit.GetActor());
-	if (C && C->IsAlive() && !IsFriendlyTo(C)) {
-		FDamageEvent Ev(UDFDamage_TripLaser::StaticClass());
-		C->TakeDamage(bAnchored ? 280.f : 185.f, Ev, TripLasersLocal::Credit(this, Team), this);
+	AActor* A = Hit.GetActor();
+	const bool bPawn = Cast<APawn>(A) || A->IsA<ASentryTurret>(); // StationaryPawn in MF
+	if (bPawn && !IsFriendlyTo(A)) {
+		FPointDamageEvent Ev(bAnchored ? 280.f : 185.f, Hit, GetActorForwardVector(), UDFDamage_TripLaser::StaticClass());
+		A->TakeDamage(Ev.Damage, Ev, TripLasersLocal::Credit(this, Team), this);
 		Destroy();
 	}
+}
+
+bool ATripLaser::IsFriendlyTo(const AActor* Other) const {
+	// TripLaser.IsFriendly: a team mate, a team's device, a vehicle with only friends in it
+	if (!Other || Other == this)
+		return true;
+	const bool bTeams = Team != DF::NoTeam;
+	auto Friend = [&](const ADFCharacter* P) {
+		return !P->IsAlive() || (bTeams ? P->GetTeam() == Team : P == GetInstigator());
+	};
+	uint8 DeviceTeam = DF::NoTeam;
+	bool bDevice = true;
+	if (const ATripBomb* Bomb = Cast<ATripBomb>(Other))
+		DeviceTeam = Bomb->Team;
+	else if (const ATripLaserMine* Mine = Cast<ATripLaserMine>(Other))
+		DeviceTeam = Mine->GetPlacedTeam();
+	else if (const ASeekerMine* Seeker = Cast<ASeekerMine>(Other))
+		DeviceTeam = Seeker->GetPlacedTeam();
+	else if (const ASentryTurret* Sentry = Cast<ASentryTurret>(Other))
+		DeviceTeam = Sentry->GetTeam();
+	else
+		bDevice = false;
+	if (bDevice)
+		return bTeams ? DeviceTeam == Team : Other->GetInstigator() == GetInstigator();
+	if (const ADFVehicle* V = Cast<ADFVehicle>(Other)) {
+		bool bFoundFriend = false;
+		TArray<ADFCharacter*> Riders;
+		if (ADFCharacter* Driver = V->GetDriver())
+			Riders.Add(Driver);
+		for (ADFCharacter* P : V->GetPassengers())
+			if (P)
+				Riders.AddUnique(P);
+		for (const ADFCharacter* P : Riders) {
+			if (!Friend(P))
+				return false;
+			bFoundFriend = true;
+		}
+		return bFoundFriend;
+	}
+	const ADFCharacter* C = Cast<ADFCharacter>(Other);
+	return C && Friend(C);
 }
 
 float ATripLaser::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {

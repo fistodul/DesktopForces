@@ -29,6 +29,7 @@ class DESKTOPFORCES_API ASentryTurret : public AActor {
 	GENERATED_BODY()
 
 public:
+	uint8 GetTeam() const { return Team; }
 	ASentryTurret();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

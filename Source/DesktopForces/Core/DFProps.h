@@ -11,6 +11,8 @@ namespace DF {
 	 * DrawScale and the mesh's own materials. Returns false and leaves the component alone
 	 * (the placeholder shape stays) when this install has no converted props.
 	 */
+	/** What a beam or a line stops at: everything solid, not zones (ADFZoneVolume). */
+	DESKTOPFORCES_API struct FCollisionObjectQueryParams SolidObjects();
 	/** HurtRadius: 1 - (dist - victim's radius) / radius for a radial event, 1 for anything else.
 	 *  A TakeDamage override that doesn't use AActor's own must apply it. */
 	DESKTOPFORCES_API float RadialDamageScale(const struct FDamageEvent& Event, const FVector& VictimAt, float VictimRadius);

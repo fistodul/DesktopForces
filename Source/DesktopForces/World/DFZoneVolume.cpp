@@ -16,6 +16,15 @@ ADFZoneVolume::ADFZoneVolume() {
 	FluidFriction = 2.4f; // UE default 0.3 is slippery; MF swimming stops quickly
 }
 
+void ADFZoneVolume::PostInitializeComponents() {
+	Super::PostInitializeComponents();
+	// a zone is air or water, it stops nothing: as a brush it blocked rockets in mid air. A type no
+	// trace by object asks for, so beams go through as well
+	UBrushComponent* Shape = GetBrushComponent();
+	Shape->SetCollisionObjectType(ECC_Destructible);
+	Shape->SetCollisionResponseToAllChannels(ECR_Overlap);
+}
+
 void ADFZoneVolume::BeginPlay() {
 	Super::BeginPlay();
 	SetActorTickEnabled(!ZoneVelocity.IsNearlyZero() || (bGravityZone && !FVector2D(ZoneGravity).IsNearlyZero()));

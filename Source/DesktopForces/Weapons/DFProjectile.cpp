@@ -101,6 +101,7 @@ void ADFProjectile::LifeSpanExpired() {
 }
 
 void ADFProjectile::OnStop(const FHitResult& Hit) {
+	UE_LOG(LogDF, Verbose, TEXT("%s stopped by %s (%s) at %s"), *GetName(), *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent()), *Hit.ImpactPoint.ToCompactString());
 	if (HasAuthority() && bExplodeOnImpact)
 		Explode(Hit.ImpactPoint, Hit.ImpactNormal);
 }

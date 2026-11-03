@@ -1,4 +1,5 @@
 #include "Core/DFProps.h"
+#include "CollisionQueryParams.h"
 #include "Engine/DamageEvents.h"
 #include "Core/DFUserSettings.h"
 #include "Core/DFGameSettings.h"
@@ -6,6 +7,14 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
+
+FCollisionObjectQueryParams DF::SolidObjects() {
+	FCollisionObjectQueryParams Objects(ECC_WorldStatic);
+	Objects.AddObjectTypesToQuery(ECC_WorldDynamic);
+	Objects.AddObjectTypesToQuery(ECC_Pawn);
+	Objects.AddObjectTypesToQuery(ECC_PhysicsBody);
+	return Objects;
+}
 
 float DF::RadialDamageScale(const FDamageEvent& Event, const FVector& VictimAt, float VictimRadius) {
 	if (!Event.IsOfType(FRadialDamageEvent::ClassID))

@@ -25,11 +25,14 @@ class DESKTOPFORCES_API ATripLaser : public ATripBomb {
 	GENERATED_BODY()
 public:
 	ATripLaser();
+	virtual bool IsFriendlyTo(const AActor* Other) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 	virtual void Arm() override;
 	virtual void CheckBeam() override;
+	TWeakObjectPtr<AActor> PlantedOn;
+	FTransform PlantedAt;
 	bool bAnchored = false;
 	FVector BeamEnd = FVector::ZeroVector; // full length: anything walking into it counts
 };
@@ -40,6 +43,7 @@ class DESKTOPFORCES_API ATripLaserMine : public ATripMine {
 	GENERATED_BODY()
 public:
 	ATripLaserMine();
+	uint8 GetPlacedTeam() const { return PlacedTeam; }
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
