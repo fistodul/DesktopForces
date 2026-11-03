@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AFamas::AFamas() {
+	DeathMessage = NSLOCTEXT("DFKills", "Famas", "%k ripped %o a new one.");
 	// Fire01-04 4 @50 + 0.05; Reload 30 @10 + 0.25
 	ViewMesh = TEXT("famas/FamasPickupCarryMesh");
 	ArmsMesh = TEXT("FamasPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

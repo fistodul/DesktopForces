@@ -39,13 +39,6 @@ ADFHUD::ADFHUD() {
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void ADFHUD::AddKillMessage(const FString& Killer, const FString& Victim, const FString& Verb) {
-	// RageMessageDeath: red
-	AddMessage(Killer.IsEmpty() ? FString::Printf(TEXT("%s %s"), *Victim, *Verb)
-								: FString::Printf(TEXT("%s %s %s"), *Killer, *Verb, *Victim),
-		FLinearColor(1.f, 0.f, 0.f));
-}
-
 void ADFHUD::AddMessage(const FString& Line, const FLinearColor& Color) {
 	Messages.Add({ Line, Color, float(GetWorld()->GetTimeSeconds()) });
 	if (Messages.Num() > 6) // RageHUD.DrawSmallMessages: 6 lines

@@ -12,6 +12,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ARifle::ARifle() {
+	DeathMessage = NSLOCTEXT("DFKills", "Rifle", "%k sniped %o.");
 	ViewMesh = TEXT("RageWeapons/SniperRiflePickupCarryMesh");
 	ArmsMesh = TEXT("SniperRiflePlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

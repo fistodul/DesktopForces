@@ -15,6 +15,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AHeavyMachineGun::AHeavyMachineGun() {
+	DeathMessage = NSLOCTEXT("DFKills", "HeavyMachineGun", "%k gunned down %o like a worthless dog.");
 	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	ArmsMesh = TEXT("HeavyMachineGunPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

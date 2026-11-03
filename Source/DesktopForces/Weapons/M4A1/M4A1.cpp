@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AM4A1::AM4A1() {
+	DeathMessage = NSLOCTEXT("DFKills", "M4A1", "%k kaczked down %o.");
 	// Fire01-04 3 @35 + 0.05; Reload 33 @14 + 0.25
 	ViewMesh = TEXT("m4a1/M4A1PickupCarryMesh");
 	ArmsMesh = TEXT("M4A1PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

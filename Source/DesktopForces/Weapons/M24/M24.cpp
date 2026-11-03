@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AM24::AM24() {
+	DeathMessage = NSLOCTEXT("DFKills", "M24", "%k fucilated %o .");
 	// bolt action: Fire 17 @10 + 0.05; Reload 45 @15 + 0.25
 	ViewMesh = TEXT("M24/M24PickupCarryMesh");
 	ArmsMesh = TEXT("M24PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

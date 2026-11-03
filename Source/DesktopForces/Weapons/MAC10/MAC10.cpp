@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AMAC10::AMAC10() {
+	DeathMessage = NSLOCTEXT("DFKills", "MAC10", "%k popped %o.");
 	// Fire01-04 3 @55 + 0.05; Reload 10 @8 + 0.25
 	ViewMesh = TEXT("MAC10/MAC10PickupCarryMesh");
 	ArmsMesh = TEXT("MAC10PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

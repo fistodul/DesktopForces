@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AWA2000::AWA2000() {
+	DeathMessage = NSLOCTEXT("DFKills", "WA2000", "%k put a bullet between %o's eyes.");
 	// head 10000000 (one shot); scope 3x - 30x in 6 steps in MF: a fixed 6x here
 	ViewMesh = TEXT("wa2000/wa2000PickupCarryMesh");
 	ArmsMesh = TEXT("wa2000PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

@@ -1,4 +1,5 @@
 #include "Game/DFMessages.h"
+#include "Weapons/DFWeapon.h"
 #include "Core/DFTypes.h"
 #include "Game/DFGameState.h"
 #include "GameFramework/PlayerController.h"
@@ -13,12 +14,19 @@ void UDFDeathMessage::ClientReceive(const FClientReceiveData& ClientData) const 
 	ADFHUD* HUD = ClientData.LocalPC ? ClientData.LocalPC->GetHUD<ADFHUD>() : nullptr;
 	if (!HUD)
 		return;
-	const UClass* TypeClass = Cast<UClass>(ClientData.OptionalObject);
-	const UDFDamageType* Type = TypeClass ? Cast<UDFDamageType>(TypeClass->GetDefaultObject()) : nullptr;
+	const UClass* Cause = Cast<UClass>(ClientData.OptionalObject);
+	const UDFDamageType* Type = Cause ? Cast<UDFDamageType>(Cause->GetDefaultObject()) : nullptr;
+	const ADFWeapon* Weapon = Cause ? Cast<ADFWeapon>(Cause->GetDefaultObject()) : nullptr;
 	const FString Killer = ClientData.RelatedPlayerState_1 ? ClientData.RelatedPlayerState_1->GetPlayerName() : FString();
 	const FString Victim = ClientData.RelatedPlayerState_2 ? ClientData.RelatedPlayerState_2->GetPlayerName() : TEXT("Someone");
-	const bool bSuicide = Killer.IsEmpty() || ClientData.RelatedPlayerState_1 == ClientData.RelatedPlayerState_2;
-	HUD->AddKillMessage(bSuicide ? FString() : Killer, Victim, bSuicide ? TEXT("died") : (Type ? Type->DeathVerb.ToString() : TEXT("killed")));
+	FString Line;
+	if (Killer.IsEmpty() || ClientData.RelatedPlayerState_1 == ClientData.RelatedPlayerState_2)
+		Line = Victim + (Type ? Type->SuicideLine.ToString() : GetDefault<UDFDamageType>()->SuicideLine.ToString());
+	else if (Weapon) // GameInfo.ParseKillMessage
+		Line = Weapon->DeathMessage.ToString().Replace(TEXT("%k"), *Killer).Replace(TEXT("%o"), *Victim).Replace(TEXT("%w"), *Weapon->DisplayName.ToString());
+	else
+		Line = FString::Printf(TEXT("%s %s %s"), *Killer, *(Type ? Type->DeathVerb.ToString() : TEXT("killed")), *Victim);
+	HUD->AddMessage(Line, FLinearColor(1.f, 0.f, 0.f)); // RageMessageDeath: red
 }
 
 FText UDFAnnouncement::GetText(int32 Switch, const APlayerState* Subject, const ADFGameState* GS, const APlayerState* Other) {

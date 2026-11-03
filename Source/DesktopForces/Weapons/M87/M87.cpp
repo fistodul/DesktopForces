@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AM87::AM87() {
+	DeathMessage = NSLOCTEXT("DFKills", "M87", "%k wrecked %o");
 	// lever action (extends Pistol in MF: 8 shells); Fire 9 @35 x0.5..; Reload 2.25 s empty
 	ViewMesh = TEXT("m87/M87PickupCarryMesh");
 	ArmsMesh = TEXT("M87PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

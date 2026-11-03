@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AAK74::AAK74() {
+	DeathMessage = NSLOCTEXT("DFKills", "AK74", "%k busted a cap in %o's skull.");
 	// Fire01-04 3 frames @26 + 0.05; AccurateAimFire 6 @30; Reload 10 @6 + 0.25; SelectUp 3 @8
 	ViewMesh = TEXT("AK74/AK74PickupCarryMesh");
 	ArmsMesh = TEXT("AK74PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

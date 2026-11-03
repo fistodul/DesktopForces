@@ -518,49 +518,41 @@ private:
 	TSharedPtr<FActiveTimerHandle> ServerTimer;
 	int32 ServerRowsVersion = -1;
 
-	/** The screen's refresh x 1/2, 1, 2 and Unlimited (0): rates that divide it pace evenly. Phones:
-	 *  nothing above it, and 1/3 from 90 Hz up (40 on a 120 Hz panel); never under 30. */
-	static TArray<float> RecommendedFrameRates() {
+	/** Thirds of the screen's refresh and its half, from twice it down, above
+	 *  20 FPS, then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. A custom cap keeps its place. */
+	static TArray<float> RecommendedFrameRates(float Saved) {
 		int32 Hz = FPlatformMisc::GetMaxRefreshRate();
 		FScreenResolutionArray Modes;
 		if (RHIGetAvailableResolutions(Modes, false)) // desktop: GetMaxRefreshRate is 60 on Linux
 			for (const FScreenResolutionRHI& Mode : Modes)
 				Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
-		TArray<float> Rates = { 0.f, 30.f, Hz * 0.5f, float(Hz) };
-#if PLATFORM_ANDROID || PLATFORM_IOS
-		if (Hz >= 90)
-			Rates.Add(Hz / 3.f);
-#else
-		Rates.Add(Hz * 2.f);
-		Rates.Add(UDFUserSettings::GetDefaultFrameRateLimit());
-#endif
-		Rates.RemoveAll([](float R) { return R != 0.f && R < 30.f; });
-		Rates.Sort();
-		TArray<float> Unique;
-		for (float R : Rates)
-			Unique.AddUnique(R);
-		return Unique;
+		TArray<float> Rates;
+		for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 })
+		{
+			if (Hz * Sixths / 6 > 20)
+				Rates.Add(float(Hz * Sixths / 6));
+		}
+
+		Rates.AddUnique(Saved);
+		return Rates;
 	}
 
 	/** Bots at the start: buttons to press, or hold to run. */
 	TSharedRef<SWidget> MakeBotCount() {
 		auto Step = [this](const FText& Text, int32 Delta, TSharedPtr<SButton>& Held) {
 			return SAssignNew(Held, SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(14.f, 3.f))
-				.OnPressed_Lambda([this, Delta]() { Bots = FMath::Clamp(Bots + Delta, 0, MaxBots); BotHoldTime = 0.f; })
+				.OnPressed_Lambda([this, Delta]() { Bots = FMath::Clamp(Bots + Delta, 0, MaxBots); BotNextStep = FPlatformTime::Seconds() + 0.20; })
 				[
 					SNew(STextBlock).Font(Font(14)).Text(Text)
 				];
 		};
-		RegisterActiveTimer(0.05f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float Dt) {
+		RegisterActiveTimer(0.03f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float) {
 			const int32 Dir = BotLess.IsValid() && BotLess->IsPressed() ? -1 : BotMore.IsValid() && BotMore->IsPressed() ? 1 : 0;
-			if (Dir == 0) {
-				BotHoldTime = 0.f;
-				return EActiveTimerReturnType::Continue;
-			}
-			BotHoldTime += Dt;
-			const float Held = BotHoldTime - 0.3f; // held: two a second
-			if (Held > 0.f && FMath::FloorToInt(Held * 2.f) != FMath::FloorToInt((Held - Dt) * 2.f))
+			const double Now = FPlatformTime::Seconds(); // the clock: the menu's frames can be slow
+			if (Dir != 0 && Now >= BotNextStep) { // held: 5 a second
 				Bots = FMath::Clamp(Bots + Dir, 0, MaxBots);
+				BotNextStep = Now + 0.2;
+			}
 			return EActiveTimerReturnType::Continue;
 		}));
 		return SNew(SHorizontalBox)
@@ -574,7 +566,7 @@ private:
 
 	static constexpr int32 MaxBots = 64;
 	TSharedPtr<SButton> BotLess, BotMore;
-	float BotHoldTime = 0.f;
+	double BotNextStep = 0.0;
 
 	TSharedRef<SWidget> MakeJoin()
 	{
@@ -883,7 +875,8 @@ private:
 		const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
 		if (const int32 Found = ResolutionSizes.IndexOfByKey(Desktop); Found != INDEX_NONE)
 			SelectedResolution = Resolutions[Found];
-		SelectedFrameRate = FrameRates[FMath::Max(0, FrameRateLimits.IndexOfByKey(D->GetFrameRateLimit()))];
+		if (FrameRateLimits.Contains(D->GetFrameRateLimit()))
+			SelectedFrameRate = FrameRates[FrameRateLimits.IndexOfByKey(D->GetFrameRateLimit())];
 		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
 		MasterVolume = D->MasterVolume;
 		MusicVolume = D->MusicVolume;
@@ -1175,9 +1168,7 @@ private:
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
 		bVSync = S.IsVSyncEnabled();
-		FrameRateLimits = RecommendedFrameRates();
-		// Keep a saved custom cap selectable after the standard choices.
-		FrameRateLimits.AddUnique(S.GetFrameRateLimit());
+		FrameRateLimits = RecommendedFrameRates(S.GetFrameRateLimit());
 		for (float Limit : FrameRateLimits) {
 			FrameRates.Add(MakeShared<FString>(Limit == 0.f ? TEXT("Unlimited") : FString::Printf(TEXT("%g FPS"), Limit)));
 			if (Limit == S.GetFrameRateLimit())

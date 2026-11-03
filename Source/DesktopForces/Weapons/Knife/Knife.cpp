@@ -14,6 +14,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AKnife::AKnife() {
+	DeathMessage = NSLOCTEXT("DFKills", "Knife", "%k knifed %o.");
 	ViewMesh = TEXT("RageWeapons/KnifePickupCarryMesh"); // PickupViewMesh / ThirdPersonMesh
 	ArmsMesh = TEXT("KnifePlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

@@ -9,6 +9,7 @@ namespace {
 }
 
 AM18::AM18() {
+	DeathMessage = NSLOCTEXT("DFKills", "M18", "%k Blew Up %o.");
 	ViewMesh = TEXT("M18/M18PickupCarryMesh");
 	ArmsMesh = TEXT("M18PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

@@ -155,6 +155,8 @@ public:
 	/** Firing while zoomed in (MF AccurateAimFire animation). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Timing")
 	float ZoomedFireTime = 0.5f;
+	/** Weapon.DeathMessage: %k killer, %o victim, %w this weapon. */
+	FText DeathMessage = NSLOCTEXT("DFKills", "Default", "%o was killed by %k.");
 	/** Alt fire's time on a weapon whose alt fire is its own mode (M1887's fan); 0: FireTime. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float AltFireTime = 0.f;

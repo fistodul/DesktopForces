@@ -18,6 +18,7 @@ namespace MolotovLocal {
 
 UDFDamage_Fire::UDFDamage_Fire() {
 	DeathVerb = LOCTEXT("SetOnFire", "set on fire");
+	SuicideLine = LOCTEXT("Burned", " was incinerated.");
 	VehicleDamageScale = 0.125f; // burning: like any other non-explosive hit (changeDamage)
 }
 
@@ -87,6 +88,7 @@ void AMolotovImpact::Explode(const FVector& Location, const FVector& Normal) {
 }
 
 AMolotov::AMolotov() {
+	DeathMessage = NSLOCTEXT("DFKills", "Molotov", "%k Set %o on Fire.");
 	DisplayName = LOCTEXT("Molotov", "Molotov Cocktail");
 	MaxClipAmmo = 2;
 	bAddToLoadout = true; // shows up in every loadout crate while the plugin is enabled

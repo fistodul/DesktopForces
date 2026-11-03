@@ -18,6 +18,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ARocketLauncher::ARocketLauncher() {
+	DeathMessage = NSLOCTEXT("DFKills", "RocketLauncher", "%o was rocketed by %k.");
 	ViewMesh = TEXT("RageWeapons/RocketLauncherPickupCarryMesh");
 	ArmsMesh = TEXT("RocketLauncherPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AUltimax::AUltimax() {
+	DeathMessage = NSLOCTEXT("DFKills", "Ultimax", "%k dug %o's grave.");
 	// NormalFire sleeps 0.112 s (0.45 aimed); Reload 28 @8 + 0.25
 	ViewMesh = TEXT("ultimax/UltimaxPickupCarryMesh");
 	ArmsMesh = TEXT("UltimaxPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

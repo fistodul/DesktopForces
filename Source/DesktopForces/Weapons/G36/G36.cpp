@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AG36::AG36() {
+	DeathMessage = NSLOCTEXT("DFKills", "G36", "%k ended %o's life.");
 	// Reload @10 + 0.25
 	ViewMesh = TEXT("g36/g36PickupCarryMesh");
 	ArmsMesh = TEXT("g36PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

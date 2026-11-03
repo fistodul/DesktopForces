@@ -13,6 +13,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AShotgun::AShotgun() {
+	DeathMessage = NSLOCTEXT("DFKills", "Shotgun", "%k blew away %o.");
 	ViewMesh = TEXT("RageWeapons/ShotgunPickupCarryMesh");
 	ArmsMesh = TEXT("ShotgunPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

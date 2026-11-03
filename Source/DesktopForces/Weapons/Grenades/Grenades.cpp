@@ -13,6 +13,7 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AGrenades::AGrenades() {
+	DeathMessage = NSLOCTEXT("DFKills", "Grenades", "%k Blew Up %o.");
 	ViewMesh = TEXT("RageWeapons/GrenadesPickupCarryMesh");
 	ArmsMesh = TEXT("GrenadesPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	ArmsScale = 0.2f;

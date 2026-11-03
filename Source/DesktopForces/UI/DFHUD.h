@@ -31,7 +31,6 @@ public:
 	ADFHUD();
 	virtual void DrawHUD() override;
 
-	void AddKillMessage(const FString& Killer, const FString& Victim, const FString& Verb);
 	/** A line in MF's message list (top left: kills, chat, events). */
 	void AddMessage(const FString& Line, const FLinearColor& Color);
 	void Announce(const FString& Text);

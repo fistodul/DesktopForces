@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 AGlock::AGlock() {
+	DeathMessage = NSLOCTEXT("DFKills", "Glock", "%k clapped %o.");
 	// Fire 8 @30 + 0.05; aiming (no magnification) fires AccurateAimFire 5 @85: full auto, wild
 	ViewMesh = TEXT("glock/glockPickupCarryMesh");
 	ArmsMesh = TEXT("glockPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset

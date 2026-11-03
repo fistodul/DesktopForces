@@ -51,6 +51,10 @@ public:
 	/** Text for the kill message: "<Killer> <Verb> <Victim>". */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	FText DeathVerb = NSLOCTEXT("MF", "Killed", "killed");
+
+	/** After the victim's name when nobody else did it (RageGameInfo.SuicideMessage and the like). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF")
+	FText SuicideLine = NSLOCTEXT("MF", "Suicide", " killed his own dumb self.");
 };
 
 /** 'tracedshot' - pistol, machine gun, rifle, HMG bullets. */
@@ -93,7 +97,7 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Explosion : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Explosion() {
+	UDFDamage_Explosion() { SuicideLine = NSLOCTEXT("MF", "ExplosionLine", " was blown up.");
 		bExplosive = true;
 		VehicleDamageScale = 1.5f;
 	}
@@ -103,14 +107,14 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Fell : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Fell() { bBypassArmour = true; }
+	UDFDamage_Fell() { SuicideLine = NSLOCTEXT("MF", "FellLine", " left a small crater."); bBypassArmour = true; }
 };
 /** 'Drowned' */
 UCLASS()
 class DESKTOPFORCES_API UDFDamage_Drowned : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Drowned() { bBypassArmour = true; }
+	UDFDamage_Drowned() { SuicideLine = NSLOCTEXT("MF", "DrownedLine", " forgot to come up for air."); bBypassArmour = true; }
 };
 /** 'Crushed' - movers, vehicles running players over. */
 UCLASS()
@@ -122,7 +126,7 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Suicide : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Suicide() { bBypassArmour = true; }
+	UDFDamage_Suicide() { SuicideLine = NSLOCTEXT("MF", "SuicideLine", " had a sudden heart attack."); bBypassArmour = true; }
 };
 
 /** Team orders, in MF orders menu order (Rage.int OrderAbbrev 0-4; RageBot orders). */

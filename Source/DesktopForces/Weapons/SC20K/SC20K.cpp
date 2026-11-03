@@ -5,6 +5,7 @@
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
 ASC20K::ASC20K() {
+	DeathMessage = NSLOCTEXT("DFKills", "SC20K", "%k took down %o.");
 	// F2000.u; Fire01-04 3 @38 + 0.05; Reload 16 @5 + 0.25
 	ViewMesh = TEXT("F2000/SC20KPickupCarryMesh");
 	ArmsMesh = TEXT("SC20KPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
