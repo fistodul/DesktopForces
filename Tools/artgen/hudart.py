@@ -384,11 +384,31 @@ def clear() -> Image.Image:
 
 
 def vehicle_flag_neutral() -> Image.Image:
-    """A plain flag for a driver with no side (the team flags are 2:1 cloth with a border)."""
-    h, w = 64, 128
-    img = np.full((h, w, 3), 205, np.uint8)
-    img[:4], img[-4:], img[:, :4], img[:, -4:] = 120, 120, 120, 120
-    return Image.fromarray(img, 'RGB')
+    """For a driver with no side: a pirate flag, grey cloth, the team flags' hoist and three eyelets."""
+    from PIL import ImageDraw
+    k = 4
+    size = 256 * k
+    img = Image.new('RGB', (size, size), (44, 45, 50))
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, 0, 24 * k, size), fill=(33, 34, 38))
+    d.line((24 * k, 0, 24 * k, size), fill=(70, 72, 78), width=2 * k)
+    for x, y in ((9, 18), (8, 125), (9, 238)):
+        d.ellipse(((x - 8) * k, (y - 8) * k, (x + 8) * k, (y + 8) * k), fill=(190, 192, 198))
+        d.ellipse(((x - 4) * k, (y - 4) * k, (x + 4) * k, (y + 4) * k), fill=(10, 10, 12))
+    bone = (222, 220, 210)
+    for a, b in (((70, 214), (222, 164)), ((70, 164), (222, 214))):
+        d.line((a[0] * k, a[1] * k, b[0] * k, b[1] * k), fill=bone, width=15 * k)
+        for x, y in (a, b):
+            d.ellipse(((x - 13) * k, (y - 13) * k, (x + 13) * k, (y + 1) * k), fill=bone)
+            d.ellipse(((x - 13) * k, (y - 1) * k, (x + 13) * k, (y + 13) * k), fill=bone)
+    d.ellipse((98 * k, 28 * k, 194 * k, 118 * k), fill=bone)
+    d.rounded_rectangle((120 * k, 104 * k, 172 * k, 142 * k), 6 * k, fill=bone)
+    d.ellipse((112 * k, 62 * k, 138 * k, 90 * k), fill=(44, 45, 50))
+    d.ellipse((154 * k, 62 * k, 180 * k, 90 * k), fill=(44, 45, 50))
+    d.polygon(((146 * k, 92 * k), (138 * k, 110 * k), (154 * k, 110 * k)), fill=(44, 45, 50))
+    for x in (132, 146, 160):
+        d.line((x * k, 124 * k, x * k, 142 * k), fill=(44, 45, 50), width=3 * k)
+    return img.resize((256, 256), Image.LANCZOS)
 
 
 SHEETS = {
