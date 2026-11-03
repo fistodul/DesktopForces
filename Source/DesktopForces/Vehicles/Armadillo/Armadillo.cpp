@@ -17,10 +17,10 @@ AArmadillo::AArmadillo() {
 	TopSpeedKmh = 30.f * DF::Mph;
 	AccelTime = 8.f;
 	SteerLock = 40.f;
-	WheelTurnShown = 0.3f; // the skirts
+	WheelTurnShown = 0.15f; // the skirts
 	FlagPosition = FVector(-168.75f, 85.5f, 180.f); // FlagPos x 2.25
 	Armour = 0.84f;
-	SuspensionTravel = 37.f;
+	SuspensionTravel = 25.f; // more lifts the wheels through the hull
 	SuspensionDamping = 0.5f;
 	Wheels = {
 		DF::RageWheel(FVector(270.9f, 139.9f, -66.1f), 67.9f, true, true, TEXT("Rage/ArmadilloWheelR")),

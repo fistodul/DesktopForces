@@ -1,4 +1,5 @@
 #include "Vehicles/DFVehicleTurret.h"
+#include "Components/AudioComponent.h"
 #include "Weapons/DFTracer.h"
 #include "Vehicles/DFVehicle.h"
 #include "Core/DFContent.h"
@@ -91,9 +92,23 @@ void UDFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 			Fire(Gunner);
 		}
 	}
+	if (APlayerController* View = Gunner && Gunner->IsLocallyControlled() && YawLimit < 180.f ? Cast<APlayerController>(Gunner->GetController()) : nullptr) {
+		// the view stops where the gun does: past that the crosshair sits on the hull
+		const FTransform Hull = V->GetBody()->GetComponentTransform();
+		FRotator Rel = Hull.InverseTransformRotation(View->GetControlRotation().Quaternion()).Rotator();
+		const float Yaw = BaseYaw + FMath::Clamp(FRotator::NormalizeAxis(Rel.Yaw - BaseYaw), -YawLimit, YawLimit);
+		const float Pitch = FMath::Clamp(FRotator::NormalizeAxis(Rel.Pitch), PitchMin, PitchMax);
+		if (!FMath::IsNearlyEqual(FRotator::NormalizeAxis(Rel.Yaw - Yaw), 0.f, 0.01f) || !FMath::IsNearlyEqual(FRotator::NormalizeAxis(Rel.Pitch - Pitch), 0.f, 0.01f)) {
+			Rel.Yaw = Yaw;
+			Rel.Pitch = Pitch;
+			FRotator Clamped = Hull.TransformRotation(Rel.Quaternion()).Rotator();
+			Clamped.Roll = 0.f; // a rolled hull must not roll the view
+			View->SetControlRotation(Clamped);
+		}
+	}
 	if (TurretMesh) {
 		TurretMesh->SetRelativeLocationAndRotation(GunPos() - V->GetBoxCenter(), TurretRot);
-		TurretMesh->SetVisibility(!(Gunner && Gunner->IsLocallyControlled() && !Gunner->IsBehindView()));
+		TurretMesh->SetVisibility(!(GunnerWeaponClass && Gunner && Gunner->IsLocallyControlled() && !Gunner->IsBehindView()));
 	}
 }
 
@@ -128,12 +143,10 @@ void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
 		if (ADFVehicleTurretWeapon* W = GunnerWeapon.Get(); W && bHit)
 			W->ShowImpact(Hit.ImpactPoint, Hit.ImpactNormal, Cast<ADFCharacter>(Hit.GetActor()) != nullptr);
 	}
-	if (FireSound)
-		DF::PlaySoundAtLocation(this, FireSound, Start, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
 	V->MakeNoise(1.f, Gunner);
 	if (ADFVehicleTurretWeapon* W = GunnerWeapon.Get()) {
 		TracerCount = TracerCount > 0 ? TracerCount - 1 : 1; // vehWeap TracerEvery 2
-		W->MulticastShot(Start, End, !ProjectileClass && TracerCount == 0);
+		W->MulticastShot(Start, End, !ProjectileClass && TracerCount == 0, FireSound);
 	}
 	--ClipAmmo;
 	if (ClipAmmo > 0)
@@ -203,6 +216,13 @@ ADFVehicleTurretWeapon::ADFVehicleTurretWeapon() {
 	Mesh1P->SetVisibility(false); // the gun is on the vehicle, nothing in the hands
 }
 
+ARocketGunnerWeapon::ARocketGunnerWeapon() {
+	ViewMesh = TEXT("RageWeapons/RocketLauncherPickupCarryMesh");
+	ArmsMesh = TEXT("RocketLauncherPlayerMesh");
+	ArmsScale = 0.2f;
+	ArmsOffset = FVector(0.4f, -1.f, -5.f); // the launcher's own view
+}
+
 AJeepGunnerWeapon::AJeepGunnerWeapon() {
 	ViewMesh = TEXT("jeep/jeepWeapMesh"); // PickupViewMesh; the arms load with it
 	ArmsMesh = TEXT("jeepWeapPlayerMesh");
@@ -213,11 +233,16 @@ AJeepGunnerWeapon::AJeepGunnerWeapon() {
 	ArmsRoll = 0; // square to the view: the soldier's tilt doesn't suit a mounted gun
 }
 
-void ADFVehicleTurretWeapon::MulticastShot_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer) {
+void ADFVehicleTurretWeapon::MulticastShot_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer, USoundBase* Sound) {
 	if (GetNetMode() == NM_DedicatedServer)
 		return;
 	if (bTracer)
 		ADFTracer::Fire(GetWorld(), Start, End);
+	// one at a time, as UE1's sound slots: the jeep gun's shot rings 3.4 s, a tenth of a second apart
+	if (FireAudio)
+		FireAudio->Stop();
+	if (Sound)
+		FireAudio = UGameplayStatics::SpawnSoundAtLocation(this, Sound, Start, FRotator::ZeroRotator, 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
 	MuzzleFlashUntil = GetWorld()->GetTimeSeconds() + 0.05f;
 	if (Arms)
 		PlayArmsAnim(EDFWeaponState::Firing, 0.1f);
@@ -265,7 +290,11 @@ bool ADFVehicleTurretWeapon::DrawHUD(UCanvas* Canvas) {
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFTurretAim), false, V);
 	Params.AddIgnoredActor(Me);
-	const FVector End = GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * T->GetMaxRange(), ECC_Visibility, Params) ? Hit.ImpactPoint : Start + Dir * T->GetMaxRange();
+	// walls, soldiers and vehicles: not its own rocket on the way out
+	FCollisionObjectQueryParams Solid(ECC_WorldStatic);
+	Solid.AddObjectTypesToQuery(ECC_Pawn);
+	Solid.AddObjectTypesToQuery(ECC_PhysicsBody);
+	const FVector End = GetWorld()->LineTraceSingleByObjectType(Hit, Start, Start + Dir * T->GetMaxRange(), Solid, Params) ? Hit.ImpactPoint : Start + Dir * T->GetMaxRange();
 	const FVector S = Canvas->Project(End);
 	if (S.Z <= 0.f)
 		return true;

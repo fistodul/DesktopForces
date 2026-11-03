@@ -63,7 +63,7 @@ AJeep::AJeep() {
 	Gun->Spread = 0.03f; // Accuracy 0.3
 	Gun->Damage = 20.f; // MachineGun HitDamage
 	Gun->MaxRange = 22500.f;
-	Gun->ClassicFireSound = TEXT("jeep.jeepWeapFire");
+	// not vehWeap's jeepWeapFire: that sample is a whole burst, 3.4 s of it
 	Gun->ClassicReloadSound = TEXT("jeep.hmgReload");
 }
 

@@ -46,6 +46,7 @@
 
 UDFDamage_RunOver::UDFDamage_RunOver() {
 	DeathVerb = LOCTEXT("RanOver", "ran over");
+	SuicideLine = LOCTEXT("RunDown", " got run down");
 }
 
 ADFVehicle::ADFVehicle() {
@@ -710,6 +711,10 @@ void ADFVehicle::HitchTrailer(ADFVehicle* Other, const FVector& HitchPoint) {
 	Hitch->SetConstrainedComponents(Body, NAME_None, Other->Body, NAME_None);
 }
 
+void ADFVehicle::StopForMatchEnd() {
+	bLocked = true; // brakes on, riders stay where they are
+}
+
 void ADFVehicle::LockDown() {
 	bLocked = true;
 	ExitAll();
@@ -1260,6 +1265,12 @@ void ADFVehicle::PlaceExitingPawn(ADFCharacter* C, const FVector& Spot, AControl
 		const FRotator View = ReturningController->GetControlRotation();
 		ReturningController->Possess(C);
 		ReturningController->SetControlRotation(View);
+	}
+	// level again: a vehicle on its side or upside down leaves its roll in the view
+	if (AController* Rider = ReturningController ? ReturningController : C->GetController()) {
+		FRotator Level = Rider->GetControlRotation();
+		Level.Roll = 0.f;
+		Rider->SetControlRotation(Level);
 	}
 	if (C->IsAlive()) {
 		C->GetCharacterMovement()->SetMovementMode(MOVE_Falling);

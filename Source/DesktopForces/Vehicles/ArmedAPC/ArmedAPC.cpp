@@ -10,7 +10,8 @@ AArmedAPC::AArmedAPC() {
 	// ArmedAPC defaultproperties (uu -> cm, UE1 rotation units -> degrees)
 	Turret = CreateDefaultSubobject<UDFVehicleTurret>(TEXT("Turret"));
 	Turret->GunnerSeat = 1;
-	Turret->TurretPivot = FVector(0.f, 0.f, 189.f); // Z 84
+	Turret->TurretPivot = FVector(0.f, 0.f, 135.f); // MF Z 84 left it floating over the hatch (top at 106)
+	Turret->GunnerWeaponClass = AJeepGunnerWeapon::StaticClass();
 	Turret->GunOffset = FVector(67.5f, 0.f, 0.f); // X 30
 	Turret->MuzzleOffset = FVector(90.f, 0.f, 0.f); // X 40
 	Turret->PitchMin = -11.f; // -2000
@@ -29,6 +30,7 @@ AArmedAPC::AArmedAPC() {
 AArmedAPCRocket::AArmedAPCRocket() {
 	DisplayName = LOCTEXT("ArmedAPCRocket", "Armed APC (rockets)");
 	Turret->TurnRate = 109.9f; // 20000 / s
+	Turret->GunnerWeaponClass = ARocketGunnerWeapon::StaticClass();
 	Turret->TurretMeshName = TEXT("RageWeapons/RocketLauncherPickupCarryMesh");
 	Turret->FireInterval = 0.8f;
 	Turret->MaxClipAmmo = 4;

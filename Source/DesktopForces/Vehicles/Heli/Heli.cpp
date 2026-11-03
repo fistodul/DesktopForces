@@ -235,13 +235,13 @@ AHeliHmg::AHeliHmg() {
 		G->PitchMax = 90.f;
 		G->TurnRate = 720.f;
 		G->TurretMeshName = TEXT("jeep/jeepWeapMesh");
+		G->GunnerWeaponClass = AJeepGunnerWeapon::StaticClass();
 		G->FireInterval = 0.117f;
 		G->MaxClipAmmo = 300; // as the jeep
 		G->ReloadTime = 4.f;
 		G->Spread = 0.03f;
 		G->Damage = 20.f;
 		G->MaxRange = 22500.f;
-		G->ClassicFireSound = TEXT("jeep.jeepWeapFire");
 		G->ClassicReloadSound = TEXT("jeep.hmgReload");
 		return G;
 	};

@@ -18,7 +18,8 @@ ABuggy::ABuggy() {
 	SteerLock = 40.f; // Lock 40
 	Armour = 0.367f;
 	SuspensionTravel = 42.f;
-	SteerAtTopSpeed = 0.8f; // light and low: turned too slowly flat out
+	SteerAtTopSpeed = 0.95f; // light and low: the agile one
+	Grip = 7.f;
 	// Buggy.COL wheel spheres; rear-wheel drive (DriveType 1)
 	Wheels = {
 		DF::RageWheel(FVector(202.6f, 71.5f, 15.4f), 41.f, true, false, TEXT("Rage/BuggyWheelFR")),

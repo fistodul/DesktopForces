@@ -44,8 +44,7 @@ public:
 	// tuning (vehicle constructors; MF values in comments)
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")
 	int32 GunnerSeat = 1;
-	/** What the gunner holds. The gun on the vehicle hides from a first-person gunner either way:
-	 *  from the seat it fills the view. */
+	/** What the gunner holds. With a first-person model the gun on the vehicle hides from them. */
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")
 	TSubclassOf<class ADFVehicleTurretWeapon> GunnerWeaponClass;
 	/** Where it turns (vehicle body space, cm), the gun's offset from there and the muzzle's. */
@@ -131,10 +130,21 @@ public:
 	virtual bool LocksSelection() const override { return true; } // it exists only on the seat
 	/** Everyone's flash and tracer for a shot the server's turret fired. */
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastShot(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer);
+	void MulticastShot(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer, class USoundBase* Sound);
 	/** Bullet hole or blood where a shot landed. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> FireAudio;
 	void ShowImpact(const FVector& At, const FVector& Normal, bool bFlesh) { MulticastImpactFX(At, Normal, bFlesh); }
 	TWeakObjectPtr<UDFVehicleTurret> Turret;
+};
+
+/** The rocket launcher in an APC gunner's hands. */
+UCLASS(NotPlaceable)
+class DESKTOPFORCES_API ARocketGunnerWeapon : public ADFVehicleTurretWeapon {
+	GENERATED_BODY()
+
+public:
+	ARocketGunnerWeapon();
 };
 
 /** The jeep's gun in the gunner's hands: vehWeap, PlayerViewMesh jeepWeapPlayerMesh. */
