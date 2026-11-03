@@ -167,10 +167,13 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
 	bool bHardCoreMode = true;
 
-	/** Vehicles at the map's generators. ?Vehicles=0 none, ?Vehicles=Buggy (a class name) or
-	 *  Random: every road generator makes that (AllVehicles). */
+	/** The same here and in the URL (?Vehicles=): 1 the map's own, 0 none, or a class name: every
+	 *  road generator (buggy, humvee, truck, APC) makes that instead; Random one of the four each
+	 *  time (FNG AllBuggys ... AllRandom). The trailer cab stays. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	bool bVehicles = true;
+	FString Vehicles = TEXT("1");
+	/** The mode needs them: Vehicles=0 doesn't apply. */
+	bool bAlwaysUseVehicles = false;
 
 	/*
 	 * The community servers' damage rules (mutPack changeDamage by Gregaras) are the game's:
@@ -243,11 +246,6 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Weapons")
 	TArray<FString> NoWeapons;
 
-	/** Every road vehicle generator (buggy, humvee, truck, APC) makes this vehicle instead, by
-	 *  class name; Random: one of the four each time (?Vehicles=Buggy; FNG AllBuggys ...
-	 *  AllRandom). The trailer cab stays. */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")
-	FString AllVehicles;
 	/** What the truck generators make instead, by class name (?Trucks=Jeep: MF-mods jeeps with a
 	 *  gunner; ?Trucks=Heli: the community servers' mutPack replaceVehicles). Empty: trucks. */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF")

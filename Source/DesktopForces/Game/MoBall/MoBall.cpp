@@ -154,7 +154,7 @@ AMoBallGame::AMoBallGame() {
 	ScoreLimit = 4; // MoBallGame: goals to win
 	TimeLimit = 15;
 	bScoreTeamKills = false;
-	bVehicles = true; // bAlwaysUseVehicles
+	bAlwaysUseVehicles = true;
 }
 
 void AMoBallGame::InitGameState() {

@@ -30,7 +30,7 @@ ATrailerGame::ATrailerGame() {
 	TimeLimit = 10;
 	RespawnWait = 5;
 	bScoreTeamKills = false;
-	bVehicles = true; // bAlwaysUseVehciles
+	bAlwaysUseVehicles = true;
 }
 
 void ATrailerGame::FindMapData() {

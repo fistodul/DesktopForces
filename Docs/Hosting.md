@@ -62,7 +62,7 @@ Add to the map: `map?option=value?option=value`.
 |---|---|
 | `game=<mode>` | the mode by its short name: `dm`, `tdm`, `holdout`, `ctf`, `sc` (Safecracker), `det` (Detonation), `trailer`, `cap` (Captains), `koh` (King of the Hill), `arena`, `br` (Battle Royale), `coop`, `moball`, `tug`, `zombie` (`GameModeClassAliases` in `Config/DefaultEngine.ini`; a class path works too) |
 | `Bots=N`, `BotSkill=0..1` | bots added at the start |
-| `TimeLimit=min`, `ScoreLimit=N`, `ScoreLimit=N` | limits (0 = the mode's default) |
+| `TimeLimit=min`, `ScoreLimit=N` | limits (0 = the mode's default) |
 | `Teams=N` | number of teams in team modes (MF: 2) |
 | `RespawnWait=s` | seconds before a respawn |
 | `Vehicles=0` | no vehicles; `Vehicles=Buggy` (any vehicle class: `Humvee`, `Jeep`, `Heli` ...) every road generator makes that one, `Vehicles=Random` one of the four stock cars each time; `Trucks=Jeep` / `Trucks=Heli` what the truck generators make; `APCs=ArmedAPC` / `APCs=ArmedAPCRocket` what the APC generators make; `TurboCars=0` no nitro; `AddVehicles=0` none of the server's added vehicles |
@@ -94,7 +94,7 @@ ServerMessageInterval=600
 ServerMessageGroup=1
 ; the same as the URL options above, for every match
 ;NoWeapons=Grenades
-;AllVehicles=Random     ; ?Vehicles=Random
+;Vehicles=Random
 ;Trucks=Heli
 ;APCs=ArmedAPC
 ;bOPWeapons=True

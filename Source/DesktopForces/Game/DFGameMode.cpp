@@ -52,10 +52,8 @@ void ADFGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 	TimeLimitSeconds = UGameplayStatics::GetIntOption(Options, TEXT("TimeLimitSecs"), TimeLimitSeconds);
 	RespawnWait = UGameplayStatics::GetIntOption(Options, TEXT("RespawnWait"), RespawnWait);
 	BotCount = UGameplayStatics::GetIntOption(Options, TEXT("Bots"), BotCount);
-	if (const FString V = UGameplayStatics::ParseOption(Options, TEXT("Vehicles")); !V.IsEmpty()) {
-		bVehicles = V != TEXT("0");
-		AllVehicles = V.IsNumeric() ? FString() : V; // 1: the map's own
-	}
+	if (const FString V = UGameplayStatics::ParseOption(Options, TEXT("Vehicles")); !V.IsEmpty())
+		Vehicles = V;
 	if (UGameplayStatics::HasOption(Options, TEXT("APCs")))
 		APCs = UGameplayStatics::ParseOption(Options, TEXT("APCs"));
 	bAllowCheats = UGameplayStatics::GetIntOption(Options, TEXT("Cheats"), bAllowCheats ? 1 : 0) != 0;
@@ -173,7 +171,7 @@ void ADFGameMode::HandleMatchHasStarted() {
 	AddBots(BotCount);
 	AMineGenerator::SpawnAll(GetWorld()); // mapped minefields / river splashes (mineGenerator.u)
 	SpawnPlacedBots();
-	if (bVehicles) {
+	if (bAlwaysUseVehicles || Vehicles != TEXT("0")) {
 		TArray<FVector> Exclude;
 		GetVehicleExclusions(Exclude);
 		AVehicleGenerator::SpawnAll(GetWorld(), Exclude); // the map's Buggy/Humvee/Truck/ArmadilloGenerators
@@ -420,8 +418,8 @@ UClass* ADFGameMode::GetVehicleClassFor(UClass* StockClass) const {
 	};
 	// ?Vehicles=Buggy / Random: every stock road car (exact classes: the trailer cab is a humvee)
 	UClass* const Road[] = { ABuggy::StaticClass(), AHumvee::StaticClass(), ATruck::StaticClass(), AArmadillo::StaticClass() };
-	if (!AllVehicles.IsEmpty() && TArrayView<UClass* const>(Road).Contains(StockClass)) {
-		UClass* To = AllVehicles.Equals(TEXT("Random"), ESearchCase::IgnoreCase) ? Road[FMath::RandRange(0, UE_ARRAY_COUNT(Road) - 1)] : VehicleNamed(AllVehicles);
+	if (!Vehicles.IsNumeric() && TArrayView<UClass* const>(Road).Contains(StockClass)) {
+		UClass* To = Vehicles.Equals(TEXT("Random"), ESearchCase::IgnoreCase) ? Road[FMath::RandRange(0, UE_ARRAY_COUNT(Road) - 1)] : VehicleNamed(Vehicles);
 		StockClass = To ? To : StockClass;
 	}
 	// this map's swaps (UDFGameSettings::VehicleSwaps)
