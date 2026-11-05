@@ -32,6 +32,8 @@ from .sourcemdl import read_model
 # models (props_c17, props_junk, ...) are skipped and listed for replacement.
 PROP_MODEL_DIRS = ('models/warehouse/',)
 
+# MF's CollisionHeight 39 uu, DFCharacter's capsule half height, and a little air
+START_FEET_TO_CENTRE = 39 * UU_TO_CM + 4.0
 DROP_TOOLS = ('TOOLS/TOOLSNODRAW', 'TOOLS/TOOLSSKIP', 'TOOLS/TOOLSHINT', 'TOOLS/TOOLSAREAPORTAL',
               'TOOLS/TOOLSOCCLUDER', 'TOOLS/TOOLSTRIGGER', 'TOOLS/TOOLSFOG', 'TOOLS/TOOLSLIGHT',
               'TOOLS/TOOLSORIGIN', 'TOOLS/TOOLSBLOCKLIGHT', 'TOOLS/TOOLSBLOCKBULLETS', 'TOOLS/TOOLSBLACK')
@@ -40,6 +42,11 @@ COLLISION_TOOLS = ('TOOLS/TOOLSCLIP', 'TOOLS/TOOLSPLAYERCLIP', 'TOOLS/TOOLSINVIS
 SKY_TOOLS = ('TOOLS/TOOLSSKYBOX', 'TOOLS/TOOLSSKYBOX2D')
 CHUNK = 2048.0
 EPS = 0.01
+# Light radius when the mapper gave none, and the most we allow. Source's `_distance` 0 means no
+# cutoff, and mf-warehouse's mappers wrote 170 nines for the same: Lightmass then asks for
+# billions of photons and crashes (IntFitsIn assert)
+LIGHT_RADIUS = 1500.0
+LIGHT_RADIUS_MAX = 8000.0
 
 # --- KeyValues ------------------------------------------------------------------------
 
@@ -385,6 +392,8 @@ class VmfConverter:
                 'texture_usage': {k: sorted(v) for k, v in self.usage.items()},
                 'unmapped_materials': dict(self.unmapped.most_common()),
                 'skipped_models': dict(self.skipped_models.most_common())}
+        from . import minimap
+        minimap.ensure(self.cfg, self.out, data, self.name)
         path = self.out / 'level.json'
         path.write_text(json.dumps(data, indent=1))
         print(f'[{self.name}] {len(solids)} solids, {nfaces} faces, {len(chunks)} chunks, '
@@ -442,8 +451,11 @@ class VmfConverter:
             pitch, yaw, roll = (_v(ent.keys['angles']) if 'angles' in ent.keys else (0.0, 0.0, 0.0))
             rot = {'pitch': -pitch, 'yaw': -(yaw + math.degrees(self.yaw)), 'roll': roll}
             base = {'name': f'{cls}_{ent.keys.get("id", "")}', 'location': loc, 'rotation': rot}
-            if base['name'] in self.spawn_lift:      # a start under the terrain: nothing stops the fall
-                base['location'] = (loc[0], loc[1], loc[2] + self.spawn_lift[base['name']])
+            # spawn_lift: a start under the terrain (nothing stops the fall). And Source puts a
+            # start's origin at the feet, UE a PlayerStart at the capsule's centre: on the floor
+            # as placed, the push out could go down through a thin floor (mfs-iceworld's snow)
+            dz = self.spawn_lift.get(base['name'], 0.0) + (START_FEET_TO_CENTRE if cls.startswith('info_player') else 0.0)
+            base['location'] = (loc[0], loc[1], loc[2] + dz)
             if cls in ('info_player_deathmatch', 'info_player_start', 'info_player_teamspawn'):
                 out.append(dict(base, type='actor', **{'class': '/Script/DesktopForces.DFPlayerStart'}, props={'TeamNumber': '255'}))
             elif cls in ('info_player_combine', 'info_player_captain_blue'):
@@ -463,7 +475,7 @@ class VmfConverter:
                 while len(col) < 4:
                     col.append(200.0)
                 rec = dict(base, color=[col[0] / 255, col[1] / 255, col[2] / 255], intensity=col[3] / 200 * 3.0,
-                           radius=float(ent.keys.get('_distance', 0) or 0) * self.scale * UU_TO_CM or 1500.0)
+                           radius=min(float(ent.keys.get('_distance', 0) or 0) * self.scale * UU_TO_CM or LIGHT_RADIUS, LIGHT_RADIUS_MAX))
                 out.append(dict(rec, type='spot_light' if cls == 'light_spot' else 'point_light',
                                 cone=float(ent.keys.get('_cone', 45))))
             elif cls.startswith('prop_') and not cls.startswith(('prop_vehicle', 'prop_holdout')) \

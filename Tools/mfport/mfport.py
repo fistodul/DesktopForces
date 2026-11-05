@@ -19,6 +19,7 @@ Steps (run alone or chained with `all`):
   all <map...>         map + textures + effects + sounds + import + light
   replacements <json>  stage selected local source textures, at most 512 px
   remaining            resume missing playable maps; --limit N bounds the batch
+  rebake               convert, import and bake every map again, resumable (--restart, --limit N)
   repair-lightmass     repair the verified Linux 5.8.4 Lightmass startup assertion (backup kept)
   defaults <Class> [Prop...]  a class's effective default properties down its parent chain
                        (exports omit what equals the parent's: see Docs/Pipeline.md)
@@ -122,10 +123,11 @@ def cmd_music(cfg, packages):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining', 'repair-lightmass', 'defaults', 'replacements'])
+    ap.add_argument('step', choices=['map', 'props', 'textures', 'effects', 'skeletal', 'soldiers', 'sounds', 'music', 'vmf', 'merge', 'packs', 'import', 'light', 'all', 'remaining', 'rebake', 'repair-lightmass', 'defaults', 'replacements'])
     ap.add_argument('names', nargs='*')
     ap.add_argument('--steps', default='art,textures,props,effects,skeletal,sounds,music,maps', help='importer steps for `import`')
-    ap.add_argument('--limit', type=int, default=0, help='maximum maps for a remaining batch (0: all)')
+    ap.add_argument('--limit', type=int, default=0, help='maximum maps for a remaining / rebake batch (0: all)')
+    ap.add_argument('--restart', action='store_true', help='rebake: forget the checkpoint')
     a = ap.parse_args()
     cfg = config.load()
     from mflib import ue
@@ -145,6 +147,10 @@ def main():
         if not a.names:
             ap.error('defaults needs a class name')
         sys.exit(show(cfg.game_dir, a.names[0], a.names[1:]))
+
+    if a.step == 'rebake':
+        from mflib.rebake import run as rebake
+        sys.exit(rebake(cfg, a.limit, a.restart))
 
     if a.step == 'remaining':
         from mflib.remaining import run

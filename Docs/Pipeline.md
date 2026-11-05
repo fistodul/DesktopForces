@@ -152,6 +152,17 @@ from them: plain data, no editor needed, CPU sprites that stop simulating off sc
 Material keys are `package.group.texture|mode` (mode: `opaque`, `masked`, `additive`,
 `modulated`, `sky`, + `_unlit`, `_2s`).
 
+## Minimaps
+
+`mflib/minimap.py`. MF's MiniMapInfo spreads its picture over `NumTexturesWide × NumTexturesHigh`
+textures, column-major (`MiniMapTex[i * NumTexturesHigh + j]`), each showing up to 255 of its
+pixels, 64 uu a pixel over `MapLeft..MapRight × MapTop..MapBottom`; the map step stitches them
+into `<map>.MiniMap`. A map without one gets a generated picture: the floors (faces steeper than
+about 73° left out) seen from above inside the play area (starts, loadout zones, items and
+generators plus 15 %; skybox rooms stay out), lighter higher up, darker lines where the floor
+steps more than 2.5 m between pixels; VMF maps get a map_info record for it. Both go through
+`import --steps textures` before the map is built.
+
 ## Lights
 
 UE1 colour = `FGetHSV(LightHue, LightSaturation, LightBrightness)` (saturation 255 = white),
@@ -173,6 +184,20 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   emissive (`EmissiveBoost 0`: UE1 unlit surfaces never lit anything).
 - **Sky windows** (fake backdrop) are their own chunks (`Sky_x_y`) that cast no shadow, so the
   sun and the sky colour come in through them (UE1 sunlight lit what could see the sky).
+- **Sunlight** keeps the MF actor's rotation exactly: `ADirectionalLight` tilts its component
+  46° down by default, which spawning added on top (every map baked before 2026-11-04 had its
+  sun 46° steeper, or past straight down and reversed: DesertArena's −69.5° shone at −115.5°).
+- **Lightmap UVs**: the importer lays out lightmap charts twice, from the texture UVs and from
+  a box projection (each triangle along its dominant axis), and keeps the layout whose
+  triangles share fewer texels (by texel centre, as Lightmass's "Lightmap UV are overlapping"
+  warning counts), at twice the resolution if neither packs under 2 %. The projection wins
+  almost everywhere. Two things had made nearly every mesh overlap (60–98 % on many props):
+  vertex instances shared by triangles of different charts (the packer writes each corner's UV
+  to its instance: the last chart's won, stretching triangles across the map), so every
+  triangle corner has its own instance now; and triangles with no area, which scale their
+  chart without bound. The import log says which layout (`lightmap UVs from ...`). Faces that still spoil a bake can be left out per map
+  (`drop_faces` in `map_edits.toml`: DesertArena's sky-textured underside made Lightmass give
+  the whole arena floor no light).
 - **Soft shadows**: point/spot lights get a 40 cm source radius, the sun a 3° angle (UE1
   lightmaps had one texel per 32 uu, so its shadows were soft too).
 - The builder assigns light properties *before* making a light Static: UE's `Set*()`
@@ -415,7 +440,8 @@ Two-sided surfaces block queries from either side; non-solid surfaces remain non
 `vmf_maps.toml` lists them; their HL2 materials map to our replacement art in
 `vmf_materials.toml` (`unmapped_materials` in `level.json` must stay empty). Displacements are read
 (iceworld's ground). Sky faces go in shadowless chunks, drawn with the entry's `sky` picture when
-the map has no sky zone. `light_environment` becomes the sun and ambient. `spawns` adds starts to
+the map has no sky zone. `light_environment` becomes the sun and ambient. Light radii come from `_distance`, capped at 80 m: mf-warehouse has "no cutoff"
+written as 170 nines, which made Lightmass crash. `spawns` adds starts to
 maps made for one mode.
 
 Order matters: repoint runs before maps inside one importer run, so do

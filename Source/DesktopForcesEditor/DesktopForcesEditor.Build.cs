@@ -20,6 +20,7 @@ public class DesktopForcesEditor : ModuleRules
 			"Json",
 			"JsonUtilities",
 			"MeshDescription",
+			"MeshUtilitiesCommon",
 			"StaticMeshDescription",
 			"MaterialEditor",
 			"RenderCore",
@@ -30,7 +31,8 @@ public class DesktopForcesEditor : ModuleRules
 			"EditorScriptingUtilities",
 			"AudioEditor",
 			"Landscape",
-			"NavigationSystem"
+			"NavigationSystem",
+			"Navmesh"
 		});
 
 		PublicIncludePaths.Add(ModuleDirectory);

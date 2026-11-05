@@ -23,8 +23,9 @@ Distances become cm (UU_TO_CM), rotations degrees.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
-from . import effects, t3d
+from . import effects, t3d, ucdefaults
 from .config import UU_TO_CM
 
 # MF items placed in maps -> the game's weapon classes
@@ -117,8 +118,35 @@ def _team(value) -> str:
     return str(n) if 0 <= n < 255 else '255'
 
 
+class ClassTree:
+    """The game's exported classes (ucdefaults): what a class extends and the defaults it gets,
+    which T3D leaves out (MB-DesertArena's oases: MoBallWaterGoalZone, water by default)."""
+    # without the exported scripts: the stock zones
+    FALLBACK = {'ZoneInfo': ['ZoneInfo'], 'RageZoneInfo': ['ZoneInfo', 'RageZoneInfo'],
+                'RageWaterZone': ['ZoneInfo', 'RageWaterZone'], 'LoadoutZone': ['ZoneInfo', 'LoadoutZone']}
+
+    def __init__(self, game_dir: Path | None = None):
+        self.classes = ucdefaults.read_classes(game_dir) if game_dir and game_dir.is_dir() else {}
+        self._seen: dict[str, tuple[list[str], dict]] = {}
+
+    def _effective(self, cls: str) -> tuple[list[str], dict]:
+        if cls not in self._seen:
+            try:
+                self._seen[cls] = ucdefaults.effective(self.classes, cls)
+            except KeyError:
+                self._seen[cls] = (self.FALLBACK.get(cls, [cls]), {'bWaterZone': ('True', cls)} if cls == 'RageWaterZone' else {})
+        return self._seen[cls]
+
+    def is_a(self, cls: str, base: str) -> bool:
+        return base in self._effective(cls)[0]
+
+    def is_water(self, actor: dict) -> bool:
+        default = self._effective(actor['class'])[1].get('bWaterZone', ('False',))[0]
+        return t3d.parse_bool(actor['props'].get('bWaterZone'), t3d.parse_bool(default))
+
 class ActorMapper:
-    def __init__(self, zone_bounds: dict[int, tuple], static_meshes: dict, zone_actors: list | None = None):
+    def __init__(self, zone_bounds: dict[int, tuple], static_meshes: dict, zone_actors: list | None = None, tree: ClassTree | None = None):
+        self.tree = tree or ClassTree()
         self.zone_bounds = zone_bounds
         self.zone_actors = zone_actors
         self.static_meshes = static_meshes
@@ -171,7 +199,9 @@ class ActorMapper:
 
         if cls in CRATES:
             team, team_play, non_team = CRATES[cls]
-            hidden = t3d.parse_bool(props.get('bHidden'))
+            # a bare LoadoutCrate is the trigger itself: DrawType=DT_None and non-blocking (the
+            # _Blue/_Red/_DM decorations are what you see). Drawn solid it lifts spawns onto it
+            hidden = cls == 'LoadoutCrate' or t3d.parse_bool(props.get('bHidden'))
             if not t3d.parse_bool(props.get('IsActive'), True):
                 return []
             variant = 'Open' if cls.endswith('Open') else ('Skewed' if cls.endswith('Skewed') else 'Closed')
@@ -179,7 +209,7 @@ class ActorMapper:
                          props={'Team': team, 'bTeamPlay': str(team_play), 'bNonTeamPlay': str(non_team),
                                 'Variant': variant if not hidden else 'Hidden'})]
 
-        if cls == 'LoadoutZone':
+        if self.tree.is_a(cls, 'LoadoutZone'):
             self._note_ambient(props)
             box = self.zone_bounds.get(a['zone'])
             if not box:
@@ -202,11 +232,11 @@ class ActorMapper:
             self._note_ambient(props)
             return [self._legacy(a), dict(base, type='actor', **{'class': '/Script/DesktopForces.DFSkyCapture'}, props={})]
 
-        if cls in ('ZoneInfo', 'RageZoneInfo', 'RageWaterZone'):
+        if self.tree.is_a(cls, 'ZoneInfo') and cls not in ('LevelInfo', 'WarpZoneInfo'):
             self._note_ambient(props)
             out = [self._legacy(a)]
             # water / pain / current: a volume over the zone's bounds (RageWaterZone: water)
-            water = t3d.parse_bool(props.get('bWaterZone'), cls == 'RageWaterZone')
+            water = self.tree.is_water(a)
             pain = t3d.parse_bool(props.get('bPainZone')) and t3d.parse_float(props.get('DamagePerSec')) != 0
             vel = t3d.parse_vector(props.get('ZoneVelocity'))
             # bGravityZone: its own gravity (mf-warehouse's roof vents: Z=-100 against the usual

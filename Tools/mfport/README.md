@@ -5,7 +5,7 @@ python3 mfport.py all mf-warehouse     # convert, import, light
 python3 mfport.py map mf-polar         # just convert one map (writes work/out/Maps/mf-polar)
 python3 mfport.py textures             # textures used by all converted maps
 python3 mfport.py sounds               # weapon/player/announcer + map ambience
-python3 mfport.py import --steps maps mf-polar
+python3 mfport.py import mf-polar --steps maps
 python3 mfport.py light mf-polar
 python3 -m mflib.anims <game>/System/RageWeapons.u   # animation sequence table (weapon timings)
 ```

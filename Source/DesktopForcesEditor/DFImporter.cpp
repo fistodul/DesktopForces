@@ -20,6 +20,9 @@
 #include "AssetCompilingManager.h"
 #include "Dom/JsonObject.h"
 #include "Engine/StaticMesh.h"
+#include "MeshUtilitiesCommon.h"
+#include "OverlappingCorners.h"
+#include "StaticMeshOperations.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
@@ -1364,6 +1367,7 @@ void FDFImporter::EnsureTeamTintMaterial() {
 void FDFImporter::UpdateMasters() {
 	GetMasterMaterial(TEXT("Opaque"));
 	GetMasterMaterial(TEXT("Masked"));
+	GetMasterMaterial(TEXT("MaskedUnlit"));
 	EnsureSkyMaterial();
 }
 
@@ -1417,6 +1421,15 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 		M->PostEditChange();
 		SaveAsset(M);
 		UE_LOG(LogDFEditor, Display, TEXT("Created master material M_MF_%s"), *Mode);
+	}
+	// MSAA (forward) smooths a masked material's cut-out edges only through alpha to coverage:
+	// without it thin bars (the warehouse's floor grates) crawl and flash as you move
+	if ((Mode == TEXT("Masked") || Mode == TEXT("MaskedUnlit")) && !M->bUseAlphaToCoverage) {
+		M->PreEditChange(nullptr);
+		M->bUseAlphaToCoverage = true;
+		M->PostEditChange();
+		SaveAsset(M);
+		UE_LOG(LogDFEditor, Display, TEXT("M_MF_%s: alpha to coverage"), *Mode);
 	}
 	if ((Mode == TEXT("Opaque") || Mode == TEXT("Masked")) && AddAmbientFloor(M))
 		UE_LOG(LogDFEditor, Display, TEXT("M_MF_%s: ambient floor from MPC_MF"), *Mode);
@@ -1798,6 +1811,38 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 
 // --- static meshes ---------------------------------------------------------------------
 
+namespace {
+	/** Share of the lightmap's used texels that more than one triangle takes (by texel centre):
+	 *  what Lightmass warns about as "Lightmap UV are overlapping by". */
+	float LightmapOverlap(const FMeshDescription& MD, int32 Res) {
+		const TVertexInstanceAttributesConstRef<FVector2f> UVs = FStaticMeshConstAttributes(MD).GetVertexInstanceUVs();
+		TArray<uint8> Hits;
+		Hits.SetNumZeroed(Res * Res);
+		for (const FTriangleID T : MD.Triangles().GetElementIDs()) {
+			const TArrayView<const FVertexInstanceID> VI = MD.GetTriangleVertexInstances(T);
+			const FVector2f A = UVs.Get(VI[0], 1) * Res, B = UVs.Get(VI[1], 1) * Res, C = UVs.Get(VI[2], 1) * Res;
+			const float Area = (B - A) ^ (C - A);
+			if (FMath::Abs(Area) < UE_SMALL_NUMBER)
+				continue;
+			const int32 X0 = FMath::Clamp(FMath::FloorToInt(FMath::Min3(A.X, B.X, C.X)), 0, Res - 1), X1 = FMath::Clamp(FMath::CeilToInt(FMath::Max3(A.X, B.X, C.X)), 0, Res - 1);
+			const int32 Y0 = FMath::Clamp(FMath::FloorToInt(FMath::Min3(A.Y, B.Y, C.Y)), 0, Res - 1), Y1 = FMath::Clamp(FMath::CeilToInt(FMath::Max3(A.Y, B.Y, C.Y)), 0, Res - 1);
+			for (int32 Y = Y0; Y <= Y1; ++Y)
+				for (int32 X = X0; X <= X1; ++X) {
+					const FVector2f P(X + 0.5f, Y + 0.5f);
+					// strictly inside: a centre on an edge two triangles share (a quad's diagonal) is neither's
+					if (((B - P) ^ (C - P)) / Area > 1e-4f && ((C - P) ^ (A - P)) / Area > 1e-4f && ((A - P) ^ (B - P)) / Area > 1e-4f)
+						Hits[Y * Res + X] = FMath::Min<uint8>(Hits[Y * Res + X] + 1, 2);
+				}
+		}
+		int32 Used = 0, Shared = 0;
+		for (const uint8 H : Hits) {
+			Used += H > 0;
+			Shared += H > 1;
+		}
+		return Used ? float(Shared) / Used : 0.f;
+	}
+} // namespace
+
 UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString& AssetPath) {
 	TSharedPtr<FJsonObject> J = LoadJson(JsonFile);
 	if (!J)
@@ -1831,7 +1876,7 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	TVertexInstanceAttributesRef<FVector4f> Colors = Attr.GetVertexInstanceColors();
 	TPolygonGroupAttributesRef<FName> SlotNames = Attr.GetPolygonGroupMaterialSlotNames();
 	const bool bArrays = !TextureArrays.IsEmpty() && bRender;
-	UVs.SetNumChannels(bArrays ? 3 : 1); // 1 is the lightmap's, 2 the array slice
+	UVs.SetNumChannels(bArrays ? 3 : 2); // 1 is the lightmap's, 2 the array slice
 
 	// Weld positions so lightmap UV generation sees connected surfaces
 	TMap<FVector3f, FVertexID> Welded;
@@ -1849,11 +1894,24 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 		VertexOf[i] = *VID;
 	}
 	// instances per section: mfmesh shares vertices across materials, the array slice can't be
-	auto MakeInstance = [&](uint32 Index, float Slice) {
+	// Lightmap charts from a box projection: each triangle along its dominant axis, neighbours on
+	// the same side sharing coordinates (one chart). Packed below against the texture UVs' charts.
+	auto Pos = [&](uint32 I) { return FVector3f(V[I * Stride], V[I * Stride + 1], V[I * Stride + 2]); };
+	auto BoxAxis = [&](uint32 A, uint32 B, uint32 C) {
+		const FVector3f N = (Pos(B) - Pos(A)) ^ (Pos(C) - Pos(A));
+		const FVector3f M = N.GetAbs();
+		const int32 Axis = M.X >= M.Y && M.X >= M.Z ? 0 : M.Y >= M.Z ? 1
+																	 : 2;
+		return Axis * 2 + (N[Axis] < 0.f ? 1 : 0);
+	};
+	auto MakeInstance = [&](uint32 Index, float Slice, int32 Side) {
 		const float* P = V + Index * Stride;
 		const FVertexInstanceID VI = MD.CreateVertexInstance(VertexOf[Index]);
 		Normals[VI] = FVector3f(P[3], P[4], P[5]);
 		UVs.Set(VI, 0, FVector2f(P[6], P[7]));
+		const int32 Axis = Side / 2;
+		const FVector2f Flat(Axis == 0 ? P[1] : P[0], Axis == 2 ? P[1] : P[2]);
+		UVs.Set(VI, 1, FVector2f(Side & 1 ? -Flat.X : Flat.X, Flat.Y) / 100.f); // metres
 		if (bArrays)
 			UVs.Set(VI, 2, FVector2f(Slice, 0.f));
 		// alpha 1 = this zone's ambient in RGB; alpha 0 = use the map's main ambient (props)
@@ -1886,16 +1944,21 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 				ArrayGroups.Add(Slice->Material, PG);
 		}
 		const float SliceIndex = Slice ? Slice->Index : 0.f;
-		TMap<uint32, FVertexInstanceID> Made;
-		auto InstanceOf = [&](uint32 Index) {
-			if (const FVertexInstanceID* Found = Made.Find(Index))
-				return *Found;
-			return Made.Add(Index, MakeInstance(Index, SliceIndex));
-		};
+		// every corner its own instance: the lightmap packer writes each triangle corner's UV to
+		// its instance, so one shared by triangles of two charts (touching at a point) ended up
+		// with the last chart's UV and those triangles stretched across the lightmap (mf-western's
+		// buildings: 65 % of their texels shared); the build welds the identical ones again
+		auto InstanceOf = [&](uint32 Index, int32 Side) { return MakeInstance(Index, SliceIndex, Side); };
 		for (int32 t = 0; t < NumTris; ++t) {
 			const uint32 A = Idx[First + t * 3], B = Idx[First + t * 3 + 1], C = Idx[First + t * 3 + 2];
+			// no area (three points in a line): the build drops it anyway, but first the lightmap
+			// packer would scale its chart by world length over (no) UV length: 100 x the texels,
+			// overflowing the lightmap onto everything else (mf-western's buildings: 65 % shared)
+			if (((Pos(B) - Pos(A)) ^ (Pos(C) - Pos(A))).SizeSquared() < 1e-4f)
+				continue;
+			const int32 Side = BoxAxis(A, B, C);
 			// mfmesh triangles wind cross(v1-v0, v2-v0) along the normal; UE wants the opposite
-			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { InstanceOf(A), InstanceOf(C), InstanceOf(B) };
+			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { InstanceOf(A, Side), InstanceOf(C, Side), InstanceOf(B, Side) };
 			MD.CreateTriangle(PG, Tri);
 		}
 	}
@@ -1905,6 +1968,42 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	bool bCreated = false;
 	UStaticMesh* SM = FindOrCreateAsset<UStaticMesh>(PackagePath, Name, bCreated);
 	SM->PreEditChange(nullptr);
+
+	// Lightmap UVs: the packer lays out charts found in a source channel and keeps overlaps within
+	// them. Texture UVs suit BSP (one planar mapping per face) but fold and tile on meshes (60-98 %
+	// of a prop's texels shared, baking blotchy); the box projection suits meshes but can fold
+	// where thin parts stack. Both are packed, the one sharing fewer texels stays.
+	int32 LightmapSize = FMath::Max(16, LightmapRes);
+	if (bRender) {
+		FOverlappingCorners Corners;
+		FStaticMeshOperations::FindOverlappingCorners(Corners, MD, THRESH_POINTS_ARE_SAME);
+		const ELightmapUVVersion Version = static_cast<ELightmapUVVersion>(SM->GetLightmapUVVersion());
+		FMeshDescription TexSource = MD;
+		TVertexInstanceAttributesRef<FVector2f> TexUVs = FStaticMeshAttributes(TexSource).GetVertexInstanceUVs();
+		for (const FVertexInstanceID VI : TexSource.VertexInstances().GetElementIDs())
+			TexUVs.Set(VI, 1, TexUVs.Get(VI, 0));
+		const FMeshDescription BoxSource = MD;
+		// A mesh of many small pieces may not pack at its share of the map's texels (every chart
+		// needs its padding): the packer then leaves the source UVs, all on top of each other
+		// (mf-western's buildings: 70 %). Twice the resolution until a layout shares under 2 %.
+		float Shared = 2.f;
+		const TCHAR* From = TEXT("");
+		bool bPacked = false;
+		for (int32 Res = LightmapSize; Res <= FMath::Max(LightmapSize, 1024) && Shared > 0.02f; Res *= 2) {
+			FMeshDescription Box = BoxSource, Tex = TexSource;
+			const bool bBox = FStaticMeshOperations::CreateLightMapUVLayout(Box, 1, 1, Res, Version, Corners);
+			const bool bTex = FStaticMeshOperations::CreateLightMapUVLayout(Tex, 1, 1, Res, Version, Corners);
+			const float BoxShared = bBox ? LightmapOverlap(Box, Res) : 1.f, TexShared = bTex ? LightmapOverlap(Tex, Res) : 1.f;
+			if (FMath::Min(BoxShared, TexShared) < Shared) {
+				Shared = FMath::Min(BoxShared, TexShared);
+				From = TexShared < BoxShared ? TEXT("texture UVs") : TEXT("box projection");
+				bPacked = TexShared < BoxShared ? bTex : bBox;
+				MD = MoveTemp(TexShared < BoxShared ? Tex : Box);
+				LightmapSize = Res;
+			}
+		}
+		UE_LOG(LogDFEditor, Log, TEXT("%s: lightmap UVs from %s at %d (%.0f %% texels shared%s)"), *Name, From, LightmapSize, 100.f * Shared, bPacked ? TEXT("") : TEXT(", not packed"));
+	}
 	SM->GetStaticMaterials() = StaticMaterials;
 	SM->SetNumSourceModels(1);
 	FStaticMeshSourceModel& Src = SM->GetSourceModel(0);
@@ -1913,24 +2012,19 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	Src.BuildSettings.bUseMikkTSpace = true;
 	Src.BuildSettings.bRemoveDegenerates = true;
 	Src.BuildSettings.bUseFullPrecisionUVs = true; // world UVs tile far past 0..1
-	Src.BuildSettings.bGenerateLightmapUVs = bRender;
-	Src.BuildSettings.SrcLightmapIndex = 0;
-	Src.BuildSettings.DstLightmapIndex = 1;
-	Src.BuildSettings.MinLightmapResolution = FMath::Max(16, LightmapRes);
+	Src.BuildSettings.bGenerateLightmapUVs = false; // laid out above
+	Src.BuildSettings.MinLightmapResolution = LightmapSize;
 	Src.BuildSettings.bBuildReversedIndexBuffer = false;
 	SM->CreateMeshDescription(0, MoveTemp(MD));
 	SM->CommitMeshDescription(0);
-	SM->SetLightMapResolution(bRender ? FMath::Max(16, LightmapRes) : 4);
+	SM->SetLightMapResolution(bRender ? LightmapSize : 4);
 	SM->SetLightMapCoordinateIndex(bRender ? 1 : 0);
 	SM->CreateBodySetup();
 	UBodySetup* Body = SM->GetBodySetup();
 	Body->CollisionTraceFlag = Collision == TEXT("complex") ? CTF_UseComplexAsSimple : CTF_UseDefault;
-	Body->bDoubleSidedGeometry = true; // UE1's BSP was solid behind a face: a mesh only has the face
-	// MF thin two-sided surfaces (notably grating platforms) must also collide from
-	// either side. Render culling alone does not affect Chaos triangle collision.
-	Body->bDoubleSidedGeometry = Collision == TEXT("complex") && Materials.ContainsByPredicate([](const TSharedPtr<FJsonValue>& Value) {
-		return Value->AsString().Contains(TEXT("_2s"));
-	});
+	// UE1's BSP was solid behind a face, a mesh only has the face: one-sided, a wall wound the
+	// other way let you walk in and not back out (mf-western's blue base tower)
+	Body->bDoubleSidedGeometry = true;
 	if (Collision == TEXT("none"))
 		Body->bNeverNeedsCookedCollisionData = true;
 	if (Collision == TEXT("hull")) {
@@ -1979,8 +2073,7 @@ bool FDFImporter::RefreshMapCollision(const FString& MapName) {
 		J->TryGetStringField(TEXT("collision"), Collision);
 		if (Collision != TEXT("complex"))
 			continue;
-		const TArray<TSharedPtr<FJsonValue>>& Materials = J->GetArrayField(TEXT("materials"));
-		const bool bDoubleSided = Materials.ContainsByPredicate([](const TSharedPtr<FJsonValue>& V) { return V->AsString().Contains(TEXT("_2s")); });
+		const bool bDoubleSided = true; // as BuildStaticMesh: every face collides from both sides
 		FString Rel = File;
 		FPaths::MakePathRelativeTo(Rel, *(MapDir + TEXT("/")));
 		const FString Folder = Rel.StartsWith(TEXT("geo/")) ? TEXT("Geo") : TEXT("Meshes");

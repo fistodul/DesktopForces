@@ -9,6 +9,7 @@
 #include "AI/DFNavigationSystem.h"
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
+#include "Detour/DetourNavMesh.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -178,8 +179,16 @@ namespace {
 			++Starts;
 			OnMesh += Nav->ProjectPointToNavigation(It->GetActorLocation(), L, FVector(100.f, 100.f, 250.f)) ? 1 : 0;
 		}
-		for (TActorIterator<ARecastNavMesh> It(World); It; ++It)
-			UE_LOG(LogDFEditor, Display, TEXT("Navmesh %s: %d tiles, %d / %d player starts on it"), *It->GetName(), It->GetNavMeshTilesCount(), OnMesh, Starts);
+		for (TActorIterator<ARecastNavMesh> It(World); It; ++It) {
+			// tiles built / the pool (tiles over the bounds x AverageLayersPerTile, DefaultEngine.ini)
+			int32 Used = 0;
+			if (const dtNavMesh* Detour = It->GetRecastMesh())
+				for (int32 I = 0; I < Detour->getMaxTiles(); ++I) {
+					const dtMeshTile* Tile = Detour->getTile(I);
+					Used += Tile && Tile->header ? 1 : 0;
+				}
+			UE_LOG(LogDFEditor, Display, TEXT("Navmesh %s: %d / %d tiles, %d / %d player starts on it"), *It->GetName(), Used, It->GetNavMeshTilesCount(), OnMesh, Starts);
+		}
 		if (Starts > 0 && OnMesh == 0)
 			UE_LOG(LogDFEditor, Error, TEXT("Navmesh is empty: bots won't move"));
 	}
@@ -369,7 +378,8 @@ namespace {
 } // namespace
 
 /** Level's "instance_props": a mesh placed at least that often in one 80 m cell is one component
- *  there, not an actor each. By cell: visibility and lightmaps work per component. */
+ *  there, not an actor each. By cell: visibility and lightmaps work per component. Their bounds
+ *  are refreshed when a lighting build starts (DesktopForcesEditor.cpp). */
 static FString PropKey(const TSharedPtr<FJsonObject>& R) {
 	const TArray<TSharedPtr<FJsonValue>>& At = R->GetArrayField(TEXT("location"));
 	const int32 CellX = FMath::FloorToInt(At[0]->AsNumber() / 8000.0), CellY = FMath::FloorToInt(At[1]->AsNumber() / 8000.0);
@@ -379,8 +389,9 @@ static FString PropKey(const TSharedPtr<FJsonObject>& R) {
 static UHierarchicalInstancedStaticMeshComponent* InstanceGroup(UWorld* World, const FActorSpawnParameters& SP, const TSharedPtr<FJsonObject>& R, const TMap<FString, int32>& Uses,
 	TMap<FString, UHierarchicalInstancedStaticMeshComponent*>& Groups, int32 Minimum, UStaticMesh* Mesh) {
 	const FString Key = PropKey(R);
-	// solid props bake near black as instances (crates in mf-Pobojowisko_VerII): only what you walk through
-	if (Minimum <= 0 || R->GetBoolField(TEXT("collision")) || Uses.FindRef(Key) < Minimum)
+	// solid props too: they baked near black as instances (crates in mf-Pobojowisko_VerII) while
+	// their lightmap UVs overlapped (fixed 2026-11-04 in BuildStaticMesh)
+	if (Minimum <= 0 || Uses.FindRef(Key) < Minimum)
 		return nullptr;
 	if (UHierarchicalInstancedStaticMeshComponent** Found = Groups.Find(Key))
 		return *Found;
@@ -466,6 +477,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			C->SetHiddenInGame(true);
 			C->CastShadow = false;
 			C->bAffectDynamicIndirectLighting = false;
+			C->LightmapType = ELightmapType::ForceVolumetric; // never drawn: no lightmap to bake
 			A->SetActorLabel(FString::Printf(TEXT("Collision_%s"), *Mesh->GetName()));
 		}
 		++Spawned;
@@ -529,6 +541,9 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 		} else if (Type == TEXT("directional_light")) {
 			ADirectionalLight* L = World->SpawnActor<ADirectionalLight>(Loc, Rotation, SP);
 			UDirectionalLightComponent* C = Cast<UDirectionalLightComponent>(L->GetLightComponent());
+			// the class tilts its component 46 deg down, which spawning adds to ours: the MF sun's
+			// own direction (until 2026-11-04 every converted sun shone 46 deg steeper or reversed)
+			C->SetRelativeRotation(Rotation);
 			C->Intensity = R->GetNumberField(TEXT("intensity"));
 			C->LightSourceAngle = 3.f; // soft sunset shadows
 			C->LightColor = Color(R).ToFColor(true);
@@ -804,6 +819,7 @@ bool FDFImporter::BuildTestMap() {
 	Crate(FVector(-2700, 0, 0), 1);
 
 	ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(FVector(0, 0, 1000), FRotator(-50.f, 30.f, 0), SP);
+	Sun->GetLightComponent()->SetRelativeRotation(FRotator(-50.f, 30.f, 0)); // not the class's extra -46
 	Sun->GetLightComponent()->Intensity = 2.5f; // assign before Static: Set*() is ignored after
 	Sun->GetLightComponent()->SetMobility(EComponentMobility::Static);
 	APointLight* Lamp = World->SpawnActor<APointLight>(FVector(-1800, -1800, 700), FRotator::ZeroRotator, SP);

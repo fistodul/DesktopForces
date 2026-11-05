@@ -18,8 +18,8 @@ import math
 from pathlib import Path
 
 from . import t3d, ucc
-from . import mapedits
-from .actors import ActorMapper, zone_ambient
+from . import mapedits, minimap
+from .actors import ActorMapper, ClassTree, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
 from .config import Config, UU_TO_CM
@@ -142,10 +142,22 @@ class LevelConverter:
         if not (mm and info and tex):
             return
         p = mm['props']
-        info['minimap'] = {
-            'texture': tex,
-            'bounds': [float(p.get(k, 0)) * UU_TO_CM for k in ('MapLeft', 'MapTop', 'MapRight', 'MapBottom')],
-        }
+        bounds = [float(p.get(k, 0)) for k in ('MapLeft', 'MapTop', 'MapRight', 'MapBottom')]
+        info['minimap'] = {'texture': tex, 'bounds': [b * UU_TO_CM for b in bounds]}
+        # MF tiles the picture over NumTexturesWide x NumTexturesHigh textures (mf-western 2 x 2):
+        # stitched into one, else only the first tile got stretched over the whole map
+        wide, high = int(p.get('NumTexturesWide', 1) or 1), int(p.get('NumTexturesHigh', 1) or 1)
+        tiles = [t3d.parse_object_ref(p.get(f'MiniMapTex({k})')) for k in range(wide * high)]
+        tiles = [f'{self.map}.{t.split(".", 1)[1]}' if t and t.lower().startswith('mylevel.') else t for t in tiles]
+        size = (round((bounds[2] - bounds[0]) / 64), round((bounds[3] - bounds[1]) / 64))   # MapUnitsToPixels
+        key = f'{self.map}.MiniMap'
+        try:
+            if size[0] > 0 and size[1] > 0:
+                minimap.stitch(self.cfg, tiles, wide, high, size, key)
+                info['minimap']['texture'] = key
+                return
+        except (FileNotFoundError, OSError) as e:
+            print(f'  ! minimap: {e}')
         self.usage.setdefault(tex.lower(), set()).add('lumalpha')   # black = see-through, like MF's alpha style
 
     def _use(self, key: str):
@@ -246,7 +258,9 @@ class LevelConverter:
         """Coarser texels when the map would need more than LIGHTMAP_BUDGET lightmap texels.
 
         Every static mesh instance gets its own lightmap, so props count once per placement;
-        small props stop at 32 x 32: at 8 their samples land inside them and they bake black."""
+        small props stop at 32 x 32: at 8 their samples land inside them and they bake black.
+        Meshes go up to 1024 like the world's chunks: some maps' whole terrain is one static mesh
+        (DesertArena's terrain1, 660 m across), which at 256 got 2.6 m texels and baked blotchy."""
         uses: dict[str, int] = {}
         for rec in spawns:
             if rec['type'] == 'static_mesh':
@@ -256,7 +270,7 @@ class LevelConverter:
 
         def plan(texel: float) -> tuple[int, dict, dict]:
             cres = {w['mesh']: int(min(1024, max(32, _next_pow2(w['lightmap_size_uu'] / texel)))) for w in chunks}
-            mres = {n: int(min(256, max(32, _next_pow2(m['lightmap_size_uu'] / texel)))) for n, m in meshes.items()}
+            mres = {n: int(min(1024, max(32, _next_pow2(m['lightmap_size_uu'] / texel)))) for n, m in meshes.items()}
             total = sum(r * r for r in cres.values()) + sum(mres[n] ** 2 * uses.get(n, 0) for n in mres)
             return total, cres, mres
 
@@ -321,6 +335,7 @@ class LevelConverter:
     def convert_static_meshes(self, level: t3d.Block) -> dict[str, dict]:
         meshes = {}
         out = self.out / 'meshes'
+        drop = mapedits.drop_faces(self.map)   # map_edits.toml
         for actor in level.children:
             for blk in actor.find('StaticMesh'):
                 name = blk.name
@@ -331,6 +346,8 @@ class LevelConverter:
                 area = 0.0
                 for tri in t3d.orient_triangles(t3d.static_mesh_triangles(blk)):
                     tex = tri.texture
+                    if (tex or '').lower() in drop.get(name.lower(), ()):
+                        continue
                     key = material_key(tex, tri.poly_flags | self.texture_flags(tex))
                     self._use(key)
                     p = [v[0] for v in tri.verts]
@@ -464,12 +481,13 @@ class LevelConverter:
         actors = self.convert_actors(level)
         mapedits.apply(self.map, actors)   # map_edits.toml
         ambients = self.zone_ambients(model, actors)
-        waters = {a['name'] for a in actors if a['class'] == 'RageWaterZone' or str(a['props'].get('bWaterZone', '')).lower() == 'true'}
+        tree = ClassTree(self.cfg.game_dir)
+        waters = {a['name'] for a in actors if tree.is_water(a)}
         self.water_zones = {i for i, name in enumerate(model.zones) if name in waters}
         world = self.convert_world(model, ambients)
         meshes = self.convert_static_meshes(level)
         bounds = self.zone_bounds(model)
-        mapper = ActorMapper(bounds, meshes, model.zones)
+        mapper = ActorMapper(bounds, meshes, model.zones, tree)
         spawns = [rec for a in actors for rec in mapper.map(a)]
         self.add_minimap(actors, spawns)
         spawns += self.convert_movers(pkg, level)
@@ -504,6 +522,7 @@ class LevelConverter:
             'zone_bounds': {str(z): [list(lo), list(hi)] for z, (lo, hi) in bounds.items()},
             'texture_usage': {k: sorted(v) for k, v in sorted(self.usage.items())},
         }
+        minimap.ensure(self.cfg, self.out, data, self.map)   # maps that never had a MiniMapInfo
         path = self.out / 'level.json'
         path.write_text(json.dumps(data, indent=1))
         from collections import Counter

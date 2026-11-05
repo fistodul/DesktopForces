@@ -53,6 +53,12 @@ UI_TEXTURES = {
     **{f'rageweapons.muzzleflash.flashyellow_a0{i}': {'translucent'} for i in range(1, 5)},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},
     'rageweapons.icons.rocketlauncheraim': {'masked', 'ui'},
+    # RocketLauncher.PostRender: lock-on panel, LOCK text per team, the zoom readout's dot
+    **{f'rageweapons.icons.{n}': {'masked', 'ui'} for n in ('locktextback', 'locktextred', 'locktextblue', 'zoomcircle')},
+    # RageHUD.DrawPowerBar: frame and segmented bar per team
+    'rageweapons.icons.redpower': {'masked', 'ui'},
+    'rageweapons.icons.bluepower': {'masked', 'ui'},
+    'wa2000.scope': {'masked', 'ui'},                 # wa2000.PostRender: the mod's scope picture
     # RageHUD atlases (TexRects in RageHUD defaultproperties): item boxes per colour set,
     # translucent backs + ammo bars, health/armour/loadout icons per team, loadout screen
     # tint, pain flash, scoreboard bits
@@ -374,6 +380,19 @@ def _limit_size(img: Image.Image, max_size: int) -> Image.Image:
         return img.resize((longest, h) if w > h else (w, longest), Image.LANCZOS)
     scale = longest / max_size
     return img.resize((max(1, round(w / scale)), max(1, round(h / scale))), Image.LANCZOS)
+
+
+def load_texture(cfg: Config, key: str) -> Image.Image | None:
+    """One texture by key, as convert() reads it (package copy first, else the UCC export)."""
+    package = key.split('.')[0]
+    info = texture_index(cfg, package).get(key.lower())
+    if not info:
+        return None
+    img = decode_p8(Package(str(_package_path(cfg, package))), info, False)
+    if img is None:
+        src = export_package(cfg, _package_path(cfg, package).stem) / f'{info["name"]}.bmp'
+        img = _load_bmp(src, False) if src.exists() else None
+    return img
 
 
 def write_manifest(cfg: Config, manifest: dict) -> Path:

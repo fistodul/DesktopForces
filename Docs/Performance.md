@@ -35,9 +35,14 @@ build uses mobile-class settings too.
   device profiles cook World/UI textures down to 256 px. No alpha channel unless masked
   (half the memory with BC1/ETC2).
 - Navmesh is baked into each map by the importer (no runtime generation).
+  `AverageLayersPerTile=7` (engine default 3) sizes the tile pool for maps with stacked floors:
+  the warehouse maps need about 6, mf-Jungle 4. A too-small pool drops tiles ("tile limit
+  reached" in the import log) and bots get no mesh there. Unused slots cost ~100-200 bytes each.
 - Level geometry is merged into ~2048 uu (46 m) grid chunks, one draw per material per chunk;
   collision lives in separate invisible meshes so render meshes carry no physics.
-- Lightmap resolution follows surface area (16 uu texels), capped at 1024.
+- Lightmap resolution follows surface area (16 uu texels), capped at 1024 (props too: some maps'
+  terrain is one static mesh). Lightmap UVs: the better of two layouts, see
+  [Pipeline](Pipeline.md#lights).
 - Texture arrays: tried, no gain. Trim sheets and HLOD / zone streaming: held back, see
   [the measurements](#arrays-and-streaming-measured-2026-11-01).
 
@@ -415,10 +420,10 @@ several ms here, so a change this small can't be seen in them.
 ## Instanced props (2026-11-02)
 
 `instance_props = N` in `map_edits.toml`: props without collision placed N or more times in an 80 m
-cell become one `UHierarchicalInstancedStaticMeshComponent` there (DFLevelBuilder). By cell because
+cell become one instanced static mesh component there (DFLevelBuilder). By cell because
 visibility and lightmaps work per component: one component per mesh for the whole map left most of
-them unbaked and near black. Props with collision stay separate: crates baked near black as instances
-even by cell, and the cause is not known. Needs a rebake of the map.
+them unbaked and near black. Props with collision too since 2026-11-04: their near-black bake as
+instances was the overlapping lightmap UVs ([Pipeline](Pipeline.md#lights)). Needs a rebake of the map.
 
 mf-Pobojowisko_VerII, 4388 props, four fixed cameras, no bots, 1500 frames, median / p95:
 
@@ -430,4 +435,13 @@ mf-Pobojowisko_VerII, 4388 props, four fixed cameras, no bots, 1500 frames, medi
 Same image at all four cameras (mean difference 0.3 to 0.6 of 255). Frame time at the median doesn't
 change on a PC: the gain is half the triangles, a fifth fewer peak draws and half the components.
 Not measured on a phone. It's the default now (8, `mapedits.py`): other maps get it when rebuilt (Roadmap).
+
+When a lighting build starts, the editor module finishes mesh compilation and refreshes every
+instanced component's bounds (DesktopForcesEditor.cpp). Registered while their mesh was still
+compiling as the map loaded, instanced components kept zero bounds at the world origin when the
+bake gathered their lights: they got the sun but none of the point lights near them, and the game reported
+those as unbuilt ("Lighting needs to be rebuilt" and preview shadows; mf-western's benches,
+warehouse, sawmill, Toreford; 2026-11-04). Maps baked before that need baking again.
+`DumpUnbuiltLightInteractions` in the console names what is unbuilt.
+Collision-only world chunks (hidden) take volumetric lighting: no lightmap is baked for them.
 

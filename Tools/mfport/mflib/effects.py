@@ -14,6 +14,7 @@ right, top to bottom). Output: work/out/Effects/effects.json + Effects/<package>
 EMITTER keys (missing = default):
   tex          texture key of the first frame ("rageeffects.densesmoke.densesmoke_a01")
   draw         'add' (RSDT_Additive) | 'sub' (RSDT_Subtractive) | 'alpha' (Normal / Masked / AlphaTexture)
+               | 'fog' (ours: grey, the texture's brightness as cover: smoke that hides what's behind)
   scale_spawn_rate  false preserves bounded gameplay cues on Low effects quality
   alpha_param, rate_param  optional runtime float parameter names
   alpha        0..1 (AddOne Alpha / 255)
@@ -160,10 +161,16 @@ SYSTEMS = {
     # EffectsFix.VehExplosion -> RageEffects.VehicleExplosion (+ 2-4 ExplosionFires on the ground)
     'VehicleExplosion': _smoke_burst(10, 0.8, 0.2) + _fire_burst(25),
     'ExplosionFire': _burning(),
-    # Vehicle.GenerateSmokeParticle: damage increases both smoke frequency and opacity.
+    # Vehicle.GenerateSmokeParticle: damage increases both smoke frequency and opacity. Mild, like
+    # the game (checked against a 2026 recording): see-through grey at first, a darker core
+    # (SmokeDark) joining only when the vehicle is nearly done for.
     'VehicleDamageSmoke': [dict(tex=DENSE, draw='alpha', alpha=0.5, alpha_param='SmokeAlpha',
-                                size=[0.7, 1.1], life=2.0, anim_once=True, fade=True,
-                                loc_rand=[12, 12, 8], vel=[0, 0, 110], vel_rand=[15, 15, 20],
+                                size=[0.6, 0.9], life=1.6, anim_once=True, fade=True,
+                                loc_rand=[12, 12, 8], vel=[0, 0, 90], vel_rand=[15, 15, 20],
+                                rate=2, rate_param='SmokeRate', loop=True, scale_spawn_rate=False),
+                           dict(tex=DENSE, draw='sub', alpha=0.6, alpha_param='SmokeDark',
+                                size=[0.5, 0.8], life=1.4, anim_once=True, fade=True,
+                                loc_rand=[10, 10, 6], vel=[0, 0, 80], vel_rand=[12, 12, 15],
                                 rate=2, rate_param='SmokeRate', loop=True, scale_spawn_rate=False)],
     # Rocket.Timer: old-fire sprites and wispy smoke left along the flight path.
     # Emission is bounded in time rather than spawning actors at every flight step.
@@ -191,14 +198,18 @@ SYSTEMS = {
                dict(tex=WINDY_SMOKE, draw='add', alpha=0.2, size=[0.8, 0.8], life=1.4, gravity=True, fade=True, burst=20,
                     loc=[0, 0, 30], vel=[0, 0, 150], vel_rand=[200, 200, 0])],
     # M18 smokeGrenEffect (servers' weapon mod): dense smoke, 15 a second for smokeDuration 15 s,
-    # rising 60 uu/s, drifting 100 uu/s, 8 s each, size 2 (MF drew it additive: a bright fog; a
-    # translucent one here, so it actually screens)
-    # (the mod drew DenseSmoke additive, a glowing orange cloud; subtractive like MF's own
-    # explosion smoke reads as smoke and actually screens)
-    'SmokeGrenade': [dict(tex=DENSE, draw='sub', alpha=1.0, size=[2.0, 2.0], life=8.0, anim_once=True, fade=True,
-                          vel=[0, 0, 60], vel_rand=[100, 100, 0], rate_keys=[[0, 15], [15, 15], [15.05, 0]]),
-                     dict(tex=DENSE, draw='sub', alpha=1.0, size=[0.4, 0.4], life=1.0, anim_once=True, fade=True,
+    # rising 60 uu/s, drifting 100 uu/s, 8 s each, DrawSize 2 (the whole texture width twice: the
+    # importer halves sizes, so 4 here). The mod drew it additive, a glowing cloud; 'fog' here so
+    # it screens like a smoke grenade should (subtractive barely showed on light ground), and it
+    # rises half as fast (30) so the cloud stays where people are
+    'SmokeGrenade': [dict(tex=DENSE, draw='fog', alpha=0.9, size=[4.0, 5.0], life=8.0, anim_once=True, fade=True,
+                          vel=[0, 0, 30], vel_rand=[100, 100, 0], rate_keys=[[0, 15], [15, 15], [15.05, 0]]),
+                     dict(tex=DENSE, draw='fog', alpha=0.9, size=[0.8, 0.8], life=1.0, anim_once=True, fade=True,
                           vel=[0, 0, 20], vel_rand=[0, 0, 20], rate_keys=[[0, 15], [15, 15], [15.05, 0]])],
+    # MF-mods MolotovFire.Tick: every 0.2 s three OldFire flames somewhere in 110 uu round it
+    # (VRand() * (110, 110, 0)), still, 1.5 s, size 1.3, additive, fading; on while it burns
+    'MolotovFire': [dict(tex=OLD_FIRE, draw='add', alpha=1.0, size=[1.3, 1.3], life=1.5,
+                         anim_once=True, fade=True, rate=15, loop=True, loc_rand=[110, 110, 0])],
     # RageEffect.AddWallHit: a puff of windy smoke, 0-5 specks of smoke flying off the wall (+X)
     'WallHit': [dict(tex=WINDY_SMOKE, draw='add', alpha=1.0, size=[0.2, 0.2], life=0.5, anim_once=True, fade=True, burst=1,
                      loc=[10, 0, 0], vel=[0, 0, 100]),

@@ -45,6 +45,11 @@ def hull_collision(map_name: str) -> list[str]:
     return _edits_for(map_name).get('hull_collision', [])
 
 
+def drop_faces(map_name: str) -> dict[str, set[str]]:
+    """Static mesh faces left out, by mesh and texture (lower case): hidden ones that break the bake."""
+    return {m.lower(): {t.lower() for t in texs} for m, texs in _edits_for(map_name).get('drop_faces', {}).items()}
+
+
 def texture_arrays(map_name: str) -> int:
     """Texture arrays to build for a map's world (DFImporter PlanTextureArrays)."""
     return _edits_for(map_name).get('texture_arrays', 0)

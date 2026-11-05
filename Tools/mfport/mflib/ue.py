@@ -80,6 +80,9 @@ def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> in
         # through it (without: "Timed out waiting for the recipient", then Lightmass dies)
         # no -BuildNavigationData: its rebuild comes out empty (tile size 0) and would replace
         # the navmesh the importer built (with ladder link fix-ups); resaving keeps that one
+        # instanced props' bounds: the DesktopForcesEditor module refreshes them when the build
+        # starts (OnLightingBuildStarted); compiling meshes synchronously instead registers
+        # components in parallel, which asserts in UBoxComponent::CreateSceneProxy
         rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', f'-quality={quality}',
                              '-allowcommandletrendering', '-messaging', f'-map={pkg}',
                              watch=('Lightmass crashed', 'Assertion failed', 'Lighting build failed',

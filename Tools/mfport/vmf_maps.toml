@@ -23,7 +23,7 @@ prop_scale = 1.3333
 [mfs-iceworld]
 mood = { ambient = 0.7, sun = 1.2, fog = { color = [0.45, 0.62, 0.85], density = 0.012, falloff = 0.002 } }   # blue, snowy, a little foggy
 sky = "icebase.ib_Skyblue"
-spawn_lift = { info_player_deathmatch_462 = 190.0 }    # cm: 140 under the terrain as placed
+spawn_lift = { info_player_deathmatch_462 = 140.0 }    # cm: under the terrain as placed (feet to centre comes on top)
 vmf = "../../../MoFo/Mobile-Forces-Source/mp/game/mobileforcessource/mapsrc/mfs-iceworld.vmf"
 scale = 1.4797
 zscale = 1.159

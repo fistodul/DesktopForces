@@ -17,6 +17,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionOneMinus.h"
+#include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionParticleColor.h"
 #include "Materials/MaterialExpressionTextureSampleParameterSubUV.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -119,6 +121,7 @@ namespace {
 	/** effects.py draw -> asset name part: M_MF_Particle_Additive, MI_<texture>_Subtractive ... */
 	FString ParticleDrawName(const FString& Draw) {
 		return Draw == TEXT("add") ? TEXT("Additive") : Draw == TEXT("sub") ? TEXT("Subtractive")
+			: Draw == TEXT("fog")                                           ? TEXT("Fog")
 																			: TEXT("Translucent");
 	}
 
@@ -277,6 +280,22 @@ UMaterialInterface* FDFImporter::GetParticleMaster(const FString& Draw) {
 			Inv->Input.Connect(0, Mul(Weighted, 0, PC, 4));
 			M->GetExpressionCollection().AddExpression(Inv);
 			E->EmissiveColor.Connect(0, Inv);
+		} else if (Draw == TEXT("fog")) {
+			// ours: smoke that hides what's behind it on bright and dark ground alike: flat light
+			// grey, covering by the texture's brightness (x 2.5: a puff's middle covers fully, its
+			// dark rim hardly, so the edges are soft), alpha blended unlike the Rage draw types
+			M->BlendMode = BLEND_Translucent;
+			UMaterialExpressionConstant* Grey = NewObject<UMaterialExpressionConstant>(M);
+			Grey->R = 0.6f;
+			UMaterialExpressionConstant* Gain = NewObject<UMaterialExpressionConstant>(M);
+			Gain->R = 2.5f;
+			M->GetExpressionCollection().AddExpression(Grey);
+			M->GetExpressionCollection().AddExpression(Gain);
+			UMaterialExpressionSaturate* Cover = NewObject<UMaterialExpressionSaturate>(M);
+			Cover->Input.Connect(0, Mul(Mul(Tex, 1, Gain, 0), 0, Tex, 4));
+			M->GetExpressionCollection().AddExpression(Cover);
+			E->EmissiveColor.Connect(0, Mul(Grey, 0, PC, 0));
+			E->Opacity.Connect(0, Mul(Cover, 0, PC, 4));
 		} else {
 			M->BlendMode = BLEND_Translucent;
 			E->EmissiveColor.Connect(0, Mul(Tex, 0, PC, 0));

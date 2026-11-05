@@ -24,7 +24,9 @@ from .upkg import Package
 PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'RageEffects', 'deagle', 'grenLaunch', 'battleRoyale', 'boat', 'jeep', 'heli', 'piper',
             # the servers' weapon mods (unverified pack)
             'AK74', 'm4a1', 'F2000', 'MAC10', 'M24', 'M18', 'm87', 'desert', 'famas', 'g36', 'glock', 'ultimax',
-            'wa2000', 'improvedRL', 'parachute', 'BoxPhysics', 'mineGenerator')
+            'wa2000', 'improvedRL', 'parachute', 'BoxPhysics', 'mineGenerator',
+            # MF-mods items with their own models
+            'SeekerMines')
 # packages whose StaticMeshes are props too (exported as T3D by UCC: Gregaras' CC0 Battle Royale models)
 STATIC_MESH_PACKAGES = ('battleRoyale',)
 
