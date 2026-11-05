@@ -6,6 +6,7 @@ values such as vectors and rotators.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -226,6 +227,20 @@ def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
             if turned != (agreement < 0):
                 v = tris[i].verts
                 tris[i].verts = [v[0], v[2], v[1]]
+    # A triangle whose three normals all point straight away from its face is wound backwards
+    # whatever its piece voted (mf-BraveDwarfes' tree house floors): smoothing can't do that.
+    # Backwards, a floor is culled from above and Recast sees it facing down (no navmesh)
+    for tri in tris:
+        p = [v[0] for v in tri.verts]
+        u = [p[1][k] - p[0][k] for k in range(3)]
+        w = [p[2][k] - p[0][k] for k in range(3)]
+        n = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
+        length = math.sqrt(sum(c * c for c in n))
+        if length < 1e-9:
+            continue
+        if all(sum(n[k] * v[1][k] for k in range(3)) < -0.9 * length * math.sqrt(sum(c * c for c in v[1])) for v in tri.verts):
+            v = tri.verts
+            tri.verts = [v[0], v[2], v[1]]
     return tris
 
 
