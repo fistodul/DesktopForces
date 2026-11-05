@@ -101,6 +101,10 @@ ServerMessageGroup=1
 ;bBoomstick=True
 
 [/Script/DesktopForces.DFGameSettings]
+ServerName=Mobile Forces Still Alive
+; shown to players for about 11 s after they join, under the server and map names (MF MOTDLine1-4)
++MessageOfTheDay=Welcome! Be nice, no spawn camping.
++MessageOfTheDay=Discord: ...
 ; extra vehicles and swaps for this server only (maps already carry the community's ones)
 +AddedVehicles=(Map="mf-warehouse",VehicleClass="heli.heli",Location=(X=0,Y=0,Z=200),Yaw=90)
 +VehicleSwaps=(Map="mf-Carpark",From="Rage.Truck",To="jeep.jeep")

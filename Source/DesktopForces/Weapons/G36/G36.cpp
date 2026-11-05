@@ -33,6 +33,7 @@ AG36::AG36() {
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
 	ZoomedViewOffset = FVector(240.f, -81.15f, 176.f); // MF ZoomedInViewOffset
+	FlashYZoom = 0.04f; // its sights sit higher: the flash at the front sight (mod: 0.3)
 	RecoilPower = 0.75f;
 	ClassicFireSound = TEXT("g36.G36_Fire");
 	ClassicReloadSound = TEXT("g36.g36reload");

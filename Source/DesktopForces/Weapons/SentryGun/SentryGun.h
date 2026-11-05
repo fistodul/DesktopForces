@@ -73,6 +73,18 @@ protected:
 
 	UPROPERTY(Replicated)
 	uint8 Team = DF::NoTeam;
+	/** The placer by player, not pawn: still friendly to them after they respawn. */
+	TWeakObjectPtr<class APlayerState> PlacerState;
+
+	enum class ESound : uint8 { Activating,
+		Fire,
+		SpinDown };
+	/** MF PlaySound: heard by everyone, not just the server. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastSound(uint8 Which);
+	/** SpawnTracer + AddWallHit: what each shot shows. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastShot(FVector_NetQuantize Start, FVector_NetQuantize End, FVector_NetQuantizeNormal Normal, bool bWall);
 
 	bool IsFriendly(const AActor* Other) const;
 	bool CanSee(const AActor* Target) const;
@@ -102,8 +114,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Sentry")
 	int32 MaxActiveSentries = 2;
 
+	virtual void ForceInactive() override;
+
 protected:
 	virtual bool TryFire(bool bAlt) override;
+	void Place();
+	bool Deploy();
+	void PlayArms(FName Name, float Duration);
+	FTimerHandle PlaceTimer;
+	float PlaceTime = 1.037f; // TripBombs PlaceForward 0.93 s at 0.9
+	float PlaceBackTime = 0.444f; // PlaceBack / PlaceBombDown 0.4 s at 0.9
 	bool FindPlacementSpot(FVector& OutLoc, FRotator& OutRot) const;
 	void Message(const FString& Text) const;
 };

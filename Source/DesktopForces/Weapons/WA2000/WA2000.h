@@ -14,4 +14,6 @@ class DESKTOPFORCES_API AWA2000 : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AWA2000();
+	/** wa2000.PostRender: the mod's own scope picture, black at the sides, the zoom readout. */
+	virtual bool DrawHUD(UCanvas* Canvas) override;
 };

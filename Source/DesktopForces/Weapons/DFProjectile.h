@@ -59,6 +59,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicExplosionSound;
 
+	/** ExplosionSound's volume (grenLaunch fragmentExplosion: 1 / altFireSingleFragmentExpVolDivisor 8). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float ExplosionVolume = 1.f;
+
 	/** Fire and smoke (Effects/P_Explosion) at RageEffect.AddExplosion's Size x 0.4; 0: none. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float ExplosionEffectScale = 0.f;
@@ -171,6 +175,9 @@ protected:
 	void OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
 	/** Dangerous.ProcessTouch: hurt Other once (never the thrower). */
 	void HitVictim(AActor* Other, const FHitResult& Hit);
+	static bool MovesAway(const FHitResult& Hit);
+	/** Stops dead and falls, past From. */
+	void DropOff(AActor* From);
 	/** state Safe: lying still, waiting for its owner. */
 	void BecomeSafe(USceneComponent* StickTo);
 	void Return();

@@ -20,6 +20,9 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual FString GetHUDStatus() const override;
 	virtual int32 GetCarrySize(const UObject* WorldContext) const override;
+	/** RocketLauncher.PostRender: the scope in the team's colour, a lock panel over it and LOCK
+	 *  blinking in it while a target is locked. */
+	virtual bool DrawHUD(UCanvas* Canvas) override;
 	/** The game plays with Gian's improved launcher (ADFGameState::bImprovedRL). */
 	static bool IsImproved(const UObject* WorldContext);
 

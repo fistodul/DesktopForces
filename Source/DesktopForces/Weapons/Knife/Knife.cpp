@@ -137,8 +137,8 @@ void AKnife::Throw(float Power) {
 		PlayFireEffects(true);
 }
 
-FString AKnife::GetHUDStatus() const {
-	return bWinding && ShowsThrowPower() ? FString::Printf(TEXT("THROW %d"), FMath::FloorToInt(GetThrowPower())) : FString();
+int32 AKnife::GetPowerLevel() const {
+	return bWinding && ShowsThrowPower() ? FMath::FloorToInt(GetThrowPower()) : 0;
 }
 
 void AKnife::PlayFireEffects(bool bAlt) {

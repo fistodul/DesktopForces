@@ -160,7 +160,9 @@ void ADFHUD::DrawHUD() {
 				DrawMiniMapMF(C); // the loadout grid and the scoreboard take its place in MF
 			DrawHealthMF(C);
 			DrawInventoryMF(C, PC);
-			if (ADFWeapon* W = C->GetCurrentWeapon())
+			DrawIdentifyMF(C);
+			const bool bPowerBar = DrawPowerBarMF(C);
+			if (ADFWeapon* W = C->GetCurrentWeapon(); W && !bPowerBar)
 				Text(W->GetHUDStatus(), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f + 40.f * UIScale, Yellow, 1.2f * TextScale, true);
 		} else {
 			DrawStatus(C);
@@ -180,6 +182,7 @@ void ADFHUD::DrawHUD() {
 	if (C && ADFMapInfo::bUnderwater)
 		Box(0.f, 0.f, Canvas->ClipX, Canvas->ClipY, FLinearColor(0.05f, 0.3f, 0.55f, 0.22f)); // a zone's ViewFog
 	DrawMessages();
+	DrawMOTDMF(GS);
 	if (GS && !GS->VoteText.IsEmpty()) {
 		// voteHUDrender: top left under the minimap
 		const float X = 8.f * UIScale, Y0 = Block * 3.4f, LineH = DFTextSize(TEXT("TEST"), 0).Y * 1.2f;
@@ -200,11 +203,95 @@ void ADFHUD::DrawHUD() {
 	}
 }
 
+void ADFHUD::DrawMOTDMF(const ADFGameState* GS) {
+	// MOTDFadeOutTime 600, falling 55 a second: 10.9 s from the HUD's first frame
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (MOTDStart < 0.f)
+		MOTDStart = Now;
+	const float Fade = 1.f - (Now - MOTDStart) * 55.f / 600.f;
+	if (!GS || Fade <= 0.f)
+		return;
+	if (!bLookedForMapInfo) {
+		bLookedForMapInfo = true;
+		for (TActorIterator<ADFMapInfo> It(GetWorld()); It; ++It)
+			MapInfo = *It;
+	}
+	// centred lines from 3.75 blocks down: server, map, author, a gap, the message (online)
+	const FLinearColor Colour = FLinearColor::White * Fade;
+	const float LineH = DFTextSize(TEXT("TEST"), 1).Y;
+	const float Y0 = Block * 3.75f;
+	auto Line = [&](const FString& S, int32 Row) {
+		if (!S.IsEmpty())
+			DFText(S, (Canvas->ClipX - DFTextSize(S, 1).X) * 0.5f, Y0 + Row * LineH, Colour, 1);
+	};
+	const bool bOnline = GetNetMode() != NM_Standalone;
+	if (bOnline)
+		Line(GS->ServerName, 0);
+	if (MapInfo) {
+		Line(MapInfo->Title.IsEmpty() ? FString() : TEXT("Map: ") + MapInfo->Title, 1);
+		Line(MapInfo->Author.IsEmpty() ? FString() : TEXT("Author: ") + MapInfo->Author, 2);
+	}
+	if (bOnline && Canvas->ClipY >= 300.f)
+		for (int32 i = 0; i < GS->MessageOfTheDay.Num(); ++i)
+			Line(GS->MessageOfTheDay[i], 4 + i);
+}
+
+void ADFHUD::DrawIdentifyMF(const ADFCharacter* C) {
+	// TraceIdentify: along the view 2000 uu; a player hit is named for the next 3 s
+	const float Now = GetWorld()->GetTimeSeconds();
+	FVector Eye;
+	FRotator View;
+	PlayerOwner->GetPlayerViewPoint(Eye, View);
+	FHitResult Hit;
+	const FCollisionQueryParams Params(SCENE_QUERY_STAT(DFIdentify), false, C);
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + View.Vector() * 4500.f, ECC_GameTraceChannel2 /* Weapon: what a shot would hit */, Params)) {
+		const ADFCharacter* Other = Cast<ADFCharacter>(Hit.GetActor());
+		if (Other && Other->IsAlive() && !Other->IsHidden() && Other->GetPlayerState<ADFPlayerState>()) {
+			IdentifyTarget = Other->GetPlayerState<ADFPlayerState>();
+			IdentifyTime = Now;
+		}
+	}
+	const ADFPlayerState* Target = IdentifyTarget.Get();
+	const float Fade = 3.f - (Now - IdentifyTime); // IdentifyFadeTime
+	if (!Target || Fade <= 0.f || Target->GetPlayerName().IsEmpty())
+		return;
+	// RageTeamHUD: a teammate's health after the name
+	FString Label = Target->GetPlayerName();
+	const ADFPlayerState* Mine = PlayerOwner->GetPlayerState<ADFPlayerState>();
+	const ADFCharacter* Pawn = Target->GetPawn<ADFCharacter>();
+	if (Mine && Mine->HasTeam() && Mine->GetTeam() == Target->GetTeam() && Pawn)
+		Label += FString::Printf(TEXT("[%d]"), Pawn->GetHealth());
+	// TeamColour (team 1 red, the rest blue; more teams their own) x 0.333 x the fade, added
+	const uint8 Team = Target->GetTeam();
+	const FLinearColor Colour = Team > 1 && Target->HasTeam() ? UDFGameSettings::Get().GetTeamColor(Team) : Team == 1 ? FLinearColor(1.f, 0.f, 0.f)
+																													  : FLinearColor(0.f, 0.f, 1.f);
+	const FVector2D Size = DFTextSize(Label, 2);
+	DFText(Label, (Canvas->ClipX - Size.X) * 0.5f, Canvas->ClipY - Block * 3.f, Colour * FMath::Min(1.f, 0.333f * Fade), 2);
+}
+
+bool ADFHUD::DrawPowerBarMF(const ADFCharacter* C) {
+	const ADFWeapon* W = C->GetCurrentWeapon();
+	const int32 Power = W ? W->GetPowerLevel() : 0;
+	if (Power <= 0)
+		return false;
+	UTexture2D* Tex = DF::LoadClassic<UTexture2D>(TeamSet() == 1 ? TEXT("Textures/RageWeapons/Icons/RedPower") : TEXT("Textures/RageWeapons/Icons/BluePower"));
+	if (!Tex)
+		return false;
+	// 128 x 32 box over the item strip's centre; the bar inside 13 px a step, full at 10 (both
+	// at BlockSize / 64). Bar STY_Translucent (added), box STY_Alpha
+	const float Scale = Block / 64.f, BoxW = 128.f * Scale, BoxH = 32.f * Scale, BarH = 29.f * Scale;
+	const float BarW = FMath::Min(Power * 13.f, 128.f), X = (Canvas->ClipX - BoxW) * 0.5f;
+	DrawTexRect(Tex, X, Canvas->ClipY - Block - BarH, BarW * Scale, BarH, 0.f, 32.f, BarW, 29.f, FLinearColor::White, SE_BLEND_Additive);
+	DrawTexRect(Tex, X, Canvas->ClipY - Block - BoxH, BoxW, BoxH, 0.f, 0.f, 128.f, 32.f, FLinearColor::White, SE_BLEND_Translucent);
+	return true;
+}
+
 void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 	// RageWeapon.RenderMuzzleFlash: on the canvas, where the barrel points on screen; at the hip
 	// off to the weapon hand, zoomed under the sights. Its pixels were for a 640 x 480 screen.
 	const ADFWeapon* W = C->GetCurrentWeapon();
-	if (!W || !W->IsMuzzleFlashing() || C->IsBehindView())
+	// none through a scope: it would sit on the crosshair, the barrel being out of sight below
+	if (!W || !W->IsMuzzleFlashing() || C->IsBehindView() || W->IsScopeRaised())
 		return;
 	if (!TexFlare)
 		TexFlare = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
@@ -983,7 +1070,7 @@ void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC) {
 	// selected: the loadout cursor in the loadout; in play the weapon in hand (or coming up) -
 	// MF showed that with the first-person model, which we don't have yet
 	const ADFWeapon* Selected = bLoadout ? PC->GetLoadoutCursorWeapon()
-										 : (C->GetPendingWeapon() ? C->GetPendingWeapon() : C->GetCurrentWeapon());
+										 : C->SelectedWeapon();
 	float X = Canvas->ClipX * 0.5f - Block * 3.5f;
 	const float Y = Canvas->ClipY - Block;
 	int32 Left = C->MaxCarry;

@@ -28,6 +28,8 @@ ADFProjectile::ADFProjectile() {
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Collision->InitSphereRadius(18.f); // MF CollisionRadius 8 uu
 	Collision->SetCollisionProfileName(TEXT("Projectile"));
+	// UE1 projectiles pass through each other: a cluster's fragments start at one spot
+	Collision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
 	Collision->SetGenerateOverlapEvents(true);
 	Collision->CanCharacterStepUpOn = ECB_No;
 	RootComponent = Collision;
@@ -138,7 +140,7 @@ void ADFProjectile::MulticastExplosionFX_Implementation(FVector_NetQuantize Loca
 	if (Trail)
 		Trail->DeactivateSystem();
 	if (GetNetMode() != NM_DedicatedServer && ExplosionSound)
-		DF::PlaySoundAtLocation(this, ExplosionSound, Location);
+		DF::PlaySoundAtLocation(this, ExplosionSound, Location, ExplosionVolume);
 	if (ExplosionEffectScale > 0.f) {
 		DF::SpawnEffect(this, TEXT("Explosion"), Location, ExplosionEffectScale);
 		DF::SpawnScorchBelow(this, Location, ExplosionEffectScale * 450.f); // grenade ~1.8 m, rocket ~5.4 m
@@ -242,18 +244,31 @@ void AThrownKnife::OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 	}
 	if (Cast<APawn>(Other) && Other != GetInstigator()) {
 		HitVictim(Other, Sweep);
-		Movement->Velocity = FVector::ZeroVector; // stops in them and drops
-		Movement->bShouldBounce = false;
+		DropOff(Other);
 	}
+}
+
+bool AThrownKnife::MovesAway(const FHitResult& Hit) {
+	// a soldier, a vehicle or a loose prop: nothing to stay stuck in
+	return Cast<APawn>(Hit.GetActor()) || (Hit.GetComponent() && Hit.GetComponent()->IsSimulatingPhysics());
+}
+
+void AThrownKnife::DropOff(AActor* From) {
+	// stops dead and falls: what it hit can move away, so it doesn't stay hanging in the air
+	Movement->Velocity = FVector::ZeroVector;
+	Movement->bShouldBounce = false;
+	if (From)
+		Collision->IgnoreActorWhenMoving(From, true);
 }
 
 void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
 	if (!HasAuthority() || bSafe)
 		return;
-	if (Cast<APawn>(Hit.GetActor())) {
+	if (MovesAway(Hit)) {
 		// Dangerous.ProcessTouch: hurt them (vehicles: a clang and a push), stop dead, drop
-		HitVictim(Hit.GetActor(), Hit);
-		BecomeSafe(nullptr);
+		if (Cast<APawn>(Hit.GetActor()))
+			HitVictim(Hit.GetActor(), Hit);
+		DropOff(Hit.GetActor()); // lands on the floor, then Safe (OnKnifeStop)
 		return;
 	}
 	// HitWall -> Stick, floors too: with bBounce, UE1 falling physics calls HitWall for every
@@ -265,8 +280,17 @@ void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVel
 }
 
 void AThrownKnife::OnKnifeStop(const FHitResult& Hit) {
-	if (HasAuthority() && !bSafe)
-		BecomeSafe(nullptr);
+	if (!HasAuthority() || bSafe)
+		return;
+	if (MovesAway(Hit)) {
+		// came to rest on a car or a loose prop: it would hang there when that moves
+		DropOff(Hit.GetActor());
+		Movement->SetUpdatedComponent(Collision);
+		Movement->Activate(true);
+		Movement->Velocity = FVector(0.f, 0.f, -50.f);
+		return;
+	}
+	BecomeSafe(Hit.GetComponent()); // a mover (lift, door): rides it (SetBase)
 }
 
 void AThrownKnife::BecomeSafe(USceneComponent* StickTo) {

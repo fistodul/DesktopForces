@@ -43,7 +43,8 @@ APistol::APistol() {
 	FlashY = 0.08f; // RageWeapons Pistol
 	FlashO = -0.042f;
 	FlashS = -6.f;
-	FlashYZoom = 0.1f;
+	// MF 0.1 is on our sighted slide's back: up at the front sight, where the barrel ends
+	FlashYZoom = 0.025f;
 	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass
 	CasingScale = 1.f; // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_Pistol.Fire");

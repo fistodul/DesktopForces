@@ -16,7 +16,10 @@ public:
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
 	virtual float GetZoomScale() const override;
-	virtual FString GetHUDStatus() const override;
+	virtual int32 GetPowerLevel() const override;
+	virtual bool IsPowerAThrow() const override { return false; }
+	/** RageRifle.PostRender: the sniper scope in the team's colour with the zoom readout. */
+	virtual bool DrawHUD(UCanvas* Canvas) override;
 	void AdjustZoom(int32 Steps);
 	float GetShotPower() const;
 

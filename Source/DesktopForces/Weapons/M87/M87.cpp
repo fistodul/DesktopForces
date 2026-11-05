@@ -1,6 +1,7 @@
 #include "Weapons/M87/M87.h"
 #include "Core/DFContent.h"
 #include "Core/DFTypes.h"
+#include "Player/DFCharacter.h"
 
 #define LOCTEXT_NAMESPACE "ServerWeapons"
 
@@ -22,11 +23,12 @@ AM87::AM87() {
 	MaxClipAmmo = 8;
 	MaxClips = 8;
 	FireTime = 1.193f;
-	ZoomedFireTime = 0.819f;
+	// no zoom (MaxZoomLevel 0): alt fire is the quick lever shot, state AltFiring:
+	// PlayAnim('altFire', 1.3), 8 frames at RATE 7 -> 0.88 s, AltAccuracy
+	AltFireTime = 0.88f;
 	ReloadTime = 2.25f;
 	EquipTime = 0.5f;
 	PutDownTime = 0.5f;
-	ZoomTime = 0.333f;
 	HitDamage = 14.f;
 	HeadshotDamage = 28.f;
 	Accuracy = 1.3f;
@@ -46,6 +48,38 @@ AM87::AM87() {
 	ClassicFireSound = TEXT("m871.m87fire");
 	ClassicReloadSound = TEXT("m871.m87reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");
+}
+
+float AM87::GetMoveSpeedScale() const {
+	return bLeverShot ? 0.3f : Super::GetMoveSpeedScale(); // UE1 walking: 0.3 x ground speed
+}
+
+void AM87::SetLeverShot(bool bOn) {
+	if (bLeverShot == bOn)
+		return;
+	bLeverShot = bOn;
+	if (ADFCharacter* C = GetOwnerCharacter())
+		C->UpdateCarrySpeed();
+}
+
+bool AM87::TryFire(bool bAlt) {
+	const bool bFired = Super::TryFire(bAlt);
+	if (bFired)
+		SetLeverShot(bAlt);
+	return bFired;
+}
+
+void AM87::Finish() {
+	// held alt fire stays in AltFiring: Finish fires the next lever shot straight away
+	bLeverShot = false;
+	Super::Finish();
+	if (!bLeverShot && GetOwnerCharacter())
+		GetOwnerCharacter()->UpdateCarrySpeed();
+}
+
+void AM87::ForceInactive() {
+	bLeverShot = false;
+	Super::ForceInactive(); // updates the speed
 }
 
 #undef LOCTEXT_NAMESPACE

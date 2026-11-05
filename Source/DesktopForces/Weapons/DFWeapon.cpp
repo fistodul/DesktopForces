@@ -1,4 +1,8 @@
 #include "Weapons/DFWeapon.h"
+#include "Engine/Canvas.h"
+#include "Engine/Engine.h"
+#include "Engine/Font.h"
+#include "Engine/Texture2D.h"
 #include "Core/DFUserSettings.h"
 #include "Game/DFGameState.h"
 #include "Player/DFSoldierAnimInstance.h"
@@ -105,8 +109,8 @@ void ADFWeapon::PostInitializeComponents() {
 			Mesh3P->RegisterComponent();
 		}
 		SetupArms();
-		UpdateDroppedLook();
 	}
+	UpdateDroppedLook();
 }
 
 void ADFWeapon::Destroyed() {
@@ -200,7 +204,8 @@ float ADFWeapon::GetMoveSpeedScale() const {
 }
 
 FString ADFWeapon::GetHUDStatus() const {
-	return FString();
+	const int32 Power = GetPowerLevel();
+	return Power > 0 ? FString::Printf(TEXT("%s %d"), IsPowerAThrow() ? TEXT("THROW") : TEXT("POWER"), Power) : FString();
 }
 
 void ADFWeapon::PlayMFSound(const TCHAR* MFName) const {
@@ -412,6 +417,7 @@ void ADFWeapon::ResetZoom() {
 	GetWorldTimerManager().ClearTimer(ZoomAnimTimer);
 	if (ADFCharacter* C = GetOwnerCharacter())
 		C->UpdateCarrySpeed();
+	OnZoomChanged();
 }
 
 void ADFWeapon::OnRep_ZoomLevel(uint8 OldZoom) {
@@ -473,6 +479,19 @@ void ADFWeapon::TraceFire(float InAccuracy, int32 InPellets, bool bAlt) {
 			MulticastTracer(Start, bHit ? FVector(Hit.ImpactPoint) : End);
 		}
 	}
+	if (!WallHits.IsEmpty()) {
+		MulticastWallHits(WallHits, WallNormals);
+		WallHits.Reset();
+		WallNormals.Reset();
+	}
+}
+
+void ADFWeapon::MulticastWallHits_Implementation(const TArray<FVector_NetQuantize>& At, const TArray<FVector_NetQuantizeNormal>& Normal) {
+	// the other pellets' smoke and holes; one ricochet per shot is enough (UE1 sound slots)
+	for (int32 i = 0; i < FMath::Min(At.Num(), Normal.Num()); ++i) {
+		DF::SpawnEffect(this, TEXT("WallHit"), At[i], 1.f, FVector(Normal[i]).Rotation());
+		DF::SpawnDecal(this, DF::EDecal::BulletHole, At[i], Normal[i], 12.f);
+	}
 }
 
 void ADFWeapon::MulticastTracer_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End) {
@@ -499,6 +518,10 @@ void ADFWeapon::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, b
 	if (Cast<ADFCharacter>(Other) ? !bFleshSoundSent : (bWallImpactFX && !Cast<APawn>(Other) && !bImpactSoundSent)) {
 		(Cast<ADFCharacter>(Other) ? bFleshSoundSent : bImpactSoundSent) = true;
 		MulticastImpactFX(Hit.ImpactPoint, Hit.ImpactNormal, Cast<ADFCharacter>(Other) != nullptr);
+	} else if (bWallImpactFX && !Cast<APawn>(Other) && WallHits.Num() < 32) {
+		// Shotgun.ProcessTraceHit: AddWallHit for every pellet; the rest of the shot's go out together
+		WallHits.Add(Hit.ImpactPoint);
+		WallNormals.Add(Hit.ImpactNormal);
 	}
 
 	if (UPrimitiveComponent* Comp = Hit.GetComponent(); Comp && Comp->IsSimulatingPhysics())
@@ -691,7 +714,8 @@ void ADFWeapon::UpdateDroppedLook() {
 	if (Arms) {
 		Arms->SetVisibility(!bDropped);
 		Mesh1P->SetVisibility(bDropped); // the carry model is only the pickup now
-	}
+	} else if (!bHasViewMesh)
+		Mesh1P->SetVisibility(bDropped); // no model in hand (MF's adrenaline shot had none): the placeholder only marks a dropped one
 	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
 	if (bDropped && bHasViewMesh)
@@ -709,10 +733,7 @@ void ADFWeapon::ForceInactive() {
 	State = EDFWeaponState::Inactive;
 	bFireHeld = bAltFireHeld = false;
 	bPendingReload = false;
-	ZoomLevel = 0;
-	ZoomChangeTime = -1000.f;
-	if (ADFCharacter* C = GetOwnerCharacter())
-		C->UpdateCarrySpeed(); // the zoom's walking speed goes with it
+	ResetZoom(); // the zoom's walking speed and the HMG's tripod go with it
 	SetActorHiddenInGame(true);
 }
 
@@ -888,4 +909,54 @@ void ADFWeapon::MulticastReload_Implementation() {
 		DF::PlaySoundRadius(this, ReloadSound, C->GetActorLocation(), 0.6f);
 	if (UDFSoldierAnimInstance* Anim = C->GetSoldierAnim())
 		Anim->OnReload(ReloadTime);
+}
+
+float ADFWeapon::ScopeScale(const UCanvas* Canvas) {
+	return FMath::Min(Canvas->ClipX / 640.f, Canvas->ClipY / 480.f);
+}
+
+void ADFWeapon::DrawCanvasTile(UCanvas* Canvas, UTexture2D* Tex, float X, float Y, float W, float H, float U, float V, float UL, float VL, const FLinearColor& Colour) {
+	if (!Canvas || !Tex || W <= 0.f || H <= 0.f)
+		return;
+	const float TW = Tex->GetSizeX(), TH = Tex->GetSizeY();
+	FCanvasTileItem Item(FVector2D(X, Y), Tex->GetResource(), FVector2D(W, H), FVector2D(U / TW, V / TH), FVector2D((U + UL) / TW, (V + VL) / TH), Colour);
+	Item.BlendMode = SE_BLEND_Translucent; // STY_Alpha
+	Canvas->DrawItem(Item);
+}
+
+void ADFWeapon::DrawScopeQuarters(UCanvas* Canvas, UTexture2D* Tex, float MW, float MH, float Inset, const FLinearColor& Colour) {
+	const float CX = Canvas->ClipX * 0.5f, CY = Canvas->ClipY * 0.5f, E = 256.f - Inset, S = 255.f - Inset;
+	DrawCanvasTile(Canvas, Tex, CX - MW, CY - MH, MW, MH, 1.f, 1.f, S, S, Colour);
+	DrawCanvasTile(Canvas, Tex, CX, CY - MH, MW, MH, E, 1.f, -S, S, Colour);
+	DrawCanvasTile(Canvas, Tex, CX - MW, CY, MW, MH, 1.f, E, S, -S, Colour);
+	DrawCanvasTile(Canvas, Tex, CX, CY, MW, MH, E, E, -S, -S, Colour);
+	// the rest of the screen; MF overlapped these strips, translucent they must not
+	DrawCanvasTile(Canvas, Tex, 0.f, 0.f, Canvas->ClipX, CY - MH, 8.f, 8.f, 2.f, 2.f, Colour);
+	DrawCanvasTile(Canvas, Tex, 0.f, CY + MH, Canvas->ClipX, CY - MH, 8.f, 8.f, 2.f, 2.f, Colour);
+	DrawCanvasTile(Canvas, Tex, 0.f, CY - MH, CX - MW, 2.f * MH, 8.f, 8.f, 2.f, 2.f, Colour);
+	DrawCanvasTile(Canvas, Tex, CX + MW, CY - MH, CX - MW, 2.f * MH, 8.f, 8.f, 2.f, 2.f, Colour);
+}
+
+void ADFWeapon::DrawZoomReadout(UCanvas* Canvas, float Scale, const FLinearColor& Colour) const {
+	const float CY = Canvas->ClipY * 0.5f, Dot = 57.f * Scale, DotX = Canvas->ClipX * 0.5f - 205.f * Scale;
+	DrawCanvasTile(Canvas, DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/ZoomCircle")), DotX, CY - Dot * 0.5f, Dot, Dot, 0.f, 0.f, 64.f, 64.f, Colour);
+	UFont* Font = GEngine->GetMediumFont();
+	if (!Font)
+		return;
+	// DefaultFOV / FOVAngle, one decimal cut (not rounded) as MF wrote it
+	const float Zoom = 1.f / FMath::Max(GetFOVScale(), 0.01f) + 0.001f; // 6 not 5.9 from float error
+	const FString Readout = FString::Printf(TEXT("x%d.%d"), int32(Zoom), int32(Zoom * 10.f) % 10);
+	float TW = 0.f, TH = 0.f;
+	Canvas->TextSize(Font, Readout, TW, TH);
+	Canvas->SetDrawColor(FColor::Black);
+	Canvas->DrawText(Font, Readout, DotX + (Dot - TW) * 0.5f, CY - TH * 0.5f);
+}
+
+void ADFWeapon::DrawScopeMask(UCanvas* Canvas, float MW, float MH) {
+	DrawScopeQuarters(Canvas, DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/ScopeMask")), MW, MH, 1.f, FLinearColor::White);
+}
+
+bool ADFWeapon::IsOwnerRed() const {
+	const ADFCharacter* C = GetOwnerCharacter();
+	return C && C->GetTeam() == 1;
 }

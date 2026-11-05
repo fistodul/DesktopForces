@@ -19,8 +19,23 @@
 #include "Weapons/PredatorMissile/PredatorMissile.h"
 #include "TimerManager.h"
 
-class FDFGameplayLifecycleCheck : public IAutomationLatentCommand {
+// FGCObject: held across updates, the actors stay in memory when destroyed (a long hitch, such as
+// shaders compiling, let them expire and the next update read freed memory); IsValid then says so
+class FDFGameplayLifecycleCheck : public IAutomationLatentCommand, public FGCObject {
 public:
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {
+		Collector.AddReferencedObject(Floor);
+		Collector.AddReferencedObject(Car);
+		Collector.AddReferencedObject(Generator);
+		Collector.AddReferencedObject(Driver);
+		Collector.AddReferencedObject(BotPawn);
+		Collector.AddReferencedObject(Target);
+		Collector.AddReferencedObject(Controller);
+		Collector.AddReferencedObject(Bot);
+		Collector.AddReferencedObject(Gun);
+	}
+	virtual FString GetReferencerName() const override { return TEXT("FDFGameplayLifecycleCheck"); }
+
 	FDFGameplayLifecycleCheck(FAutomationTestBase* InTest, UWorld* InWorld)
 		: Test(InTest),
 		  World(InWorld) {}
@@ -165,13 +180,13 @@ private:
 	}
 	FAutomationTestBase* Test;
 	UWorld* World;
-	AActor* Floor = nullptr;
-	ABuggy* Car = nullptr;
-	AVehicleGenerator* Generator = nullptr;
-	ADFCharacter *Driver = nullptr, *BotPawn = nullptr, *Target = nullptr;
-	AAIController* Controller = nullptr;
-	ADFBotController* Bot = nullptr;
-	ADFWeapon* Gun = nullptr;
+	TObjectPtr<AActor> Floor = nullptr;
+	TObjectPtr<ABuggy> Car = nullptr;
+	TObjectPtr<AVehicleGenerator> Generator = nullptr;
+	TObjectPtr<ADFCharacter> Driver = nullptr, BotPawn = nullptr, Target = nullptr;
+	TObjectPtr<AAIController> Controller = nullptr;
+	TObjectPtr<ADFBotController> Bot = nullptr;
+	TObjectPtr<ADFWeapon> Gun = nullptr;
 	const FVector Origin = FVector(50000, 50000, 5000);
 	int32 Stage = 0, InitialAmmo = 0;
 	float Next = 0.f, NextFight = 0.f;

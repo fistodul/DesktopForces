@@ -1,4 +1,6 @@
 #include "Weapons/WA2000/WA2000.h"
+#include "Engine/Canvas.h"
+#include "Engine/Texture2D.h"
 #include "Core/DFContent.h"
 #include "Core/DFTypes.h"
 
@@ -50,3 +52,20 @@ AWA2000::AWA2000() {
 }
 
 #undef LOCTEXT_NAMESPACE
+
+bool AWA2000::DrawHUD(UCanvas* Canvas) {
+	UTexture2D* Scope = DF::LoadClassic<UTexture2D>(TEXT("Textures/wa2000/scope"));
+	if (!Canvas || !IsScopeRaised() || !Scope)
+		return false;
+	const float Scale = ScopeScale(Canvas), CX = Canvas->ClipX * 0.5f, CY = Canvas->ClipY * 0.5f, M = 512.f * Scale;
+	DrawCanvasTile(Canvas, Scope, CX - M * 0.5f, CY - M * 0.5f, M, M, 1.f, 1.f, Scope->GetSizeX() - 1.f, Scope->GetSizeY() - 1.f, FLinearColor::White);
+	// black beside it (and above / below, where a wide screen leaves room)
+	const FLinearColor Black = FLinearColor::Black;
+	Canvas->K2_DrawTexture(nullptr, FVector2D(0.f, 0.f), FVector2D(CX - M * 0.5f, Canvas->ClipY), FVector2D::ZeroVector, FVector2D::UnitVector, Black);
+	Canvas->K2_DrawTexture(nullptr, FVector2D(CX + M * 0.5f, 0.f), FVector2D(CX - M * 0.5f, Canvas->ClipY), FVector2D::ZeroVector, FVector2D::UnitVector, Black);
+	Canvas->K2_DrawTexture(nullptr, FVector2D(CX - M * 0.5f, 0.f), FVector2D(M, CY - M * 0.5f), FVector2D::ZeroVector, FVector2D::UnitVector, Black);
+	Canvas->K2_DrawTexture(nullptr, FVector2D(CX - M * 0.5f, CY + M * 0.5f), FVector2D(M, CY - M * 0.5f), FVector2D::ZeroVector, FVector2D::UnitVector, Black);
+	DrawZoomReadout(Canvas, Scale, FLinearColor::White); // DrawColor left as it was (white)
+	DrawScopeMask(Canvas, M, M);
+	return true;
+}

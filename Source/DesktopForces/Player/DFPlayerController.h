@@ -234,7 +234,7 @@ public:
 	void DFLoadoutPick(int32 Index);
 	/** Leave / enter the loadout screen. */
 	UFUNCTION(Exec)
-	void DFLoadout();
+	void DFLoadout(int32 Open = -1);
 	/** Select inventory group N (like the number keys). */
 	UFUNCTION(Exec)
 	void DFSelect(int32 Group);

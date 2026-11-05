@@ -22,6 +22,8 @@ AGrenadeFragment::AGrenadeFragment() {
 	LaunchUpVelocity = 0.f;
 	FuseTime = 4.f;
 	Collision->InitSphereRadius(8.f);
+	ExplosionEffectScale = 0.24f; // fragmentExplosion DrawScale: altFireSingleFragmentExplosionSize 0.6 x 0.4
+	ExplosionVolume = 0.125f; // 1 / altFireSingleFragmentExpVolDivisor 8
 }
 
 AClusterGrenade::AClusterGrenade() {

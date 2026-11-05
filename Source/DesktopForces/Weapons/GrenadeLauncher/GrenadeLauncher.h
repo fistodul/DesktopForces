@@ -32,7 +32,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	int32 FragmentCount = 15; // altFireFragmentCount
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float FragmentSpread = 1.f; // altFireFragmentSpread
+	float FragmentSpread = 0.6f; // altFireFragmentSpread
 };
 
 /**

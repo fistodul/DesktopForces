@@ -88,6 +88,7 @@ namespace {
 
 	// the viewport owns the widget; a strong global would outlive Slate at exit (crash on Quit)
 	TWeakPtr<SWidget> GMenu;
+	FString GJoinError; // why the last join failed, until the next try: shown on the Join page
 	TWeakObjectPtr<APlayerController> GOwner;
 } // namespace
 
@@ -183,6 +184,7 @@ public:
 								+ SWidgetSwitcher::Slot()[SAssignNew(OptionsHost, SBox)[MakeOptions()]]
 								+ SWidgetSwitcher::Slot()[MakeCredits()]
 								+ SWidgetSwitcher::Slot()[MakeDownloads()]
+								+ SWidgetSwitcher::Slot()[MakeConnecting()]
 							]
 						]
 					]
@@ -288,7 +290,8 @@ private:
 	float Skill = 0.5f;
 	int32 TimeLimit = 0;
 	bool bListen = false;
-	FString JoinAddress = TEXT("127.0.0.1");
+	FString JoinAddress; // empty: Connect waits for an address (127.0.0.1 tried a server nobody ran)
+	FString ConnectingTo;
 
 	// options
 	FString PlayerName;
@@ -304,7 +307,7 @@ private:
 	TArray<TSharedPtr<FString>> Qualities;
 	TSharedPtr<FString> SelectedQuality;
 	TArray<TSharedPtr<FString>> FrameRates;
-	TArray<int32> FrameRateLimits;
+	TArray<float> FrameRateLimits;
 	TSharedPtr<FString> SelectedFrameRate;
 	bool bVSync = false;
 	float Brightness = 1.f;
@@ -504,13 +507,7 @@ private:
 		for (const FDFServerEntry& E : B->GetServers()) {
 			const FString Join = E.Join;
 			const FText Line = FText::FromString(FString::Printf(TEXT("%s   %s   %s   %d/%d   %d ms"), *E.Name, *E.Map, *E.Mode, E.Players, E.MaxPlayers, E.PingMs));
-			ServerRows->AddSlot().AutoHeight().Padding(0.f, 2.f)[Button(Line, [this, Join]() {
-				if (APlayerController* PC = Owner.Get()) {
-					SaveName();
-					DFMenu::Close(PC);
-					PC->ClientTravel(Join + NameOption(), TRAVEL_Absolute);
-				}
-			})];
+			ServerRows->AddSlot().AutoHeight().Padding(0.f, 2.f)[Button(Line, [this, Join]() { ConnectTo(Join); })];
 		}
 	}
 
@@ -520,7 +517,7 @@ private:
 
 	/** Thirds of the screen's refresh and its half, from twice it down, above 20 FPS
 	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. A custom cap keeps its place. */
-	static TArray<int32> RecommendedFrameRates(int32 Saved) {
+	static TArray<float> RecommendedFrameRates(float Saved) {
 		int32 Hz = FPlatformMisc::GetMaxRefreshRate();
 		FScreenResolutionArray Modes;
 
@@ -530,16 +527,25 @@ private:
 				Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
 		}
 
-		TArray<int32> Rates;
+		TArray<float> Rates;
 		for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 }) {
-			const int32 Rate = Hz * Sixths / 6;
-			if (Rate > 20)
+			const float Rate = Hz * Sixths / 6.f;
+			if (Rate > 20.f)
 				Rates.Add(Rate);
 		}
 
 		Rates.AddUnique(Saved);
-		Rates.AddUnique(0);
+		Rates.AddUnique(0.f);
 		return Rates;
+	}
+
+	/** To 2 decimals, like stat fps: 25 Hz x 4/3 shows 33.33. */
+	static FString FrameRateLabel(float Limit) {
+		if (Limit <= 0.f)
+			return TEXT("Unlimited");
+		FNumberFormattingOptions Decimals;
+		Decimals.SetUseGrouping(false).SetMaximumFractionalDigits(2);
+		return FText::AsNumber(Limit, &Decimals).ToString() + TEXT(" FPS");
 	}
 
 	/** Bots at the start: buttons to press, or hold to run. */
@@ -584,7 +590,7 @@ private:
 				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
 					SNew(SEditableTextBox).Text(FText::FromString(JoinAddress)).Font(Font(13))
-					.OnTextChanged_Lambda([this](const FText& T) { JoinAddress = T.ToString(); })
+					.OnTextChanged_Lambda([this](const FText& T) { JoinAddress = T.ToString().TrimStartAndEnd(); })
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
@@ -597,7 +603,9 @@ private:
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 				[
-					SNew(STextBlock).Font(Font(11)).Text_Lambda([this]() { return ServerStatus(); })
+					SNew(STextBlock).Font(Font(11)).AutoWrapText(true).Text_Lambda([this]() {
+						return GJoinError.IsEmpty() ? ServerStatus() : FText::FromString(GJoinError);
+					})
 				]
 				+ SHorizontalBox::Slot().AutoWidth()[Button(LOCTEXT("Refresh", "Refresh"), [this]() { RefreshServers(); })]
 			]
@@ -606,16 +614,50 @@ private:
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("Back2", "Back"), [this]() { Switcher->SetActiveWidgetIndex(0); })]
-				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Connect", "Connect"), [this]()
-				{
-					if (APlayerController* PC = Owner.Get(); PC && !JoinAddress.IsEmpty())
-					{
-						SaveName();
-						DFMenu::Close(PC);
-						PC->ClientTravel(JoinAddress + NameOption(), TRAVEL_Absolute);
-					}
-				})]
+				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)
+				[
+					SNew(SBox).IsEnabled_Lambda([this]() { return !JoinAddress.IsEmpty(); })
+					[
+						Button(LOCTEXT("Connect", "Connect"), [this]() { ConnectTo(JoinAddress); })
+					]
+				]
 			];
+	}
+
+	/** The menu stays up while the server answers (a black screen until the 20 s timeout
+	 *  before), with a way back. Connected, the new map takes the menu down with it. */
+	void ConnectTo(const FString& Address) {
+		APlayerController* PC = Owner.Get();
+		if (!PC || Address.IsEmpty())
+			return;
+		SaveName();
+		ConnectingTo = Address;
+		GJoinError.Empty();
+		Switcher->SetActiveWidgetIndex(6);
+		PC->ClientTravel(Address + NameOption(), TRAVEL_Absolute);
+	}
+
+	void CancelConnect() {
+		if (APlayerController* PC = Owner.Get(); PC && GEngine) {
+			if (FWorldContext* Context = GEngine->GetWorldContextFromWorld(PC->GetWorld())) {
+				Context->TravelURL.Empty(); // not on its way yet
+				GEngine->Exec(PC->GetWorld(), TEXT("CANCEL")); // UEngine::HandleCancelCommand: drops the pending connection
+			}
+		}
+		Switcher->SetActiveWidgetIndex(2);
+	}
+
+	TSharedRef<SWidget> MakeConnecting()
+	{
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 12.f)[Heading(LOCTEXT("ConnectingHead", "Connecting"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
+			[
+				SNew(STextBlock).Font(Font(13)).AutoWrapText(true).Text_Lambda([this]() {
+					return FText::Format(LOCTEXT("ConnectingTo", "Waiting for {0} ..."), FText::FromString(ConnectingTo));
+				})
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)[Button(LOCTEXT("CancelConnect", "Cancel"), [this]() { CancelConnect(); })];
 	}
 
 	static TSharedRef<SGridPanel> Grid() { return SNew(SGridPanel).FillColumn(1, 1.f); }
@@ -880,7 +922,7 @@ private:
 		const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
 		if (const int32 Found = ResolutionSizes.IndexOfByKey(Desktop); Found != INDEX_NONE)
 			SelectedResolution = Resolutions[Found];
-		if (const int32 Row = FrameRateLimits.IndexOfByKey(FMath::RoundToInt(D->GetFrameRateLimit())); Row != INDEX_NONE)
+		if (const int32 Row = FrameRateLimits.IndexOfByKey(D->GetFrameRateLimit()); Row != INDEX_NONE)
 			SelectedFrameRate = FrameRates[Row];
 		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
 		MasterVolume = D->MasterVolume;
@@ -1173,13 +1215,10 @@ private:
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
 		bVSync = S.IsVSyncEnabled();
-		const int32 SavedLimit = FMath::RoundToInt(S.GetFrameRateLimit()); // UE keeps a float; whole FPS here
-		FrameRateLimits = RecommendedFrameRates(SavedLimit);
-		for (int32 Limit : FrameRateLimits) {
-			FrameRates.Add(MakeShared<FString>(Limit == 0 ? TEXT("Unlimited") : FString::Printf(TEXT("%d FPS"), Limit)));
-			if (Limit == SavedLimit)
-				SelectedFrameRate = FrameRates.Last();
-		}
+		FrameRateLimits = RecommendedFrameRates(S.GetFrameRateLimit());
+		for (float Limit : FrameRateLimits)
+			FrameRates.Add(MakeShared<FString>(FrameRateLabel(Limit)));
+		SelectedFrameRate = FrameRates[FrameRateLimits.IndexOfByKey(S.GetFrameRateLimit())];
 		DecalModes = { MakeShared<FString>(TEXT("Off")), MakeShared<FString>(TEXT("Simple")), MakeShared<FString>(TEXT("Full")) };
 		SelectedDecals = DecalModes[FMath::Clamp(S.DecalQuality, 0, 2)];
 		MasterVolume = S.MasterVolume;
@@ -1294,14 +1333,15 @@ private:
 		if (const int32 Q = IndexOf(Qualities, SelectedQuality); Q >= 0 && Q < Scalability::GetQualityLevelCounts().ViewDistanceQuality)
 			S.SetOverallScalabilityLevel(Q);
 		if (const int32 F = IndexOf(FrameRates, SelectedFrameRate); FrameRateLimits.IsValidIndex(F))
-			S.SetFrameRateLimit(float(FrameRateLimits[F]));
+			S.SetFrameRateLimit(FrameRateLimits[F]);
 		S.SetVSyncEnabled(bVSync);
 		S.ApplySettings(false);
 		S.ConfirmVideoMode();
 		S.SaveSettings();
 		bConsoleEdited = false;
 		if (APlayerController* PC = Owner.Get()) {
-			PC->ConsoleCommand(TEXT("DFApplyUserSettings"));
+			if (ADFPlayerController* DFPC = Cast<ADFPlayerController>(PC))
+				DFPC->DFApplyUserSettings(); // the menu's own controller has nothing to apply
 			if (PC->PlayerState && !PlayerName.IsEmpty() && PC->PlayerState->GetPlayerName() != PlayerName)
 				PC->SetName(PlayerName.Replace(TEXT("?"), TEXT("")).Left(20)); // in a game: rename now
 		}
@@ -1331,7 +1371,20 @@ void DFMenu::Open(APlayerController* PC, bool bInGame) {
 	if (!PC || !PC->IsLocalController() || !GEngine || !GEngine->GameViewport)
 		return;
 	Close(PC);
+	static const bool bWatchingJoins = [] {
+		auto Failed = [](const FString& Why) { GJoinError = TEXT("Couldn't join: ") + Why; };
+		GEngine->OnNetworkFailure().AddLambda([Failed](UWorld*, UNetDriver* Driver, ENetworkFailure::Type Type, const FString&) {
+			if (Driver && Driver->NetDriverName == NAME_PendingNetDriver)
+				Failed(ENetworkFailure::ToString(Type));
+		});
+		GEngine->OnTravelFailure().AddLambda([Failed](UWorld*, ETravelFailure::Type Type, const FString& Error) {
+			Failed(Error.IsEmpty() ? ETravelFailure::ToString(Type) : Error);
+		});
+		return true;
+	}();
 	TSharedRef<SMFMenu> Menu = SNew(SMFMenu).bInGame(bInGame).Owner(PC);
+	if (!bInGame && !GJoinError.IsEmpty())
+		Menu->ShowPage(2);
 	GMenu = Menu;
 	GOwner = PC;
 	GEngine->GameViewport->AddViewportWidgetContent(Menu, 100);
@@ -1379,7 +1432,6 @@ void DFMenu::ReturnToMainMenu(APlayerController* PC) {
 ADFMenuGameMode::ADFMenuGameMode() {
 	DefaultPawnClass = nullptr;
 	PlayerControllerClass = ADFMenuPlayerController::StaticClass();
-	HUDClass = nullptr;
 	SpectatorClass = nullptr;
 }
 

@@ -556,6 +556,7 @@ void ADFCharacter::Die(AController* Killer, TSubclassOf<UDamageType> DamageType,
 	if (bDying)
 		return;
 	bDying = true;
+	UE_LOG(LogDF, Verbose, TEXT("%s died (%s) at %s"), *GetNameSafe(GetPlayerState()), *GetNameSafe(DamageType.Get()), *GetActorLocation().ToCompactString());
 	MulticastBodySound(uint8(EBodySound::Death), 1.f, uint8(FMath::RandRange(0, 5))); // PlayDyingSound
 	Health = FMath::Min(Health, 0);
 	if (ADFVehicle* Riding = Cast<ADFVehicle>(GetAttachParentActor()))
@@ -711,7 +712,15 @@ void ADFCharacter::UpdateCarrySpeed() {
 }
 
 void ADFCharacter::EquipWeapon(ADFWeapon* Weapon) {
-	if (!Weapon || Weapon == CurrentWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath || (CurrentWeapon && CurrentWeapon->LocksSelection()))
+	if (Weapon && Weapon == CurrentWeapon && PendingWeapon) {
+		// back to the one still in hand before it's away: keep it
+		if (GetLocalRole() < ROLE_Authority)
+			ServerEquipWeapon(Weapon);
+		PendingWeapon = nullptr;
+		SetCurrentWeapon(Weapon, nullptr);
+		return;
+	}
+	if (!Weapon || Weapon == CurrentWeapon || Weapon == PendingWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath || (CurrentWeapon && CurrentWeapon->LocksSelection()))
 		return;
 	if (GetLocalRole() < ROLE_Authority)
 		ServerEquipWeapon(Weapon);
@@ -799,7 +808,7 @@ void ADFCharacter::SelectInventoryGroup(int32 Group) {
 		}
 		return;
 	}
-	const int32 Cur = InGroup.IndexOfByKey(CurrentWeapon);
+	const int32 Cur = InGroup.IndexOfByKey(SelectedWeapon());
 	EquipWeapon(InGroup[(Cur + 1) % InGroup.Num()]);
 }
 
@@ -811,7 +820,8 @@ void ADFCharacter::CycleWeapon(int32 Direction) {
 	if (Usable.Num() < 2)
 		return;
 	Usable.StableSort([](const ADFWeapon& A, const ADFWeapon& B) { return A.InventoryGroup < B.InventoryGroup; });
-	const int32 Cur = FMath::Max(0, Usable.IndexOfByKey(CurrentWeapon));
+	// from the one on its way up, not the one still going down: fast scrolling skipped one
+	const int32 Cur = FMath::Max(0, Usable.IndexOfByKey(SelectedWeapon()));
 	EquipWeapon(Usable[(Cur + Direction + Usable.Num()) % Usable.Num()]);
 }
 

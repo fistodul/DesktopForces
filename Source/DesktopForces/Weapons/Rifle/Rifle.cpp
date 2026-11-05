@@ -1,10 +1,13 @@
 #include "Weapons/Rifle/Rifle.h"
+#include "Core/DFContent.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/DFCharacter.h"
+#include "Engine/Canvas.h"
 #include "Engine/DamageEvents.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
@@ -156,8 +159,20 @@ void ARifle::AdjustZoom(int32 Steps) {
 	ZoomScaleAlpha = FMath::Clamp(ZoomScaleAlpha + float(Steps) / float(ZoomScaleIncrements), 0.f, 1.f);
 }
 
-FString ARifle::GetHUDStatus() const {
-	return bCharging ? FString::Printf(TEXT("POWER %d"), FMath::FloorToInt(GetShotPower())) : FString();
+int32 ARifle::GetPowerLevel() const {
+	return bCharging ? FMath::FloorToInt(GetShotPower()) : 0;
 }
 
 #undef LOCTEXT_NAMESPACE
+
+bool ARifle::DrawHUD(UCanvas* Canvas) {
+	UTexture2D* Aim = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/SniperRifleAim"));
+	if (!Canvas || !IsScopeRaised() || !Aim)
+		return false;
+	const FLinearColor Team = IsOwnerRed() ? FLinearColor(1.f, 0.f, 0.f) : FLinearColor(0.f, 0.f, 1.f);
+	const float Scale = ScopeScale(Canvas), M = 255.f * Scale;
+	DrawScopeQuarters(Canvas, Aim, M, M, 0.f, Team);
+	DrawZoomReadout(Canvas, Scale, Team);
+	DrawScopeMask(Canvas, M, M);
+	return true;
+}

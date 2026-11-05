@@ -439,11 +439,32 @@ public:
 
 	/** HUD hook: crosshair / scope overlay. Return true if the weapon drew its own crosshair. */
 	virtual bool DrawHUD(UCanvas* Canvas) { return false; }
+
+	// MF scope overlays (RageWeapon / RageRifle / RocketLauncher.PostRender), in MF's 640 x 480
+	// pixels times ScopeScale
+	/** One scale both ways (MF stretched to the screen): the scope stays round when wide. */
+	static float ScopeScale(const UCanvas* Canvas);
+	/** UE1 Canvas.DrawTile: texels U..U+UL (a negative UL mirrors), blended by the texture's alpha. */
+	static void DrawCanvasTile(UCanvas* Canvas, class UTexture2D* Tex, float X, float Y, float W, float H, float U, float V, float UL, float VL, const FLinearColor& Colour);
+	/** A 256 px quarter picture mirrored four ways around the centre, MW x MH each, and its
+	 *  texel (8, 8) over the rest of the screen. Inset 1 for ScopeMask (254 texels). */
+	static void DrawScopeQuarters(UCanvas* Canvas, class UTexture2D* Tex, float MW, float MH, float Inset, const FLinearColor& Colour);
+	/** The zoom dot left of the scope with "x4.0" in it, the dot in Colour. */
+	void DrawZoomReadout(UCanvas* Canvas, float Scale, const FLinearColor& Colour) const;
+	/** RageWeapon.DrawScopeMask: the dark rim, MW x MH quarters. */
+	static void DrawScopeMask(UCanvas* Canvas, float MW, float MH);
+	/** The owner's MF team colour: team 1 red, everyone else blue. */
+	bool IsOwnerRed() const;
 	/** The muzzle flash is showing (first person, for the HUD). */
 	bool IsMuzzleFlashing() const;
 
 	/** Extra status line for the HUD (e.g. rifle power). */
 	virtual FString GetHUDStatus() const;
+	/** MF RageWeapon.PowerBarLevel (DrawPowerGuage): the shot or throw power being wound up, whole
+	 *  steps, 0 for none. The HUD fills its power bar 13 px a step (RageHUD.DrawPowerBar). */
+	virtual int32 GetPowerLevel() const { return 0; }
+	/** What the power is, for the text HUD without the bar: "POWER 4" or "THROW 4". */
+	virtual bool IsPowerAThrow() const { return true; }
 
 protected:
 	UPROPERTY(Transient, Replicated)
@@ -487,6 +508,11 @@ protected:
 	void MulticastImpactFX(FVector_NetQuantize At, FVector_NetQuantizeNormal Normal, bool bFlesh);
 	bool bImpactSoundSent = false;
 	bool bFleshSoundSent = false;
+	/** A shot's further wall hits (pellets), sent at the end of TraceFire in one multicast. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastWallHits(const TArray<FVector_NetQuantize>& At, const TArray<FVector_NetQuantizeNormal>& Normal);
+	TArray<FVector_NetQuantize> WallHits;
+	TArray<FVector_NetQuantizeNormal> WallNormals;
 	/** Bullet impacts on walls (RageEffect.AddWallHit: ricochet, puff); the knife has none. */
 	bool bWallImpactFX = true;
 

@@ -107,6 +107,18 @@ protected:
 	void DrawEmptyMF(int32 Blocks, float X, float Y);
 	void DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC);
 	void DrawHealthMF(ADFCharacter* C);
+	/** RageHUD.DrawPowerBar: the power being wound up (shot, throw) as a bar above the item strip.
+	 *  False without the Classic pack's pictures (the status text says it then). */
+	bool DrawPowerBarMF(const ADFCharacter* C);
+	/** RageHUD / RageTeamHUD.DrawIdentifyInfo: the name of the player in your sights (2000 uu),
+	 *  fading over 3 s; a teammate's with their health ("Name[100]"). */
+	void DrawIdentifyMF(const ADFCharacter* C);
+	/** RageHUD.DrawMOTD: for about 11 s after joining, fading - the server's name, "Map:" and
+	 *  "Author:", then its message of the day (online only; the map lines always). */
+	void DrawMOTDMF(const class ADFGameState* GS);
+	float MOTDStart = -1.f;
+	TWeakObjectPtr<class ADFPlayerState> IdentifyTarget;
+	float IdentifyTime = -100.f;
 	void DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC);
 	/** Where each loadout item was drawn last (screen pixels -> its index): taps pick them. */
 	TArray<TPair<FBox2D, int32>> LoadoutHits;

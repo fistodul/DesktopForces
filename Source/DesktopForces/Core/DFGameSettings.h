@@ -176,6 +176,10 @@ public:
 	/** This server's name in server lists. */
 	UPROPERTY(Config, EditAnywhere, Category = "Server")
 	FString ServerName = TEXT("Desktop Forces server");
+	/** Lines shown to players for the first seconds after they join, under the server's name and
+	 *  the map's (MF GameReplicationInfo.MOTDLine1-4; any number here). */
+	UPROPERTY(Config, EditAnywhere, Category = "Server")
+	TArray<FString> MessageOfTheDay;
 	/** Master servers to announce to: host:beacon port (333networks MasterServer, UDP 27900). */
 	UPROPERTY(Config, EditAnywhere, Category = "Server")
 	TArray<FString> MasterServers;

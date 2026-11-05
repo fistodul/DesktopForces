@@ -89,8 +89,8 @@ void AGrenades::Throw(bool bAlt, float Power) {
 		PlayFireEffects(bAlt);
 }
 
-FString AGrenades::GetHUDStatus() const {
-	return bWinding ? FString::Printf(TEXT("THROW %d"), FMath::FloorToInt(GetThrowPower())) : FString();
+int32 AGrenades::GetPowerLevel() const {
+	return bWinding ? FMath::FloorToInt(GetThrowPower()) : 0;
 }
 
 #undef LOCTEXT_NAMESPACE

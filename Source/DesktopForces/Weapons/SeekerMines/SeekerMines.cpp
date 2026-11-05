@@ -77,7 +77,9 @@ void ASeekerMine::InitPlacer(ADFCharacter* Placer) {
 void ASeekerMine::BeginPlay() {
 	Super::BeginPlay();
 	BaseSpeed = Movement->MaxSpeed;
-	if (GetNetMode() != NM_DedicatedServer) {
+	// SeekerMine: LodMesh'SeekerMines.Drone_Air' (Marcin's model, fistodul's textures); the
+	// team-tinted ball without the MF-mods content
+	if (!DF::ApplyPropMesh(Mesh, TEXT("SeekerMines/Drone_Air")) && GetNetMode() != NM_DedicatedServer) {
 		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
 			Mesh->SetMaterial(0, M);
 	}
@@ -111,8 +113,15 @@ ADFCharacter* ASeekerMine::FindBestTarget() const {
 
 void ASeekerMine::MoveTo(AActor* Goal, float Acceptance, float SpeedScale) {
 	Movement->MaxSpeed = BaseSpeed * SpeedScale;
-	if (AAIController* AI = Cast<AAIController>(GetController()))
-		AI->MoveToActor(Goal, Acceptance, true, true, true, nullptr, true);
+	AAIController* AI = Cast<AAIController>(GetController());
+	if (!AI)
+		return;
+	// Hunting: actorReachable -> MoveToward straight through the air, else FindPathToward (the
+	// navmesh here; a hovering drone off it used to find no path and sit still)
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFSeekerSight), false, this);
+	Params.AddIgnoredActor(Goal);
+	const bool bClear = !GetWorld()->SweepTestByChannel(GetActorLocation(), Goal->GetActorLocation(), FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(Collision->GetScaledSphereRadius()), Params);
+	AI->MoveToActor(Goal, Acceptance, true, !bClear, true, nullptr, true);
 }
 
 void ASeekerMine::Think() {
@@ -199,6 +208,7 @@ ASeekerMineThrown::ASeekerMineThrown() {
 	bExplodeOnImpact = true;
 	FuseTime = 0.5f; // SetTimer(0.5) -> DeployMine
 	Damage = 0.f;
+	PropMesh = TEXT("SeekerMines/Drone_Air");
 }
 
 void ASeekerMineThrown::Explode(const FVector& Location, const FVector& Normal) {

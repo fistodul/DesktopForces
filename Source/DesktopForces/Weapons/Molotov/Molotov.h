@@ -26,8 +26,14 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	TWeakObjectPtr<AController> Shooter;
 	void Burn();
+	/** MolotovFire.Tick: the flames (MolotovFire effect) and a crackle every 0.2 s, where it's seen. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UParticleSystemComponent> Flames;
+	void Crackle();
+	FTimerHandle CrackleTimer;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Molotov")
 	float BurnDuration = 6.9f; // + rand(0..1)

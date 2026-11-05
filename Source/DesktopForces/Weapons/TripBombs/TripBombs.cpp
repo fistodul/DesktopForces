@@ -5,6 +5,7 @@
 #include "Player/DFCharacterMovement.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/DFCharacter.h"
+#include "Player/DFSoldierAnimInstance.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
@@ -39,86 +40,166 @@ ATripBombs::ATripBombs() {
 }
 
 float ATripBombs::GetThrowPower() const {
-	// MF: ThrowPower += Delta * 5 (max 10); +3 if released under 3
-	float P = FMath::Min(10.f, 5.f * float(GetWorld()->GetTimeSeconds() - WindUpStart));
+	// MF: ThrowPower += Delta * 5 (max 10) from the end of SlideBack; +3 if released under 3
+	float P = FMath::Clamp(5.f * float(GetWorld()->GetTimeSeconds() - WindUpStart), 0.f, 10.f);
 	return P < 3.f ? P + 3.f : P;
 }
 
+void ATripBombs::PlayArms(FName Name, float Duration) {
+	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr) {
+		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false), 0.1f);
+		Anim->PlayFitted(Name, Duration, 0.05f);
+	}
+}
+
+void ATripBombs::BusyFor(float Seconds, void (ATripBombs::*Then)()) {
+	// a step of NormalFire / AltFiring: the weapon stays Firing until the last one Finish()es
+	State = EDFWeaponState::Firing;
+	ClearStateTimer();
+	GetWorldTimerManager().SetTimer(StepTimer, this, Then, FMath::Max(Seconds, 0.01f), false);
+}
+
 void ATripBombs::StartFire(bool bAlt) {
-	if (State != EDFWeaponState::Idle || !HasAmmoInClip())
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (State != EDFWeaponState::Idle || !HasAmmoInClip() || !C || !C->IsAlive() || C->IsInLoadout())
 		return;
 	if (bAlt) {
-		bWinding = true;
-		WindUpStart = GetWorld()->GetTimeSeconds();
-		SetAmbientMFSound(TEXT("WeaponSFX_TripBombs.Powering")); // PlayAltFiringAnim: SlideBack
+		BeginWindUp();
 		return;
 	}
 	if (GetLocalRole() < ROLE_Authority)
-		ServerUse(false, 0.f);
-	Use(false, 0.f);
+		ServerPlace();
+	BeginPlace();
 }
 
 void ATripBombs::StopFire(bool bAlt) {
 	if (!bAlt || !bWinding)
 		return;
+	bReleased = true;
+	if (GetWorld()->GetTimeSeconds() >= WindUpStart) // the hand is back: throw now, else at SlideBack's end
+		Throw();
+}
+
+void ATripBombs::ServerPlace_Implementation() {
+	if (State == EDFWeaponState::Idle && HasAmmoInClip())
+		BeginPlace();
+}
+
+void ATripBombs::BeginPlace() {
+	// TripBombs.Fire -> NormalFire: PlayFiringAnim PlaceForward (rate 0.9), and only at its end
+	// (AnimEnd) TryAndStick: the reach forward is the test of whether there is a wall to take it
+	PlayArms(TEXT("PlaceForward"), PlaceTime);
+	BusyFor(PlaceTime, &ATripBombs::EndPlace);
+}
+
+void ATripBombs::EndPlace() {
+	bool bStuck;
+	if (HasAuthority()) {
+		bStuck = CanPlace() && TryPlant();
+		if (bStuck) {
+			UseAmmo();
+			++BurstCounter;
+		}
+	} else {
+		bStuck = CanPlant(); // ClientFinish: the same test, the server's bomb follows
+		if (bStuck)
+			UseAmmo();
+	}
+	// PlayTripBombPlant (PlaceBack + Plant) / PlayTripBombFailToPlant (PlaceBombDown + PlantFail)
+	if (IsLocallyControlled()) {
+		PlayArms(bStuck ? TEXT("PlaceBack") : TEXT("PlaceBombDown"), PlaceBackTime);
+		PlayMFSound(bStuck ? TEXT("WeaponSFX_TripBombs.Plant") : TEXT("WeaponSFX_TripBombs.PlantFail"));
+	}
+	BusyFor(PlaceBackTime, &ATripBombs::Done);
+}
+
+void ATripBombs::BeginWindUp() {
+	// AltFire -> AltFiring: PlayAltFiringAnim SlideBack + the Powering hum; the throw charges
+	// once the hand is back (FinishAnim, then Tick)
+	bWinding = true;
+	bReleased = false;
+	WindUpStart = GetWorld()->GetTimeSeconds() + SlideBackTime;
+	SetAmbientMFSound(TEXT("WeaponSFX_TripBombs.Powering"));
+	PlayArms(TEXT("SlideBack"), SlideBackTime);
+	BusyFor(SlideBackTime, &ATripBombs::WindUpReady);
+}
+
+void ATripBombs::WindUpReady() {
+	if (bReleased)
+		Throw();
+}
+
+void ATripBombs::Throw() {
+	if (!bWinding)
+		return;
 	bWinding = false;
-	SetAmbientMFSound(nullptr); // ClientThrowTripBomb
+	SetAmbientMFSound(nullptr);
 	const float Power = GetThrowPower();
 	if (GetLocalRole() < ROLE_Authority)
-		ServerUse(true, Power);
-	Use(true, Power);
-}
-
-void ATripBombs::ServerUse_Implementation(bool bAlt, float Power) {
-	Use(bAlt, FMath::Clamp(Power, 3.f, 10.f));
-}
-
-void ATripBombs::Use(bool bAlt, float Power) {
-	if (!IsSimulatingLocally() || !HasAmmoInClip() || State != EDFWeaponState::Idle)
-		return;
-	if (HasAuthority() && !CanPlace())
-		return;
-	if (!bAlt) {
-		if (HasAuthority() && !TryPlant())
-			return;
-		if (!HasAuthority()) {
-			// predict only the sound; the server decides whether the plant worked
-			PlaySoundLocal(FireSound);
-			return;
-		}
-	}
-	UseAmmo();
-	SetState(EDFWeaponState::Firing, FireTime);
-	if (HasAuthority()) {
-		++BurstCounter;
-		if (bAlt)
-			SpawnProjectile(AltProjectileClass, GetThrowSpeed(Power), true);
-	}
+		ServerThrow(Power);
+	if (HasAuthority() ? ThrowNow(Power) : true)
+		UseAmmo(); // the server's count wins if the throw was refused there
+	// ClientThrowTripBomb: SlideForward + FireSound
+	PlayArms(TEXT("SlideForward"), SlideForwardTime);
 	if (IsLocallyControlled())
-		PlayFireEffects(bAlt);
+		PlaySoundLocal(FireSound);
+	BusyFor(SlideForwardTime, &ATripBombs::Done);
+}
+
+void ATripBombs::ServerThrow_Implementation(float Power) {
+	if (HasAmmoInClip() && ThrowNow(FMath::Clamp(Power, 3.f, 10.f))) {
+		UseAmmo(); // a remote thrower's: the server's copy of the weapon goes the same way
+		BusyFor(SlideForwardTime, &ATripBombs::Done);
+	}
+}
+
+bool ATripBombs::ThrowNow(float Power) {
+	if (!CanPlace())
+		return false;
+	++BurstCounter;
+	SpawnProjectile(AltProjectileClass, GetThrowSpeed(Power), true);
+	return true;
+}
+
+void ATripBombs::Done() {
+	Finish(); // NormalFire2 / AltFiring AnimEnd
+}
+
+void ATripBombs::ForceInactive() {
+	GetWorldTimerManager().ClearTimer(StepTimer);
+	bWinding = bReleased = false;
+	SetAmbientMFSound(nullptr);
+	Super::ForceInactive();
+}
+
+bool ATripBombs::CanPlant() const {
+	// ClientTestForStick / TryAndStick's test: a wall 50 uu ahead, and for the laser a surface
+	// within MaxLaserDistance across from it
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (!C)
+		return false;
+	const FVector Start = GetFireStart();
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFPlant), false, C);
+	FHitResult Wall, Opposite;
+	if (!GetWorld()->LineTraceSingleByChannel(Wall, Start, Start + GetAimRotation().Vector() * PlaceReach, ECC_Visibility, Params) || Cast<APawn>(Wall.GetActor()))
+		return false;
+	const FVector BombLoc = Wall.ImpactPoint + Wall.ImpactNormal * 6.f;
+	return !bNeedLaserTarget || GetWorld()->LineTraceSingleByChannel(Opposite, BombLoc, BombLoc + Wall.ImpactNormal * MaxLaserDistance, ECC_Visibility, Params);
 }
 
 bool ATripBombs::TryPlant() {
 	ADFCharacter* C = GetOwnerCharacter();
-	if (!C)
+	if (!C || !CanPlant())
 		return false;
-	// MF: trace 50 uu ahead; the laser must hit something within MaxLaserDistance
-	const FVector Start = GetFireStart();
-	const FVector Dir = GetAimRotation().Vector();
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFPlant), false, C);
-	FHitResult Wall, Opposite;
-	if (!GetWorld()->LineTraceSingleByChannel(Wall, Start, Start + Dir * PlaceReach, ECC_Visibility, Params))
-		return false;
-	const FVector BombLoc = Wall.ImpactPoint + Wall.ImpactNormal * 6.f;
-	if (bNeedLaserTarget && !GetWorld()->LineTraceSingleByChannel(Opposite, BombLoc, BombLoc + Wall.ImpactNormal * MaxLaserDistance, ECC_Visibility, Params)) {
-		DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("WeaponSFX_TripBombs.PlantFail")), BombLoc);
-		return false; // too far for the laser to work reliably
-	}
+	FHitResult Wall;
+	const FVector Start = GetFireStart();
+	GetWorld()->LineTraceSingleByChannel(Wall, Start, Start + GetAimRotation().Vector() * PlaceReach, ECC_Visibility, Params);
 	FActorSpawnParameters SP;
 	SP.Owner = C;
 	SP.Instigator = C;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	if (ATripBomb* Bomb = GetWorld()->SpawnActor<ATripBomb>(BombClass ? *BombClass : ATripBomb::StaticClass(), BombLoc, Wall.ImpactNormal.Rotation(), SP)) {
+	if (ATripBomb* Bomb = GetWorld()->SpawnActor<ATripBomb>(BombClass ? *BombClass : ATripBomb::StaticClass(), Wall.ImpactPoint + Wall.ImpactNormal * 6.f, Wall.ImpactNormal.Rotation(), SP)) {
 		Bomb->MaxLaserDistance = MaxLaserDistance;
 		Bomb->Team = C->GetTeam();
 		return true;
@@ -126,8 +207,8 @@ bool ATripBombs::TryPlant() {
 	return false;
 }
 
-FString ATripBombs::GetHUDStatus() const {
-	return bWinding ? FString::Printf(TEXT("THROW %d"), FMath::FloorToInt(GetThrowPower())) : FString();
+int32 ATripBombs::GetPowerLevel() const {
+	return bWinding ? FMath::FloorToInt(GetThrowPower()) : 0;
 }
 
 #undef LOCTEXT_NAMESPACE

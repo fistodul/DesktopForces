@@ -42,7 +42,8 @@ AMachineGun::AMachineGun() {
 	FlashY = 0.11f; // RageWeapons defaults
 	FlashO = -0.03f;
 	FlashS = -30.f;
-	FlashYZoom = 0.3f;
+	// MF 0.3 lands on our sighted gun's body: up at the front sight post, where the barrel ends
+	FlashYZoom = 0.09f;
 	FireSide = 4.f;
 	CasingMesh = TEXT("RageWeapons/MachineGunBullet"); // EjectBrass
 	CasingScale = 0.7f; // RageWeapons TracerEvery

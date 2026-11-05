@@ -168,6 +168,8 @@ public:
 
 	/** Weapon being switched to (current one still putting down), else null. */
 	ADFWeapon* GetPendingWeapon() const { return PendingWeapon; }
+	/** What the player picked last: the one coming up, else the one in hand. */
+	ADFWeapon* SelectedWeapon() const { return PendingWeapon ? PendingWeapon.Get() : CurrentWeapon.Get(); }
 	void SelectInventoryGroup(int32 Group);
 	void CycleWeapon(int32 Direction);
 	/** Pick the best weapon to hold (after the current one ran dry / was dropped). */

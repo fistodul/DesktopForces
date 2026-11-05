@@ -1385,8 +1385,11 @@ void ADFPlayerController::DFLoadoutPick(int32 Index) {
 	}
 }
 
-void ADFPlayerController::DFLoadout() {
-	OnLoadout();
+void ADFPlayerController::DFLoadout(int32 Open) {
+	// no argument toggles; 0 / 1 leave or enter it only if needed (spawns differ in starting there)
+	const ADFCharacter* C = Cast<ADFCharacter>(GetPawn());
+	if (Open < 0 || !C || C->IsInLoadout() != (Open != 0))
+		OnLoadout();
 }
 
 void ADFPlayerController::DFSelect(int32 Group) {

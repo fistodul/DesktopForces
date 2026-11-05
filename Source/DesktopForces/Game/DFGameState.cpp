@@ -6,9 +6,19 @@
 #include "Game/DFPlayerState.h"
 #include "Net/UnrealNetwork.h"
 
+void ADFGameState::BeginPlay() {
+	Super::BeginPlay();
+	if (HasAuthority()) {
+		ServerName = UDFGameSettings::Get().ServerName;
+		MessageOfTheDay = UDFGameSettings::Get().MessageOfTheDay;
+	}
+}
+
 void ADFGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFGameState, NumTeams);
+	DOREPLIFETIME(ADFGameState, ServerName);
+	DOREPLIFETIME(ADFGameState, MessageOfTheDay);
 	DOREPLIFETIME(ADFGameState, VoteText);
 	DOREPLIFETIME(ADFGameState, VoteYes);
 	DOREPLIFETIME(ADFGameState, VoteNo);

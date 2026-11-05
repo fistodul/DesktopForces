@@ -125,4 +125,12 @@ public:
 	int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }
 
 	TArray<ADFPlayerState*> GetSortedPlayers() const;
+
+	/** The server's name and message of the day (DFGameSettings), for the HUD's welcome. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	FString ServerName;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "DF")
+	TArray<FString> MessageOfTheDay;
+
+	virtual void BeginPlay() override;
 };

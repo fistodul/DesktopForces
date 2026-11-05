@@ -271,6 +271,8 @@ bool ADFGameMode::PlayerCanRestart_Implementation(APlayerController* Player) {
 void ADFGameMode::RestartPlayer(AController* NewPlayer) {
 	RespawnTimers.Remove(NewPlayer);
 	Super::RestartPlayer(NewPlayer);
+	if (const APawn* P = NewPlayer ? NewPlayer->GetPawn() : nullptr)
+		UE_LOG(LogDF, Verbose, TEXT("%s spawned at %s (%s)"), *GetNameSafe(NewPlayer->PlayerState), *P->GetActorLocation().ToCompactString(), *GetNameSafe(LastStartSpot.Get()));
 	if (NewPlayer && !NewPlayer->GetPawn() && NewPlayer->PlayerState && !NewPlayer->PlayerState->IsSpectator()) {
 		// no start had room (bots added in a crowd fill the spawn room): try again in a moment
 		// rather than leaving them on the scoreboard without a body

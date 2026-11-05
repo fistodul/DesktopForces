@@ -1,7 +1,10 @@
 #include "Weapons/Molotov/Molotov.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/OverlapResult.h"
+#include "Core/DFContent.h"
 #include "Engine/World.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 #define LOCTEXT_NAMESPACE "Molotov"
@@ -32,9 +35,29 @@ void AMolotovFire::BeginPlay() {
 	Super::BeginPlay();
 	Shooter = GetInstigatorController(); // the thrower may die in the flames' lifetime
 	SetLifeSpan(BurnDuration + FMath::FRand());
-	if (HasAuthority())
+	if (HasAuthority()) {
+		// PHYS_Falling: a bottle that broke on a wall burns on the floor below it
+		FHitResult Floor;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFMolotovFloor), false, this);
+		if (GetWorld()->LineTraceSingleByChannel(Floor, GetActorLocation(), GetActorLocation() - FVector(0.f, 0.f, 4000.f), ECC_Visibility, Params))
+			SetActorLocation(Floor.ImpactPoint + FVector(0.f, 0.f, 18.f)); // CollisionHeight 8 uu
 		GetWorldTimerManager().SetTimer(BurnTimer, this, &AMolotovFire::Burn, 0.1f, true);
-	// TODO: flame particles (Niagara) + crackle loop once effects are converted
+	}
+	if (GetNetMode() != NM_DedicatedServer) {
+		Flames = DF::SpawnEffectAttached(TEXT("MolotovFire"), GetRootComponent());
+		GetWorldTimerManager().SetTimer(CrackleTimer, this, &AMolotovFire::Crackle, 0.2f, true);
+	}
+}
+
+void AMolotovFire::Crackle() {
+	// PlaySound(Sound'MiscSFX.HitRubber',, 0.5,,, 2.0)
+	DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/HitRubber")), GetActorLocation(), 0.5f, 1600.f, 2.f);
+}
+
+void AMolotovFire::EndPlay(const EEndPlayReason::Type Reason) {
+	DF::StopEffect(Flames); // pooled: its flames finish, it stops making more
+	Flames = nullptr;
+	Super::EndPlay(Reason);
 }
 
 void AMolotovFire::Burn() {

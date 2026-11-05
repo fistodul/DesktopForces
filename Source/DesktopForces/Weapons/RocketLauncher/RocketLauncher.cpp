@@ -10,7 +10,9 @@
 #include "Player/DFCharacterMovement.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/DFCharacter.h"
+#include "Engine/Canvas.h"
 #include "Engine/DamageEvents.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
@@ -64,8 +66,29 @@ int32 ARocketLauncher::GetCarrySize(const UObject* WorldContext) const {
 	return IsImproved(WorldContext ? WorldContext : this) ? 3 : CarrySize; // improvedRL CarrySize 3
 }
 
+bool ARocketLauncher::DrawHUD(UCanvas* Canvas) {
+	UTexture2D* Aim = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/RocketLauncherAim"));
+	if (!Canvas || !IsScopeRaised() || !Aim)
+		return false; // no Classic pack: the plain scope
+	const bool bRed = IsOwnerRed();
+	const FLinearColor Team = bRed ? FLinearColor(1.f, 0.f, 0.f) : FLinearColor(0.f, 0.f, 1.f);
+	const float Scale = ScopeScale(Canvas), CX = Canvas->ClipX * 0.5f, CY = Canvas->ClipY * 0.5f, M = 255.f * Scale;
+	DrawScopeQuarters(Canvas, Aim, M, M, 0.f, Team);
+	DrawCanvasTile(Canvas, DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/LockTextBack")), CX - 38.5f * Scale, CY - 163.f * Scale, 77.f * Scale, 32.f * Scale, 0.f, 0.f, 77.f, 32.f, Team);
+	DrawZoomReadout(Canvas, Scale, Team);
+	DrawScopeMask(Canvas, M, M);
+	if (LockedTarget) {
+		// LOCK, alternating with its outline every 1.25 s (ZoomedIn.Timer: LockOffset)
+		const int32 Offset = int32((GetWorld()->GetTimeSeconds() - ZoomChangeTime) / 1.25f) % 2;
+		UTexture2D* Text = DF::LoadClassic<UTexture2D>(bRed ? TEXT("Textures/RageWeapons/Icons/LockTextRed") : TEXT("Textures/RageWeapons/Icons/LockTextBlue"));
+		DrawCanvasTile(Canvas, Text, CX - 28.f * Scale, CY - 154.f * Scale, 56.f * Scale, 13.f * Scale, 25.f, 7.f + Offset * 32.f, 79.f, 18.f, FLinearColor::White);
+	}
+	return true;
+}
+
 FString ARocketLauncher::GetHUDStatus() const {
-	return LockedTarget ? TEXT("LOCKED") : Super::GetHUDStatus();
+	// scoped, the lock panel shows it (DrawHUD); a scope without the Classic pack says it in words
+	return LockedTarget && !DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/LockTextBack")) ? TEXT("LOCKED") : Super::GetHUDStatus();
 }
 
 void ARocketLauncher::ToggleZoom() {

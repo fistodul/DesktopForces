@@ -16,7 +16,7 @@ public:
 	virtual bool IsMeleeWeapon() const override { return HasAmmoInClip(); } // thrown away: not any more
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
-	virtual FString GetHUDStatus() const override;
+	virtual int32 GetPowerLevel() const override;
 
 protected:
 	virtual void FireShot(bool bAlt) override;

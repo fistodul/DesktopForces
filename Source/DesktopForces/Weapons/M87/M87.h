@@ -14,4 +14,16 @@ class DESKTOPFORCES_API AM87 : public ADFWeapon {
 	GENERATED_BODY()
 public:
 	AM87();
+	virtual float GetMoveSpeedScale() const override;
+	virtual void ForceInactive() override;
+
+protected:
+	virtual bool TryFire(bool bAlt) override;
+	virtual void Finish() override;
+
+private:
+	/** State AltFiring: DefaultFOV += 1 while in it, and RagePlayer walks whenever the FOV isn't the
+	 *  default one (bIsWalking), so the quick lever shot slows you to walking pace. */
+	bool bLeverShot = false;
+	void SetLeverShot(bool bOn);
 };

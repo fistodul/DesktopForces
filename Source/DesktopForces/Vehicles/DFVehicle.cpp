@@ -555,10 +555,18 @@ bool ADFVehicle::FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const {
 	Params.AddIgnoredActor(C);
 	for (int32 D = 0; D <= FMath::Max(1, DoorPositions.Num()); ++D) {
 		const FVector Try = D < FMath::Max(1, DoorPositions.Num()) ? DoorExit(D) : Roof;
-		if (!GetWorld()->OverlapBlockingTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params)) { // not Any: water and other zones overlap soldiers
-			OutSpot = Try;
-			return true;
-		}
+		if (GetWorld()->OverlapBlockingTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params)) // not Any: water and other zones overlap soldiers
+			continue;
+		// on this side of the wall: a door against one put the soldier behind it, or inside
+		// a solid mesh (its collision is only the surface), and they fell out of the world
+		if (GetWorld()->LineTraceTestByChannel(GetActorLocation(), Try, ECC_Pawn, Params))
+			continue;
+		// and something to stand on (or water) below
+		const FVector Below = Try - FVector(0.f, 0.f, 3000.f);
+		if (!GetWorld()->LineTraceTestByChannel(Try, Below, ECC_Pawn, Params) && !GetWorld()->LineTraceTestByChannel(Try, Below, ECC_WorldStatic, Params))
+			continue;
+		OutSpot = Try;
+		return true;
 	}
 	return false;
 }
@@ -725,7 +733,7 @@ void ADFVehicle::LockDown() {
 // --- damage --------------------------------------------------------------------------------------
 
 float ADFVehicle::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
-	Damage *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), BoxExtent.Y);
+	Damage *= DF::RadialDamageScale(DamageEvent, Body->GetComponentTransform(), BoxExtent);
 	if (!HasAuthority() || bBlownUp || Damage <= 0.f)
 		return 0.f;
 	const UDFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UDFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
@@ -998,8 +1006,10 @@ void ADFVehicle::UpdateDamageSmoke() {
 			DamageSmoke->SetRelativeLocation(FVector(BoxExtent.X * 0.55f, 0.f, BoxExtent.Z));
 	}
 	if (DamageSmoke) {
-		DamageSmoke->SetFloatParameter(TEXT("SmokeRate"), FMath::Lerp(2.f, 16.f, DamageFraction));
-		DamageSmoke->SetFloatParameter(TEXT("SmokeAlpha"), FMath::Lerp(0.12f, 0.9f, DamageFraction));
+		DamageSmoke->SetFloatParameter(TEXT("SmokeRate"), FMath::Lerp(2.f, 10.f, DamageFraction));
+		DamageSmoke->SetFloatParameter(TEXT("SmokeAlpha"), FMath::Lerp(0.2f, 0.65f, DamageFraction));
+		// darker from a third down: a hit or two shows it, not only a wreck about to go
+		DamageSmoke->SetFloatParameter(TEXT("SmokeDark"), FMath::GetMappedRangeValueClamped(FVector2D(0.3f, 0.75f), FVector2D(0.f, 0.8f), DamageFraction));
 	}
 }
 

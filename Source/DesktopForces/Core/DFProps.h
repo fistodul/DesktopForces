@@ -16,6 +16,9 @@ namespace DF {
 	/** HurtRadius: 1 - (dist - victim's radius) / radius for a radial event, 1 for anything else.
 	 *  A TakeDamage override that doesn't use AActor's own must apply it. */
 	DESKTOPFORCES_API float RadialDamageScale(const struct FDamageEvent& Event, const FVector& VictimAt, float VictimRadius);
+	/** The same for a box (a vehicle's hull): the distance is to its surface, so a blast against
+	 *  any side does all of it, as against a soldier. */
+	DESKTOPFORCES_API float RadialDamageScale(const struct FDamageEvent& Event, const FTransform& Box, const FVector& Extent);
 	/** Light for a mesh that moves, so has no lightmap (ApplyPropMesh does this itself). */
 	DESKTOPFORCES_API void SetMovingLight(class UPrimitiveComponent* C);
 	DESKTOPFORCES_API bool ApplyPropMesh(UStaticMeshComponent* C, const TCHAR* PackageAndName, float DrawScale = 1.f, const FVector& Offset = FVector::ZeroVector);

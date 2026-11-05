@@ -16,6 +16,7 @@ AGlock::AGlock() {
 	FlashY = 0.1f;
 	FlashO = -0.018f;
 	FlashS = 0.f;
+	FlashYZoom = 1000.1f; // the mod's: off screen, no flash over its sideways aim
 	HUDIcon = TEXT("Textures/glock/Skins/glockimage");
 	HUDIconRect = FIntRect(0, 193, 120, 271); // WeaponIcon X=0 Y=193 W=120 H=78
 	DisplayName = LOCTEXT("Glock", "Glock 18");

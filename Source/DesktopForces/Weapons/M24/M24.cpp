@@ -41,7 +41,7 @@ AM24::AM24() {
 	FlashY = 0.055f;
 	FlashO = -0.0115f;
 	FlashS = 0.f;
-	FlashYZoom = 0.1f;
+	FlashYZoom = 1000.1f; // MF 0.1 sits on the aimed rifle's scope; the barrel is behind it: off screen, like the Glock mod
 	ClassicFireSound = TEXT("M24.M24Fire");
 	ClassicReloadSound = TEXT("M24.M24Reload");
 	ClassicSelectSound = TEXT("M24.M24Select");

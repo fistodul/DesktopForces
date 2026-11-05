@@ -17,12 +17,28 @@ public:
 	ATripBombs();
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
-	virtual FString GetHUDStatus() const override;
+	virtual int32 GetPowerLevel() const override;
+
+	virtual void ForceInactive() override;
 
 protected:
+	// NormalFire: PlaceForward, then the plant (or not) and PlaceBack / PlaceBombDown
 	UFUNCTION(Server, Reliable)
-	void ServerUse(bool bAlt, float Power);
-	void Use(bool bAlt, float Power);
+	void ServerPlace();
+	void BeginPlace();
+	void EndPlace();
+	// AltFiring: SlideBack, charge while held, SlideForward and the throw on release
+	UFUNCTION(Server, Reliable)
+	void ServerThrow(float Power);
+	void BeginWindUp();
+	void WindUpReady();
+	void Throw();
+	bool ThrowNow(float Power);
+	void Done();
+	void BusyFor(float Seconds, void (ATripBombs::*Then)());
+	void PlayArms(FName Name, float Duration);
+	/** A wall in reach (and, for the bomb's beam, a surface across): ClientTestForStick. */
+	bool CanPlant() const;
 	bool TryPlant();
 	/** Throw speed for a wind-up of Power (3-10): MF ThrowPower * 125 uu/s. */
 	virtual float GetThrowSpeed(float Power) const { return Power * 281.25f; }
@@ -34,8 +50,15 @@ protected:
 	/** Planting needs something within MaxLaserDistance for the beam (MF TripBombs; TripLasers don't). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	bool bNeedLaserTarget = true;
-	double WindUpStart = 0.0;
+	// the arms' sequences at MF's rates (TripBombsPlayerMesh)
+	float PlaceTime = 1.037f; // PlaceForward 0.93 s at 0.9
+	float PlaceBackTime = 0.444f; // PlaceBack / PlaceBombDown 0.4 s at 0.9
+	float SlideBackTime = 0.367f; // SlideBack 12 @30
+	float SlideForwardTime = 0.6f; // SlideForward 19 @30
+	double WindUpStart = 0.0; // when the charge starts (SlideBack's end)
 	bool bWinding = false;
+	bool bReleased = false;
+	FTimerHandle StepTimer;
 	float GetThrowPower() const;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float MaxLaserDistance = 2304.f; // MF 1024

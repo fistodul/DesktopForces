@@ -24,6 +24,15 @@ float DF::RadialDamageScale(const FDamageEvent& Event, const FVector& VictimAt, 
 	return FMath::Clamp(1.f - FMath::Max(0.f, Dist - VictimRadius) / FMath::Max(Radial.Params.OuterRadius, 1.f), 0.f, 1.f);
 }
 
+float DF::RadialDamageScale(const FDamageEvent& Event, const FTransform& Box, const FVector& Extent) {
+	if (!Event.IsOfType(FRadialDamageEvent::ClassID))
+		return 1.f;
+	const FRadialDamageEvent& Radial = static_cast<const FRadialDamageEvent&>(Event);
+	const FVector Local = Box.InverseTransformPositionNoScale(Radial.Origin);
+	const float Dist = (Local.GetAbs() - Extent).ComponentMax(FVector::ZeroVector).Size();
+	return FMath::Clamp(1.f - Dist / FMath::Max(Radial.Params.OuterRadius, 1.f), 0.f, 1.f);
+}
+
 void DF::SetMovingLight(UPrimitiveComponent* C) {
 	// nothing baked reaches a thing that moves: UE1 lit actors from where they stood, this is
 	// a flat stand-in the same on every map. One add in the material, no lightmap, no bake

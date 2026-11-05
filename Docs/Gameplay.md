@@ -87,8 +87,13 @@ and the arms move by the weapon's ZoomedInViewOffset; zooming out runs the other
 over ZoomOutTime, then the sights come down). The arms' offset is scaled by 0.9 / the current
 FOV (Inventory.CalcDrawOffset), so zoomed they move out and keep their size: with the
 ZoomedInViewOffset that is what lines the sights up with the crosshair. Scopes (bInstantZoom:
-sniper rifle, rocket launcher, WA2000) hide the arms and draw the scope mask once raised, not
-while the raising animation plays.
+sniper rifle, rocket launcher, WA2000) hide the arms and draw the scope once raised, not
+while the raising animation plays. Each draws MF's own picture (PostRender): the rifle and the
+rocket launcher a frame in the team's colour (red team red, everyone else blue), the zoom dot left
+of it with the zoom ("x4.0", DefaultFOV / FOV) and the dark rim (RageWeapon.DrawScopeMask); the
+rocket launcher adds the lock panel above, LOCK in it while locked, swapping with its outline
+every 1.25 s; the WA2000 the mod's scope picture with black beside it. MF's 640 x 480 pixels
+scale by the smaller of width / 640 and height / 480, so the scope stays round on a wide screen.
 
 ## Rules (RageDeathMatch / RageTeamGame)
 - **Hardcore mode** (default on): damage from any instigator ×1.5.
@@ -136,6 +141,11 @@ while the raising animation plays.
 ## Loadout
 - Crate trigger radius 129, height 26. DM crates only exist in non-team games, team crates
   and loadout zones only in team games.
+- A bare `LoadoutCrate` placed in a map is only that trigger (DrawType DT_None, blocks nothing);
+  the crates you see are the `LoadoutCrate_Blue/Red/DM` decorations. Converted as a solid crate
+  it lifted spawns onto it, off the navmesh (mf-Microwarehouse); now it converts hidden.
+- Bots off the navmesh (on a crate, blown onto a ledge) walk straight to the nearest mesh point
+  before roaming, since no path starts off the mesh.
 - Items (LoadoutCrate.aWeaponsInStore): Pistol, Machine Gun, Shotgun, Sniper Rifle,
   Trip Bombs, Rocket Launcher, Grenades, Adrenaline, Armour, Heavy Machine Gun.
 - Entering loadout at a crate / in a loadout zone refills ammo of everything carried.
@@ -160,7 +170,15 @@ while the raising animation plays.
   it's on **X** here, in loadout and in game. Up/Down + Fire still work.
 - HUD layout follows MF: loadout grid top left (bright = carried, dark = fits, grey = no
   room), carry strip bottom centre with each item as wide as its carry blocks plus the free
-  blocks, health/armour bottom left.
+  blocks, health/armour bottom left. Winding up a throw (grenades, M18, Molotov, trip bombs, a
+  throwing knife) or charging the sniper rifle fills the team-coloured power bar above the
+  strip (RageHUD.DrawPowerBar: a segment per power step, full at 10), in the scope too. The
+  plain HUD (no Classic pack) says it as text ("THROW 4", "POWER 4").
+- Aiming at a player (up to 2000 uu) shows their name above the strip in their team's colour,
+  fading over 3 s; a teammate's with their health, "Name[100]" (RageTeamHUD.DrawIdentifyInfo).
+- Joining shows, for about 11 s and fading, the server's name, "Map:" and "Author:" and the
+  server's message of the day (RageHUD.DrawMOTD; `ServerName`, `MessageOfTheDay` in
+  DFGameSettings, [Hosting](Hosting.md)); offline only the map lines.
 
 ## Game modes
 - **Safecracker** (`sc`, RageSafeCracker): two parts. Part 1: red (FirstAttackerIndex)
@@ -248,7 +266,7 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 | HMG | 6 | 4 | 900 × 1 | 45 | 0.6 / 1.2 | — | — | must deploy (alt, standing on the ground): then no walking, jumping or loadout until packed up (MF PHYS_Gunnery) |
 | Rocket launcher | 7 | 4 | 1 × 11 | 135, radius 400 | — | 0.79 s | 3.38 s | rocket 1200 uu/s; alt: scope 4×; scoped, the same enemy (soldier or manned vehicle) within ~22° on two 1.25 s checks locks on (beep; another beep when it's lost) and the next rocket steers at it while it's ahead (SmartRocket) |
 | Grenades | 8 | 1 (max 3) | 3 | 160 r400 (timed 3 s) / 120 impact | — | 0.333 s | — | throw power 1.5–10 (+8/s), speed power × 150 uu/s, +210 up |
-| Trip bombs | 9 | 1 (max 3) | 2 | — | — | — | — | laser 1024 uu; alt: proximity mine (TODO) |
+| Trip bombs | 9 | 1 (max 3) | 2 | — | — | 1.04 + 0.44 s | — | laser 1024 uu; planted at the end of the reach (PlaceForward), which is the test for a wall: PlaceBack or PlaceBombDown after; alt: hand back (SlideBack), charge while held (+5/s, 3-10), slide it out on release, a proximity mine |
 | Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90); Zombie mode: an enemy at ≤ 100 health changes sides |
 | Armour | 11 | 1 | — | absorbs 75% | — | — | — | 100 charge; falling/drowning bypass |
 
@@ -258,9 +276,13 @@ within 400 uu in view; alt: +118 over 10 s to the team-mate you aim at; reload: 
 on yourself), **Trip Laser** (group 9, 3: beam passes team-mates, burns the first enemy 280 /
 185 into the open, max 10 out; thrown: 280 on touch), **Seeker Mine** (group 9, 1: thrown
 drone hunts the nearest enemy within 1900 uu, 320 r440, escorts you otherwise, max 3),
-**Molotov** (group 8), **Desert Eagle** (group 2: 52, head 120, 7 a clip, heavy kick), **Grenade
+**Sentry Gun** (group 11, carry 3, 2 out: placed in front on flat ground, the HMG on its tripod;
+shoots the nearest enemy in sight within 1900 uu with tracers, 20 a round, 850 rounds; your team
+in team games, only you in the others: still you after you respawn; 80 health, blows up 85 r250),
+**Molotov** (group 8: the flames burn about 7 s where the bottle broke, on the floor below it, 26 a second within 300 uu), **Desert Eagle** (group 2: 52, head 120, 7 a clip, heavy kick), **Grenade
 Launcher** (group 7, carry 4: one round a load, 6 loads; fire an impact grenade 250 in 200 uu, alt
-a cluster grenade bursting into 15 fragments of 20), **Predator Missile** (group 11, carry 2:
+a cluster grenade bursting into 15 fragments of 20 that scatter a few metres and pop at an eighth
+of an explosion's volume; a direct hit blows up a Humvee, Jeep, boat or Buggy), **Predator Missile** (group 11, carry 2:
 ready 10 s after you get it; fire launches a missile from the highest free air above you (at
 least 400 uu) and you fly it from its nose: the view steers (dive 5°–89°), Fire held boosts to
 2.5× (turns slower); 1000 damage in 1400 uu; you stand still while guiding; bots aim it at the
@@ -287,8 +309,8 @@ community pack and the guns are only offered where it's installed; `Weapons/<Nam
 | Desert Eagle | 2 | 1 | 12 × 5 | 25 (70) | 0.22 / 0.05 | 0.3 / 0.231 s | 2.68 s | aim 1.5× |
 | M24 | 5 | 3 | 8 × 6 | 80 (180) | 0.1 / 0.05 | 1.65 / 1.86 s | 3.18 s | bolt action, aim 2× |
 | WA 2000 | 5 | 3 | 6 × 5 | 60 (head: dead) | 0.3 / 0 | 0.61 / 0.56 s | 3.68 s | scope 6× (MF 3×–30×) |
-| M1887 | 4 | 3 | 8 × 8 | 12 pellets × 14 (28) | 1.3 / 0.7 | 1.19 s | 2.25 s | lever-action "long shotgun" |
-| M18 smoke | 8 | 1 | 3 | — | — | 0.333 s | — | a grenade that pours dense smoke for 15 s where its fuse runs out |
+| M1887 | 4 | 3 | 8 × 8 | 12 pellets × 14 (28) | 1.3 / 0.7 | 1.19 / 0.88 s | 2.25 s | lever-action "long shotgun"; alt is the quick lever shot, walking pace while it lasts (its DefaultFOV nudge sets RagePlayer's bIsWalking) |
+| M18 smoke | 8 | 1 | 3 | — | — | 0.333 s | — | a grenade that pours dense smoke for 15 s where its fuse runs out (grey and screening here; the mod's was a glowing additive cloud) |
 
 Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(rand−0.5)×1000·Z
 + MaxTraceDistance (10000)·X.
@@ -352,15 +374,18 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   create sideways thrust.
 - Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
   there and the vehicle blows up. A small target: aim at the tank.
-- Damage smoke grows denser and darker as health falls. It uses a bounded local emitter;
-  replicated health drives its rate and opacity on each client.
+- Damage smoke grows denser and darker as health falls: see-through grey at first (2 puffs a
+  second), up to 10 a second and a darker core from a third of the health gone, mild throughout
+  (compared with a recording of the game). It uses a bounded local emitter; replicated health
+  drives its rate and opacity on each client.
 - Blowing up (EffectsFix.VehExplosion -> RageEffects.VehicleExplosion): a fireball of smoke and
   flames, 2-4 fires on the ground around it, and 16 chunks (RageEffects.VehicleFrag carfrag01-09)
   that spin, bounce with half their speed and clank (FragHit1-3), then lie there 10-17 s; up to
   4 of them burn (ExplosionFire: flames and smoke for 4.5 s, VehicleBurnLoop). A blown tyre puffs
   smoke (SmokePuffVeh). Tyres landing hard thump
   (Wheel.HitWall, HitWheel); bumping into things clunks (Bump1-4).
-- Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical); MF ignores bullets,
+- Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical), falling off with the
+  distance from the hull's surface (a blast against the nose does as much as one against the doors); MF ignores bullets,
   pellets and knives, but the community servers ran mutPack's **changeDamage**, the rules
   here: bullets / pellets x 0.125 x (1 - Armour) (10 / 80
   against 8000 health), knives nothing, bots do a fifth to vehicles and to players riding in
