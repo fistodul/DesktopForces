@@ -9,6 +9,7 @@
 #include "AI/DFNavigationSystem.h"
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
+#include "Algo/AnyOf.h"
 #include "Detour/DetourNavMesh.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
@@ -137,6 +138,41 @@ namespace {
 			Cfg->NavigationSystemClass = FSoftClassPath(TEXT("/Script/DesktopForces.DFNavigationSystem"));
 	}
 
+	/** The navmesh volume is sized from the rendered world geometry: starts past it, on props
+	 *  (mf-BraveDwarfes' tree houses) or beyond it (MF-BloodWarzV1), got no navmesh. Grows it
+	 *  round every start and over the solid meshes there (not every far-off backdrop: the tile
+	 *  pool grows with the volume); the volume, or nullptr if none. */
+	ANavMeshBoundsVolume* FitNavBounds(UWorld* World) {
+		TActorIterator<ANavMeshBoundsVolume> Vol(World);
+		if (!Vol)
+			return nullptr;
+		// from the rendered world chunks each time, as BuildMap sizes it (+2 m), so a rebuild
+		// doesn't keep an earlier growth
+		FBox Geometry(ForceInit);
+		for (TActorIterator<AStaticMeshActor> It(World); It; ++It)
+			if (It->GetActorLabel().StartsWith(TEXT("World_")))
+				Geometry += It->GetComponentsBoundingBox(true); // drawn only: no collision
+		const FBox Old = Geometry.IsValid ? Geometry.ExpandBy(200.f) : Vol->GetComponentsBoundingBox(true);
+		const FBox Current = Vol->GetComponentsBoundingBox(true);
+		FBox Box = Old;
+		TArray<FBox> Starts;
+		for (TActorIterator<APlayerStart> It(World); It; ++It)
+			if (!Old.IsInside(It->GetActorLocation()))
+				Box += Starts.Add_GetRef(FBox::BuildAABB(It->GetActorLocation(), FVector(600.f)));
+		for (TActorIterator<AActor> It(World); It && Starts.Num(); ++It) {
+			TInlineComponentArray<UStaticMeshComponent*> Meshes(*It);
+			for (const UStaticMeshComponent* C : Meshes)
+				if (C->IsRegistered() && C->IsCollisionEnabled() && C->CanEverAffectNavigation() && Algo::AnyOf(Starts, [&](const FBox& S) { return S.Intersect(C->Bounds.GetBox()); }))
+					Box += C->Bounds.GetBox();
+		}
+		if (Box.Min.Equals(Current.Min, 1.f) && Box.Max.Equals(Current.Max, 1.f))
+			return *Vol;
+		Vol->SetActorLocation(Box.GetCenter());
+		MakeBoxBrush(World, *Vol, Box.GetExtent());
+		UE_LOG(LogDFEditor, Display, TEXT("Navmesh bounds %s - %s (world %s - %s)"), *Box.Min.ToCompactString(), *Box.Max.ToCompactString(), *Old.Min.ToCompactString(), *Old.Max.ToCompactString());
+		return *Vol;
+	}
+
 	/** Bake the navmesh into the level (bots need no runtime rebuild; mobile-friendly). */
 	void BuildNavigation(UWorld* World) {
 		UseMFNavigation(World);
@@ -148,6 +184,8 @@ namespace {
 		}
 		// Editor worlds start locked (AsyncLoadLock / InitialLock) - this world is complete
 		Nav->RemoveNavigationBuildLock(ENavigationBuildLock::AsyncLoadLock | ENavigationBuildLock::InitialLock, UNavigationSystemV1::ELockRemovalRebuildAction::NoRebuild);
+		if (ANavMeshBoundsVolume* Bounds = FitNavBounds(World))
+			Nav->OnNavigationBoundsUpdated(Bounds);
 		if (UDFNavigationSystem* DFNav = Cast<UDFNavigationSystem>(Nav))
 			DFNav->GatherLevelGeometry();
 		// a map loaded from disk registered its geometry before this navigation system existed:
@@ -174,10 +212,11 @@ namespace {
 			Nav->Build();
 		}
 		int32 Starts = 0, OnMesh = 0;
+		// 7 m down: some starts hang in the air on purpose (MF-TheTubesV3 drops you 5 m)
 		for (TActorIterator<APlayerStart> It(World); It; ++It) {
 			FNavLocation L;
 			++Starts;
-			OnMesh += Nav->ProjectPointToNavigation(It->GetActorLocation(), L, FVector(100.f, 100.f, 250.f)) ? 1 : 0;
+			OnMesh += Nav->ProjectPointToNavigation(It->GetActorLocation(), L, FVector(100.f, 100.f, 700.f)) ? 1 : 0;
 		}
 		for (TActorIterator<ARecastNavMesh> It(World); It; ++It) {
 			// tiles built / the pool (tiles over the bounds x AverageLayersPerTile, DefaultEngine.ini)
@@ -673,7 +712,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 	return bSaved;
 }
 
-bool FDFImporter::PatchMapData(const FString& MapName) {
+bool FDFImporter::PatchMapData(const FString& MapName, bool bRebuildNav) {
 	// zone actors (water / pain / current volumes, loadout zones, captain boxes), the road
 	// graph and the vehicle generators into an already built (and baked) map: they don't touch
 	// the lighting, so no rebuild
@@ -705,7 +744,7 @@ bool FDFImporter::PatchMapData(const FString& MapName) {
 	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Editor);
 	Context.SetCurrentWorld(World);
 	int32 Removed = 0, Added = 0;
-	bool bNavChanged = false;
+	bool bNavChanged = bRebuildNav;
 	for (TActorIterator<AActor> It(World); It; ++It) {
 		if (It->IsA<ADFZoneVolume>() || It->IsA<ALoadoutZone>() || It->IsA<ADFZoneBox>() || It->IsA<ADFRoadNetwork>() || It->IsA<ATeleporter>() || It->IsA<ADFPeriodicSound>() || It->IsA<ADFPickupSpot>() || It->IsA<ADFMover>() || It->IsA<ALoadoutBlocker>() || It->IsA<ADFBotSpot>() || It->ActorHasTag(ParticleEffectTag) || (It->IsA<ADFLegacyActor>() && IsVehicleGenerator(Cast<ADFLegacyActor>(*It)->MFClass.ToString()))) {
 			World->EditorDestroyActor(*It, true);

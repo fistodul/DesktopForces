@@ -141,8 +141,9 @@ public:
 	/** Small blockout map from engine shapes only (no MF assets): /Game/MF/Maps/MF_TestRange. */
 	bool BuildTestMap();
 	/** Zone actors (water / pain / current, loadout zones, captain boxes) and the road graph
-	 *  into a built map, in place (no rebuild, keeps the bake). */
-	bool PatchMapData(const FString& MapName);
+	 *  into a built map, in place (no rebuild, keeps the bake). bRebuildNav: build the navmesh
+	 *  again even if none of those changed (`--steps navmesh`, after a collision change). */
+	bool PatchMapData(const FString& MapName, bool bRebuildNav = false);
 
 	/** Material for an mfport material key "package.group.texture|mode". Created on demand. */
 	UMaterialInterface* GetMaterial(const FString& Key);

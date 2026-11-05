@@ -155,6 +155,11 @@ public:
 	UFUNCTION(Exec)
 	void DFNavTest();
 
+	/** Log every player start off the navmesh: the nearest mesh, ceiling, floor, what overlaps a
+	 *  soldier standing there, the nearest loadout crate. */
+	UFUNCTION(Exec)
+	void DFStartProbe();
+
 	/**
 	 * Orthographic top-down view centred at X,Y covering Width cm (0 = back to the pawn),
 	 * camera at height Z (0 = high above the map). A camera under the roofs cuts them away,

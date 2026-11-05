@@ -4,6 +4,7 @@
 #include "Weapons/DFWeapon.h"
 #include "Core/DFGameSettings.h"
 #include "Components/BoxComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -69,7 +70,11 @@ ALoadoutCrate::ALoadoutCrate() {
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(Trigger);
-	Mesh->SetCollisionProfileName(TEXT("BlockAll"));
+	// MF LoadoutCrate_Blue / _Red / _DM: bCollideActors (touch) only, no bBlockPlayers,
+	// bBlockActors or bProjTarget: soldiers, vehicles and shots pass through. Solid, a start
+	// beside one spawned you on top of it, and the navmesh had a hole there
+	Mesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	Mesh->SetCanEverAffectNavigation(false);
 	Mesh->SetMobility(EComponentMobility::Static);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (Cube.Succeeded()) {
@@ -113,10 +118,8 @@ void ALoadoutCrate::PostEditChangeProperty(FPropertyChangedEvent& Event) {
 #endif
 
 void ALoadoutCrate::UpdateLook() {
-	if (Mesh) {
+	if (Mesh)
 		Mesh->SetVisibility(IsVisibleCrate());
-		Mesh->SetCollisionEnabled(IsVisibleCrate() ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
-	}
 	// our crate (M_MF_Crate: generated wood, stencil in the team colour); flat team tint without it
 	if (!Mesh || !Mesh->GetStaticMesh())
 		return;

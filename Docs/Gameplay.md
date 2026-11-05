@@ -144,6 +144,9 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
 - A bare `LoadoutCrate` placed in a map is only that trigger (DrawType DT_None, blocks nothing);
   the crates you see are the `LoadoutCrate_Blue/Red/DM` decorations. Converted as a solid crate
   it lifted spawns onto it, off the navmesh (mf-Microwarehouse); now it converts hidden.
+- The crates you see block nothing either (MF decorations with bCollideActors only, no
+  bBlockPlayers / bBlockActors / bProjTarget): soldiers, vehicles and shots pass through, and
+  they leave no hole in the navmesh.
 - Bots off the navmesh (on a crate, blown onto a ledge) walk straight to the nearest mesh point
   before roaming, since no path starts off the mesh.
 - Items (LoadoutCrate.aWeaponsInStore): Pistol, Machine Gun, Shotgun, Sniper Rifle,

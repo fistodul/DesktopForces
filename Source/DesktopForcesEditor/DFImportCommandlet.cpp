@@ -65,9 +65,10 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		++Errors;
 	if (Steps.Contains(TEXT("repoint")) && !Importer.RepointMaps(MapList))
 		++Errors;
-	if (Steps.Contains(TEXT("patch")) || Steps.Contains(TEXT("zones"))) // "zones": its old name
+	// "zones": patch's old name; "navmesh": patch and build the navmesh again (keeps the bake)
+	if (Steps.Contains(TEXT("patch")) || Steps.Contains(TEXT("zones")) || Steps.Contains(TEXT("navmesh")))
 		for (const FString& Map : MapList)
-			Importer.PatchMapData(Map);
+			Importer.PatchMapData(Map, Steps.Contains(TEXT("navmesh")));
 	if (Steps.Contains(TEXT("collision")) && !Maps.IsEmpty())
 		for (const FString& Map : MapList)
 			Errors += Importer.RefreshMapCollision(Map) ? 0 : 1;

@@ -13,6 +13,8 @@
 #include "Game/Zombie/ZombieGame.h"
 #include "Game/DFGameState.h"
 #include "Game/DFPlayerState.h"
+#include "Loadout/DFLoadout.h"
+#include "Engine/OverlapResult.h"
 #include "Player/DFCharacter.h"
 #include "Player/DFCharacterMovement.h"
 #include "Player/DFPlayerController.h"
@@ -36,6 +38,44 @@
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
+
+void UDFCheatManager::DFStartProbe() {
+	UWorld* World = GetWorld();
+	const UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!Nav)
+		return;
+	int32 Starts = 0, Off = 0;
+	for (TActorIterator<APlayerStart> It(World); It; ++It) {
+		++Starts;
+		const FVector P = It->GetActorLocation();
+		FNavLocation Spot;
+		if (Nav->ProjectPointToNavigation(P, Spot, FVector(100.f, 100.f, 700.f)))
+			continue;
+		++Off;
+		FString Near = TEXT("none in 8 m");
+		if (Nav->ProjectPointToNavigation(P, Spot, FVector(800.f)))
+			Near = FString::Printf(TEXT("%.0f away, %+.0f z"), FVector::Dist2D(Spot.Location, P), Spot.Location.Z - P.Z);
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFStartProbe), false);
+		auto Trace = [&](const FVector& To) {
+			FHitResult Hit;
+			return World->LineTraceSingleByChannel(Hit, P, To, ECC_Pawn, Params) ? FString::Printf(TEXT("%.0f %s"), Hit.Distance, *GetNameSafe(Hit.GetActor())) : FString(TEXT("-"));
+		};
+		// what a soldier standing here (capsule 38.25 x 87.75) would be inside of
+		TArray<FOverlapResult> Overlaps;
+		World->OverlapMultiByChannel(Overlaps, P, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(38.25f, 87.75f), Params);
+		FString Inside;
+		for (const FOverlapResult& O : Overlaps)
+			if (O.bBlockingHit)
+				Inside += GetNameSafe(O.GetActor()) + TEXT(" ");
+		float Crate = -1.f;
+		for (TActorIterator<ALoadoutCrate> C(World); C; ++C)
+			if (Crate < 0.f || FVector::Dist(C->GetActorLocation(), P) < Crate)
+				Crate = FVector::Dist(C->GetActorLocation(), P);
+		UE_LOG(LogDF, Display, TEXT("StartProbe %s at %s: nav %s | up %s | down %s | inside %s| crate %.0f"), *It->GetName(), *P.ToCompactString(), *Near,
+			*Trace(P + FVector(0.f, 0.f, 400.f)), *Trace(P - FVector(0.f, 0.f, 1000.f)), Inside.IsEmpty() ? TEXT("- ") : *Inside, Crate);
+	}
+	UE_LOG(LogDF, Display, TEXT("StartProbe: %d / %d player starts off the navmesh"), Off, Starts);
+}
 
 void UDFCheatManager::DFNavTest() {
 	UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
