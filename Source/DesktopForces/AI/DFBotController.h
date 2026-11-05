@@ -75,6 +75,8 @@ protected:
 	FVector OrderSpot = FVector::ZeroVector;
 	/** Hold / Follow: move there instead of roaming. True if the order decided the move. */
 	bool FollowOrder(ADFCharacter* C);
+	/** Off the navmesh but near it: walks straight onto it (true while doing so). */
+	bool WalkOntoNavMesh(const ADFCharacter* C);
 	/** The game mode's non-player target (GetBotShootTarget), if any. */
 	AActor* GetObjectiveTarget() const;
 
