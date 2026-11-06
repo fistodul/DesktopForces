@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import time
 import tomllib
 from pathlib import Path
 
@@ -73,10 +74,15 @@ def run(cfg: Config, limit: int = 0, restart: bool = False) -> int:
                 continue
             state[name]['imported'] = True
             save()
-        if step(f'{name}-light', 'light', name):
-            state[name]['lit'] = True
-        else:
-            failed = True
+        # Lightmass talks to the editor over Swarm (UDP messaging): after a long bake it can
+        # fail to connect, or lose the reports of finished tasks. A second try has always worked
+        for attempt in range(3):
+            if attempt:
+                time.sleep(30)
+            if step(f'{name}-light', 'light', name):
+                state[name]['lit'] = True
+                break
+        failed |= not state[name]['lit']
         save()
     print(f"{sum(p['lit'] for p in state.values())}/{len(state)} maps rebaked. Checkpoint: {checkpoint}", flush=True)
     return int(failed)
