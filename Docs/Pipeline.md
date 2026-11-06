@@ -35,7 +35,7 @@ Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine o
 | `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,effects,skeletal,sounds,music,maps`; maps also get their navmesh baked; `effects`: flipbooks, particle materials, `/MobileForcesClassic/Effects/P_<Name>` systems). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers, blockers (invisible walls, spawn room doors) and particle effects of already built maps in place (no rebuild, the bake stays); `--steps navmesh` does the same and builds the navmesh again (after a collision change) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
-| `mfport.py rebake [map…]` | converts, imports and bakes every map (or these) again, one at a time, resumable from `work/rebake/progress.json`; `--restart` the first time with a map list. `--steps lightmapcheck import` lists the maps a lightmap change touches |
+| `mfport.py rebake [map…]` | converts, imports and bakes every map (or these) again, one at a time, resumable from `work/rebake/progress.json`; with a map list, `--restart` the first time (after the names: `rebake mf-nc mf-Polar --restart`). `--steps lightmapcheck import` lists the maps a lightmap change touches |
 
 Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPORT_<KEY>` env vars.
 
