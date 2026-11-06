@@ -289,6 +289,14 @@ actor list before anything is built; `import <maps> --steps patch` re-places a b
 vehicle generators without re-baking. Server admins can still add / swap vehicles at run time
 (`AddedVehicles` / `VehicleSwaps`, [Hosting.md](Hosting.md)).
 
+`nav_decks` lists static meshes walked across gaps (mf-sawmill's rope bridge: 33 - 45 cm between
+the planks). A soldier's 38 cm capsule steps across, Recast's 19 cm cells don't and left the bridge
+to players only (a plank is also missing at every rope joint, up to 146 cm; running soldiers
+cross those too). The converter adds a hidden copy of the mesh's walkable faces, repeated every
+25 cm up to 75 cm both ways along its length so the copies close the gaps; the importer places it
+with no collision but `EvenIfNotCollidable` navigable geometry, so only the navmesh builds on it
+(needs `import` again).
+
 ## Overrides
 
 The way out of depending on the original art:

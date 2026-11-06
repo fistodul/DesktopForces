@@ -9,6 +9,8 @@
 #   instance_props meshes without collision placed this often in an 80 m cell share one
 #                  instanced component (default 8, 0 = never); halves a busy map's bake
 #   hull_collision static meshes that collide as one smooth shape (rung ramps)
+#   nav_decks      static meshes walked on across gaps (rope bridge planks): a hidden copy of their
+#                  walkable faces, widened to close the gaps, feeds the navmesh only (bots cross)
 #   drop_faces     { <static mesh> = ["<texture>", ...] }: faces of that mesh left out, for
 #                  hidden ones that spoil the bake
 #   generators     change a map's generators: { class = "<MF generator class>",
@@ -39,6 +41,7 @@ add_vehicles = [
 ]
 
 ["mf-sawmill"]
+nav_decks = ["ropebridge1"]   # 33 - 45 cm between the planks: players step across, the navmesh didn't
 add_vehicles = [
   { vehicle = "boat.boat", location = [15473.2, 8469.0, 3881.2], yaw = 147.06 },
   { vehicle = "boat.boat", location = [14949.0, 8095.5, 3881.2], yaw = 111.64 },

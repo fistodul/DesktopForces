@@ -45,6 +45,11 @@ def hull_collision(map_name: str) -> list[str]:
     return _edits_for(map_name).get('hull_collision', [])
 
 
+def nav_decks(map_name: str) -> list[str]:
+    """Static meshes walked on across gaps (rope bridge planks): bots get a navmesh over them."""
+    return _edits_for(map_name).get('nav_decks', [])
+
+
 def drop_faces(map_name: str) -> dict[str, set[str]]:
     """Static mesh faces left out, by mesh and texture (lower case): hidden ones that break the bake."""
     return {m.lower(): {t.lower() for t in texs} for m, texs in _edits_for(map_name).get('drop_faces', {}).items()}

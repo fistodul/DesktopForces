@@ -38,6 +38,7 @@
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
+#include "DrawDebugHelpers.h"
 
 void UDFCheatManager::DFStartProbe() {
 	UWorld* World = GetWorld();
@@ -52,13 +53,18 @@ void UDFCheatManager::DFStartProbe() {
 		if (Nav->ProjectPointToNavigation(P, Spot, FVector(100.f, 100.f, 700.f)))
 			continue;
 		++Off;
-		FString Near = TEXT("none in 8 m");
+		FString Near = Algo::AnyOf(Nav->GetNavigationBounds(), [&](const FNavigationBounds& B) { return B.AreaBox.IsInsideOrOn(P); }) ? TEXT("none in 8 m") : TEXT("none, outside the bounds");
 		if (Nav->ProjectPointToNavigation(P, Spot, FVector(800.f)))
 			Near = FString::Printf(TEXT("%.0f away, %+.0f z"), FVector::Dist2D(Spot.Location, P), Spot.Location.Z - P.Z);
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFStartProbe), false);
+		// distance, actor, mesh, surface normal z and whether the hit part feeds the navmesh
 		auto Trace = [&](const FVector& To) {
 			FHitResult Hit;
-			return World->LineTraceSingleByChannel(Hit, P, To, ECC_Pawn, Params) ? FString::Printf(TEXT("%.0f %s"), Hit.Distance, *GetNameSafe(Hit.GetActor())) : FString(TEXT("-"));
+			if (!World->LineTraceSingleByChannel(Hit, P, To, ECC_Pawn, Params))
+				return FString(TEXT("-"));
+			const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Hit.GetComponent());
+			return FString::Printf(TEXT("%.0f %s (%s, nz %.2f, nav %d)"), Hit.Distance, *GetNameSafe(Hit.GetActor()), SMC ? *GetNameSafe(SMC->GetStaticMesh()) : TEXT("-"),
+				Hit.ImpactNormal.Z, Hit.GetComponent() && Hit.GetComponent()->CanEverAffectNavigation());
 		};
 		// what a soldier standing here (capsule 38.25 x 87.75) would be inside of
 		TArray<FOverlapResult> Overlaps;
@@ -73,8 +79,55 @@ void UDFCheatManager::DFStartProbe() {
 				Crate = FVector::Dist(C->GetActorLocation(), P);
 		UE_LOG(LogDF, Display, TEXT("StartProbe %s at %s: nav %s | up %s | down %s | inside %s| crate %.0f"), *It->GetName(), *P.ToCompactString(), *Near,
 			*Trace(P + FVector(0.f, 0.f, 400.f)), *Trace(P - FVector(0.f, 0.f, 1000.f)), Inside.IsEmpty() ? TEXT("- ") : *Inside, Crate);
+		// everything solid within 2 m (what Recast saw around the spot)
+		Overlaps.Reset();
+		World->OverlapMultiByChannel(Overlaps, P, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeBox(FVector(200.f)), Params);
+		FString Around;
+		for (const FOverlapResult& O : Overlaps) {
+			const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(O.GetComponent());
+			if (O.bBlockingHit)
+				Around += FString::Printf(TEXT("%s(%s) "), *GetNameSafe(O.GetActor()), SMC ? *GetNameSafe(SMC->GetStaticMesh()) : *GetNameSafe(O.GetComponent()));
+		}
+		UE_LOG(LogDF, Display, TEXT("StartProbe   within 2 m: %s"), *Around);
 	}
 	UE_LOG(LogDF, Display, TEXT("StartProbe: %d / %d player starts off the navmesh"), Off, Starts);
+}
+
+void UDFCheatManager::DFNavDraw(float X, float Y, float Z, float Radius) {
+	const UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	const ARecastNavMesh* Recast = Nav ? Cast<ARecastNavMesh>(Nav->GetDefaultNavDataInstance()) : nullptr;
+	if (!Recast)
+		return;
+	const FVector Center(X, Y, Z);
+	int32 Drawn = 0;
+	TArray<FNavPoly> Polys;
+	TArray<FVector> Verts;
+	Recast->GetPolysInBox(FBox::BuildAABB(Center, FVector(Radius)), Polys);
+	for (const FNavPoly& Poly : Polys) {
+		if (!Recast->GetPolyVerts(Poly.Ref, Verts))
+			continue;
+		++Drawn;
+		for (int32 I = 0; I < Verts.Num(); ++I)
+			DrawDebugLine(GetWorld(), Verts[I] + FVector(0, 0, 5), Verts[(I + 1) % Verts.Num()] + FVector(0, 0, 5), FColor::Green, true, -1.f, 0, 3.f);
+	}
+	UE_LOG(LogDF, Display, TEXT("DFNavDraw: %d polys within %.0f of %s"), Drawn, Radius, *Center.ToCompactString());
+}
+
+void UDFCheatManager::DFNavGrid(float X, float Y, float Z, float Half, float Step) {
+	const UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!Nav || Step <= 0.f)
+		return;
+	UE_LOG(LogDF, Display, TEXT("DFNavGrid around %.0f %.0f %.0f, %.0f cm cells, +X right, +Y down"), X, Y, Z, Step);
+	for (float DY = -Half; DY <= Half; DY += Step) {
+		FString Row;
+		for (float DX = -Half; DX <= Half; DX += Step) {
+			FNavLocation L;
+			const bool bOn = Nav->ProjectPointToNavigation(FVector(X + DX, Y + DY, Z), L, FVector(Step / 2.f, Step / 2.f, 300.f));
+			const bool bCentre = FMath::Abs(DX) < Step / 2.f && FMath::Abs(DY) < Step / 2.f;
+			Row += bCentre ? TEXT("S") : (bOn ? TEXT("#") : TEXT("."));
+		}
+		UE_LOG(LogDF, Display, TEXT("DFNavGrid %s"), *Row);
+	}
 }
 
 void UDFCheatManager::DFNavTest() {

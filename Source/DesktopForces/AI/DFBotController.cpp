@@ -357,6 +357,13 @@ bool ADFBotController::FollowOrder(ADFCharacter* C) {
 	}
 }
 
+bool ADFBotController::CanReachNavMesh(const UWorld* World, const FVector& Location) {
+	const UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	FNavLocation Spot;
+	return !Nav || !Nav->GetDefaultNavDataInstance() || Nav->ProjectPointToNavigation(Location, Spot, FVector(100.f, 100.f, 700.f)) ||
+		Nav->ProjectPointToNavigation(Location, Spot, NavMeshReach);
+}
+
 bool ADFBotController::WalkOntoNavMesh(const ADFCharacter* C) {
 	// A start beside a loadout crate can spawn us on top of it, a blast can throw us onto a
 	// ledge: off the navmesh every path request fails, so first walk straight to the nearest mesh
@@ -365,7 +372,7 @@ bool ADFBotController::WalkOntoNavMesh(const ADFCharacter* C) {
 		return false;
 	const FVector Here = C->GetActorLocation();
 	FNavLocation Spot;
-	if (Nav->ProjectPointToNavigation(Here, Spot) || !Nav->ProjectPointToNavigation(Here, Spot, FVector(500.f, 500.f, 250.f)))
+	if (Nav->ProjectPointToNavigation(Here, Spot) || !Nav->ProjectPointToNavigation(Here, Spot, NavMeshReach))
 		return false;
 	UE_LOG(LogDF, Verbose, TEXT("%s: off the navmesh at %s, stepping to %s"), *GetName(), *Here.ToCompactString(), *Spot.Location.ToCompactString());
 	return MoveToLocation(Spot.Location, 20.f, false, false /* straight: no path from here */, false) != EPathFollowingRequestResult::Failed;

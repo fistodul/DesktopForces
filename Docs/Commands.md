@@ -103,6 +103,9 @@ your machine and need cheats on too). The admin commands above work the same way
 |---|---|
 | `DFNavTest` | log navmesh reachability from you to every spawn, objective and ladder |
 | `DFNavPath X Y Z` | log the navmesh route from you to a point (points, links) |
+| `DFStartProbe` | log every player start off the navmesh: nearest mesh, ceiling and floor (mesh, normal, nav), what a soldier there is inside of, solids within 2 m |
+| `DFNavDraw X Y Z [Radius]` | draw the navmesh polygons within Radius (2000) as green lines, for screenshots (`FlushPersistentDebugLines` clears) |
+| `DFNavGrid X Y Z [Half] [Step]` | log an ASCII map of the navmesh around a point: `#` mesh, `.` none, `S` the centre (1500 / 100 cm) |
 | `DFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
 | `DFTeleport X Y Z`, `DFHurt N`, `DFFire [Alt] [Seconds]` | move your pawn (a driven vehicle takes its trailer along), take damage, hold fire (scripted tests; default 0.1 s; `DFFire 1` alt fire) |
 | `DFTouch Action 1\|0` | press / release a touch button's action (`DFTouch Fire 1`) |

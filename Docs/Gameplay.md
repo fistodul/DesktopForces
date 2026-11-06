@@ -149,6 +149,10 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   they leave no hole in the navmesh.
 - Bots off the navmesh (on a crate, blown onto a ledge) walk straight to the nearest mesh point
   before roaming, since no path starts off the mesh.
+- Bots don't spawn at starts they can't walk away from (not over the navmesh within 7 m, nor
+  within 5 m of it) unless nothing else is free: some MF starts are on a 72 cm plank edge
+  (MF-CrazyHouseV2), in a sink, on round pipes (mf-Ghetto) or on fire-escape balconies. Players
+  still use them all.
 - Items (LoadoutCrate.aWeaponsInStore): Pistol, Machine Gun, Shotgun, Sniper Rifle,
   Trip Bombs, Rocket Launcher, Grenades, Adrenaline, Armour, Heavy Machine Gun.
 - Entering loadout at a crate / in a loadout zone refills ammo of everything carried.

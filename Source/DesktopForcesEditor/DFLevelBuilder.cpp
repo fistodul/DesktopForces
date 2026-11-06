@@ -535,6 +535,26 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			UStaticMesh* Mesh = LoadOrBuildMesh(MapDir, R->GetStringField(TEXT("mesh")), MapName);
 			if (!Mesh)
 				continue;
+			bool bNavOnly = false;
+			R->TryGetBoolField(TEXT("nav_only"), bNavOnly);
+			if (bNavOnly) {
+				// mfport nav_decks: hidden, blocks nothing, only the navmesh builds on it
+				AStaticMeshActor* A = World->SpawnActor<AStaticMeshActor>(Loc, Rotation, SP);
+				A->SetActorScale3D(Vec(R, TEXT("scale")));
+				UStaticMeshComponent* C = A->GetStaticMeshComponent();
+				C->SetMobility(EComponentMobility::Static);
+				C->SetStaticMesh(Mesh);
+				C->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+				C->SetCustomNavigableGeometry(EHasCustomNavigableGeometry::EvenIfNotCollidable);
+				C->SetVisibility(false);
+				C->SetHiddenInGame(true);
+				C->CastShadow = false;
+				C->bAffectDynamicIndirectLighting = false;
+				C->LightmapType = ELightmapType::ForceVolumetric;
+				A->SetActorLabel(Name);
+				++Spawned;
+				continue;
+			}
 			if (UHierarchicalInstancedStaticMeshComponent* Group = InstanceGroup(World, SP, R, PropUses, PropGroups, InstanceProps, Mesh)) {
 				Group->AddInstance(FTransform(Rotation, Loc, Vec(R, TEXT("scale"))), true);
 				++Spawned;

@@ -23,6 +23,7 @@ from .actors import ActorMapper, ClassTree, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
 from .config import Config, UU_TO_CM
+from . import mfmesh
 from .mfmesh import MeshBuilder
 from .polyfix import newell_normal, triangulate, weld_tjunctions
 from .upkg import Package, Reader
@@ -288,6 +289,36 @@ class LevelConverter:
             self._set_lightmap(self.out / (m['mesh'] + '.mfmesh.json'), mres[n])
         print(f'  lightmaps: {total / 1e6:.1f}M texels at {texel * UU_TO_CM:.0f} cm (unbudgeted {start / 1e6:.1f}M)')
 
+    NAV_DECK_REACH = 75.0  # cm each way along the deck: closes gaps up to 150 cm
+
+    def nav_deck(self, mesh: str, spawns: list[dict]) -> list[dict]:
+        """A navigation-only copy of a mesh's walkable faces, repeated every 25 cm up to
+        NAV_DECK_REACH both ways along its length so the copies close the gaps between the planks.
+        A soldier running across doesn't fall in (sawmill's bridge: 33 - 45 cm between planks, a
+        plank missing at every rope joint, up to 146 cm); Recast's 19 cm cells saw only holes."""
+        src = mfmesh.read(self.out / (mesh + '.mfmesh.json'))
+        lo, hi = src.bounds()
+        along = 0 if hi[0] - lo[0] >= hi[1] - lo[1] else 1
+        steps = int(self.NAV_DECK_REACH // 25)
+        deck = MeshBuilder(src.name + '_NavDeck', render=False, lightmap_resolution=4)
+        for tris in src.tris.values():
+            for tri in tris:
+                n = [sum(v[1][i] for v in tri) for i in range(3)]  # vertex normals (orient_triangles agrees)
+                if n[2] < 0.7 * (math.sqrt(sum(x * x for x in n)) or 1.0):  # walkable: up to ~45 degrees
+                    continue
+                for k in range(-steps, steps + 1):
+                    off = [0.0, 0.0, 0.0]
+                    off[along] = 25.0 * k
+                    deck.add_triangle('Engine.DefaultTexture|collision', *((tuple(v[0][i] + off[i] for i in range(3)), v[1], v[2]) for v in tri))
+        if not deck.triangle_count:
+            return []
+        deck.write(self.out / Path(mesh).parent)
+        rel = str(Path(mesh).parent / deck.name)
+        added = [dict(r, name=r['name'] + '_NavDeck', mesh=rel, nav_only=True) for r in spawns
+                 if r['type'] == 'static_mesh' and r['mesh'] == mesh]
+        print(f'  nav deck: {deck.name}, {deck.triangle_count} triangles, {len(added)} placed')
+        return added
+
     @staticmethod
     def _set_collision(path: Path, kind: str):
         data = json.loads(path.read_text())
@@ -498,6 +529,9 @@ class LevelConverter:
         for name in mapedits.hull_collision(self.map):
             if name in meshes:
                 self._set_collision(self.out / (meshes[name]['mesh'] + '.mfmesh.json'), 'hull')
+        for name in mapedits.nav_decks(self.map):
+            if name in meshes:
+                spawns += self.nav_deck(meshes[name]['mesh'], spawns)
         # UE1 zone ambient (flat light everywhere in a zone) becomes mostly UE-native lighting:
         # the map's main ambient colour is Lightmass's sky colour (what rays leaving through sky
         # windows pick up) and bounced light fills the rest; a small unshadowed floor stays in the

@@ -160,6 +160,14 @@ public:
 	UFUNCTION(Exec)
 	void DFStartProbe();
 
+	/** Draw the navmesh polygons within Radius of X,Y,Z (green lines) for screenshots. */
+	UFUNCTION(Exec)
+	void DFNavDraw(float X, float Y, float Z, float Radius = 2000.f);
+
+	/** Log an ASCII map of the navmesh around X,Y,Z: '#' mesh within Step/2 and 3 m of height, '.' none, 'S' the centre. */
+	UFUNCTION(Exec)
+	void DFNavGrid(float X, float Y, float Z, float Half = 1500.f, float Step = 100.f);
+
 	/**
 	 * Orthographic top-down view centred at X,Y covering Width cm (0 = back to the pawn),
 	 * camera at height Z (0 = high above the map). A camera under the roofs cuts them away,

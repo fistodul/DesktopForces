@@ -32,6 +32,13 @@ public:
 	virtual FVector GetFocalPointOnActor(const AActor* Actor) const override;
 	ADFBotController();
 
+	/** How far off the navmesh a bot still finds it and walks straight onto it (WalkOntoNavMesh). */
+	static inline const FVector NavMeshReach{ 500.f, 500.f, 250.f };
+
+	/** Whether a bot standing at Location can get onto the navmesh: on it, over it (falls onto it
+	 *  within 7 m) or within NavMeshReach. True when the world has no navmesh. */
+	static bool CanReachNavMesh(const UWorld* World, const FVector& Location);
+
 	/** 0 = novice .. 1 = godlike. Aim error and reaction scale with it. */
 	UPROPERTY(EditAnywhere, Category = "DF")
 	float Skill = 0.5f;

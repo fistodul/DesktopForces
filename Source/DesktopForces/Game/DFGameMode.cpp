@@ -246,6 +246,8 @@ AActor* ADFGameMode::ChoosePlayerStart_Implementation(AController* Player) {
 		float Score = Start == LastStartSpot.Get() ? -10000.f : 3000.f * FMath::FRand();
 		if (PawnCDO && GetWorld()->EncroachingBlockingGeometry(PawnCDO, Start->GetActorLocation(), Start->GetActorRotation()))
 			Score -= 500000.f; // in geometry: only when nothing else is left
+		if (Player && !Player->IsPlayerController() && !Start->IsBotReachable())
+			Score -= 200000.f; // a bot couldn't walk away from here: only when nothing else is left
 		for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
 			if (!It->IsAlive() || It->GetController() == Player)
 				continue;

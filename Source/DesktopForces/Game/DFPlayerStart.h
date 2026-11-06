@@ -28,4 +28,11 @@ public:
 	bool bCaptainStart = false;
 
 	bool IsNeutral() const { return TeamNumber >= 2; }
+
+	/** Whether a bot spawned here can walk off (ADFBotController::CanReachNavMesh). Some MF starts
+	 *  are on a plank edge, in a sink or on round pipes: fine for players, a dead end for bots. */
+	bool IsBotReachable() const;
+
+private:
+	mutable int8 BotReachable = -1; // cached: the navmesh is baked
 };
