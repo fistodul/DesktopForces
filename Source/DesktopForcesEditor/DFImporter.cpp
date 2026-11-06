@@ -5,11 +5,6 @@
 #include "Materials/MaterialExpressionNormalize.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "Materials/MaterialExpressionAdd.h"
-#include "Materials/MaterialExpressionComponentMask.h"
-#include "Materials/MaterialExpressionAppendVector.h"
-#include "Materials/MaterialExpressionLightmassReplace.h"
-#include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
-#include "Engine/Texture2DArray.h"
 #include "DFImportUtil.h"
 #include "Sound/SoundAttenuation.h"
 #include "DesktopForcesEditor.h"
@@ -1447,151 +1442,6 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 	return M;
 }
 
-UMaterialInterface* FDFImporter::GetArrayMaster() {
-	bool bCreated = false;
-	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_OpaqueArray"), bCreated);
-	if (bCreated) {
-		// M_MF_Opaque, sampling slice TexCoord[2].x of an array: many textures, one draw
-		UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
-		auto Add = [M](auto* Expression) {
-			M->GetExpressionCollection().AddExpression(Expression);
-			return Expression;
-		};
-		auto Const = [&](float V) {
-			UMaterialExpressionConstant* C = NewObject<UMaterialExpressionConstant>(M);
-			C->R = V;
-			return Add(C);
-		};
-		UMaterialExpressionTextureCoordinate* UV = Add(NewObject<UMaterialExpressionTextureCoordinate>(M));
-		UMaterialExpressionTextureCoordinate* SliceUV = Add(NewObject<UMaterialExpressionTextureCoordinate>(M));
-		SliceUV->CoordinateIndex = 2;
-		UMaterialExpressionComponentMask* SliceX = Add(NewObject<UMaterialExpressionComponentMask>(M));
-		SliceX->Input.Connect(0, SliceUV);
-		SliceX->R = true;
-		UMaterialExpressionAppendVector* Coord = Add(NewObject<UMaterialExpressionAppendVector>(M));
-		Coord->A.Connect(0, UV);
-		Coord->B.Connect(0, SliceX);
-		UMaterialExpressionTextureSampleParameter2DArray* Tex = Add(NewObject<UMaterialExpressionTextureSampleParameter2DArray>(M));
-		Tex->ParameterName = TEXT("Textures");
-		bool bNew = false;
-		// sRGB, as the arrays that replace it: a mismatch is a sampler warning in every map
-		UTexture2DArray* Default = FindOrCreateAsset<UTexture2DArray>(TEXT("/Game/MF/Materials"), TEXT("TA_MF_Default"), bNew);
-		UTexture2D* Grey = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
-		Default->SourceTextures = { Grey, Grey };
-		Default->SRGB = true;
-		Default->UpdateSourceFromSourceTextures(bNew);
-		Default->SourceTextures.Reset();
-		SaveAsset(Default);
-		Tex->Texture = Default;
-		Tex->Coordinates.Connect(0, Coord);
-		// Lightmass renders materials without mesh data: it would bounce slice 0 for everything
-		UMaterialExpressionLightmassReplace* Bake = Add(NewObject<UMaterialExpressionLightmassReplace>(M));
-		Bake->Realtime.Connect(0, Tex);
-		Bake->Lightmass.Connect(0, Const(0.3f));
-		M->SetShadingModel(MSM_DefaultLit);
-		E->BaseColor.Connect(0, Bake);
-		E->Specular.Connect(0, Const(0.f));
-		E->Roughness.Connect(0, Const(1.f));
-		M->SetMaterialUsage(MATUSAGE_StaticLighting);
-		M->PreEditChange(nullptr);
-		M->PostEditChange();
-		SaveAsset(M);
-	}
-	if (UTexture2DArray* Default = LoadObject<UTexture2DArray>(nullptr, TEXT("/Game/MF/Materials/TA_MF_Default.TA_MF_Default")); Default && !Default->SRGB) {
-		Default->SRGB = true;
-		Default->PostEditChange();
-		SaveAsset(Default);
-	}
-	if (AddAmbientFloor(M))
-		UE_LOG(LogDFEditor, Display, TEXT("M_MF_OpaqueArray: ambient floor from MPC_MF"));
-	if (const FMaterialResource* Res = M->GetMaterialResource(GMaxRHIShaderPlatform)) {
-		const_cast<FMaterialResource*>(Res)->FinishCompilation();
-		for (const FString& Err : Res->GetCompileErrors())
-			UE_LOG(LogDFEditor, Error, TEXT("M_MF_OpaqueArray: %s"), *Err);
-	}
-	return M;
-}
-
-void FDFImporter::PlanTextureArrays(const FString& MapName, const FString& MapDir, const TSharedPtr<FJsonObject>& Level) {
-	TextureArrays.Reset();
-	const int32 MaxArrays = Level->HasField(TEXT("texture_arrays")) ? Level->GetIntegerField(TEXT("texture_arrays")) : 0;
-	if (MaxArrays <= 0)
-		return;
-	// how many draws each opaque texture costs: a section per chunk
-	TMap<FString, int32> Draws;
-	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("world"))) {
-		const TSharedPtr<FJsonObject> W = V->AsObject();
-		if (!W->GetBoolField(TEXT("render")) || W->GetBoolField(TEXT("sky")))
-			continue;
-		const TSharedPtr<FJsonObject> Mesh = LoadJson(MapDir / (W->GetStringField(TEXT("mesh")) + TEXT(".mfmesh.json")));
-		if (!Mesh)
-			continue;
-		const TArray<TSharedPtr<FJsonValue>>& Materials = Mesh->GetArrayField(TEXT("materials"));
-		for (const TSharedPtr<FJsonValue>& Sec : Mesh->GetArrayField(TEXT("sections")))
-			Draws.FindOrAdd(Materials[Sec->AsObject()->GetIntegerField(TEXT("material"))]->AsString())++;
-	}
-	struct FGroup {
-		TArray<TPair<FString, UTexture2D*>> Keys;
-		int32 Draws = 0;
-	};
-	TMap<FString, FGroup> Groups;
-	const FString PackageName = Packs.MapPackage(MapName);
-	const bool bOwnArt = bBuildingCommunityMap || !PackageName.StartsWith(Packs.ClassicRoot);
-	const FString Root = (bBuildingCommunityMap ? Packs.CommunityRoot : FPaths::GetPath(FPaths::GetPath(PackageName))) / TEXT("Arrays") / MapName;
-	for (const TPair<FString, int32>& D : Draws) {
-		FString TexKey, Mode;
-		if (!D.Key.Split(TEXT("|"), &TexKey, &Mode) || Mode != TEXT("opaque") || TexKey.StartsWith(TEXT("Engine")))
-			continue;
-		// the pack's own art: an array is a copy, so RepointMaps has nothing to swap later
-		UTexture2D* Tex = FindTextureFor(TexKey, bOwnArt);
-		if (!Tex || !Tex->Source.IsValid())
-			continue;
-		// what an array needs its slices to share, and what a texture's quality depends on
-		const FString Group = FString::Printf(TEXT("%dx%d_%d_%d_%d"), Tex->Source.GetSizeX(), Tex->Source.GetSizeY(), (int32)Tex->Source.GetFormat(),
-			(int32)Tex->LODGroup, Tex->SRGB ? 1 : 0);
-		FGroup& G = Groups.FindOrAdd(Group);
-		G.Keys.Emplace(D.Key, Tex);
-		G.Draws += D.Value;
-	}
-	Groups.ValueSort([](const FGroup& A, const FGroup& B) { return A.Draws > B.Draws; });
-	int32 Made = 0;
-	for (TPair<FString, FGroup>& It : Groups) {
-		FGroup& G = It.Value;
-		if (Made >= MaxArrays || G.Keys.Num() < 2)
-			break;
-		G.Keys.SetNum(FMath::Min(G.Keys.Num(), 256)); // the phones' limit
-		G.Keys.Sort([](const TPair<FString, UTexture2D*>& A, const TPair<FString, UTexture2D*>& B) { return A.Key < B.Key; });
-		bool bCreated = false;
-		UTexture2DArray* Array = FindOrCreateAsset<UTexture2DArray>(Root, FString::Printf(TEXT("TA_%s_%d"), *MapName.Replace(TEXT("-"), TEXT("_")), Made), bCreated);
-		Array->SourceTextures.Reset();
-		for (const TPair<FString, UTexture2D*>& K : G.Keys)
-			Array->SourceTextures.Add(K.Value);
-		const UTexture2D* First = G.Keys[0].Value;
-		Array->LODGroup = First->LODGroup;
-		Array->SRGB = First->SRGB;
-		Array->CompressionNoAlpha = true; // opaque: BC1 as the single textures
-		Array->MipGenSettings = First->MipGenSettings;
-		Array->PreEditChange(nullptr);
-		if (!Array->UpdateSourceFromSourceTextures(bCreated)) {
-			UE_LOG(LogDFEditor, Warning, TEXT("%s: array %s failed, its textures stay single"), *MapName, *It.Key);
-			continue;
-		}
-		Array->PostEditChange();
-		Array->SourceTextures.Reset(); // the pixels are in: no editor references into other packs
-		SaveAsset(Array);
-		bool bMICreated = false;
-		UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(Root, FString::Printf(TEXT("MI_%s_%d"), *MapName.Replace(TEXT("-"), TEXT("_")), Made), bMICreated);
-		MIC->SetParentEditorOnly(GetArrayMaster());
-		MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Textures")), Array);
-		MIC->PostEditChange();
-		SaveAsset(MIC);
-		for (int32 I = 0; I < G.Keys.Num(); ++I)
-			TextureArrays.Add(G.Keys[I].Key, { MIC, I });
-		UE_LOG(LogDFEditor, Display, TEXT("%s: array %d (%s): %d textures, %d draws"), *MapName, Made, *It.Key, G.Keys.Num(), G.Draws);
-		++Made;
-	}
-}
-
 UMaterialParameterCollection* FDFImporter::EnsureAmbientCollection() {
 	bool bCreated = false;
 	UMaterialParameterCollection* C = FindOrCreateAsset<UMaterialParameterCollection>(TEXT("/Game/MF/Materials"), TEXT("MPC_MF"), bCreated);
@@ -1815,36 +1665,130 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 // --- static meshes ---------------------------------------------------------------------
 
 namespace {
-	/** Share of the lightmap's used texels that more than one triangle takes (by texel centre):
-	 *  what Lightmass warns about as "Lightmap UV are overlapping by". */
+	/** Whether triangle ABC covers any of the texel square at (X, Y) (separating axes). */
+	bool TouchesTexel(const FVector2f& A, const FVector2f& B, const FVector2f& C, int32 X, int32 Y) {
+		const FVector2f Corners[4] = { { X + 0.f, Y + 0.f }, { X + 1.f, Y + 0.f }, { X + 0.f, Y + 1.f }, { X + 1.f, Y + 1.f } };
+		const FVector2f Tri[3] = { A, B, C };
+		for (int32 E = 0; E < 3; ++E) {
+			const FVector2f P = Tri[E], Q = Tri[(E + 1) % 3], R = Tri[(E + 2) % 3];
+			const FVector2f N(P.Y - Q.Y, Q.X - P.X);
+			const float Inside = FMath::Sign((R - P) | N);
+			float Most = -UE_BIG_NUMBER;
+			for (const FVector2f& K : Corners)
+				Most = FMath::Max(Most, Inside * ((K - P) | N));
+			if (Most <= 0.f)
+				return false;
+		}
+		return true;
+	}
+
+	/** Share of the lightmap's used texels that two surfaces take, so either bakes the other's
+	 *  light. A texel counts for every chart touching it at all: at 32 px a walkway's planks are
+	 *  narrower than a texel, and their tops and sides land in the same texels (mf-western's
+	 *  walkways: no texel centre inside a plank, 15 % shared; dark, patchy sleepers on
+	 *  mf-City_Rush's rails). Charts are triangles joined by corners at the same point and
+	 *  lightmap UV; within one, a texel centre inside two triangles is a fold, and a texel no centre
+	 *  falls in, touched by faces turned more than 25 degrees apart, bakes them one light (mf-western's
+	 *  logs: 15 cm round at 53 cm texels, lit top and dark underside alike). Lightmass's "Lightmap UV
+	 *  are overlapping by" counts more: neighbouring triangles of one chart in a texel too. */
 	float LightmapOverlap(const FMeshDescription& MD, int32 Res) {
 		const TVertexInstanceAttributesConstRef<FVector2f> UVs = FStaticMeshConstAttributes(MD).GetVertexInstanceUVs();
-		TArray<uint8> Hits;
-		Hits.SetNumZeroed(Res * Res);
-		for (const FTriangleID T : MD.Triangles().GetElementIDs()) {
-			const TArrayView<const FVertexInstanceID> VI = MD.GetTriangleVertexInstances(T);
+		TArray<FTriangleID> Tris;
+		for (const FTriangleID T : MD.Triangles().GetElementIDs())
+			Tris.Add(T);
+		TArray<int32> Parent;
+		for (int32 i = 0; i < Tris.Num(); ++i)
+			Parent.Add(i);
+		auto Root = [&](int32 i) {
+			while (Parent[i] != i)
+				i = Parent[i] = Parent[Parent[i]];
+			return i;
+		};
+		TMap<FIntVector, int32> CornerOwner;
+		for (int32 i = 0; i < Tris.Num(); ++i)
+			for (const FVertexInstanceID VI : MD.GetTriangleVertexInstances(Tris[i])) {
+				const FVector2f UV = UVs.Get(VI, 1) * 1048576.f;
+				const FIntVector Key(MD.GetVertexInstanceVertex(VI).GetValue(), FMath::RoundToInt(UV.X), FMath::RoundToInt(UV.Y));
+				if (const int32* Other = CornerOwner.Find(Key))
+					Parent[Root(i)] = Root(*Other);
+				else
+					CornerOwner.Add(Key, i);
+			}
+		constexpr int32 None = -1, Shared = -2;
+		TArray<int32> Chart;
+		Chart.Init(None, Res * Res);
+		TArray<uint8> Centres;
+		Centres.SetNumZeroed(Res * Res);
+		TArray<FVector3f> Facing; // the first face touching a texel
+		Facing.SetNumZeroed(Res * Res);
+		TArray<bool> Turned;
+		Turned.SetNumZeroed(Res * Res);
+		const TVertexAttributesConstRef<FVector3f> Positions = FStaticMeshConstAttributes(MD).GetVertexPositions();
+		for (int32 i = 0; i < Tris.Num(); ++i) {
+			const TArrayView<const FVertexInstanceID> VI = MD.GetTriangleVertexInstances(Tris[i]);
 			const FVector2f A = UVs.Get(VI[0], 1) * Res, B = UVs.Get(VI[1], 1) * Res, C = UVs.Get(VI[2], 1) * Res;
 			const float Area = (B - A) ^ (C - A);
 			if (FMath::Abs(Area) < UE_SMALL_NUMBER)
 				continue;
+			const int32 Id = Root(i);
+			auto At = [&](int32 k) { return Positions[MD.GetVertexInstanceVertex(VI[k])]; };
+			const FVector3f Normal = ((At(1) - At(0)) ^ (At(2) - At(0))).GetSafeNormal();
 			const int32 X0 = FMath::Clamp(FMath::FloorToInt(FMath::Min3(A.X, B.X, C.X)), 0, Res - 1), X1 = FMath::Clamp(FMath::CeilToInt(FMath::Max3(A.X, B.X, C.X)), 0, Res - 1);
 			const int32 Y0 = FMath::Clamp(FMath::FloorToInt(FMath::Min3(A.Y, B.Y, C.Y)), 0, Res - 1), Y1 = FMath::Clamp(FMath::CeilToInt(FMath::Max3(A.Y, B.Y, C.Y)), 0, Res - 1);
 			for (int32 Y = Y0; Y <= Y1; ++Y)
 				for (int32 X = X0; X <= X1; ++X) {
+					if (!TouchesTexel(A, B, C, X, Y))
+						continue;
+					int32& Owner = Chart[Y * Res + X];
+					Owner = Owner == None || Owner == Id ? Id : Shared;
+					FVector3f& Face = Facing[Y * Res + X];
+					if (Face.IsZero())
+						Face = Normal;
+					else if ((Face | Normal) < 0.9f)
+						Turned[Y * Res + X] = true;
 					const FVector2f P(X + 0.5f, Y + 0.5f);
 					// strictly inside: a centre on an edge two triangles share (a quad's diagonal) is neither's
 					if (((B - P) ^ (C - P)) / Area > 1e-4f && ((C - P) ^ (A - P)) / Area > 1e-4f && ((A - P) ^ (B - P)) / Area > 1e-4f)
-						Hits[Y * Res + X] = FMath::Min<uint8>(Hits[Y * Res + X] + 1, 2);
+						Centres[Y * Res + X] = FMath::Min<uint8>(Centres[Y * Res + X] + 1, 2);
 				}
 		}
-		int32 Used = 0, Shared = 0;
-		for (const uint8 H : Hits) {
-			Used += H > 0;
-			Shared += H > 1;
+		int32 Used = 0, Overlapped = 0;
+		for (int32 i = 0; i < Chart.Num(); ++i) {
+			Used += Chart[i] != None;
+			Overlapped += Chart[i] == Shared || Centres[i] > 1 || (Centres[i] == 0 && Turned[i]);
 		}
-		return Used ? float(Shared) / Used : 0.f;
+		return Used ? float(Overlapped) / Used : 0.f;
 	}
 } // namespace
+
+void FDFImporter::CheckLightmaps(const TArray<FString>& Maps) {
+	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	TArray<FString> Changed;
+	for (const FString& Map : Maps) {
+		AR.ScanPathsSynchronous({ Packs.MapDataRoot(Map) }, true);
+		TArray<FAssetData> Data;
+		AR.GetAssetsByPath(FName(*Packs.MapDataRoot(Map)), Data, true);
+		int32 Lit = 0, Over = 0;
+		for (const FAssetData& A : Data) {
+			if (A.AssetClassPath != UStaticMesh::StaticClass()->GetClassPathName())
+				continue;
+			const UStaticMesh* SM = Cast<UStaticMesh>(A.GetAsset());
+			const FMeshDescription* MD = SM ? SM->GetMeshDescription(0) : nullptr;
+			if (!MD || SM->GetLightMapCoordinateIndex() != 1 || FStaticMeshConstAttributes(*MD).GetVertexInstanceUVs().GetNumChannels() < 2 || A.AssetName.ToString().StartsWith(TEXT("Sky_")))
+				continue;
+			++Lit;
+			const float Shared = LightmapOverlap(*MD, SM->GetLightMapResolution());
+			if (Shared <= 0.02f)
+				continue;
+			++Over;
+			UE_LOG(LogDFEditor, Display, TEXT("LightmapCheck %s: %s at %d, %.0f %% texels shared"), *Map, *A.AssetName.ToString(), SM->GetLightMapResolution(), 100.f * Shared);
+		}
+		UE_LOG(LogDFEditor, Display, TEXT("LightmapCheck %s: %d of %d lit meshes over 2 %%"), *Map, Over, Lit);
+		if (Over)
+			Changed.Add(Map);
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("LightmapCheck: %d of %d maps to rebuild: %s"), Changed.Num(), Maps.Num(), *FString::Join(Changed, TEXT(" ")));
+}
 
 UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString& AssetPath) {
 	TSharedPtr<FJsonObject> J = LoadJson(JsonFile);
@@ -1878,8 +1822,7 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	TVertexInstanceAttributesRef<FVector2f> UVs = Attr.GetVertexInstanceUVs();
 	TVertexInstanceAttributesRef<FVector4f> Colors = Attr.GetVertexInstanceColors();
 	TPolygonGroupAttributesRef<FName> SlotNames = Attr.GetPolygonGroupMaterialSlotNames();
-	const bool bArrays = !TextureArrays.IsEmpty() && bRender;
-	UVs.SetNumChannels(bArrays ? 3 : 2); // 1 is the lightmap's, 2 the array slice
+	UVs.SetNumChannels(2); // 1 is the lightmap's
 
 	// Weld positions so lightmap UV generation sees connected surfaces
 	TMap<FVector3f, FVertexID> Welded;
@@ -1896,7 +1839,6 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 		}
 		VertexOf[i] = *VID;
 	}
-	// instances per section: mfmesh shares vertices across materials, the array slice can't be
 	// Lightmap charts from a box projection: each triangle along its dominant axis, neighbours on
 	// the same side sharing coordinates (one chart). Packed below against the texture UVs' charts.
 	auto Pos = [&](uint32 I) { return FVector3f(V[I * Stride], V[I * Stride + 1], V[I * Stride + 2]); };
@@ -1907,7 +1849,7 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 																	 : 2;
 		return Axis * 2 + (N[Axis] < 0.f ? 1 : 0);
 	};
-	auto MakeInstance = [&](uint32 Index, float Slice, int32 Side) {
+	auto MakeInstance = [&](uint32 Index, int32 Side) {
 		const float* P = V + Index * Stride;
 		const FVertexInstanceID VI = MD.CreateVertexInstance(VertexOf[Index]);
 		Normals[VI] = FVector3f(P[3], P[4], P[5]);
@@ -1915,8 +1857,6 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 		const int32 Axis = Side / 2;
 		const FVector2f Flat(Axis == 0 ? P[1] : P[0], Axis == 2 ? P[1] : P[2]);
 		UVs.Set(VI, 1, FVector2f(Side & 1 ? -Flat.X : Flat.X, Flat.Y) / 100.f); // metres
-		if (bArrays)
-			UVs.Set(VI, 2, FVector2f(Slice, 0.f));
 		// alpha 1 = this zone's ambient in RGB; alpha 0 = use the map's main ambient (props)
 		Colors[VI] = bZoneColors ? FVector4f(P[8], P[9], P[10], 1.f) : FVector4f(0.f, 0.f, 0.f, 0.f);
 		return VI;
@@ -1924,34 +1864,20 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 
 	const TArray<TSharedPtr<FJsonValue>>& Materials = J->GetArrayField(TEXT("materials"));
 	TArray<FStaticMaterial> StaticMaterials;
-	TMap<UMaterialInterface*, FPolygonGroupID> ArrayGroups; // a mesh draws each array once
 	for (const TSharedPtr<FJsonValue>& Sec : J->GetArrayField(TEXT("sections"))) {
 		const TSharedPtr<FJsonObject> S = Sec->AsObject();
 		const int32 MatIndex = S->GetIntegerField(TEXT("material"));
 		const int32 First = S->GetIntegerField(TEXT("first_index"));
 		const int32 NumTris = S->GetIntegerField(TEXT("num_triangles"));
 		const FString Key = Materials.IsValidIndex(MatIndex) ? Materials[MatIndex]->AsString() : FString();
-		const FDFArraySlice* Slice = bArrays ? TextureArrays.Find(Key) : nullptr;
-		const FPolygonGroupID* Shared = Slice ? ArrayGroups.Find(Slice->Material) : nullptr;
-		FPolygonGroupID PG;
-		if (Shared) {
-			PG = *Shared;
-		} else {
-			const FName Slot(*FString::Printf(TEXT("M%d"), StaticMaterials.Num()));
-			PG = MD.CreatePolygonGroup();
-			SlotNames[PG] = Slot;
-			UMaterialInterface* Material = !bRender ? nullptr : Slice ? Slice->Material
-																	  : GetMaterial(Key);
-			StaticMaterials.Add(FStaticMaterial(Material, Slot, Slot));
-			if (Slice)
-				ArrayGroups.Add(Slice->Material, PG);
-		}
-		const float SliceIndex = Slice ? Slice->Index : 0.f;
+		const FName Slot(*FString::Printf(TEXT("M%d"), StaticMaterials.Num()));
+		const FPolygonGroupID PG = MD.CreatePolygonGroup();
+		SlotNames[PG] = Slot;
+		StaticMaterials.Add(FStaticMaterial(bRender ? GetMaterial(Key) : nullptr, Slot, Slot));
 		// every corner its own instance: the lightmap packer writes each triangle corner's UV to
 		// its instance, so one shared by triangles of two charts (touching at a point) ended up
 		// with the last chart's UV and those triangles stretched across the lightmap (mf-western's
 		// buildings: 65 % of their texels shared); the build welds the identical ones again
-		auto InstanceOf = [&](uint32 Index, int32 Side) { return MakeInstance(Index, SliceIndex, Side); };
 		for (int32 t = 0; t < NumTris; ++t) {
 			const uint32 A = Idx[First + t * 3], B = Idx[First + t * 3 + 1], C = Idx[First + t * 3 + 2];
 			// no area (three points in a line): the build drops it anyway, but first the lightmap
@@ -1961,7 +1887,7 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 				continue;
 			const int32 Side = BoxAxis(A, B, C);
 			// mfmesh triangles wind cross(v1-v0, v2-v0) along the normal; UE wants the opposite
-			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { InstanceOf(A, Side), InstanceOf(C, Side), InstanceOf(B, Side) };
+			TArray<FVertexInstanceID, TInlineAllocator<3>> Tri = { MakeInstance(A, Side), MakeInstance(C, Side), MakeInstance(B, Side) };
 			MD.CreateTriangle(PG, Tri);
 		}
 	}
@@ -1997,11 +1923,14 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 			const bool bBox = FStaticMeshOperations::CreateLightMapUVLayout(Box, 1, 1, Res, Version, Corners);
 			const bool bTex = FStaticMeshOperations::CreateLightMapUVLayout(Tex, 1, 1, Res, Version, Corners);
 			const float BoxShared = bBox ? LightmapOverlap(Box, Res) : 1.f, TexShared = bTex ? LightmapOverlap(Tex, Res) : 1.f;
-			if (FMath::Min(BoxShared, TexShared) < Shared) {
-				Shared = FMath::Min(BoxShared, TexShared);
-				From = TexShared < BoxShared ? TEXT("texture UVs") : TEXT("box projection");
-				bPacked = TexShared < BoxShared ? bTex : bBox;
-				MD = MoveTemp(TexShared < BoxShared ? Tex : Box);
+			// texture UVs only by a clear margin: Lightmass found a texel each of mf-western's logs
+			// packed from them shared (95 %), the box projection none, where both measure 1 % here
+			const bool bFromTex = TexShared + 0.01f < BoxShared;
+			if ((bFromTex ? TexShared : BoxShared) < Shared) {
+				Shared = bFromTex ? TexShared : BoxShared;
+				From = bFromTex ? TEXT("texture UVs") : TEXT("box projection");
+				bPacked = bFromTex ? bTex : bBox;
+				MD = MoveTemp(bFromTex ? Tex : Box);
 				LightmapSize = Res;
 			}
 		}

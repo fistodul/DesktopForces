@@ -43,7 +43,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
   - Open: warehouse exterior stairs snag (map geometry, not a stair mesh: find with `DFTraceMat`), buggy wheels clip into walls and the car can wedge upright (exit is safe now), brief white text top-left during play (not in the recordings or the HUD message log: needs a screenshot), bullets push the buggy (about 1.8 m under 4 s of MG) but whether heavy vehicles should move as much as in MF is unmeasured
   - Not tried by a player: M1887 quick alt shot (0.88 s), three sentry guns, Join page cancel, grates with alpha to coverage
 - ⏸ Texture arrays per map to cut draw calls: tried on mf-The_Bank and mf-nc, no measured gain, kept off ([Performance](Performance.md#arrays-and-streaming-measured-2026-11-01)); phone not tested
-- ✅ Full rebake of all maps (2026-11-04/05, `mfport.py rebake`, resumable from work/rebake/progress.json): suns 46° too steep, overlapping lightmap UVs, 256 px static mesh lightmap cap, two-sided static mesh collision, instanced solid props (their bounds are refreshed when a lighting build starts: DesktopForcesEditor.cpp), stitched/generated minimaps. 87/87 lit. Found on the way: "Failed to connect to Swarm" is transient (rerun); mfs-warehouse's 170-nines `_distance` crashed Lightmass (radius capped at 80 m); the navmesh tile pool dropped floors on mf-Jungle and the warehouse maps (`AverageLayersPerTile=7`); bare `LoadoutCrate`s were drawn solid and lifted spawns off the navmesh (now hidden, 7 maps rebuilt). Still open from that list: shadowless water sheets on the other 24 water maps, comparing lighting per map against the videos (waterfront reads too bright), HMG and jeep gun animations, MAC-10 hand speed, steering
+- ✅ Full rebake of all maps (2026-11-04/05, `mfport.py rebake`, resumable from work/rebake/progress.json): suns 46° too steep, overlapping lightmap UVs, 256 px static mesh lightmap cap, two-sided static mesh collision, instanced solid props (their bounds are refreshed when a lighting build starts: DesktopForcesEditor.cpp), stitched/generated minimaps. 87/87 lit. Found on the way: "Failed to connect to Swarm" is transient (rerun); mfs-warehouse's 170-nines `_distance` crashed Lightmass (radius capped at 80 m); the navmesh tile pool dropped floors on mf-Jungle and the warehouse maps (`AverageLayersPerTile=7`); bare `LoadoutCrate`s were drawn solid and lifted spawns off the navmesh (now hidden, 7 maps rebuilt). Still open from that list (water sheets let light through since that rebake): comparing lighting per map against the videos (waterfront reads too bright), HMG and jeep gun animations, MAC-10 hand speed, steering
 - ⬜ Share replacement art between packs: classic maps could use the replacement textures the community maps already ship wherever the original shows no detail or text the replacement lacks (signs, logos, numbers stay). One copy instead of the S3TC original + its replacement saves disk and download size; needs a per-texture check (side by side, maybe a perceptual diff) and a mapping table in `packs.toml` or the replacements manifest
 - ⏸ Zone-based level streaming / HLOD for big outdoor maps: held back, same section
 - ✅ VMF (Source) converter → same formats (`mflib/vmf.py`, `vmf_materials.toml`), floor-plan tool (`debug/floorplan.py`)
@@ -313,13 +313,12 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     - test: server on the PC, desktop and phone clients joining; then a small VPS. The dev images
       may not be redistributed (Unreal EULA): build with them, ship only the server build.
     Without it, servers are listen servers (`?listen -nullrhi -nosound` on a packaged game).
-15. **Prop lightmap UV overlap** (2026-11-06). Lightmass warns "Lightmap UV are overlapping by
-    N %" for 259 static meshes at 20 % or more (189 at 50 % or more) in the 45 lighting logs
-    kept from the 2026-11-05 rebake (mf-nc 41, mf-dockyard 36, mf-City_Rush 36; mf-western's
-    walkways, chairs, rails, bar 63 - 82 %): those bake blotchy. `BuildStaticMesh` measured 0 %
-    for them: `LightmapOverlap` counts a texel only where its centre lies inside a triangle,
-    so thin parts smaller than a texel at 32 px (plank edges, rails) slip past it while
-    Lightmass sees their charts share texels. Plan: count texels a chart touches at all and
-    call one shared when two charts touch it (charts = triangles joined by lightmap UV
-    corners), so the existing doubling loop picks 64 - 128 px for such props. Needs every
-    map baked again (~17 h): ask before starting.
+15. ✅ **Prop lightmap UV overlap** (2026-11-06). Lightmass warned "Lightmap UV are overlapping by
+    N %" for 259 static meshes at 20 % or more in the 45 lighting logs kept from the 2026-11-05
+    rebake, while the importer measured 0 %: at 32 px thin parts (planks, rails, sleepers, chair
+    legs) are narrower than a texel, no texel centre falls in them, and their lit tops and shaded
+    sides baked one light (dark, patchy sleepers on mf-City_Rush's rails). The importer now counts
+    a texel shared when two charts touch it, and doubles a prop's lightmap until under 2 %
+    ([Pipeline](Pipeline.md#lights)); mf-western: 11 warnings to 4, 5.6 to 7.1 M texels, bake
+    8 min as before. `-steps=lightmapcheck` found 55 other maps with a prop at 10 % or more:
+    those are rebaked, the rest keep their bake.

@@ -35,6 +35,7 @@ Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine o
 | `mfport.py import [map…]` | runs `Tools/artgen` and the UE importer (`--steps art,textures,props,effects,skeletal,sounds,music,maps`; maps also get their navmesh baked; `effects`: flipbooks, particle materials, `/MobileForcesClassic/Effects/P_<Name>` systems). `--steps patch` refreshes the zone actors (water / pain / current volumes, loadout zones, captain boxes), the road graph, teleporters, periodic sounds, placed pickups, movers, blockers (invisible walls, spawn room doors) and particle effects of already built maps in place (no rebuild, the bake stays); `--steps navmesh` does the same and builds the navmesh again (after a collision change) |
 | `mfport.py light [map…]` | bakes Lightmass lighting + precomputed visibility (`ResavePackages -buildlighting`) |
 | `mfport.py all mf-warehouse` | everything above |
+| `mfport.py rebake [map…]` | converts, imports and bakes every map (or these) again, one at a time, resumable from `work/rebake/progress.json`; `--restart` the first time with a map list. `--steps lightmapcheck import` lists the maps a lightmap change touches |
 
 Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPORT_<KEY>` env vars.
 
@@ -189,9 +190,17 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   sun 46° steeper, or past straight down and reversed: DesertArena's −69.5° shone at −115.5°).
 - **Lightmap UVs**: the importer lays out lightmap charts twice, from the texture UVs and from
   a box projection (each triangle along its dominant axis), and keeps the layout whose
-  triangles share fewer texels (by texel centre, as Lightmass's "Lightmap UV are overlapping"
-  warning counts), at twice the resolution if neither packs under 2 %. The projection wins
-  almost everywhere. Two things had made nearly every mesh overlap (60–98 % on many props):
+  surfaces share fewer texels, at twice the resolution (up to 1024) until one shares under 2 %;
+  texture UVs only when they beat the projection by a point. A texel is shared when two charts
+  touch it at all, two triangles cover its centre, or no centre falls in it and faces turned
+  more than 25° apart touch it: at 32 px a walkway's planks or a rail's sleepers are thinner
+  than a texel, and their lit tops and shaded sides took one light (dark, patchy thin props;
+  counting by texel centres alone found 0 % where Lightmass warned of 60–95 %). Lightmass's
+  "Lightmap UV are overlapping by" also counts neighbouring triangles of one surface, so a few
+  warnings stay (mf-western after the change: 4 of 11, from 79 % down to 1–9 % but one).
+  `-run=DFImport -steps=lightmapcheck [-maps=...]` measures the built maps' meshes this way and
+  lists the maps a `maps` import would change, without saving anything. The projection wins
+  almost everywhere. Sky windows are unlit and get no lightmap. Two things had made nearly every mesh overlap (60–98 % on many props):
   vertex instances shared by triangles of different charts (the packer writes each corner's UV
   to its instance: the last chart's won, stretching triangles across the map), so every
   triangle corner has its own instance now; and triangles with no area, which scale their

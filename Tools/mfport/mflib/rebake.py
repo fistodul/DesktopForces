@@ -21,20 +21,26 @@ FIRST = ['mf-warehouse', 'mf-Polar', 'mf-western', 'mf-sawmill', 'mf-waterfront'
 SKIP = {'mf-warehouse-merged'}   # merge work in progress, built unlit (Docs/WarehouseMerge.md)
 
 
-def _maps(cfg: Config) -> list[str]:
+def _maps(cfg: Config, only: list[str] | None = None) -> list[str]:
     have = sorted((p.parent.name for p in (cfg.out_dir / 'Maps').glob('*/level.json')), key=str.casefold)
-    have = [m for m in have if m not in SKIP]
+    wanted = {m.lower() for m in only or []}
+    have = [m for m in have if m not in SKIP and (not wanted or m.lower() in wanted)]
     first = [m for f in FIRST for m in have if m.lower() == f.lower()]
     return first + [m for m in have if m not in first]
 
 
-def run(cfg: Config, limit: int = 0, restart: bool = False) -> int:
+def run(cfg: Config, limit: int = 0, restart: bool = False, only: list[str] | None = None) -> int:
+    """`only`: just these maps (`--restart` the first time, as the checkpoint has them lit)."""
     folder = cfg.work_dir / 'rebake'
     folder.mkdir(parents=True, exist_ok=True)
     checkpoint = folder / 'progress.json'
     state = {} if restart or not checkpoint.exists() else json.loads(checkpoint.read_text())
     vmf = set(tomllib.loads((TOOL_DIR / 'vmf_maps.toml').read_text()))
-    for name in _maps(cfg):
+    maps = _maps(cfg, only)
+    if only and len(maps) != len(set(m.lower() for m in only)):
+        print(f'not converted: {sorted(set(m.lower() for m in only) - {m.lower() for m in maps})}', flush=True)
+        return 1
+    for name in maps:
         state.setdefault(name, {'converted': False, 'imported': False, 'lit': False})
 
     def save():
@@ -52,7 +58,7 @@ def run(cfg: Config, limit: int = 0, restart: bool = False) -> int:
         return rc == 0
 
     save()
-    pending = [m for m, p in state.items() if not p['lit']]
+    pending = [m for m in maps if not state[m]['lit']]
     selected = pending[:limit] if limit > 0 else pending
     print(f'{len(pending)} maps to rebake, {len(selected)} in this run', flush=True)
     failed = False

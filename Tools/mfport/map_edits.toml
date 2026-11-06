@@ -4,7 +4,6 @@
 # themselves (the converted map has the vehicle generators, like any it was made with):
 #   add_vehicles   extra vehicle generators (Gregaras' mutPack addVehicles default spots;
 #                  "...Unboxed" map versions were merged into the regular maps)
-#   texture_arrays how many texture arrays for the world (draws merged per chunk)
 #   bounces        Lightmass indirect bounces (default in level.py)
 #   instance_props meshes without collision placed this often in an 80 m cell share one
 #                  instanced component (default 8, 0 = never); halves a busy map's bake

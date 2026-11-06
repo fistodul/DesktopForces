@@ -546,7 +546,6 @@ class LevelConverter:
             'map': self.map,
             'uu_to_cm': UU_TO_CM,
             'world': world,
-            'texture_arrays': mapedits.texture_arrays(self.map),
             'instance_props': mapedits.instance_props(self.map),
             'static_meshes': meshes,
             'spawns': spawns,

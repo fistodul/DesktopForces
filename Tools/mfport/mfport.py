@@ -19,7 +19,7 @@ Steps (run alone or chained with `all`):
   all <map...>         map + textures + effects + sounds + import + light
   replacements <json>  stage selected local source textures, at most 512 px
   remaining            resume missing playable maps; --limit N bounds the batch
-  rebake               convert, import and bake every map again, resumable (--restart, --limit N)
+  rebake [maps]        convert, import and bake every map (or these) again, resumable (--restart, --limit N)
   repair-lightmass     repair the verified Linux 5.8.4 Lightmass startup assertion (backup kept)
   defaults <Class> [Prop...]  a class's effective default properties down its parent chain
                        (exports omit what equals the parent's: see Docs/Pipeline.md)
@@ -150,7 +150,7 @@ def main():
 
     if a.step == 'rebake':
         from mflib.rebake import run as rebake
-        sys.exit(rebake(cfg, a.limit, a.restart))
+        sys.exit(rebake(cfg, a.limit, a.restart, a.names))
 
     if a.step == 'remaining':
         from mflib.remaining import run

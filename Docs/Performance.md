@@ -386,8 +386,8 @@ it all from one (739 to 266).
 
 ### Texture arrays tried on the two largest maps (2026-11-01): no gain, kept off
 
-`texture_arrays = N` in `map_edits.toml` still works (DFImporter `PlanTextureArrays`, `M_MF_OpaqueArray`)
-but no map uses it. mf-The_Bank (2 arrays, 27 textures) and mf-nc (2 arrays, 262 textures), same four
+The code (`texture_arrays = N` in `map_edits.toml`, DFImporter `PlanTextureArrays`, `M_MF_OpaqueArray`)
+was removed on 2026-11-06; it is in the history before that. mf-The_Bank (2 arrays, 27 textures) and mf-nc (2 arrays, 262 textures), same four
 cameras, no bots, 1920x1080, 1200 frames, median / p95:
 
 | Map | | Draws | Frame ms | Render thread ms |

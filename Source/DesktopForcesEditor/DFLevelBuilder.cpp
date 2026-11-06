@@ -460,7 +460,6 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 	const FString PackageName = Packs.MapPackage(MapName); // community: /Game/Maps, else the classic or unverified plugin
 	TGuardValue<bool> CommunityMaterials(bBuildingCommunityMap, Packs.IsCommunityMap(MapName));
 	DeleteOldMap(PackageName);
-	PlanTextureArrays(MapName, MapDir, Level);
 	UPackage* Pkg = CreatePackage(*PackageName);
 	Pkg->SetPackageFlags(PKG_ContainsMap);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Editor, false, FName(*MapName), Pkg, true);
@@ -501,8 +500,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			C->CastShadow = false;
 			C->bAffectDynamicIndirectLighting = false;
-			C->bOverrideLightMapRes = true;
-			C->OverriddenLightMapRes = 4;
+			C->SetLightmapType(ELightmapType::ForceVolumetric); // unlit: a lightmap would go unread
 			A->SetActorLabel(FString::Printf(TEXT("Sky_%s"), *Mesh->GetName()));
 		} else if (bRender) {
 			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -516,7 +514,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			C->SetHiddenInGame(true);
 			C->CastShadow = false;
 			C->bAffectDynamicIndirectLighting = false;
-			C->LightmapType = ELightmapType::ForceVolumetric; // never drawn: no lightmap to bake
+			C->SetLightmapType(ELightmapType::ForceVolumetric); // never drawn: no lightmap to bake
 			A->SetActorLabel(FString::Printf(TEXT("Collision_%s"), *Mesh->GetName()));
 		}
 		++Spawned;
@@ -550,7 +548,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 				C->SetHiddenInGame(true);
 				C->CastShadow = false;
 				C->bAffectDynamicIndirectLighting = false;
-				C->LightmapType = ELightmapType::ForceVolumetric;
+				C->SetLightmapType(ELightmapType::ForceVolumetric);
 				A->SetActorLabel(Name);
 				++Spawned;
 				continue;

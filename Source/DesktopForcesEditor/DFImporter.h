@@ -65,6 +65,9 @@ public:
 	/** Community and unverified maps' packages: classic material instances with replacement art
 	 *  become their own pack's, in place (no rebuild, no re-bake). */
 	bool RepointMaps(const TArray<FString>& Maps);
+	/** Measures each built map's lit meshes as BuildStaticMesh would lay them out now and lists the
+	 *  maps a "maps" import would change (step "lightmapcheck"; saves nothing). */
+	void CheckLightmaps(const TArray<FString>& Maps);
 	/** Bring the lit masters up to date (their graph is patched when loaded). */
 	void UpdateMasters();
 	/** Flipbooks of Tools/artgen/flipbooks.py into /Game/MF/Replacements/Effects. */
@@ -152,15 +155,6 @@ public:
 
 	/** Build (or rebuild) a static mesh asset from a .mfmesh.json file. */
 	UStaticMesh* BuildStaticMesh(const FString& JsonFile, const FString& AssetPath);
-	/** Level's "texture_arrays": N arrays of the textures costing most draws (BuildStaticMesh merges them). */
-	void PlanTextureArrays(const FString& MapName, const FString& MapDir, const TSharedPtr<FJsonObject>& Level);
-	UMaterialInterface* GetArrayMaster();
-	struct FDFArraySlice {
-		UMaterialInterface* Material = nullptr;
-		int32 Index = 0;
-	};
-	/** Material key -> array and slice, for the map being built. */
-	TMap<FString, FDFArraySlice> TextureArrays;
 
 	USoundWave* FindSound(const FString& DFPath) const;
 	/** The original texture (its replacement if the original is missing). */

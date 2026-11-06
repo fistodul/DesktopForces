@@ -69,6 +69,8 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 	if (Steps.Contains(TEXT("patch")) || Steps.Contains(TEXT("zones")) || Steps.Contains(TEXT("navmesh")))
 		for (const FString& Map : MapList)
 			Importer.PatchMapData(Map, Steps.Contains(TEXT("navmesh")));
+	if (Steps.Contains(TEXT("lightmapcheck")))
+		Importer.CheckLightmaps(MapList);
 	if (Steps.Contains(TEXT("collision")) && !Maps.IsEmpty())
 		for (const FString& Map : MapList)
 			Errors += Importer.RefreshMapCollision(Map) ? 0 : 1;
