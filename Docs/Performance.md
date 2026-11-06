@@ -435,6 +435,10 @@ mf-Pobojowisko_VerII, 4388 props, four fixed cameras, no bots, 1500 frames, medi
 Same image at all four cameras (mean difference 0.3 to 0.6 of 255). Frame time at the median doesn't
 change on a PC: the gain is half the triangles, a fifth fewer peak draws and half the components.
 Not measured on a phone. It's the default now (8, `mapedits.py`): other maps get it when rebuilt (Roadmap).
+The masters (`M_MF_*`) need the instanced static mesh usage flag, set by the importer
+(`FixMasterMaterialUsage`, every `-run=DFImport`): without it the game drew every instanced prop
+with the default material (dark grey checks: mf-western's church benches, black barrels) until
+2026-11-06. The editor sets missing flags itself, so it only showed in game.
 
 When a lighting build starts, the editor module finishes mesh compilation and refreshes every
 instanced component's bounds (DesktopForcesEditor.cpp). Registered while their mesh was still

@@ -428,8 +428,8 @@ static FString PropKey(const TSharedPtr<FJsonObject>& R) {
 static UHierarchicalInstancedStaticMeshComponent* InstanceGroup(UWorld* World, const FActorSpawnParameters& SP, const TSharedPtr<FJsonObject>& R, const TMap<FString, int32>& Uses,
 	TMap<FString, UHierarchicalInstancedStaticMeshComponent*>& Groups, int32 Minimum, UStaticMesh* Mesh) {
 	const FString Key = PropKey(R);
-	// solid props too: they baked near black as instances (crates in mf-Pobojowisko_VerII) while
-	// their lightmap UVs overlapped (fixed 2026-11-04 in BuildStaticMesh)
+	// solid props too. Their masters need the instanced usage flag (FixMasterMaterialUsage) or the
+	// game draws them with the default material (mf-western's benches, 2026-11-06)
 	if (Minimum <= 0 || Uses.FindRef(Key) < Minimum)
 		return nullptr;
 	if (UHierarchicalInstancedStaticMeshComponent** Found = Groups.Find(Key))

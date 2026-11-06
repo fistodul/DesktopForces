@@ -1328,12 +1328,15 @@ void FDFImporter::FixMasterMaterialUsage() {
 			 TEXT("Modulated"), TEXT("TeamTint") }) {
 		const FString Path = FString::Printf(TEXT("/Game/MF/Materials/M_MF_%s.M_MF_%s"), Mode, Mode);
 		UMaterial* M = LoadObject<UMaterial>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
-		if (M && !M->GetUsageByFlag(MATUSAGE_StaticLighting)) {
-			M->SetMaterialUsage(MATUSAGE_StaticLighting);
-			M->PostEditChange();
-			SaveAsset(M);
-			UE_LOG(LogDFEditor, Display, TEXT("%s: static lighting usage set"), *M->GetName());
-		}
+		// instanced props (level "instance_props") too: without the flag the game draws them with
+		// the default material, dark grey checks (mf-western's church benches, its barrels)
+		for (const EMaterialUsage Usage : { MATUSAGE_StaticLighting, MATUSAGE_InstancedStaticMeshes })
+			if (M && !M->GetUsageByFlag(Usage)) {
+				M->SetMaterialUsage(Usage);
+				M->PostEditChange();
+				SaveAsset(M);
+				UE_LOG(LogDFEditor, Display, TEXT("%s: usage %d set"), *M->GetName(), int32(Usage));
+			}
 		// a master that doesn't compile takes every instance down with it: say so
 		if (M)
 			if (const FMaterialResource* Res = M->GetMaterialResource(GMaxRHIShaderPlatform)) {

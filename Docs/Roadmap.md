@@ -313,3 +313,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     - test: server on the PC, desktop and phone clients joining; then a small VPS. The dev images
       may not be redistributed (Unreal EULA): build with them, ship only the server build.
     Without it, servers are listen servers (`?listen -nullrhi -nosound` on a packaged game).
+15. **Prop lightmap UV overlap** (2026-11-06). Lightmass warns "Lightmap UV are overlapping by
+    N %" for 259 static meshes at 20 % or more (189 at 50 % or more) in the 45 lighting logs
+    kept from the 2026-11-05 rebake (mf-nc 41, mf-dockyard 36, mf-City_Rush 36; mf-western's
+    walkways, chairs, rails, bar 63 - 82 %): those bake blotchy. `BuildStaticMesh` measured 0 %
+    for them: `LightmapOverlap` counts a texel only where its centre lies inside a triangle,
+    so thin parts smaller than a texel at 32 px (plank edges, rails) slip past it while
+    Lightmass sees their charts share texels. Plan: count texels a chart touches at all and
+    call one shared when two charts touch it (charts = triangles joined by lightmap UV
+    corners), so the existing doubling loop picks 64 - 128 px for such props. Needs every
+    map baked again (~17 h): ask before starting.

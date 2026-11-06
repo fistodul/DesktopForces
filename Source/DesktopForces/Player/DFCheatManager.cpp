@@ -24,6 +24,7 @@
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "MaterialShared.h"
@@ -281,8 +282,11 @@ void UDFCheatManager::DFTraceMat() {
 #endif
 	};
 	LogErrors(Mat);
+	const UStaticMeshComponent* HitMesh = Cast<UStaticMeshComponent>(Hit.GetComponent());
+	if (const UInstancedStaticMeshComponent* ISM = Cast<UInstancedStaticMeshComponent>(HitMesh))
+		UE_LOG(LogDF, Display, TEXT("DFTraceMat:   instanced: %d instances, bounds %s"), ISM->GetInstanceCount(), *ISM->Bounds.GetBox().ToString());
 	for (TObjectIterator<UStaticMeshComponent> It; It; ++It) {
-		if (It->GetWorld() == GetWorld() && It->IsVisible() && It->Bounds.GetBox().ExpandBy(2.f).IsInside(Hit.ImpactPoint)) {
+		if (It->GetWorld() == GetWorld() && It->IsVisible() && (*It == HitMesh || It->Bounds.GetBox().ExpandBy(2.f).IsInside(Hit.ImpactPoint))) {
 			UE_LOG(LogDF, Display, TEXT("DFTraceMat:   %s (%s)"), *It->GetName(), *GetNameSafe(It->GetStaticMesh()));
 			const FMeshMapBuildData* BuildData = It->LODData.Num() ? It->GetMeshMapBuildData(It->LODData[0]) : nullptr;
 			const FLightMap* LM = BuildData ? BuildData->LightMap.GetReference() : nullptr;
