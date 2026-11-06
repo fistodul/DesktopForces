@@ -8,6 +8,7 @@ Maps the team plays most go first (the community servers' rotation in Docs/Hosti
 from __future__ import annotations
 
 import json
+import socket
 import subprocess
 import sys
 import time
@@ -27,6 +28,28 @@ def _maps(cfg: Config, only: list[str] | None = None) -> list[str]:
     have = [m for m in have if m not in SKIP and (not wanted or m.lower() in wanted)]
     first = [m for f in FIRST for m in have if m.lower() == f.lower()]
     return first + [m for m in have if m not in first]
+
+
+def _online() -> bool:
+    """Whether this machine has a network route (no packet is sent)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(('192.0.2.1', 9))  # TEST-NET-1: only picks the outgoing interface
+            return True
+    except OSError:
+        return False
+
+
+def _wait_for_network() -> None:
+    """Lightmass reaches the editor through Swarm's UDP messaging, which has nothing to bind to
+    without a network: every bake crashed in the Swarm ping (2026-11-06, wifi off, 30 maps failed)."""
+    if _online():
+        return
+    print('no network: Lightmass needs one for Swarm; waiting...', flush=True)
+    while not _online():
+        time.sleep(30)
+    time.sleep(30)  # the interface settles
+    print('network back', flush=True)
 
 
 def run(cfg: Config, limit: int = 0, restart: bool = False, only: list[str] | None = None) -> int:
@@ -85,6 +108,7 @@ def run(cfg: Config, limit: int = 0, restart: bool = False, only: list[str] | No
         for attempt in range(3):
             if attempt:
                 time.sleep(30)
+            _wait_for_network()
             if step(f'{name}-light', 'light', name):
                 state[name]['lit'] = True
                 break
