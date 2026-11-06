@@ -11,6 +11,8 @@ starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
     python3 Tools/package.py Android --downloads      core pack in the build; the other packs for
                                                       the download server (Docs/Building.md)
     python3 Tools/package.py --compile-only           build the editor and game code, no cook (CI)
+    python3 Tools/package.py Linux --server           a dedicated server (Linux, Development): built in
+                                                      Epic's engine image, runs anywhere without it
     python3 Tools/package.py --dry-run Windows        print the commands instead of running them
 
 Output: Saved/Packages/<Platform>-<Config>[-public]/ (every platform);
@@ -265,6 +267,77 @@ def with_project_version(ini: str, version: str) -> str:
     return text
 
 
+# --- dedicated server ---------------------------------------------------------------------
+
+# Server targets need an engine built from source; the launcher engine has none. Epic's image is
+# one (GitHub account linked to Epic, `docker login ghcr.io`), used only to build: the server it
+# makes is a plain folder that runs on any x86-64 Linux, no container (Docs/Hosting.md).
+SERVER_IMAGE = os.environ.get('DF_SERVER_IMAGE', 'ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4')
+SERVER_TIMEOUT = '6h'  # clang once crash-looped for 2 hours in the container without ending the build
+# not copied into the build's project: this host's build products, caches and the converter's work
+SERVER_SKIP = ['/Binaries/', '/Intermediate/', '/Saved/', '/DerivedDataCache/', '/Build/', '/.git/', '/Tools/mfport/work/']
+
+
+def server_uat(maps: list[str], ue_home: str) -> list[str]:
+    """BuildCookRun in the image for a server of `maps`, the project mounted at /project."""
+    uat = [f'{ue_home}/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh', 'BuildCookRun', '-project=/project/DesktopForces.uproject',
+           '-noP4', '-utf8output', '-unattended', '-ubtargs=-NoUBA', '-server', '-noclient', '-serverplatform=Linux',
+           '-serverconfig=Development', '-build', '-cook', '-stage', '-pak', '-iostore', '-compressed', '-archive',
+           '-archivedirectory=/project/Saved/Server']
+    if maps:
+        uat.append(f'-map={"+".join(maps)}')
+    return uat
+
+
+def package_server(a: argparse.Namespace) -> None:
+    """A dedicated server: the project copied to a build tree (this checkout's own builds, caches
+    and Zen untouched), built and cooked in Epic's engine image, archived to
+    Saved/Packages/LinuxServer[-public]/ and packed as Saved/Packages/<version>/DesktopForces-LinuxServer-<version>.tar.gz."""
+    if WINDOWS:
+        raise Fail('--server builds on Linux (docker); the server it makes runs on Linux')
+    cfg = load()
+    project = cfg.uproject.parent
+    plugins = pack_plugins(project, a.public)
+    maps = find_maps(project, plugins, set(filter(None, (a.maps or '').split(','))))
+    version = game_version(project)  # a client joins only a server of its own ProjectVersion
+    suffix = '-public' if a.public else ''
+    tree = Path(os.environ.get('DF_SERVER_TREE', Path.home() / '.cache/desktopforces-server')) / f'project{suffix}'
+    out = project / f'Saved/Packages/LinuxServer{suffix}'
+    print(f'Packaging the Linux server {version}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
+    if a.dry_run:
+        print('(dry run)')
+    else:
+        tree.mkdir(parents=True, exist_ok=True)
+    # rsync keeps the tree's own Binaries / Intermediate / DDC between builds (P = protect)
+    rules = [f'--filter=P {d}' for d in ('/Binaries/', '/Intermediate/', '/DerivedDataCache/', '/Saved/')]
+    run(['rsync', '-a', '--delete', *rules, *(f'--exclude={d}' for d in SERVER_SKIP), f'{project}/', f'{tree}/'], a.dry_run)
+    if not a.dry_run:
+        ini = tree / 'Config/DefaultGame.ini'
+        ini.write_text(with_project_version(ini.read_text(encoding='utf-8'), version), encoding='utf-8')
+        if a.public:
+            uproject = tree / cfg.uproject.name
+            data = json.loads(uproject.read_text())
+            off = ('MobileForcesClassic', 'MobileForcesUnverified')
+            data['Plugins'] = [p for p in data.get('Plugins', []) if p['Name'] not in off] + [{'Name': n, 'Enabled': False} for n in off]
+            uproject.write_text(json.dumps(data, indent='\t') + '\n')
+        (tree / 'Intermediate/CachedAssetRegistryDiscovery.bin').unlink(missing_ok=True)
+        shutil.rmtree(tree / 'Saved/Server', ignore_errors=True)
+    home = '/home/ue4'
+    run(['timeout', SERVER_TIMEOUT, 'docker', 'run', '--rm', '-u', f'{os.getuid()}:{os.getgid()}', '-v', f'{tree}:/project',
+         '-e', f'HOME={home}', SERVER_IMAGE, *server_uat(maps, home)], a.dry_run)
+    if a.dry_run:
+        return
+    built = tree / 'Saved/Server/LinuxServer'
+    if not (built / 'DesktopForcesServer.sh').exists():
+        raise Fail(f'no server in {built}')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(built, out, symlinks=True)
+    release = project / 'Saved/Packages' / version
+    release.mkdir(parents=True, exist_ok=True)
+    archive = shutil.make_archive(str(release / share_name('LinuxServer', 'Development', version, 'Public' if a.public else '')), 'gztar', out.parent, out.name)
+    print(f'Done: {out}, version {version}\n  to host: unpack {archive} anywhere and run {out.name}/DesktopForcesServer.sh (Docs/Hosting.md)')
+
+
 # --- the build ------------------------------------------------------------------------------
 
 def package(a: argparse.Namespace) -> None:
@@ -419,11 +492,14 @@ def main(argv: list[str]) -> int:
     ap.add_argument('--compile-only', action='store_true', help='build the editor and game code, no cook')
     ap.add_argument('--clean', action='store_true', help="delete this host's Binaries / Intermediate/Build first")
     ap.add_argument('--dry-run', action='store_true', help='print the commands instead of running them')
+    ap.add_argument('--server', action='store_true', help='a dedicated Linux server (Development) instead of the game')
     a = ap.parse_args(argv)
     if a.team and not a.downloads:
         ap.error('--team needs --downloads')
+    if a.server and (a.platform != 'Linux' or a.downloads or a.compile_only):
+        ap.error('--server: Linux only, without --downloads / --compile-only')
     try:
-        package(a)
+        package_server(a) if a.server else package(a)
     except (Fail, OSError) as exc:
         print(f'package: {exc}', file=sys.stderr)
         return 2

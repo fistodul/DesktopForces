@@ -100,3 +100,17 @@ class DownloadsTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ServerTests(unittest.TestCase):
+    def test_server_build_is_server_only_and_cooks_the_maps(self):
+        cmd = package.server_uat(['/Game/Maps/mf-Tropics', '/MobileForcesClassic/Maps/mf-warehouse'], '/home/ue4')
+        self.assertTrue(cmd[0].startswith('/home/ue4/UnrealEngine/'))
+        for flag in ('-server', '-noclient', '-serverplatform=Linux', '-ubtargs=-NoUBA', '-archive'):
+            self.assertIn(flag, cmd)
+        self.assertIn('-map=/Game/Maps/mf-Tropics+/MobileForcesClassic/Maps/mf-warehouse', cmd)
+        self.assertFalse(any(c.startswith('-map=') for c in package.server_uat([], '/home/ue4')))
+
+    def test_server_tree_leaves_this_checkouts_builds_out(self):
+        for folder in ('/Binaries/', '/Intermediate/', '/Saved/', '/DerivedDataCache/', '/.git/', '/Tools/mfport/work/'):
+            self.assertIn(folder, package.SERVER_SKIP)

@@ -28,31 +28,53 @@ a headless server; this works with the Launcher / binary engine:
 core maps, `/MobileForcesClassic/Maps/<map>` for classic ones (the server needs the converted
 classic content too).
 
-**Standalone server binary, in a disposable container.** `DesktopForcesServer` needs an engine with
-server targets, which the Launcher engine lacks; Epic's image has them (`docker pull
-ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4`, GitHub account linked to Epic). Work on a copy of
-the project without `Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`, `.git`,
-`Tools/mfport/work`, so nothing in the container touches your own build:
+**Standalone server binary (no engine, no container where it runs).** Built once with
 
 ```bash
-docker run --rm -u 1000:1000 -v "$COPY":/project -e HOME=/home/ue4 \
-  ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4 \
-  /home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCookRun \
-  -project=/project/DesktopForces.uproject -noP4 -utf8output -ubtargs="-NoUBA" -server -noclient \
-  -serverplatform=Linux -serverconfig=Development -build -cook \
-  -map=/Game/MF/Maps/MF_TestRange+/MobileForcesClassic/Maps/mf-warehouse \
-  -stage -pak -archive -archivedirectory=/project/ServerBuild
-
-docker run --rm --network host -u 1000:1000 -v "$COPY/ServerBuild/LinuxServer":/server:ro \
-  -e HOME=/tmp ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4 \
-  /server/DesktopForcesServer.sh "/MobileForcesClassic/Maps/mf-warehouse?game=tdm?Bots=2" \
-  -port=7777 -nomaster -log
+python3 Tools/package.py Linux --server [--maps mf-warehouse,mf-Polar] [--public]
 ```
 
-`-NoUBA` matters: with UBA, clang in the container once crash-looped for 2 hours without ending the
-build, so give it a `timeout` too. Tried 2026-11-02: 2 maps cook in 3 minutes to 783 MB, a Linux client built with the Launcher engine
-joins it. `-map` picks what's cooked; the query port is the game port + 1. Classic content in a
-server image stays private, as with the download packs.
+this gives `Saved/Packages/LinuxServer/` and `Saved/Packages/<version>/DesktopForces-LinuxServer-Development-<version>.tar.gz`
+(every built map unless `--maps`; `--public` leaves out the Classic and Unverified packs). Copy the
+tarball to any x86-64 Linux (glibc 2.28 or newer: Debian 10, Ubuntu 20.04, Rocky 8 ...; nothing else
+to install), unpack it and run:
+
+```bash
+tar xzf DesktopForces-LinuxServer-Development-<version>.tar.gz
+LinuxServer/DesktopForcesServer.sh "/MobileForcesClassic/Maps/mf-warehouse?game=tdm?Bots=4" \
+  -port=7777 -log "-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=change-me"
+```
+
+Players join with the same day's build (`ProjectVersion`, set by the packager from the commit date:
+a client of another version is refused). Open UDP 7777 and the query port 7778 (game port + 1);
+`-nomaster` keeps it off the server list. Settings go in `LinuxServer/DesktopForces/Saved/Config/LinuxServer/Game.ini`
+([below](#server-settings-gameini)). To keep it running, a systemd unit:
+
+```ini
+# /etc/systemd/system/desktopforces.service
+[Unit]
+Description=Desktop Forces server
+After=network-online.target
+
+[Service]
+User=dfserver
+WorkingDirectory=/opt/desktopforces/LinuxServer
+ExecStart=/opt/desktopforces/LinuxServer/DesktopForcesServer.sh "/MobileForcesClassic/Maps/mf-warehouse?game=ctf" -port=7777
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Building it needs an engine with server targets, which the Launcher engine lacks, so the
+packager builds inside Epic's engine image (Docker, used only to build: `ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4`,
+GitHub account linked to Epic and `docker login ghcr.io`; `DF_SERVER_IMAGE` picks another tag of
+the clients' engine version). It copies the project to `~/.cache/desktopforces-server/` first
+(`DF_SERVER_TREE`), so the build never touches this checkout's binaries or caches, and keeps that
+copy's build products for the next time. The image may not be redistributed (Unreal EULA); the
+server build may. Classic content in a server stays on machines you control, as with the download packs.
+First build 2026-11-06: about 25 minutes for two maps (the engine's server modules compile once),
+a 238 MB tarball.
 
 ## Match options (URL)
 
