@@ -323,7 +323,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     on disk and runtime cost stay the same; only bake time grows (unmeasured, expect 5-10x: most
     maps tens of minutes, mf-nc most of a day). Plan, as the last bake before a release:
     - measure first: bake one indoor map (mf-Hydroworks) at Medium, High and Production, same
-      camera shots against Preview, with times; keep Preview where nobody can tell;
+      camera shots against Preview, with times; keep Medium where nobody can tell above it;
     - per-map quality (a `quality` key in the map's edits next to `bounces`), so only maps where it
       shows pay for it;
     - bake time: this laptop has 16 threads and Lightmass scales almost linearly with cores. A
@@ -361,6 +361,6 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       option (`?Lighting=night`) and in the vote list. The 18 % of geometry noon and night do not
       share must be looked at first (videos), and asked about before dropping the old map.
     - DM-Modernity-KF / mf-Modernity: one level with both actor sets (the KF edition is a
-      gameplay subset) halves its bake and download; the KF name stays as a map-list alias.
+      gameplay subset) halves its bake and download; don't keep the KF name as a map-list alias.
       The same could apply to the other KF cuts if their geometry is a strict subset, otherwise
       they stay separate maps.
