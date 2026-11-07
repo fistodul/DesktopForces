@@ -314,3 +314,53 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     ([Pipeline](Pipeline.md#lights)); mf-western: 11 warnings to 4, 5.6 to 7.1 M texels, bake
     8 min as before. `-steps=lightmapcheck` found 55 other maps with a prop at 10 % or more:
     those are rebaked, the rest keep their bake.
+16. ⬜ **Polish: Production-quality bake** (Filip, 2026-11-07). Every map is baked at
+    `-quality=Preview` (`mflib/ue.py build_lighting`), the base sample counts of
+    `BaseLightmass.ini`. Production multiplies them: 32x penumbra rays and 8x shadow rays (our
+    UE1-wide soft light radii make penumbras wide, so Preview edges can look grainy), 6x shadow
+    edge upsampling, 8x final-gather hemisphere samples, a denser irradiance cache (record radius
+    x0.56) and 4-8x photons (less blotchy bounce light in dim rooms). Lightmap resolution, size
+    on disk and runtime cost stay the same; only bake time grows (unmeasured, expect 5-10x: most
+    maps tens of minutes, mf-nc most of a day). Plan, as the last bake before a release:
+    - measure first: bake one indoor map (mf-Hydroworks) at Medium, High and Production, same
+      camera shots against Preview, with times; keep Preview where nobody can tell;
+    - per-map quality (a `quality` key in the map's edits next to `bounces`), so only maps where it
+      shows pay for it;
+    - bake time: this laptop has 16 threads and Lightmass scales almost linearly with cores. A
+      rented many-core Linux VM (64-192 vCPU, spot, a few hours) running the same
+      `mfport.py rebake` is the cheapest farm: copy the project and the patched engine, bake,
+      copy back `Content` / `Plugins/*/Content` maps. Swarm's distributed farm (SwarmAgent /
+      SwarmCoordinator) is Windows-only (.NET, not in the Linux engine: Linux bakes run
+      in-process over `-messaging`), so a Swarm farm means Windows PCs with agents
+      baking from the Windows checkout. GPU Lightmass (Experimental plugin, needs hardware ray
+      tracing) is far faster on an RTX card but uses other settings and looks different
+      (and 6 GB VRAM is tight): a separate look test, not a drop-in;
+    - while waiting: bakes are already per map and resumable; maps with a tight Lightmass
+      importance volume and fewer texels on surfaces nobody sees bake faster at any quality.
+17. ⬜ **Duplicate maps and lighting variants** (Filip, 2026-11-07). World geometry compared
+    across all 88 converted maps (BSP vertices on a 1 m grid, share of the smaller map):
+
+    | maps | shared | difference |
+    |---|---|---|
+    | DM-Modernity-KF / mf-Modernity | 100 % | same geometry, same 131 lights; only det locks and a domination timer differ. One map baked twice |
+    | COOP-GhettoZomburaUpdated / mf-Ghetto | 85 % | same lights and textures; coop adds bots, items and some geometry |
+    | MF-BattleBayDarkV1 / mf-battlebaynoonv1 | 82 % | **lighting variant**: night (fog 0,0,47, sky02 dark) vs noon (blue fog, ib_skyblue1); 110 vs 115 lights. Noon is the later, fuller version: 42 vs 28 starts, defence points, Captain zones, minimap |
+    | MB-EndagaDam / mf-Hydroworks | 80 % | same author and title ("Hydro"); Hydroworks adds the dam gates and more props |
+    | DM-AbandonedMine-KF / mf-AbandonedMine | 77 % | knife-fight cut of the map, 31 of 101 lights |
+    | DM-DrainageTrouble-KF / mf-Drainage-Trouble02 | 65 % | knife-fight cut |
+    | DM-KnifeWarehouse / mf-Microwarehouse | 62 % | same author, other layout |
+    | mf-warehouse / mf-warehouse-merged / mfs-warehouse | 63-66 % | known ([WarehouseMerge](WarehouseMerge.md)) |
+
+    MB-Endaga_Dam is not a dam copy (a Mottyman ball map with dam textures, its title still "Ball
+    Park"). Only aligned copies are found: a map moved in the editor would not match.
+    - Lighting variants the player picks (BattleBay day / night): UE's **lighting scenarios**
+      (a sublevel flagged as lighting scenario holds the lights, sky and fog; the persistent level
+      the geometry and gameplay; each scenario is baked into its own BuiltData, chosen at load
+      with no runtime cost). Geometry must be identical, so: take noon's geometry and gameplay,
+      port the night lights / fog / sky into a second scenario, bake both, offer it as a map
+      option (`?Lighting=night`) and in the vote list. The 18 % of geometry noon and night do not
+      share must be looked at first (videos), and asked about before dropping the old map.
+    - DM-Modernity-KF / mf-Modernity: one level with both actor sets (the KF edition is a
+      gameplay subset) halves its bake and download; the KF name stays as a map-list alias.
+      The same could apply to the other KF cuts if their geometry is a strict subset, otherwise
+      they stay separate maps.
