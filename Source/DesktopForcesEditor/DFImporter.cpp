@@ -1757,7 +1757,30 @@ namespace {
 			Used += Chart[i] != None;
 			Overlapped += Chart[i] == Shared || Centres[i] > 1 || (Centres[i] == 0 && Turned[i]);
 		}
-		return Used ? float(Overlapped) / Used : 0.f;
+		// a packer short of room shrinks every chart to a speck: each face of a prop in a texel or
+		// two of its own, which the counts above don't see (mf-VortexTrainV1's chairs: 370 charts
+		// at 32 px, Lightmass 58 % overlapping). The surface in charts under 1.5 texels across
+		// counts as shared once it is a quarter of the mesh (bolts and rungs alone aren't).
+		TMap<int32, FBox2f> Extent;
+		TMap<int32, float> Surface;
+		float Total = 0.f;
+		for (int32 i = 0; i < Tris.Num(); ++i) {
+			const TArrayView<const FVertexInstanceID> VI = MD.GetTriangleVertexInstances(Tris[i]);
+			FBox2f& Box = Extent.FindOrAdd(Root(i), FBox2f(ForceInit));
+			for (const FVertexInstanceID V : VI)
+				Box += UVs.Get(V, 1) * Res;
+			auto At = [&](int32 k) { return Positions[MD.GetVertexInstanceVertex(VI[k])]; };
+			const float Area = ((At(1) - At(0)) ^ (At(2) - At(0))).Size();
+			Surface.FindOrAdd(Root(i)) += Area;
+			Total += Area;
+		}
+		float Specks = 0.f;
+		for (const TPair<int32, FBox2f>& C : Extent)
+			if (C.Value.GetSize().GetMax() < 1.5f)
+				Specks += Surface[C.Key];
+		const float Speck = Total > 0.f ? Specks / Total : 0.f;
+		const float Fraction = Used ? float(Overlapped) / Used : 0.f;
+		return Speck > 0.25f ? FMath::Max(Fraction, Speck) : Fraction;
 	}
 } // namespace
 

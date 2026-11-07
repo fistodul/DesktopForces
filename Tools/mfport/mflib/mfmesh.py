@@ -69,7 +69,13 @@ class MeshBuilder:
         white = (1.0, 1.0, 1.0)
         for mat in sorted(self.tris):
             first = len(indices)
+            # a face stored twice (many MF props: half their triangles) draws the same and folds
+            # the lightmap onto itself; translucent copies add up, so those stay
+            blend = self.materials[mat].partition('|')[2].split('_')[0]
+            once = blend not in ('additive', 'modulated', 'translucent', 'alpha')
+            faces = set()
             for tri in self.tris[mat]:
+                corners = []
                 for v in tri:
                     col = (v[3] if len(v) > 3 else white) if self.has_colors else ()
                     key = (round(v[0][0], 3), round(v[0][1], 3), round(v[0][2], 3),
@@ -80,7 +86,13 @@ class MeshBuilder:
                         idx = vmap[key] = nverts
                         nverts += 1
                         verts += struct.pack(f'<{8 + len(col)}f', *v[0], *v[1], *v[2], *col)
-                    indices.append(idx)
+                    corners.append(idx)
+                a, b, c = corners
+                face = min((a, b, c), (b, c, a), (c, a, b))
+                if once and face in faces:
+                    continue
+                faces.add(face)
+                indices += corners
             sections.append({'material': mat, 'first_index': first, 'num_triangles': (len(indices) - first) // 3})
         binname = f'{self.name}.mfmesh.bin'
         (out_dir / binname).write_bytes(bytes(verts) + struct.pack(f'<{len(indices)}I', *indices))

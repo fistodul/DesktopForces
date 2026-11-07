@@ -10,6 +10,7 @@
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "Algo/AnyOf.h"
+#include "Algo/NoneOf.h"
 #include "Detour/DetourNavMesh.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
@@ -38,6 +39,8 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "Lightmass/LightmassImportanceVolume.h"
+#include "Materials/Material.h"
+#include "MaterialShared.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "World/DFZoneVolume.h"
 #include "World/DFRoadNetwork.h"
@@ -425,12 +428,32 @@ static FString PropKey(const TSharedPtr<FJsonObject>& R) {
 	return FString::Printf(TEXT("%s|%d|%d|%d"), *R->GetStringField(TEXT("mesh")), R->GetBoolField(TEXT("collision")) ? 1 : 0, CellX, CellY);
 }
 
+// Effect meshes (additive smoke, sparks, glass) and unlit ones read no lightmap: it would only
+// spend texels, and stacked translucent copies fold it (mf-BraveDwarfes' smoke: 67 %)
+static bool ReadsLightmap(const UMaterialInterface* M) {
+	if (!M)
+		return true; // the default material: lit
+	const ETranslucencyLightingMode Mode = M->GetMaterial()->TranslucencyLightingMode;
+	return M->GetShadingModels().IsLit() && (!IsTranslucentBlendMode(*M) || Mode == TLM_Surface || Mode == TLM_SurfacePerPixelLighting);
+}
+
+static bool ReadsLightmap(const UMeshComponent& C) {
+	for (int32 i = 0; i < C.GetNumMaterials(); ++i)
+		if (ReadsLightmap(C.GetMaterial(i)))
+			return true;
+	return false;
+}
+
 static UHierarchicalInstancedStaticMeshComponent* InstanceGroup(UWorld* World, const FActorSpawnParameters& SP, const TSharedPtr<FJsonObject>& R, const TMap<FString, int32>& Uses,
 	TMap<FString, UHierarchicalInstancedStaticMeshComponent*>& Groups, int32 Minimum, UStaticMesh* Mesh) {
 	const FString Key = PropKey(R);
 	// solid props too. Their masters need the instanced usage flag (FixMasterMaterialUsage) or the
 	// game draws them with the default material (mf-western's benches, 2026-11-06)
 	if (Minimum <= 0 || Uses.FindRef(Key) < Minimum)
+		return nullptr;
+	// translucent effects stay single actors: instances bake by lightmap resolution alone
+	// (UInstancedStaticMeshComponent ignores ForceVolumetric, PostLoad lifts 0 to 4)
+	if (Algo::NoneOf(Mesh->GetStaticMaterials(), [](const FStaticMaterial& M) { return ReadsLightmap(M.MaterialInterface) || (M.MaterialInterface && !IsTranslucentBlendMode(*M.MaterialInterface)); }))
 		return nullptr;
 	if (UHierarchicalInstancedStaticMeshComponent** Found = Groups.Find(Key))
 		return *Found;
@@ -714,6 +737,11 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 		Vis->SetActorLabel(TEXT("PrecomputedVisibility"));
 	}
 
+	for (TActorIterator<AActor> It(World); It; ++It)
+		It->ForEachComponent<UStaticMeshComponent>(false, [](UStaticMeshComponent* C) {
+			if (C->Mobility == EComponentMobility::Static && C->GetStaticMesh() && !C->IsA<UInstancedStaticMeshComponent>() && C->GetLightmapType() == ELightmapType::Default && !ReadsLightmap(*C))
+				C->SetLightmapType(ELightmapType::ForceVolumetric);
+		});
 	World->UpdateWorldComponents(true, false);
 	// Ladder nav links need the collision that now exists
 	for (TActorIterator<ADFLadderVolume> It(World); It; ++It)

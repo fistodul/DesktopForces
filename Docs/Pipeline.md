@@ -200,7 +200,16 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   warnings stay (mf-western after the change: 4 of 11, from 79 % down to 1–9 % but one).
   `-run=DFImport -steps=lightmapcheck [-maps=...]` measures the built maps' meshes this way and
   lists the maps a `maps` import would change, without saving anything. The projection wins
-  almost everywhere. Sky windows are unlit and get no lightmap. Two things had made nearly every mesh overlap (60–98 % on many props):
+  almost everywhere. A layout whose packer ran short of room shrinks every chart to a speck
+  (mf-VortexTrainV1's chairs: 370 charts in 32 px, each face one texel; Lightmass 58 %), so
+  surface in charts under 1.5 texels across counts as shared once it is a quarter of the mesh.
+  Sky windows, effect meshes (additive smoke, glass) and unlit ones get no lightmap
+  (`ForceVolumetric`; instance groups, which ignore that, lightmap resolution 0 when
+  translucent). Faces stored twice in the MF meshes (turb15: 4,860 of 9,850 triangles, half
+  the sawmill props) are written once by `mfmesh.py` unless translucent, where copies add up.
+  Lightmass's own count isn't reproducible (its source isn't shipped); calibrated on 1,730
+  meshes of 13 maps, this metric flags 17 of its 25 warnings over 5 % with one false alarm, and
+  the specks catch 4 of the rest. Two things had made nearly every mesh overlap (60–98 % on many props):
   vertex instances shared by triangles of different charts (the packer writes each corner's UV
   to its instance: the last chart's won, stretching triangles across the map), so every
   triangle corner has its own instance now; and triangles with no area, which scale their
