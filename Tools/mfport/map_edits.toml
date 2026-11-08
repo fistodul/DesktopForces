@@ -5,7 +5,7 @@
 #   add_vehicles   extra vehicle generators (Gregaras' mutPack addVehicles default spots;
 #                  "...Unboxed" map versions were merged into the regular maps)
 #   bounces        Lightmass indirect bounces (default in level.py)
-#   quality        Lightmass quality for `light` / `rebake`: Preview (default), Medium, High,
+#   quality        Lightmass quality for `light` / `rebake`: Preview, Medium (default), High,
 #                  Production (Docs/Roadmap.md #16: chosen per map by comparing bakes)
 #   instance_props meshes without collision placed this often in an 80 m cell share one
 #                  instanced component (default 8, 0 = never); halves a busy map's bake

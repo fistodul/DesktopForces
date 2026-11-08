@@ -66,8 +66,10 @@ def layout_from(map_name: str) -> str | None:
 
 
 def quality(map_name: str) -> str:
-    """Lightmass quality the map is baked at (Preview, Medium, High, Production; Roadmap #16)."""
-    return _edits_for(map_name).get('quality', 'Preview')
+    """Lightmass quality the map is baked at (Preview, Medium, High, Production; Roadmap #16).
+    Medium by default: shots of three maps found it within noise of Production (median 0.1-0.6
+    of 255) for about the bake time of Preview, which differed visibly in places."""
+    return _edits_for(map_name).get('quality', 'Medium')
 
 
 def bounces(map_name: str, default: int) -> int:

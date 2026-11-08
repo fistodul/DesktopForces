@@ -314,7 +314,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     ([Pipeline](Pipeline.md#lights)); mf-western: 11 warnings to 4, 5.6 to 7.1 M texels, bake
     8 min as before. `-steps=lightmapcheck` found 55 other maps with a prop at 10 % or more:
     those are rebaked, the rest keep their bake.
-16. ⬜ **Polish: Production-quality bake** (Filip, 2026-11-07). Every map is baked at
+16. 🟡 **Polish: Production-quality bake** (Filip, 2026-11-07). Every map was baked at
     `-quality=Preview` (`mflib/ue.py build_lighting`), the base sample counts of
     `BaseLightmass.ini`. Production multiplies them: 32x penumbra rays and 8x shadow rays (our
     UE1-wide soft light radii make penumbras wide, so Preview edges can look grainy), 6x shadow
@@ -337,6 +337,19 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       (and 6 GB VRAM is tight): a separate look test, not a drop-in;
     - while waiting: bakes are already per map and resumable; maps with a tight Lightmass
       importance volume and fewer texels on surfaces nobody sees bake faster at any quality.
+    - ✅ measured (2026-11-08) on three small maps, 4 player starts x 2 views (no HUD) per quality,
+      grey-level difference to Production (/255; moving bots excluded by taking the median):
+
+      | map | Preview | Medium | High | Production | Preview / Medium / High vs Production (median, 90th pct) |
+      |---|---|---|---|---|---|
+      | mf-OldPrison | 5.7 min | 6.1 min | 8.9 min | 14.5 min | 1.75, 3.9 / 0.50, 2.0 / 0.25, 1.5 |
+      | MF-Test_Facility | 3.7 min | 5.3 min | 8.3 min | 13.5 min | 0.88, 6.4 / 0.62, 2.3 / 0.25, 1.4 |
+      | mf-ShuttleLaunch | 2.9 min | 3.7 min | 5.9 min | 10.8 min | 0.75, 2.0 / 0.12, 1.0 / 0.00, 1.0 |
+
+      Medium is within noise of Production and looks the same in the shots; Preview differs
+      visibly in places (Test_Facility's 90th percentile). BuiltData size is the same at every
+      quality. So `quality` defaults to Medium now (`mapedits.quality`); the three maps are baked
+      at Medium, ⬜ the rest are still Preview until their next `rebake`.
 17. 🟡 **Duplicate maps and lighting variants** (Filip, 2026-11-07). World geometry compared
     across all 88 converted maps (BSP vertices on a 1 m grid, share of the smaller map):
 
