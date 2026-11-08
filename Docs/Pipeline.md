@@ -130,6 +130,14 @@ Positions in UE cm, mesh-local. Triangle winding: `cross(v1-v0, v2-v0)` points a
 normal; the UE importer reverses it (UE's convention). Simple enough for other tools
 (e.g. the planned VMF converter) to write.
 
+MF static meshes come with smoothed vertex normals and no reliable winding, so
+`t3d.orient_triangles` winds them: each connected piece (triangles linked across edges shared by
+exactly two) one way, facing along its vertex normals. Where those hardly agree (under 0.5
+area-weighted cosine: smoothing round the corners of overlapping boxes, e.g. mf-waterfront's
+bench rings) the shape decides: rays from up to 8 of the piece's faces cross a closed solid an even
+number of times outwards and an odd number inwards (at least three conclusive, four in five
+agreeing). Strongly agreeing normals win, so rooms and tunnels seen from inside stay that way.
+
 ### `level.json`
 - `world`: geometry chunks (`geo/World_x_y`, `geo/Collision_x_y`) with pivot location.
 - `static_meshes`: converted meshes.

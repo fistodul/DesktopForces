@@ -337,7 +337,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       (and 6 GB VRAM is tight): a separate look test, not a drop-in;
     - while waiting: bakes are already per map and resumable; maps with a tight Lightmass
       importance volume and fewer texels on surfaces nobody sees bake faster at any quality.
-17. ⬜ **Duplicate maps and lighting variants** (Filip, 2026-11-07). World geometry compared
+17. 🟡 **Duplicate maps and lighting variants** (Filip, 2026-11-07). World geometry compared
     across all 88 converted maps (BSP vertices on a 1 m grid, share of the smaller map):
 
     | maps | shared | difference |
@@ -364,3 +364,46 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       gameplay subset) halves its bake and download; don't keep the KF name as a map-list alias.
       The same could apply to the other KF cuts if their geometry is a strict subset, otherwise
       they stay separate maps.
+    - Done in the converter (2026-11-07, `map_edits.toml`, `mflib/twins.py`), so every conversion
+      from a player's own MF gets the same maps. `debug/twin_diff.py A B` lists the world polygons
+      one release has that the other lacks (exact coplanar clipping, so BSP splits don't count;
+      only faces that see open space), split into pure additions and reworked spots (both
+      changed there):
+
+      | pair | B has, A lacks: added / reworked | A has, B lacks: added / reworked | done |
+      |---|---|---|---|
+      | MF-BattleBayDarkV1 / mf-battlebaynoonv1 | 72 / 124 | 32 / 170 | night = noon's layout, lit at night (`layout_from`) |
+      | DM-Modernity-KF / mf-Modernity | 0 / 21 | 0 / 21 | KF not converted (`same_as`) |
+      | COOP-GhettoZomburaUpdated / mf-Ghetto | 7 / 45 | 13 / 54 | separate maps (coop) |
+      | MB-EndagaDam / mf-Hydroworks | 1149 / 157 | 59 / 160 | separate (a MoBall map) |
+      | DM-AbandonedMine-KF / mf-AbandonedMine | 76 / 398 | 1114 / 1805 | separate: the KF one is bigger, not a cut |
+      | DM-DrainageTrouble-KF / mf-Drainage-Trouble02 | 30 / 103 | 46 / 313 | separate |
+
+      BattleBay's night release adds no geometry over noon: its extra polygons are the older cut
+      of the south shore and the end platforms, which noon reworked (a union stacked night's flat
+      shore over noon's ramp), plus sky faces, water sheet sizes and two invisible blockers. So
+      both play the noon layout (42 starts, defence points, Captain zones); MF-BattleBayDarkV1
+      keeps its own lights, fog, ambient, sky box and music. Same geometry in both: the
+      lighting-scenario step above can follow (one map, `?Lighting=night`), halving the download.
+18. ✅ **Community game modes** (Filip, 2026-11-07). MF's System folder declares 19 game types
+    (`*.int` MetaClass=Engine.GameInfo); scripts without sources exported with UCC to
+    `Tools/mfport/work/raw/Classes/<package>`. All are in DF except:
+    - ✅ Knife Fight (KnifeFight.KnifeFightGame) and Shotgun Wars (Swars.ShotgunWarsGame):
+      `?game=kf` / `?game=sw` ([Gameplay](Gameplay.md#game-modes)).
+    - ✅ Mental Race (Racing.MentalRace): `?game=mr` on the 53 maps with two trailer parks and a
+      trailer generator ([Gameplay](Gameplay.md#game-modes)). Left: the cars' blue / red bodies
+      (Racing.u BugBodBlue01 / red skins, not converted: stock buggies for now). Bots fetch their
+      car however far it is (`ADFGameMode::GetBotVehicle`); a 6-bot warehouse test ran laps.
+    - trailerGameV2 is in Trailer (`TrailerScatterRadius`).
+19. 🟡 **Inside-out props, second pass** (Filip's see-through waterfront bench rings, 2026-11-08).
+    `StaticMesh17` (the wooden ring round the marble planters) is four overlapping boxes: edges at
+    their corners are shared by 3+ triangles, so `t3d.orient_triangles` split it into pieces, and
+    two pieces went by vertex normals smoothed round the corners and faced into the wood. Pieces
+    whose normals hardly agree now go by ray parity ([Pipeline](Pipeline.md#mfmesh-mflibmfmeshpy)).
+    mf-waterfront is converted and rebaked with it. A sweep of the converted meshes: 276 meshes on
+    41 maps change; on the 40 most changed, sampled inward faces drop from 4834 to 1656 and none
+    gets worse (Express_Delivery's `trailer1` 323 -> 42 of 400, the trains, trash bins, MFS
+    warehouse pipes). ⬜ The other 40 maps need `rebake` (convert, import, light) to get it:
+    mf-Express_Delivery, mfs-warehouse, mf-Space_station, mf-nc, mf-The_Bank, mf-City_Rush,
+    mf-Battlefield, MF-Test_Facility, mf-highwayrun, mf-sawmill, mf-Jungle and 29 with a few
+    triangles each (`python3 debug/winding_sweep.py [--check 40]` lists them).

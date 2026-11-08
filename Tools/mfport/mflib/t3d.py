@@ -180,6 +180,55 @@ def static_mesh_triangles(block: Block) -> list[SMTriangle]:
     return tris
 
 
+_TILTS = ((0.013, 0.007, 0.011), (-0.009, 0.012, -0.005), (0.004, -0.011, 0.008))   # off edges
+
+
+def _parity_side(tris: list[SMTriangle], flip: dict[int, bool], cache: dict, samples: int = 8) -> float:
+    """+1 if a piece wound as `flip` says faces out of the mesh's solid, -1 if into it, 0 if the
+    rays can't tell (an open surface, or they disagree). Up to `samples` triangles spread over it
+    each cast rays both ways from their middle; at least three must be conclusive and four in
+    five of those agree.
+    `cache` keeps the mesh's arrays between pieces (the original winding: flips come after)."""
+    import numpy as np
+    if not cache:
+        p = np.array([[v[0] for v in t.verts] for t in tris], dtype=float)
+        cache.update(p=p, v0=p[:, 0], e1=p[:, 1] - p[:, 0], e2=p[:, 2] - p[:, 0])
+    p, v0, e1, e2 = cache['p'], cache['v0'], cache['e1'], cache['e2']
+
+    def crossings(origin, d) -> int:   # Möller-Trumbore against every triangle
+        h = np.cross(d, e2)
+        a = (e1 * h).sum(1)
+        ok = np.abs(a) > 1e-9
+        f = np.where(ok, 1.0 / np.where(ok, a, 1.0), 0.0)
+        s = origin - v0
+        u = f * (s * h).sum(1)
+        q = np.cross(s, e1)
+        v = f * (q * d).sum(1)
+        t = f * (e2 * q).sum(1)
+        return int((ok & (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 1e-3)).sum())
+
+    out = into = 0
+    members = sorted(flip)   # not the walk's order: that follows the current winding
+    for i in members[::max(1, len(members) // samples)][:samples]:
+        n = np.cross(e1[i], e2[i]) * (-1.0 if flip[i] else 1.0)
+        length = np.linalg.norm(n)
+        if length < 1e-9:
+            continue
+        n /= length
+        mid = p[i].mean(0)
+        for tilt in _TILTS:
+            d = n + np.array(tilt)
+            d /= np.linalg.norm(d)
+            ahead, behind = crossings(mid + n * 0.01, d) % 2, crossings(mid - n * 0.01, -d) % 2
+            out += ahead == 0 and behind == 1
+            into += ahead == 1 and behind == 0
+    if out + into >= 3 and out >= 4 * into:
+        return 1.0
+    if out + into >= 3 and into >= 4 * out:
+        return -1.0
+    return 0.0
+
+
 def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
     """Wind each connected piece of a static mesh one way: neighbours cross a shared edge in
     opposite directions, and the piece as a whole faces along its vertex normals.
@@ -203,6 +252,7 @@ def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
             links[i].append((j, same))
             links[j].append((i, same))
     seen = [False] * len(tris)
+    rays: dict = {}
     for start in range(len(tris)):
         if seen[start]:
             continue
@@ -215,14 +265,26 @@ def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
                     seen[j] = True
                     flip[j] = flip[i] != differs
                     queue.append(j)
-        agreement = 0.0
+        agreement = cosines = areas = 0.0
         for i, turned in flip.items():
             p = [v[0] for v in tris[i].verts]
             u = [p[1][k] - p[0][k] for k in range(3)]
             w = [p[2][k] - p[0][k] for k in range(3)]
             n = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
             avg = [sum(v[1][k] for v in tris[i].verts) for k in range(3)]
-            agreement += sum(n[k] * avg[k] for k in range(3)) * (-1.0 if turned else 1.0)
+            along = sum(n[k] * avg[k] for k in range(3)) * (-1.0 if turned else 1.0)
+            agreement += along
+            length = math.sqrt(sum(c * c for c in avg))
+            if length > 1e-9:
+                cosines += along / length
+                areas += math.sqrt(sum(c * c for c in n))
+        # Normals that hardly agree (smoothed round the corners of overlapping boxes, e.g.
+        # mf-waterfront's bench rings): ask the shape instead. From a face of a closed solid a ray
+        # outwards crosses it an even number of times, inwards an odd one
+        if areas > 0.0 and abs(cosines / areas) < 0.5:
+            side = _parity_side(tris, flip, rays)
+            if side:
+                agreement = side
         for i, turned in flip.items():
             if turned != (agreement < 0):
                 v = tris[i].verts
