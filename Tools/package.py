@@ -429,7 +429,13 @@ def package(a: argparse.Namespace) -> None:
             # core alone is small: in the APK, one file to install (an OBB needs adb or a file
             # manager allowed into Android/obb); a build with every pack keeps the OBB (2 GB APK limit)
             package_args.append('-forcepackagedata')
-    cook = ['-ubtargs=-NoUBA', '-build', '-cook', '-stage', '-prereqs'] + ([f'-map={"+".join(maps)}'] if maps else [])
+    map_arg = [f'-map={"+".join(maps)}'] if maps else []
+    # Cook and stage in two UAT runs: staging reads the cook's oplog from Zen over an HTTP client
+    # made before the cook, whose pooled connections sat idle through it and are dead by then -
+    # the request waits out its 20 min timeout ("Reading oplog", 2026-11-08). A new process connects
+    # afresh
+    cook = ['-ubtargs=-NoUBA', '-build', '-cook', *map_arg]
+    staging = ['-skipcook', '-stage', '-prereqs', *map_arg]
 
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'
     uproject_bytes = uproject.read_bytes()  # restored byte for byte (line endings too)
@@ -458,7 +464,8 @@ def package(a: argparse.Namespace) -> None:
                 data['Plugins'] = [p for p in data.get('Plugins', []) if p['Name'] not in off] + [{'Name': n, 'Enabled': False} for n in off]
                 uproject.write_text(json.dumps(data, indent='\t') + '\n')
         if not a.downloads:
-            run([*uat, *cook, '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
+            run([*uat, *cook], a.dry_run, env=env)
+            run([*uat, *staging, '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
         else:
             # cook and stage, take the packs other than core out of the staged build, then package /
             # archive what's left
@@ -471,6 +478,7 @@ def package(a: argparse.Namespace) -> None:
                 for obb in stage.parent.glob(f'{stage_name}*.obb'):  # else an earlier OBB, every pack in it, is reused
                     obb.unlink()
             run([*uat, *cook], a.dry_run, env=env)
+            run([*uat, *staging], a.dry_run, env=env)
             if not a.dry_run:
                 split_downloads(stage / uproject.stem / 'Content/Paks', project / 'Saved/Cooked' / stage_name / uproject.stem / 'Metadata/ChunkManifest',
                                 downloads_out, build_id, platform_name, a.team)
