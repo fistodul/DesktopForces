@@ -103,12 +103,12 @@ bool UDFCharacterMovement::WantsLadder() const {
 		return false;
 	if (IsFalling())
 		return true; // walked off the top / jumped at it
-	// on the floor: only at the bottom half and pushing towards the rungs, so you can walk away
-	// at the foot and step off onto the ledge at the top
-	if (Rel.Z > 0.f)
-		return false;
+	// on the floor: pushing towards the rungs at the bottom half, or out over them at the top
+	// (walking down from the roof), so you can still walk away at the foot and step off onto
+	// the ledge at the top
 	const FVector Into = L->GetActorForwardVector().GetSafeNormal2D();
-	return IsMovingOnGround() && FVector::DotProduct(GetCurrentAcceleration().GetSafeNormal2D(), Into) > 0.5f;
+	const float Push = FVector::DotProduct(GetCurrentAcceleration().GetSafeNormal2D(), Into);
+	return IsMovingOnGround() && (Rel.Z > 0.f ? Push < -0.5f : Push > 0.5f);
 }
 
 void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds) {
@@ -188,7 +188,17 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations) {
 
 	// climbing up also presses against the rungs: the wall stops it, past the top it carries
 	// the climber onto the ledge
-	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f + Into * FMath::Max(Climb, 0.f) * 0.5f) * GetMaxSpeed();
+	// ... but below the top only up to the ladder's line: rungs with nothing behind them (Source
+	// maps' ladders: an invisible brush) let the press carry the climber off sideways into whatever
+	// is beyond (mfs-warehouse's crate shelves)
+	float Press = FMath::Max(Climb, 0.f) * 0.5f;
+	if (const ADFLadderVolume* L = TouchedLadder.Get()) {
+		const FVector Rel = UpdatedComponent->GetComponentLocation() - L->GetActorLocation();
+		const float Height = CharacterOwner ? CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
+		if (FVector::DotProduct(Rel, Into) > 0.f && Rel.Z < L->HalfHeight - Height)
+			Press = 0.f;
+	}
+	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f + Into * Press) * GetMaxSpeed();
 	if (Accel.IsNearlyZero())
 		Velocity = FVector::ZeroVector;
 
@@ -196,6 +206,14 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations) {
 	SafeMoveUpdatedComponent(Velocity * DeltaTime, UpdatedComponent->GetComponentQuat(), true, Hit);
 	if (Hit.IsValidBlockingHit()) {
 		if (Climb < 0.f && Hit.ImpactNormal.Z > GetWalkableFloorZ()) {
+			const ADFLadderVolume* L = TouchedLadder.Get();
+			if (L && UpdatedComponent->GetComponentLocation().Z > L->GetActorLocation().Z) {
+				// just on at the top, the ledge still under us: step out over the rungs first
+				// (it took us back off onto the roof, round and round, e.g. mf-waterfront's roofs)
+				FHitResult Out;
+				SafeMoveUpdatedComponent(LadderWallNormal * GetMaxSpeed() * DeltaTime, UpdatedComponent->GetComponentQuat(), true, Out);
+				return;
+			}
 			SetMovementMode(MOVE_Walking); // reached the floor going down
 			return;
 		}
