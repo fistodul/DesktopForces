@@ -30,7 +30,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ✅ Minimap textures (MiniMapInfo): MF tiles them (NumTexturesWide × High, 255 px each, 28 maps), stitched into one by `mflib/minimap.py` (only the first tile used to be stretched over the map); maps without a MiniMapInfo (56, VMF ones too) get one drawn from their floors (lighter higher up, lines at steps)
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
 - ⬜ Mounted gun aim: the crosshair marks where the gun points, which trails the view while the turret turns; make the gun converge on the view's aim point
-- ⬜ Phone frame rates: check the menu's refresh-based list on a phone (`GetMaxRefreshRate` may stay 60 there: use `FAndroidMisc::GetSupportedNativeDisplayRefreshRates`), and step the cap down by itself when frame time stays over budget (thermal throttling)
+- ✅ Phone frame rates (2026-11-08, Pixel 9a): the list is the rates that divide one of the panel's refresh rates (60 / 120 Hz: 120, 60, 40, 30, 24), and the cap goes to the frame pacer too (`FPlatformRHIFramePacer::SetFramePace`: Swappy picks the panel mode; `t.MaxFPS` alone left the phone at 60). The cap steps down when the frame rate stays under 90 % of it for 30 s (logged, this session only). Measured 59.9 FPS at 60 in Mental Race with 4 bots. That 9a has Smooth Display off (`peak_refresh_rate` 60), so Android holds 60 Hz whatever the game asks: a 120 cap stepped down to 60 after 30 s
 - ⬜ Kill credit left over from the code review: predator missile, sentry and seeker mines still read the owner's controller when they hit, and a gunner's or driver's shots too; projectiles, trip bombs and molotovs keep it from launch
 - ⬜ Hand-off 2026-11-03, open after the last feedback round:
   - Not tried in game yet: trip laser on vehicles, exiting a rolled vehicle (view level), rocket APC crosshair, rotor start, flags on Armadillo, Jeep and Heli
@@ -180,13 +180,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      with 6 bots.
 
    Proposals:
-   - The HUD canvas (loadout list, minimap, kill messages) ignores the safe zone and sits under
+   - ✅ (2026-11-08: the HUD starts ~156 px in from the cutout side: loadout list, minimap, health, messages) The HUD canvas (loadout list, minimap, kill messages) ignores the safe zone and sits under
      the camera hole in landscape. Offset it by the safe-zone padding. HUD text is 1.5× on touch
      screens (10c57c2, 4757ce0; checked on the 9a).
-   - Offer 60 FPS: the 9a has roughly half its 33 ms frame budget to spare.
+   - ✅ 60 FPS offered and held (59.9 FPS in Mental Race with 4 bots, 2026-11-08).
    - Button icons instead of words, a layout editor (MF-style), touch-look sensitivity, and
      tap-to-fire on the right half as an option.
-   - Options pages (sliders, combos) still need checking with fingers.
+   - ✅ Options by touch (2026-11-08): Video page, Advanced Graphics, the FPS combo and Apply all work by tapping; the game type list shows the new modes.
    - Since 2026-10-29 the data is in an OBB: a 103 MB APK and a 1.39 GB OBB for two maps
      (classic 1.22 GB of it). It runs from the OBB on the 9a. Install with the generated
      `Install_DesktopForces-arm64.sh` ([Building](Building.md#android)).

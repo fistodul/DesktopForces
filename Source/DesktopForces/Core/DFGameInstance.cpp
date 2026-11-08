@@ -62,6 +62,7 @@ bool UDFGameInstance::StepDownTick(float DeltaTime) {
 		UE_LOG(LogDF, Display, TEXT("Frame cap %.0f -> %.0f FPS: %.1f FPS for 30 s"), Cap, Next, Fps);
 		StepDownCap = Next;
 		GEngine->SetMaxFPS(Next);
+		UDFUserSettings::ApplyFramePace(Next);
 	}
 	return true;
 }

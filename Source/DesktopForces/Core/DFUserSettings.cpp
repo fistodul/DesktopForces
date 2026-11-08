@@ -11,6 +11,8 @@
 #include "HAL/IConsoleManager.h"
 #include "RHI.h"
 #include "DynamicRHI.h"
+#include "HAL/PlatformFramePacer.h"
+#include "DesktopForces.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidPlatformMisc.h"
 #endif
@@ -32,6 +34,7 @@ void UDFUserSettings::ApplyNonResolutionSettings() {
 	// The advanced slider owns render scale; presets never reduce it implicitly.
 	ScalabilityQuality.ResolutionQuality = RenderScale * 100.f;
 	Super::ApplyNonResolutionSettings();
+	ApplyFramePace(GetFrameRateLimit());
 	UpdateScreenPercentage();
 	MasterVolume = FMath::Clamp(MasterVolume, 0.f, 1.f);
 	MusicVolume = FMath::Clamp(MusicVolume, 0.f, 1.f);
@@ -120,29 +123,43 @@ void UDFUserSettings::SetToDefaults() {
 }
 
 TArray<float> UDFUserSettings::RecommendedFrameRates(float Saved) {
+	TArray<float> Rates;
+#if PLATFORM_ANDROID || PLATFORM_IOS
+	// Phones present through the frame pacer: a pace holds steady only where it divides one of
+	// the panel's refresh rates (a 60 / 120 Hz Pixel: 120, 60, 40, 30, 24)
+	TArray<int32> Panel;
+#if PLATFORM_ANDROID
+	Panel = FAndroidMisc::GetSupportedNativeDisplayRefreshRates(); // GetMaxRefreshRate stays at 60
+#endif
+	Panel.AddUnique(FPlatformMisc::GetMaxRefreshRate());
+	for (const int32 Hz : Panel)
+		for (int32 Interval = 1; Interval <= 6; ++Interval)
+			if (Hz % Interval == 0 && Hz / Interval > 20)
+				Rates.AddUnique(float(Hz / Interval));
+	Rates.Sort(TGreater<float>());
+#else
 	int32 Hz = FPlatformMisc::GetMaxRefreshRate();
 	FScreenResolutionArray Modes;
-
-	// desktop: GetMaxRefreshRate is 60 on Linux
-	if (RHIGetAvailableResolutions(Modes, false)) {
+	// GetMaxRefreshRate is 60 on Linux: the monitor's modes
+	if (RHIGetAvailableResolutions(Modes, false))
 		for (const FScreenResolutionRHI& Mode : Modes)
 			Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
-	}
-#if PLATFORM_ANDROID
-	// Android leaves GetMaxRefreshRate at the generic 60: the panel's own modes
-	for (const int32 Rate : FAndroidMisc::GetSupportedNativeDisplayRefreshRates())
-		Hz = FMath::Max(Hz, Rate);
-#endif
-	constexpr bool bSyncedToPanel = PLATFORM_ANDROID || PLATFORM_IOS;
-
-	TArray<float> Rates;
 	for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 }) {
 		const float Rate = Hz * Sixths / 6.f;
-		if (Rate > 20.f && !(bSyncedToPanel && Sixths > 6))
+		if (Rate > 20.f)
 			Rates.Add(Rate);
 	}
-
+#endif
 	Rates.AddUnique(Saved);
 	Rates.AddUnique(0.f);
 	return Rates;
+}
+
+void UDFUserSettings::ApplyFramePace(float Limit) {
+#if PLATFORM_ANDROID || PLATFORM_IOS
+	// t.MaxFPS only sleeps: the pacer (Swappy) holds the pace and picks the panel mode, else a
+	// phone stays at its 60 Hz default whatever the cap
+	const int32 Pace = FPlatformRHIFramePacer::SetFramePace(Limit > 0.f ? FMath::RoundToInt(Limit) : 0);
+	UE_LOG(LogDF, Log, TEXT("Frame pace %.0f -> %d"), Limit, Pace);
+#endif
 }

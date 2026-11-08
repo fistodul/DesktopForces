@@ -27,10 +27,13 @@ public:
 	/** What SetToDefaults picks on PC. */
 	static float GetDefaultFrameRateLimit() { return 120.f; }
 	/** Thirds of the screen's refresh and its half, from twice it down, above 20 FPS
-	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. Phones sync to the
-	 *  panel, so nothing above its refresh there: a 120 Hz one gets 120, 80, 60, 40. A custom
-	 *  cap keeps its place. */
+	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. Phones get the rates
+	 *  that divide one of the panel's (the pacer holds only those): a 60 / 120 Hz one gets 120,
+	 *  60, 40, 30, 24. A custom cap keeps its place. */
 	static TArray<float> RecommendedFrameRates(float Saved);
+	/** Phones: the frame pacer's pace for a cap (0: the default), which also picks the panel's
+	 *  refresh mode. Nothing elsewhere (t.MaxFPS caps there). */
+	static void ApplyFramePace(float Limit);
 	UDFUserSettings();
 
 	/** The game's settings object (the engine makes it from GameUserSettingsClassName). */
