@@ -341,6 +341,14 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       (and 6 GB VRAM is tight): a separate look test, not a drop-in;
     - while waiting: bakes are already per map and resumable; maps with a tight Lightmass
       importance volume and fewer texels on surfaces nobody sees bake faster at any quality.
+    - ⬜ GPU Lightmass test (Filip, 2026-11-08: faster, and maybe better than CPU Medium). Its
+      plugin is Win64-only (`GPULightmass.uplugin` PlatformAllowList), so on the Windows side of
+      this PC (RTX PRO 500 Blackwell, 6 GB, hardware ray tracing): enable the plugin and
+      `r.RayTracing` for the bake only (the game keeps it off), bake mf-OldPrison,
+      MF-Test_Facility and mf-ShuttleLaunch, and compare against the CPU Production shots
+      already taken (same cameras, `qualitytest.py`): time, look, VRAM (6 GB may not fit the big
+      maps), and whether the result differs in kind (GPU Lightmass has its own settings and
+      denoiser). If it wins, `light` gets a GPU path for Windows.
     - ✅ measured (2026-11-08) on three small maps, 4 player starts x 2 views (no HUD) per quality,
       grey-level difference to Production (/255; moving bots excluded by taking the median):
 
