@@ -41,6 +41,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -62,6 +63,31 @@ UE_PLATFORMS = {'Windows': 'Win64'}
 class Fail(Exception):
     pass
 
+
+
+def hold_zen(ue: Path, host: str, dry: bool) -> None:
+    """Keep the local Zen server (DDC and the cook's oplog) up for the whole run, owned by this
+    script. UAT and the cook commandlet each start it owned by themselves when it isn't running;
+    when the cook's copy exits with it, UAT's next request ("Reading oplog") goes to a fresh one
+    and waits forever (2026-10-29, 2026-11-08). Attach to a running one, else start it as the
+    engine does (its zenserver.runcontext)."""
+    zen = ue / 'Engine/Binaries' / host / ('zen.exe' if WINDOWS else 'zen')
+    common = Path(os.environ.get('LOCALAPPDATA', '')) if WINDOWS else Path.home() / '.config/Epic'
+    context = common / 'UnrealEngine/Common/Zen/Install/zenserver.runcontext'
+    if dry or not zen.exists():
+        return
+    owner = ['--owner-pid', str(os.getpid())]
+    if subprocess.run([zen, 'attach', *owner], capture_output=True).returncode == 0:
+        print(f'zen: held by this run (pid {os.getpid()})')
+        return
+    if not context.exists():
+        print('zen: not running and no runcontext; UAT starts its own')
+        return
+    ctx = json.loads(context.read_text())
+    subprocess.Popen([ctx['Executable'], *shlex.split(ctx['CommandlineArguments'], posix=not WINDOWS), *owner],
+                     cwd=ctx.get('WorkingDirectory'), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=not WINDOWS)
+    print(f'zen: started for this run (pid {os.getpid()})')
 
 def run(cmd: list, dry: bool, **kw) -> None:
     print('>', ' '.join(f'"{c}"' if ' ' in str(c) else str(c) for c in cmd), flush=True)
@@ -415,6 +441,7 @@ def package(a: argparse.Namespace) -> None:
     print(f'Packaging {a.platform} {a.config} {version}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
     if a.dry_run:
         print('(dry run)')
+    hold_zen(ue, host, a.dry_run)
     try:
         # the content build id (UDFDownloads): only in a --downloads build, only while it's made -
         # the paks on the server must come from the same cook as the game asking for them

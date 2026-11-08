@@ -72,7 +72,9 @@ python3 Tools/package.py --dry-run Windows
 
 It builds the editor modules (as `play.py build`), labels the packs, runs Unreal's BuildCookRun
 with the map list, compressed paks and iostore, and on Windows first checks the toolchain. The
-engine is the launcher's (`UE_ROOT`, `mfport.toml`). Outputs, for every platform:
+engine is the launcher's (`UE_ROOT`, `mfport.toml`). It holds the local Zen server (Unreal's
+cache and the cook's store) for the whole run: started by the cook alone, Zen exited with it and
+UAT then waited forever at "Reading oplog". Outputs, for every platform:
 
 | Folder | What |
 |---|---|
