@@ -30,15 +30,16 @@ from .sourcemdl import read_model
 
 # Prop models we may use: MF meshes recompiled for Source by the MFS team. Valve/HL2
 # models (props_c17, props_junk, ...) are skipped and listed for replacement.
-PROP_MODEL_DIRS = ('models/warehouse/',)
+PROP_MODEL_DIRS = ('models/warehouse/', 'models/props/box')   # MFS's own (MF art recompiled), not Valve's
 
 # MF's CollisionHeight 39 uu, DFCharacter's capsule half height, and a little air
 START_FEET_TO_CENTRE = 39 * UU_TO_CM + 4.0
 DROP_TOOLS = ('TOOLS/TOOLSNODRAW', 'TOOLS/TOOLSSKIP', 'TOOLS/TOOLSHINT', 'TOOLS/TOOLSAREAPORTAL',
               'TOOLS/TOOLSOCCLUDER', 'TOOLS/TOOLSTRIGGER', 'TOOLS/TOOLSFOG', 'TOOLS/TOOLSLIGHT',
               'TOOLS/TOOLSORIGIN', 'TOOLS/TOOLSBLOCKLIGHT', 'TOOLS/TOOLSBLOCKBULLETS', 'TOOLS/TOOLSBLACK')
-COLLISION_TOOLS = ('TOOLS/TOOLSCLIP', 'TOOLS/TOOLSPLAYERCLIP', 'TOOLS/TOOLSINVISIBLE', 'TOOLS/TOOLSINVISIBLELADDER',
-                   'TOOLS/TOOLSNPCCLIP')
+COLLISION_TOOLS = ('TOOLS/TOOLSCLIP', 'TOOLS/TOOLSPLAYERCLIP', 'TOOLS/TOOLSINVISIBLE', 'TOOLS/TOOLSNPCCLIP')
+# a brush of it is a climbable ladder (not solid): a DFLadderVolume against the wall behind it
+LADDER_TOOL = 'TOOLS/TOOLSINVISIBLELADDER'
 SKY_TOOLS = ('TOOLS/TOOLSSKYBOX', 'TOOLS/TOOLSSKYBOX2D')
 CHUNK = 2048.0
 EPS = 0.01
@@ -228,6 +229,20 @@ def load_material_map() -> dict[str, str]:
     return {k.upper(): v for k, v in data.get('materials', {}).items()}
 
 
+def load_category_map() -> dict[str, str]:
+    """Fallback MF texture by a material's folder (METAL/, BRICK/ ...), vmf_materials.toml [categories]."""
+    f = TOOL_DIR / 'vmf_materials.toml'
+    if not f.exists():
+        return {}
+    return {k.upper().strip('/'): v for k, v in tomllib.loads(f.read_text()).get('categories', {}).items()}
+
+
+# Brush entities kept as plain world geometry in their placed (closed / unbroken) state: the
+# boarded-up doorways and doors of MFS maps were open holes without them
+STATIC_BRUSH_ENTITIES = ('func_detail', 'func_brush', 'func_wall', 'func_illusionary', 'func_breakable',
+                         'func_door', 'func_door_rotating', 'func_movelinear', 'func_physbox')
+
+
 class VmfConverter:
     def __init__(self, cfg: Config, vmf_path: Path, name: str, scale: float = 1.0,
                  offset=(0.0, 0.0, 0.0), yaw: float = 0.0, zscale: float | None = None,
@@ -250,6 +265,7 @@ class VmfConverter:
         self.yaw = math.radians(yaw)
         self.out = cfg.out_dir / 'Maps' / name
         self.matmap = load_material_map()
+        self.categories = load_category_map()
         self.texture_index: dict[str, dict] = {}
         self.unmapped: Counter = Counter()
         self.usage: dict[str, set] = {}
@@ -266,14 +282,24 @@ class VmfConverter:
                 self.texture_index.setdefault(info['name'].lower(), info)
         return self.texture_index
 
-    def material_key(self, material: str) -> tuple[str | None, tuple[int, int]]:
+    def mapped_texture(self, material: str) -> str | None:
+        """The MF texture a material maps to by name (vmf_materials.toml or an MF texture's own name)."""
         m = material.upper()
         target = self.matmap.get(m)
         if target is None:
             info = self._mf_textures().get(m.split('/')[-1].lower())
             target = info['key'] if info else None
+        return target
+
+    def material_key(self, material: str, brush_fallback: str | None = None) -> tuple[str | None, tuple[int, int]]:
+        m = material.upper()
+        target = self.mapped_texture(m)
         if target is None:
+            # listed as unmapped either way (a proper match beats a stand-in), then filled in:
+            # the brush's own texture, else one of the folder's kind
             self.unmapped[m] += 1
+            target = brush_fallback or self.categories.get(m.strip('/').split('/')[0] if '/' in m.strip('/') else '')
+        if target is None:
             return None, (512, 512)
         info = self._mf_textures().get(target.split('.')[-1].lower())
         size = (info['usize'], info['vsize']) if info else (256, 256)
@@ -321,16 +347,29 @@ class VmfConverter:
         world = root.find('world')[0]
         solids = list(world.find('solid'))
         for ent in root.find('entity'):
-            if ent.keys.get('classname') in ('func_detail', 'func_brush', 'func_wall', 'func_illusionary'):
+            if ent.keys.get('classname') in STATIC_BRUSH_ENTITIES:
                 solids += ent.find('solid')
         chunks: dict[tuple, MeshBuilder] = {}
         coll: dict[tuple, MeshBuilder] = {}
         nfaces = 0
+        self.ladders = []
+        bounds = []   # world solids' boxes: which side of a ladder the wall is
         for solid in solids:
             faces = solid_faces(solid)
+            if faces:
+                pts = [p for _, _, poly in faces for p in poly]
+                box = (tuple(min(p[i] for p in pts) for i in range(3)), tuple(max(p[i] for p in pts) for i in range(3)))
+                if any(sd.keys.get('material', '').upper() == LADDER_TOOL for sd, _, _ in faces):
+                    self.ladders.append(box)
+                    continue
+                bounds.append(box)
             # a displaced brush is only its displaced sides: the rest of it isn't drawn or solid
             displaced = any(side.find('dispinfo') for side, _, _ in faces)
             parts = [part for face in faces if face[0].find('dispinfo') or not displaced for part in self.face_parts(*face)]
+            # a side whose material has no MF match takes its brush's commonest one that has:
+            # mostly the unseen tops and ends of walls (mf-warehouse's leftover /+3LASER1FALL)
+            mapped = Counter(t for t in (self.mapped_texture(sd.keys.get('material', '')) for sd, _, _ in faces) if t)
+            brush_tex = mapped.most_common(1)[0][0] if mapped else None
             for side, n, (flat, poly) in parts:
                 mat = side.keys.get('material', '').upper()
                 if mat in DROP_TOOLS or mat.startswith('TOOLS/TOOLSNODRAW'):
@@ -344,7 +383,7 @@ class VmfConverter:
                 elif sky:
                     key, size = 'rage_warehouse.sky.sky_00|sky', (256, 256)
                 elif render:
-                    tex, size = self.material_key(mat)
+                    tex, size = self.material_key(mat, brush_tex)
                     key = f'{tex or "Engine.DefaultTexture"}|opaque'
                 centre = tuple(sum(p[i] for p in poly) / len(poly) for i in range(3))
                 wc = self.xform(centre)
@@ -380,7 +419,9 @@ class VmfConverter:
             pivot = ((cell[0] + 0.5) * CHUNK * UU_TO_CM, (cell[1] + 0.5) * CHUNK * UU_TO_CM, 0.0)
             world_out.append({'mesh': f'geo/{mb.name}', 'location': pivot, 'render': mb.render, 'sky': sky,
                               'triangles': mb.triangle_count, 'lightmap_resolution': 4 if sky else 256})
-        spawns = self.entities(root)
+        ladder_props = [(_v(e.keys['origin']), _v(e.keys.get('angles', '0 0 0'))[1]) for e in root.find('entity')
+                        if 'ladder' in e.keys.get('model', '').lower() and 'origin' in e.keys]
+        spawns = self.entities(root) + self.ladder_volumes(bounds, ladder_props)
         if self.fog:
             spawns.append({'name': 'Fog', 'type': 'height_fog', 'location': [0.0, 0.0, 0.0], **self.fog})
         for i, spot in enumerate(self.extra_spawns):    # a map made for one mode has too few starts
@@ -401,6 +442,43 @@ class VmfConverter:
               f'{sum(1 for m in self.models.values() if m)} props converted, '
               f'{sum(self.skipped_models.values())} Valve props skipped')
         return path
+
+    def ladder_volumes(self, bounds: list[tuple], ladder_props: list[tuple]) -> list[dict]:
+        """A DFLadderVolume per ladder brush (Source's climbable TOOLSINVISIBLELADDER), as tall as
+        it, facing (forward) what it's climbed against: the ladder model it stands in front of
+        (a model faces the player: into the ladder is its yaw + 180), else the wall on its thin side."""
+        out = []
+        for i, (lo, hi) in enumerate(self.ladders):
+            centre = tuple((lo[k] + hi[k]) / 2 for k in range(3))
+            thin = 0 if hi[0] - lo[0] < hi[1] - lo[1] else 1
+            into = None
+            near = [(math.dist(o[:2], centre[:2]), yaw) for o, yaw in ladder_props
+                    if math.dist(o[:2], centre[:2]) < 96 and lo[2] - 128 <= o[2] <= hi[2] + 64]
+            if near:
+                yaw = math.radians(min(near)[1] + 180.0)
+                into = [math.cos(yaw), math.sin(yaw), 0.0]
+            for gap in range(8, 104, 8) if into is None else ():   # standing off the wall a little
+                for sign in (1.0, -1.0):
+                    probe = list(centre)
+                    probe[thin] += sign * ((hi[thin] - lo[thin]) / 2 + gap)
+                    if any(all(b[0][k] - 1 <= probe[k] <= b[1][k] + 1 for k in range(3)) for b in bounds):
+                        into = [0.0, 0.0, 0.0]
+                        into[thin] = sign
+                        break
+                if into:
+                    break
+            if into is None:
+                print(f'  ! ladder brush at {centre}: no wall behind it, skipped')
+                continue
+            c = self.xform(centre)
+            ahead = self.xform(_add(centre, tuple(into)))
+            yaw = math.degrees(math.atan2(ahead[1] - c[1], ahead[0] - c[0]))
+            lo_w, hi_w = self.xform(lo), self.xform(hi)
+            wide = max(abs(hi_w[0] - lo_w[0]), abs(hi_w[1] - lo_w[1]))
+            out.append({'name': f'ladder_{i}', 'location': list(c), 'rotation': {'pitch': 0.0, 'yaw': yaw, 'roll': 0.0},
+                        'type': 'actor', 'class': '/Script/DesktopForces.DFLadderVolume',
+                        'props': {'Radius': f'{max(wide / 2, 40.0):.2f}', 'HalfHeight': f'{abs(hi_w[2] - lo_w[2]) / 2:.2f}', 'ClimbSpeed': '0.500000'}})
+        return out
 
     def convert_model(self, model: str) -> str | None:
         """Source prop model -> meshes/<name>.mfmesh (Source units as MF uu, Y mirrored)."""

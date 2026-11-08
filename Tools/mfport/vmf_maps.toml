@@ -17,6 +17,8 @@ zscale = 1.159
 offset = [7499.9, 1948.5, -42.2]
 # MF props were recompiled for MFS at 0.75 scale: 1/0.75 brings them back to MF size
 prop_scale = 1.3333
+# Source's skyname sky_day01_06 is HL2's: MF warehouse's sky as a picture behind the skybox faces
+sky = "rage_warehouse.sky.sky_00"
 
 # Mobile Forces Source's own maps: no MF original to line up with. MFS is ~0.68x MF's size, so
 # the warehouse's scale, height and prop scale bring them to MF's proportions.
