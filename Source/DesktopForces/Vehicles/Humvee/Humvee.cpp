@@ -21,13 +21,15 @@ AHumvee::AHumvee() {
 	SuspensionDamping = 0.45f;
 	TractionRollInfluence = 0.15f; // tall: leaned too far in fast corners
 	PawnHalfWidth = 155.f; // the mirrors
-	// humvee.COL; four-wheel drive (DriveType 2). The wheels hang 12 cm below the COL spots:
-	// handling RideHeight 0.7, the highest of MF's cars (buggy 0.4, truck 0.5), sat on the ground
+	// humvee.COL; four-wheel drive (DriveType 2). handling RideHeight 0.7 is the highest of MF's
+	// cars (buggy 0.4, truck 0.5): the wheels hang 36 / 26 cm below the COL spheres, the tyres
+	// ~6 cm under the humveeMesh arches (68 cm). Radius 52 is humwheel's own (COL 0.458 m): the
+	// smaller sphere let the tyres sink 6 cm into the ground
 	Wheels = {
-		DF::RageWheel(FVector(202.6f, 81.5f, 28.8f), 45.8f, true, true, TEXT("Rage/humwheelR")),
-		DF::RageWheel(FVector(202.6f, -82.4f, 28.8f), 45.8f, true, true, TEXT("Rage/humwheelL")),
-		DF::RageWheel(FVector(-161.8f, 81.5f, 19.1f), 45.8f, false, true, TEXT("Rage/humwheelR")),
-		DF::RageWheel(FVector(-161.8f, -82.4f, 19.1f), 45.8f, false, true, TEXT("Rage/humwheelL")),
+		DF::RageWheel(FVector(202.6f, 81.5f, 5.f), 52.f, true, true, TEXT("Rage/humwheelR")),
+		DF::RageWheel(FVector(202.6f, -82.4f, 5.f), 52.f, true, true, TEXT("Rage/humwheelL")),
+		DF::RageWheel(FVector(-161.8f, 81.5f, 5.f), 52.f, false, true, TEXT("Rage/humwheelR")),
+		DF::RageWheel(FVector(-161.8f, -82.4f, 5.f), 52.f, false, true, TEXT("Rage/humwheelL")),
 	};
 	// aSeatsPos; MF DriverSeat=1: the driver sits on the left (our seat 0 drives)
 	SeatPositions = { FVector(34.9f, -72.f, 125.f), FVector(34.9f, 72.f, 125.f), FVector(-112.5f, -54.f, 248.6f), FVector(-112.5f, 54.f, 248.6f) };

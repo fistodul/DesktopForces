@@ -66,6 +66,10 @@ public:
 	float BaseYaw = 0.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")
 	float YawLimit = 180.f;
+	/** Unmanned, it points level at BaseYaw (MF vehWeapFake, whose relRot never changes);
+	 *  otherwise it keeps the last gunner's aim (MF ArmedAPC TurretRot). */
+	UPROPERTY(EditDefaultsOnly, Category = "Turret")
+	bool bRestsUnmanned = false;
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")
 	FString TurretMeshName = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	UPROPERTY(EditDefaultsOnly, Category = "Turret")

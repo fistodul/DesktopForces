@@ -19,7 +19,10 @@ AJeep::AJeep() {
 	EngineStartSound = TEXT("Sounds/jeep/engine_start");
 	EngineLoopSound = TEXT("Sounds/jeep/Engine");
 	EngineStopSound = TEXT("Sounds/jeep/engine_stop");
-	// jeep.COL wheel spheres (x, y, z m -> X = z, Y = x, Z = y cm); four-wheel drive (DriveType 2)
+	// jeep.COL wheel spheres (x, y, z m -> X = z, Y = x, Z = y cm); four-wheel drive (DriveType 2).
+	// Their heights (45 / 31.1) are the humvee's, whose hull is 60 cm taller: on the jeep they
+	// put the tyres up inside the wings. Lowered 52 / 48 cm, each tyre rests ~5 cm under its
+	// jeepMesh arch (48.6 cm front, 40.5 cm rear), the floor ~35 cm off the ground
 	auto Wheel = [](const FVector& Pos, bool bSteer) {
 		FDFWheelSetup W;
 		W.Position = Pos;
@@ -30,8 +33,8 @@ AJeep::AJeep() {
 		W.BlownMesh = TEXT("jeep/JeepWheelDamagedMesh");
 		return W;
 	};
-	Wheels = { Wheel(FVector(140.f, 81.5f, 45.f), true), Wheel(FVector(140.f, -82.4f, 45.f), true),
-		Wheel(FVector(-135.f, 81.5f, 31.1f), false), Wheel(FVector(-135.f, -82.4f, 31.1f), false) };
+	Wheels = { Wheel(FVector(140.f, 81.5f, -7.f), true), Wheel(FVector(140.f, -82.4f, -7.f), true),
+		Wheel(FVector(-135.f, 81.5f, -17.f), false), Wheel(FVector(-135.f, -82.4f, -17.f), false) };
 	// aSeatsPos (DriverSeat 1 first, the gunner standing at the back last), aDoorsPos
 	SeatPositions = { FVector(9.f, -56.25f, 112.5f), FVector(9.f, 56.25f, 112.5f), FVector(-67.5f, -11.25f, 180.f) };
 	SeatSits = { true, true }; // aSeatsSit
@@ -56,6 +59,7 @@ AJeep::AJeep() {
 	Gun->PitchMin = -60.f; // aSeatsRotLimit(2) Pitch 16384
 	Gun->PitchMax = 60.f;
 	Gun->TurnRate = 720.f; // the gunner's own view
+	Gun->bRestsUnmanned = true;
 	Gun->TurretMeshName = TEXT("jeep/jeepWeapMesh"); // vehWeapFake Mesh
 	Gun->FireInterval = 0.117f; // MachineGun
 	Gun->MaxClipAmmo = 300; // vehWeap had 3000, a reload that never comes; MaxClipAmmo 3000

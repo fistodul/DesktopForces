@@ -154,6 +154,8 @@ void ADFVehicle::BeginPlay() {
 		// MF WheelCollision supplies weapon hits; pawn queries also block on the tyre.
 		USphereComponent* S = NewObject<USphereComponent>(this);
 		S->SetupAttachment(C);
+		if (C->GetStaticMesh())
+			S->SetRelativeLocation(C->GetStaticMesh()->GetBoundingBox().GetCenter()); // the tyre, not the hub end of a buggy wheel
 		S->SetSphereRadius(W.Radius);
 		S->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		S->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -163,6 +165,24 @@ void ADFVehicle::BeginPlay() {
 		S->SetCanEverAffectNavigation(false);
 		S->RegisterComponent();
 		WheelColliders.Add(S);
+		// MF's COLT_WHEEL spheres collide as well: a tyre-wide capsule along the resting tyre keeps
+		// it out of walls and rides up kerbs. It reaches flat ground only at full bump, so the
+		// suspension rays carry the car, and a hard landing ends on the tyres, not in the floor
+		const float RestDrop = SuspensionTravel * (0.5f - 1.f / FMath::Max(SuspensionStiffness, 1.f));
+		const float MaxRadius = W.Radius - SuspensionTravel * 0.5f - RestDrop;
+		if (HasAuthority() && C->GetStaticMesh() && MaxRadius >= 10.f) {
+			const FBox Tyre = C->GetStaticMesh()->GetBoundingBox().TransformBy(C->GetRelativeTransform());
+			const float Radius = FMath::Min(Tyre.GetExtent().Y, MaxRadius);
+			UCapsuleComponent* Bump = NewObject<UCapsuleComponent>(this);
+			Bump->SetupAttachment(Body);
+			Bump->SetRelativeLocationAndRotation(FVector(Tyre.GetCenter().X, Tyre.GetCenter().Y, W.Position.Z - BoxCenter.Z - RestDrop), FRotator(90.f, 0.f, 0.f));
+			Bump->SetCapsuleSize(Radius, FMath::Max(W.Radius, Radius));
+			Bump->SetCollisionProfileName(TEXT("PhysicsActor"));
+			Bump->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+			Bump->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+			Bump->SetCanEverAffectNavigation(false);
+			Bump->RegisterComponent();
+		}
 	}
 	if (bDriveable || !PetrolCapPosition.IsZero()) {
 		PetrolCapCollider = NewObject<USphereComponent>(this);
@@ -316,8 +336,19 @@ void ADFVehicle::ApplyWater(float Dt) {
 
 void ADFVehicle::SimulateWheels(float Dt) {
 	ApplyWater(Dt);
-	if (!Driver && !Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle) && Body->GetUpVector().Z > 0.95f)
+	// Parked on a slope, the speed-proportional hold below only slows the creep to a few cm/s:
+	// enough to leave the generator's 450 cm and expire. Sleep is its static friction; a hit,
+	// a push or a driver wakes it
+	if (ParkedTime > 0.5f && !Driver && FMath::IsNearlyZero(Throttle) && Submerged <= 0.f) {
+		Body->PutRigidBodyToSleep();
+		ParkedTime = 0.f;
+	}
+	if (!Driver && !Body->RigidBodyIsAwake() && FMath::IsNearlyZero(Throttle) && Body->GetUpVector().Z > 0.5f)
 		return; // parked and settled: no traces, no forces
+	if (!Body->RigidBodyIsAwake())
+		Body->WakeRigidBody();
+	if (IsValid(Trailer) && !Trailer->Body->RigidBodyIsAwake())
+		Trailer->Body->WakeRigidBody(); // a parked trailer follows the cab that pulls away
 	const FTransform T = Body->GetComponentTransform();
 	const FVector Up = T.GetUnitAxis(EAxis::Z);
 	const FVector Fwd = T.GetUnitAxis(EAxis::X);
@@ -427,6 +458,8 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		const float Angle = FMath::Acos(FMath::Clamp(Up.Z, -1.f, 1.f));
 		Body->AddTorqueInRadians(Axis * Angle * 24.f - Body->GetPhysicsAngularVelocityInRadians() * 8.f, NAME_None, true);
 	}
+	const bool bStill = Vel.SizeSquared() < FMath::Square(15.f) && Body->GetPhysicsAngularVelocityInDegrees().SizeSquared() < FMath::Square(3.f);
+	ParkedTime = !Driver && bCoasting && Wheels.Num() > 0 && Grounded == Wheels.Num() && bStill ? ParkedTime + Dt : 0.f;
 }
 
 void ADFVehicle::UpdateWheelVisuals(float DeltaSeconds) {

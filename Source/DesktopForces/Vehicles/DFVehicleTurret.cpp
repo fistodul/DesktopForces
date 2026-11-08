@@ -83,6 +83,8 @@ void UDFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 			const float Step = TurnRate * DeltaTime;
 			const FRotator Delta = (Want - TurretRot).GetNormalized();
 			TurretRot = FRotator(TurretRot.Pitch + FMath::Clamp(Delta.Pitch, -Step, Step), FRotator::NormalizeAxis(TurretRot.Yaw + FMath::Clamp(Delta.Yaw, -Step, Step)), 0.f);
+		} else if (!Gunner && bRestsUnmanned) {
+			TurretRot = FRotator(0.f, BaseYaw, 0.f);
 		}
 		if (FireDelay > 0.f) {
 			FireDelay -= DeltaTime;

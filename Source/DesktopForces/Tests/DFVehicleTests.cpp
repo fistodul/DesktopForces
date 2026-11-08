@@ -10,6 +10,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Player/DFCharacter.h"
 #include "Vehicles/Humvee/Humvee.h"
+#include "Vehicles/Jeep/Jeep.h"
 
 namespace {
 	class FDFVehiclePhysicsCheck : public IAutomationLatentCommand {
@@ -125,7 +126,94 @@ namespace {
 		double Next = 0;
 		int32 Stage = 0;
 	};
+
+	/** An empty jeep on a 10 degree slope stands on its tyres, hull clear, and stays put. */
+	class FDFVehicleParkingCheck : public IAutomationLatentCommand {
+	public:
+		FDFVehicleParkingCheck(FAutomationTestBase* InTest, UWorld* InWorld)
+			: Test(InTest),
+			  World(InWorld) {}
+
+		virtual bool Update() override {
+			const double Now = World->GetTimeSeconds();
+			if (Stage == 0) {
+				Floor = World->SpawnActor<AActor>();
+				UBoxComponent* Box = NewObject<UBoxComponent>(Floor.Get());
+				Floor->SetRootComponent(Box);
+				Box->InitBoxExtent(FVector(3000, 3000, 50));
+				Box->SetWorldLocationAndRotation(Origin - FVector(0, 0, 50), FRotator(10.f, 0.f, 0.f));
+				Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+				Box->SetCollisionObjectType(ECC_WorldStatic);
+				Box->SetCollisionResponseToAllChannels(ECR_Block);
+				Box->SetMobility(EComponentMobility::Static);
+				Box->RegisterComponent();
+				FActorSpawnParameters Spawn;
+				Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				Car = World->SpawnActor<AJeep>(Origin + FVector(0, 0, 250), FRotator(10.f, 0.f, 0.f), Spawn);
+				Next = Now + 6;
+				Stage = 1;
+				return false;
+			}
+			if (!Car.IsValid()) {
+				Test->AddError(TEXT("Parked jeep was destroyed unexpectedly."));
+				Cleanup();
+				return true;
+			}
+			if (Now < Next)
+				return false;
+			if (Stage == 1) {
+				// the hull's underside above the slope, under the middle of the car
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(DFParkTest), false, Car.Get());
+				FHitResult Ground, Hull;
+				const FVector Middle = Car->GetActorLocation();
+				World->LineTraceSingleByChannel(Ground, Middle, Middle - FVector(0, 0, 1000), ECC_Visibility, Params);
+				World->LineTraceSingleByChannel(Hull, Ground.ImpactPoint + FVector(0, 0, 1), Middle + FVector(0, 0, 300), ECC_GameTraceChannel2);
+				const float Clearance = Hull.bBlockingHit ? Hull.Distance + 1.f : -1.f;
+				Test->AddInfo(FString::Printf(TEXT("Jeep hull clearance on the slope: %.1f cm"), Clearance));
+				Test->TestTrue(TEXT("Jeep stands on its tyres, hull clear of the ground"), Ground.bBlockingHit && Clearance > 25.f && Clearance < 60.f);
+				Rest = Car->GetActorLocation();
+				Next = Now + 6;
+				Stage = 2;
+				return false;
+			}
+			const float Drift = FVector::Dist(Rest, Car->GetActorLocation());
+			Test->AddInfo(FString::Printf(TEXT("Parked jeep on a 10 degree slope: %.2f cm drift over 6 s"), Drift));
+			Test->TestTrue(TEXT("A parked car holds on a slope"), Drift < 2.f);
+			Test->TestFalse(TEXT("A parked car sleeps"), Car->GetBody()->RigidBodyIsAwake());
+			Cleanup();
+			return true;
+		}
+
+	private:
+		void Cleanup() {
+			if (Car.IsValid())
+				Car->Destroy();
+			if (Floor.IsValid())
+				Floor->Destroy();
+		}
+		FAutomationTestBase* Test;
+		UWorld* World;
+		TWeakObjectPtr<AActor> Floor;
+		TWeakObjectPtr<AJeep> Car;
+		FVector Origin = FVector(-30000, 30000, 10000);
+		FVector Rest;
+		double Next = 0;
+		int32 Stage = 0;
+	};
 } // namespace
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFVehicleParkingTest, "DesktopForces.Gameplay.VehicleParking",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FDFVehicleParkingTest::RunTest(const FString& Parameters) {
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (UWorld* World = Context.World(); World && World->IsGameWorld() && World->GetAuthGameMode()) {
+			ADD_LATENT_AUTOMATION_COMMAND(FDFVehicleParkingCheck(this, World));
+			return true;
+		}
+	AddError(TEXT("Run this test in a standalone/listen game."));
+	return false;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFVehiclePhysicsTest, "DesktopForces.Gameplay.VehiclePhysics",
 	EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)

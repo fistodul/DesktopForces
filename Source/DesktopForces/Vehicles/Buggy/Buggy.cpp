@@ -20,12 +20,14 @@ ABuggy::ABuggy() {
 	SuspensionTravel = 42.f;
 	SteerAtTopSpeed = 0.95f; // light and low: the agile one
 	Grip = 7.f;
-	// Buggy.COL wheel spheres; rear-wheel drive (DriveType 1)
+	// Buggy.COL wheel spheres, hung 30 cm lower (handling RideHeight 0.4): at rest the hubs line
+	// up with the aAxelOffset joints, so the drive shafts run level and the floor sits at hub
+	// height as in MF; at the COL heights it rode 7 cm off the ground. Rear-wheel drive (DriveType 1)
 	Wheels = {
-		DF::RageWheel(FVector(202.6f, 71.5f, 15.4f), 41.f, true, false, TEXT("Rage/BuggyWheelFR")),
-		DF::RageWheel(FVector(202.6f, -72.4f, 15.4f), 41.f, true, false, TEXT("Rage/BuggyWheelFL")),
-		DF::RageWheel(FVector(-85.f, 91.5f, 27.1f), 52.f, false, true, TEXT("Rage/BuggyWheelBR")),
-		DF::RageWheel(FVector(-85.f, -92.4f, 27.1f), 52.f, false, true, TEXT("Rage/BuggyWheelBL")),
+		DF::RageWheel(FVector(202.6f, 71.5f, -14.6f), 41.f, true, false, TEXT("Rage/BuggyWheelFR")),
+		DF::RageWheel(FVector(202.6f, -72.4f, -14.6f), 41.f, true, false, TEXT("Rage/BuggyWheelFL")),
+		DF::RageWheel(FVector(-85.f, 91.5f, -2.9f), 52.f, false, true, TEXT("Rage/BuggyWheelBR")),
+		DF::RageWheel(FVector(-85.f, -92.4f, -2.9f), 52.f, false, true, TEXT("Rage/BuggyWheelBL")),
 	};
 	AxleMeshName = TEXT("Rage/BuggyAxel");
 	SuspensionMeshName = TEXT("Rage/BuggySuspension");

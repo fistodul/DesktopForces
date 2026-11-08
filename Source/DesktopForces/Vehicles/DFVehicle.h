@@ -440,6 +440,8 @@ protected:
 	TArray<float> LastCompression;
 	TArray<float> WheelSpin;
 	float UpsideDownTime = 0.f;
+	/** Empty, on its wheels and all but still this long: put to sleep (static friction). */
+	float ParkedTime = 0.f;
 	/** Velocity before this frame's contacts (a soldier hit is judged on it, not on the stop). */
 	bool bBlownUp = false;
 	/** PhysicalWaterInfo.WaterHeight (cm); none: -inf. Submerged share of the body (0..1). */

@@ -24,7 +24,7 @@ namespace {
 } // namespace
 
 AHeli::AHeli() {
-	FlagPosition = FVector(-112.5f, 11.25f, 180.f); // FlagPos x 2.25
+	// no team pennant: heli.uc bFlag=False (its FlagPos is never used)
 	DisplayName = LOCTEXT("Heli", "Heli");
 	bBotsDrive = false; // BotDesireability: only with a player at the controls
 	BodyMeshName = TEXT("heli/heliMesh");
@@ -234,6 +234,7 @@ AHeliHmg::AHeliHmg() {
 		G->PitchMin = -90.f;
 		G->PitchMax = 90.f;
 		G->TurnRate = 720.f;
+		G->bRestsUnmanned = true; // vWeapFake relRot = vehicleWeapRot
 		G->TurretMeshName = TEXT("jeep/jeepWeapMesh");
 		G->GunnerWeaponClass = AJeepGunnerWeapon::StaticClass();
 		G->FireInterval = 0.117f;

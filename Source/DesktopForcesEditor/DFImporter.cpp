@@ -1245,7 +1245,7 @@ UMaterialInterface* FDFImporter::EnsureSkyMaterial() {
 	bool bNewRT = false;
 	UTextureRenderTargetCube* RT = FindOrCreateAsset<UTextureRenderTargetCube>(TEXT("/Game/MF/Materials"), TEXT("RT_MF_Sky"), bNewRT);
 	if (bNewRT) {
-		RT->Init(256, PF_B8G8R8A8); // MF skies are 256 px textures; LDR is plenty
+		RT->Init(256, PF_B8G8R8A8); // LDR is plenty; ADFSkyCapture sizes it to the screen at map start
 		RT->ClearColor = FLinearColor::Black;
 		SaveAsset(RT);
 	}

@@ -4,6 +4,9 @@
 #include "DesktopForces.h"
 #include "TimerManager.h"
 #include "Engine/TextureRenderTargetCube.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/Engine.h"
+#include "UnrealClient.h"
 #include "Components/SceneCaptureComponentCube.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -100,6 +103,22 @@ void ADFSkyCapture::BeginPlay() {
 		UE_LOG(LogDF, Warning, TEXT("DFSkyCapture: RT_MF_Sky missing"));
 		return;
 	}
+	// One cube face spans 90 degrees, the view FieldOfView: at 1920 px and FOV 100 a face covers
+	// ~1600 screen px, so the asset's 256 px stretched the sky 6x (sawmill's moon a blur). MF drew
+	// its sky live at screen resolution. Size the cube to the screen, capped by texture quality
+	// (BGRA8: 512 = 6 MB, 1024 = 25 MB, 2048 = 100 MB).
+	FIntPoint Screen(1920, 1080);
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport)
+		Screen = GEngine->GameViewport->Viewport->GetSizeXY();
+	const UDFUserSettings& Settings = UDFUserSettings::Get();
+	const float HalfFov = FMath::DegreesToRadians(FMath::Clamp(Settings.FieldOfView, 60.f, 140.f) * 0.5f);
+	const int32 Needed = FMath::RoundUpToPowerOfTwo(FMath::CeilToInt(FMath::Max(Screen.X, 1) / FMath::Tan(HalfFov)));
+	const int32 TextureQuality = Settings.ScalabilityQuality.TextureQuality;
+	const int32 Cap = TextureQuality <= 0 ? 512 : TextureQuality <= 2 ? 1024
+																	  : 2048;
+	const int32 Size = FMath::Clamp(Needed, 256, Cap);
+	if (Target->SizeX != Size)
+		Target->Init(Size, PF_B8G8R8A8);
 	Capture->TextureTarget = Target;
 	// a shell of sky round the map: holes in it (the backs of far buildings were never meant to
 	// be seen through) show sky, not the black behind everything. One draw, no bake
@@ -122,7 +141,7 @@ void ADFSkyCapture::BeginPlay() {
 	}
 	// A few captures over the first seconds: right after load, textures are still streaming
 	// in (and in editor builds shaders may still compile, which renders default materials).
-	// Four 256 px cube captures in total, nothing afterwards.
+	// Four cube captures in total, nothing afterwards.
 	for (const float Delay : { 0.5f, 2.f, 5.f, 10.f }) {
 		FTimerHandle Handle;
 		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this]() {

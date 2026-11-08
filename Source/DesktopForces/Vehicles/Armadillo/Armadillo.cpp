@@ -22,11 +22,13 @@ AArmadillo::AArmadillo() {
 	Armour = 0.84f;
 	SuspensionTravel = 25.f; // more lifts the wheels through the hull
 	SuspensionDamping = 0.5f;
+	// Armadillo.COL spheres 15 cm lower: at rest the tyre tops came 12 cm up through the
+	// ArmadilloMesh fender plate (-7.4 cm)
 	Wheels = {
-		DF::RageWheel(FVector(270.9f, 139.9f, -66.1f), 67.9f, true, true, TEXT("Rage/ArmadilloWheelR")),
-		DF::RageWheel(FVector(270.9f, -140.f, -66.1f), 67.9f, true, true, TEXT("Rage/ArmadilloWheelL")),
-		DF::RageWheel(FVector(-185.9f, 139.9f, -66.1f), 67.9f, false, true, TEXT("Rage/ArmadilloWheelR")),
-		DF::RageWheel(FVector(-185.9f, -140.f, -66.1f), 67.9f, false, true, TEXT("Rage/ArmadilloWheelL")),
+		DF::RageWheel(FVector(270.9f, 139.9f, -81.1f), 67.9f, true, true, TEXT("Rage/ArmadilloWheelR")),
+		DF::RageWheel(FVector(270.9f, -140.f, -81.1f), 67.9f, true, true, TEXT("Rage/ArmadilloWheelL")),
+		DF::RageWheel(FVector(-185.9f, 139.9f, -81.1f), 67.9f, false, true, TEXT("Rage/ArmadilloWheelR")),
+		DF::RageWheel(FVector(-185.9f, -140.f, -81.1f), 67.9f, false, true, TEXT("Rage/ArmadilloWheelL")),
 	};
 	SeatPositions = { FVector(112.5f, 0.f, 58.5f), FVector(0.f, 0.f, 180.f) };
 	DoorPositions = { FVector(135.f, 225.f, 0.f), FVector(135.f, -225.f, 0.f), FVector(-337.5f, 0.f, 0.f), FVector(0.f, 0.f, 180.f) };
