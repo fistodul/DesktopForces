@@ -247,7 +247,9 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP
     geometry (`rage_warehouse.wood.ware_wood_*`), so likely a brush that lost faces in conversion
     (or a one-sided face). Not in the red loadout room (11100, 8600) or the red trailer yard
-    (9600, 3600). 2026-10-30: Filip no longer sees it on desktop; check the phone (mobile
+    (9600, 3600). 2026-11-08: phone and desktop shots from the same cameras match where I looked
+    (indoors near (12100-14500, 4300-6900)); the crate itself not found yet: needs the spot.
+    2026-10-30: Filip no longer sees it on desktop; check the phone (mobile
     renderer / 256 px textures) before closing. Same map: the floor grate in front of the red
     base's Armadillo garage (3967, 3825, -216; `ware_metal_37`, thin bright bars on black)
     shimmers when moving. One face, no z-fighting; trilinear mips made no visible difference
@@ -303,8 +305,10 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     and cooks `DesktopForcesServer` inside Epic's engine image (the Launcher engine has no server
     targets) from a copy of the project, and packs a tarball that runs on any x86-64 Linux with
     glibc 2.28+, no Docker or engine there ([Hosting](Hosting.md#ways-to-run-one)). Tested: unpacked
-    in a fresh folder, run natively, an editor client of the same version joined it. Still open:
-    a VPS run, phone and Windows clients against it, and the full-map build after the rebake.
+    in a fresh folder, run natively, an editor client of the same version joined it. 2026-11-08:
+    the full-map build after the rebake (`20261108`, every mode incl. Knife Fight / Mental Race),
+    the Pixel 9a joined it (Knife Fight, bots) and an editor client (Mental Race). Still open: a
+    VPS run and Windows clients against it.
 15. ✅ **Prop lightmap UV overlap** (2026-11-06). Lightmass warned "Lightmap UV are overlapping by
     N %" for 259 static meshes at 20 % or more in the 45 lighting logs kept from the 2026-11-05
     rebake, while the importer measured 0 %: at 32 px thin parts (planks, rails, sleepers, chair
