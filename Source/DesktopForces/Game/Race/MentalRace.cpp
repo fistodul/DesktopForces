@@ -11,8 +11,7 @@
 #include "TimerManager.h"
 
 namespace {
-	constexpr float Uu = 2.25f;
-	const TCHAR* TeamWord(uint8 Team) {
+	const TCHAR* RaceTeamWord(uint8 Team) {
 		return Team == 1 ? TEXT("Red") : TEXT("Blue");
 	}
 } // namespace
@@ -40,8 +39,8 @@ void ARaceCar::EndPlay(const EEndPlayReason::Type Reason) {
 // --- check point ---------------------------------------------------------------------------
 
 ARaceCheckPoint::ARaceCheckPoint() {
-	Radius = (256.f + 128.f) * Uu;
-	HalfHeight = 256.f * Uu;
+	Radius = 864.f; // CollisionRadius 256 uu, touched within 128 uu more
+	HalfHeight = 576.f; // CollisionHeight 256 uu
 }
 
 void ARaceCheckPoint::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
@@ -155,14 +154,14 @@ void AMentalRace::Passed(uint8 Team, ADFVehicle* Car) {
 		ADFGameState* GS = GetGameState<ADFGameState>();
 		if (GS && GS->TeamScores.IsValidIndex(Team))
 			GS->TeamScores[Team] += 1;
-		Event(FString::Printf(TEXT("%s completed a lap for %s!"), *Who, TeamWord(Team)), Team, Team == 1 ? TEXT("Red_score") : TEXT("Blue_score"));
+		Event(FString::Printf(TEXT("%s completed a lap for %s!"), *Who, RaceTeamWord(Team)), Team, Team == 1 ? TEXT("Red_score") : TEXT("Blue_score"));
 		Next[Team] = 2;
 		if (GS && (bOverTime || (ScoreLimit > 0 && GS->GetTeamScore(Team) >= ScoreLimit))) {
 			FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(Team).ToString()));
 			return;
 		}
 	} else {
-		Event(FString::Printf(TEXT("%s passed Check Point for %s."), *Who, TeamWord(Team)), Team);
+		Event(FString::Printf(TEXT("%s passed Check Point for %s."), *Who, RaceTeamWord(Team)), Team);
 		if (Next[Team] == 2)
 			Next[Team] = 1 - Team; // on to the enemy park
 		else if (Next[Team] == 1 - Team)
@@ -175,7 +174,7 @@ void AMentalRace::Passed(uint8 Team, ADFVehicle* Car) {
 
 void AMentalRace::RaceCarGone(const ARaceCar* Car) {
 	if (IsMatchInProgress())
-		Event(FString::Printf(TEXT("%s Race Car Destroyed."), TeamWord(Car->RaceTeam)), Car->RaceTeam); // MentalRaceMessage 3
+		Event(FString::Printf(TEXT("%s Race Car Destroyed."), RaceTeamWord(Car->RaceTeam)), Car->RaceTeam); // MentalRaceMessage 3
 }
 
 void AMentalRace::OnTimeLimit() {

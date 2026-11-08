@@ -13,7 +13,7 @@
 
 namespace {
 	/** The mode being played, as clients know it (the GameState's GameModeClass). */
-	const ADFGameMode* Mode(const AGameStateBase* GS) {
+	const ADFGameMode* ModeOf(const AGameStateBase* GS) {
 		const ADFGameMode* M = GS && GS->GameModeClass ? Cast<ADFGameMode>(GS->GameModeClass->GetDefaultObject()) : nullptr;
 		return M ? M : GetDefault<ADFGameMode>();
 	}
@@ -43,7 +43,7 @@ FText UDFAnnouncement::GetText(int32 Switch, const APlayerState* Subject, const 
 	if (Switch == FirstBlood)
 		return FText::Format(LOCTEXT("FirstBlood", "{0} drew first blood!"), Name);
 	if (Switch >= Spree && Switch < Spree + 5)
-		return FText::Format(LOCTEXT("SpreeFmt", "{0} {1}"), Name, Mode(GS)->GetSpreeNote(Switch - Spree));
+		return FText::Format(LOCTEXT("SpreeFmt", "{0} {1}"), Name, ModeOf(GS)->GetSpreeNote(Switch - Spree));
 	if (Switch == SpreeEnded) {
 		const FText Victim = FText::FromString(Other ? Other->GetPlayerName() : FString());
 		return Subject ? FText::Format(LOCTEXT("SpreeEnded", "{0}'s killing spree was ended by {1}."), Victim, Name)
@@ -75,7 +75,7 @@ void UDFAnnouncement::ClientReceive(const FClientReceiveData& ClientData) const 
 	if (Switch == FirstBlood && bMine) {
 		MPC->PlayAnnouncer(TEXT("first_kill"));
 	} else if (Switch >= Spree && Switch < Spree + 5 && bMine) {
-		if (const FName Sound = Mode(GS)->GetSpreeSound(Switch - Spree); !Sound.IsNone())
+		if (const FName Sound = ModeOf(GS)->GetSpreeSound(Switch - Spree); !Sound.IsNone())
 			MPC->PlayAnnouncer(Sound);
 	} else if (Switch == Headshot) {
 		MPC->PlayAnnouncer(TEXT("Decapitation"));
