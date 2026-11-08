@@ -72,6 +72,11 @@ def quality(map_name: str) -> str:
     return _edits_for(map_name).get('quality', 'Medium')
 
 
+def lightmap_budget(map_name: str, default: int) -> int:
+    """Lightmap texels the map may have before its texels grow (level.py LIGHTMAP_BUDGET)."""
+    return int(_edits_for(map_name).get('lightmap_budget', default))
+
+
 def bounces(map_name: str, default: int) -> int:
     """Lightmass indirect bounces: more light in rooms the sun doesn't reach, for bake time only."""
     return _edits_for(map_name).get('bounces', default)

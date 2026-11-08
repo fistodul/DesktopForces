@@ -5,6 +5,7 @@
 #   add_vehicles   extra vehicle generators (Gregaras' mutPack addVehicles default spots;
 #                  "...Unboxed" map versions were merged into the regular maps)
 #   bounces        Lightmass indirect bounces (default in level.py)
+#   lightmap_budget lightmap texels before they grow coarser (default 6M in level.py)
 #   quality        Lightmass quality for `light` / `rebake`: Preview, Medium (default), High,
 #                  Production (Docs/Roadmap.md #16: chosen per map by comparing bakes)
 #   instance_props meshes without collision placed this often in an 80 m cell share one
@@ -111,6 +112,8 @@ add_vehicles = [
 ]
 
 ["mf-waterfront"]
+# 70 cm texels at the default budget made the bases' shadows blocky (Filip, 2026-11-08): ~50 cm
+lightmap_budget = 12_000_000
 hull_collision = ["redladder", "blueladder"]   # ramps up to the roofs: rungs would catch your feet
 add_vehicles = [
   { vehicle = "heli.heli", location = [14724.0, -17174.2, -459.0], yaw = -130.17 },

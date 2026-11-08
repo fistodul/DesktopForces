@@ -280,7 +280,8 @@ class LevelConverter:
         texel = LIGHTMAP_TEXEL
         total, cres, mres = plan(texel)
         start = total
-        while total > LIGHTMAP_BUDGET and texel < LIGHTMAP_TEXEL * 64:
+        budget = mapedits.lightmap_budget(self.map, LIGHTMAP_BUDGET)
+        while total > budget and texel < LIGHTMAP_TEXEL * 64:
             texel *= 1.25
             total, cres, mres = plan(texel)
         for w in chunks:
