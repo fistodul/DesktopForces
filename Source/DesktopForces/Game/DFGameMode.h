@@ -101,6 +101,9 @@ public:
 	/** Something a driving bot keeps driving at instead of taking the road to its goal and
 	 *  getting out (MoBall: the ball). */
 	virtual AActor* GetBotDriveTarget(AController* Bot) const { return nullptr; }
+	/** A vehicle the mode wants this bot on foot to get into before anything else (Mental Race:
+	 *  its team's race car); walked to however far, boarded, then driven at GetBotDriveTarget. */
+	virtual class ADFVehicle* GetBotVehicle(AController* Bot) const { return nullptr; }
 
 	// --- votes (Gregaras' vote mutator, MF "mutate callvote" / "mutate vote": CallVote / Vote) -
 	/** Seconds a vote stays open (votingDuration). */
@@ -124,6 +127,11 @@ public:
 	virtual FName GetInstructionSound(const AController* C) const {
 		return !InstructionSound.IsNone() ? InstructionSound : FName(IsTeamGame() ? TEXT("Destroy_the_enemy") : TEXT("Kill_them_all"));
 	}
+	/** Killing spree line and announcer sound for level 0..4 (5, 10, 15, 20, 25 kills; MF
+	 *  RageMessageKillingSpree, a mode's own LocalMessage). Clients ask the GameState's
+	 *  GameModeClass defaults (UDFAnnouncement). */
+	virtual FText GetSpreeNote(int32 Level) const;
+	virtual FName GetSpreeSound(int32 Level) const;
 	/** The MF game class this mode stands for ("RageDeathMatch", "RageCTF", a mod's own ...):
 	 *  map actors with a CondGameType exist only in that one (GameInfo.IsRelevant). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")

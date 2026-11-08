@@ -125,6 +125,8 @@ protected:
 	void LeaveVehicle(ADFVehicle* V, const TCHAR* Why);
 	TWeakObjectPtr<ADFVehicle> GoingForVehicle;
 	float GoingForVehicleSince = 0.f;
+	/** GoingForVehicle is the mode's (ADFGameMode::GetBotVehicle): more patience, any distance. */
+	bool bModeVehicle = false;
 	float DontEnterVehicleTime = 0.f;
 	float NextFollowLog = 0.f; // verbose log throttle
 	/** Where the drive goes (the goal actor if any, it may move) and the road there. */

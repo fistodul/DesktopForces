@@ -1,4 +1,5 @@
 #include "UI/DFHUD.h"
+#include "Game/Race/MentalRace.h"
 #include "UI/DFCrosshairs.h"
 #include "Core/DFContent.h"
 #include "Core/DFUserSettings.h"
@@ -593,6 +594,15 @@ void ADFHUD::DrawMiniMapMF(ADFCharacter* C) {
 			DrawIcon(It->GetActorLocation(), U, 224.f);
 		}
 	}
+	// Mental Race (MentalRaceHUD): check points (the team's next one turning: its ping), the cars
+	const ADFPlayerState* RacePS = PlayerOwner ? PlayerOwner->GetPlayerState<ADFPlayerState>() : nullptr;
+	const uint8 MyTeam = RacePS ? RacePS->GetTeam() : DF::NoTeam;
+	for (TActorIterator<ARaceCheckPoint> It(GetWorld()); It; ++It) {
+		const bool bNext = MyTeam <= 1 && (It->NextFor >> MyTeam) & 1;
+		DrawIcon(It->GetActorLocation(), It->Index == 1 ? 64.f : 96.f, 192.f, bNext ? GetWorld()->GetTimeSeconds() * 180.f : 0.f, bNext);
+	}
+	for (TActorIterator<ARaceCar> It(GetWorld()); It; ++It)
+		DrawIcon(It->GetActorLocation(), It->RaceTeam == 1 ? 128.f : 160.f, 224.f); // RaceCarIcon_Team
 	// team-mates (TeamMateIcon_Team Y=32)
 	if (const ADFPlayerState* MyPS = C->GetPlayerState<ADFPlayerState>(); MyPS && MyPS->HasTeam()) {
 		for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)

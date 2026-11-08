@@ -782,6 +782,21 @@ void ADFGameMode::RestartRound() {
 	}
 }
 
+FText ADFGameMode::GetSpreeNote(int32 Level) const {
+	// RageMessageKillingSpree.SpreeNote
+	static const FText Notes[] = {
+		NSLOCTEXT("DFMessages", "Spree0", "is a one man killing machine!"), NSLOCTEXT("DFMessages", "Spree1", "is seriously deranged!"),
+		NSLOCTEXT("DFMessages", "Spree2", "has gone ballistic!"), NSLOCTEXT("DFMessages", "Spree3", "is gunning for blood!"),
+		NSLOCTEXT("DFMessages", "Spree4", "is a MOBILE WAR HERO!!!")
+	};
+	return Notes[FMath::Clamp(Level, 0, 4)];
+}
+
+FName ADFGameMode::GetSpreeSound(int32 Level) const {
+	static const FName Sounds[] = { TEXT("killing_machine"), TEXT("seriously_deranged"), TEXT("ballistic"), TEXT("gunning_for_blood"), TEXT("MOBILE_WAR_HERO") };
+	return Sounds[FMath::Clamp(Level, 0, 4)];
+}
+
 void ADFGameMode::Event(const FString& Text, uint8 ColourTeam, FName Voice) {
 	UE_LOG(LogDF, Display, TEXT("%s: %s"), *GameName, *Text);
 	const FName Type(*FString::Printf(TEXT("Event%d"), ColourTeam));

@@ -253,6 +253,23 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   wait for the next round until it dies. A lone human against 5+ zombies is a **SURVIVOR**
   (health × max(ratio / 2.5, 2), regenerates, clips that never run dry on every weapon with more
   than one use). `?Infect=0`: team deathmatch with zombie bodies.
+- **Knife Fight** (`kf`, MF-mods KnifeFight.KnifeFightGame by Liam Haynes) and **Shotgun Wars**
+  (`sw`, Swars.ShotgunWarsGame, modified by Gregaras; `Game/OneWeapon`): deathmatch with one
+  weapon for everyone. No loadout and nothing lying around; everyone starts with the knife, Shotgun
+  Wars adds the M1887 with 100 clips (m87Swars; the shotgun with 5000 where the M1887 isn't
+  installed, SWShotgun), `?HasArmour=1` body armour. Knife Fight 20 kills / 10 min, Shotgun Wars
+  6 min. Sprees have the mods' own lines and announcer ("combat sortie" ... "DOMINATING" /
+  "LEGENDARY"); every kill: "Ooooh, blood everywhere now...". The mods' bIceMode and bDeathSloMo
+  options (off by default) are not ported. DM-Modernity-KF was Modernity set to start in it.
+- **Mental Race** (`mr`, MF-mods Racing.MentalRace, `Game/Race`): each team has a race car (a
+  buggy, armour 0.74), made at its trailer park like any generated vehicle. Check points (the
+  MoBall goal ring: team colour at the parks, white in the middle; 384 uu round, 256 up and down):
+  your park -> the trailer generator -> the enemy park -> the generator again (straight home with
+  `?Lap=1`, bLap) -> home is a lap and a team point; the driver gets +1 a check point (-1 driving the
+  other team's car). 6 laps / 8 min, a draw goes on until the next lap. The minimap marks the check
+  points (your next one turning) and both cars. Bots on foot go for their own car while nobody
+  drives it, however far (`GetBotVehicle`; from another vehicle they drive there and swap), and
+  race it to the next check point; other vehicles don't head for check points. Any map with two trailer parks and a trailer generator (53 here).
 - Team orders (V / C): Defend! · Defend this area. · Attack! · Cover me. · Improvise!, then
   All or a team-mate. Defend / Attack read per mode (CTF "Guard the flag." / "Capture their
   flag.", Safecracker "Guard the safe." / "Grab the gold."), spoken aloud by whoever gives it
@@ -379,6 +396,13 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too. Tyres block pawn
   movement queries; ground support follows the contact normal so a parked flat does not
   create sideways thrust.
+- Ride height: the wheels rest where the body's arches and axles put them (jeep and buggy hang
+  30-50 cm below their COL spheres, whose heights came from the humvee); each tyre also has a
+  tyre-wide physics capsule that keeps it out of walls and takes hard landings at full bump.
+  An empty car standing still on its wheels for half a second sleeps: it holds on slopes
+  instead of creeping out of its generator's 450 cm, and a hit, a crash or a driver wakes it.
+- Unmanned jeep and helicopter guns point level ahead (MF vehWeapFake); the APC turret keeps
+  its last aim.
 - Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
   there and the vehicle blows up. A small target: aim at the tank.
 - Damage smoke grows denser and darker as health falls: see-through grey at first (2 puffs a

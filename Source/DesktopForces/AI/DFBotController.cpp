@@ -338,6 +338,7 @@ bool ADFBotController::FollowOrder(ADFCharacter* C) {
 				if (GV->BotDesirability(C) > 0.f && GetWorld()->GetTimeSeconds() >= DontEnterVehicleTime) {
 					if (GoingForVehicle.Get() != GV) {
 						GoingForVehicle = GV;
+						bModeVehicle = false;
 						GoingForVehicleSince = GetWorld()->GetTimeSeconds();
 					}
 					if (GoToVehicle(C))
@@ -381,9 +382,21 @@ bool ADFBotController::WalkOntoNavMesh(const ADFCharacter* C) {
 void ADFBotController::Roam(ADFCharacter* C) {
 	if (bStationary || (GetMoveStatus() != EPathFollowingStatus::Moving && WalkOntoNavMesh(C)) || FollowOrder(C))
 		return;
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>()) {
+		ADFVehicle* Want = GM->GetBotVehicle(this);
+		const float* Blocked = Want ? BlockedGoals.Find(Want) : nullptr;
+		if (Want && GoingForVehicle.Get() != Want && Now >= DontEnterVehicleTime && (!Blocked || Now >= *Blocked)) {
+			UE_LOG(LogDF, Verbose, TEXT("%s: going for the mode's %s (%.0f cm)"), *GetName(), *Want->GetName(), FVector::Dist(Want->GetActorLocation(), C->GetActorLocation()));
+			StopMovement(); // drop the walk to wherever
+			GoingForVehicle = Want;
+			GoingForVehicleSince = Now;
+			bModeVehicle = true;
+			DriveGoal = nullptr;
+		}
+	}
 	if (GoingForVehicle.IsValid() && GoToVehicle(C))
 		return;
-	const float Now = GetWorld()->GetTimeSeconds();
 	if (GetMoveStatus() == EPathFollowingStatus::Moving) {
 		// still on the way (CheckStuck handles stalls): every few seconds see whether a more
 		// urgent goal came up (our flag dropped, the carrier passed by ...) and switch to it
@@ -518,6 +531,7 @@ bool ADFBotController::PickVehicle(ADFCharacter* C, AActor* Goal, const FVector&
 		return false;
 	UE_LOG(LogDF, Verbose, TEXT("%s: going for %s (%d road nodes to %s; order %d)"), *GetName(), *Best->GetName(), Road.Num(), *Dest.ToCompactString(), int32(Order));
 	GoingForVehicle = Best;
+	bModeVehicle = false;
 	GoingForVehicleSince = Now;
 	DriveGoal = Goal;
 	DriveDest = Dest;
@@ -527,7 +541,7 @@ bool ADFBotController::PickVehicle(ADFCharacter* C, AActor* Goal, const FVector&
 bool ADFBotController::GoToVehicle(ADFCharacter* C) {
 	const float Now = GetWorld()->GetTimeSeconds();
 	ADFVehicle* V = GoingForVehicle.Get();
-	if (!V || V->BotDesirability(C) <= 0.f || Now - GoingForVehicleSince > 25.f) {
+	if (!V || V->BotDesirability(C) <= 0.f || Now - GoingForVehicleSince > (bModeVehicle ? 90.f : 25.f)) {
 		UE_CLOG(V, LogDF, Verbose, TEXT("%s: gave up on %s (%s, %.0f cm away)"), *GetName(), *V->GetName(),
 			V->BotDesirability(C) <= 0.f ? TEXT("not wanted") : TEXT("took too long"), FVector::Dist(V->GetActorLocation(), C->GetActorLocation()));
 		if (V && V->BotDesirability(C) > 0.f) {
