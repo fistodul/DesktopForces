@@ -325,7 +325,7 @@ def package_server(a: argparse.Namespace) -> None:
     project = cfg.uproject.parent
     plugins = pack_plugins(project, a.public)
     maps = find_maps(project, plugins, set(filter(None, (a.maps or '').split(','))))
-    version = game_version(project)  # a client joins only a server of its own ProjectVersion
+    version = a.version or game_version(project)  # a client joins only a server of its own ProjectVersion
     suffix = '-public' if a.public else ''
     tree = Path(os.environ.get('DF_SERVER_TREE', Path.home() / '.cache/desktopforces-server')) / f'project{suffix}'
     out = project / f'Saved/Packages/LinuxServer{suffix}'
@@ -439,7 +439,7 @@ def package(a: argparse.Namespace) -> None:
 
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'
     uproject_bytes = uproject.read_bytes()  # restored byte for byte (line endings too)
-    version = game_version(project)  # before anything below changes the project
+    version = a.version or game_version(project)  # before anything below changes the project
     release = project / 'Saved/Packages' / version
     edition = 'Public' if a.public else '' if a.downloads or a.maps else 'Full'
     game_ini = project / 'Config/DefaultGame.ini'
@@ -528,6 +528,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument('--clean', action='store_true', help="delete this host's Binaries / Intermediate/Build first")
     ap.add_argument('--dry-run', action='store_true', help='print the commands instead of running them')
     ap.add_argument('--server', action='store_true', help='a dedicated Linux server (Development) instead of the game')
+    ap.add_argument('--version', help='the network version (ProjectVersion, yyyymmdd) instead of the commit date: '
+                                      'a content-only rebuild that must still play with builds already out')
     a = ap.parse_args(argv)
     if a.team and not a.downloads:
         ap.error('--team needs --downloads')
