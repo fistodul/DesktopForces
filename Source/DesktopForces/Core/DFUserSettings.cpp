@@ -9,6 +9,11 @@
 #include "UnrealClient.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "RHI.h"
+#include "DynamicRHI.h"
+#if PLATFORM_ANDROID
+#include "Android/AndroidPlatformMisc.h"
+#endif
 
 UDFUserSettings::UDFUserSettings() {
 	SetToDefaults();
@@ -112,4 +117,32 @@ void UDFUserSettings::SetToDefaults() {
 	WeaponHand = EDFWeaponHand::Right;
 	bConsole = !UE_BUILD_SHIPPING;
 	KeyBindings.Reset();
+}
+
+TArray<float> UDFUserSettings::RecommendedFrameRates(float Saved) {
+	int32 Hz = FPlatformMisc::GetMaxRefreshRate();
+	FScreenResolutionArray Modes;
+
+	// desktop: GetMaxRefreshRate is 60 on Linux
+	if (RHIGetAvailableResolutions(Modes, false)) {
+		for (const FScreenResolutionRHI& Mode : Modes)
+			Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
+	}
+#if PLATFORM_ANDROID
+	// Android leaves GetMaxRefreshRate at the generic 60: the panel's own modes
+	for (const int32 Rate : FAndroidMisc::GetSupportedNativeDisplayRefreshRates())
+		Hz = FMath::Max(Hz, Rate);
+#endif
+	constexpr bool bSyncedToPanel = PLATFORM_ANDROID || PLATFORM_IOS;
+
+	TArray<float> Rates;
+	for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 }) {
+		const float Rate = Hz * Sixths / 6.f;
+		if (Rate > 20.f && !(bSyncedToPanel && Sixths > 6))
+			Rates.Add(Rate);
+	}
+
+	Rates.AddUnique(Saved);
+	Rates.AddUnique(0.f);
+	return Rates;
 }

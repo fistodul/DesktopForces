@@ -24,6 +24,46 @@ void UDFGameInstance::OnStart() {
 	UDFUserSettings::Get().ApplyGamma();
 	UDFUserSettings::Get().ApplyConsole(); // the viewport is up now
 	ScheduleAutoTest();
+	if (PLATFORM_ANDROID || PLATFORM_IOS || FParse::Param(FCommandLine::Get(), TEXT("DFStepDown")))
+		StepDownTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UDFGameInstance::StepDownTick));
+}
+
+void UDFGameInstance::Shutdown() {
+	FTSTicker::GetCoreTicker().RemoveTicker(StepDownTicker);
+	Super::Shutdown();
+}
+
+bool UDFGameInstance::StepDownTick(float DeltaTime) {
+	const APlayerController* PC = GetFirstLocalPlayerController();
+	if (!PC || !PC->GetPawn()) {
+		// menus, loading, dead: not a fair sample
+		WindowTime = 0.f;
+		WindowFrames = 0;
+		SlowWindows = 0;
+		return true;
+	}
+	WindowTime += DeltaTime;
+	++WindowFrames;
+	if (WindowTime < 10.f)
+		return true;
+	const float Fps = WindowFrames / WindowTime;
+	WindowTime = 0.f;
+	WindowFrames = 0;
+	const float Cap = StepDownCap > 0.f ? StepDownCap : UDFUserSettings::Get().GetFrameRateLimit();
+	SlowWindows = Cap > 0.f && Fps < Cap * 0.9f ? SlowWindows + 1 : 0;
+	if (SlowWindows < 3)
+		return true;
+	SlowWindows = 0;
+	float Next = 0.f;
+	for (const float Rate : UDFUserSettings::RecommendedFrameRates(Cap))
+		if (Rate > 0.f && Rate < Cap * 0.95f)
+			Next = FMath::Max(Next, Rate);
+	if (Next > 0.f) {
+		UE_LOG(LogDF, Display, TEXT("Frame cap %.0f -> %.0f FPS: %.1f FPS for 30 s"), Cap, Next, Fps);
+		StepDownCap = Next;
+		GEngine->SetMaxFPS(Next);
+	}
+	return true;
 }
 
 void UDFGameInstance::ScheduleAutoTest() {

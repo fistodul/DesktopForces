@@ -515,30 +515,6 @@ private:
 	TSharedPtr<FActiveTimerHandle> ServerTimer;
 	int32 ServerRowsVersion = -1;
 
-	/** Thirds of the screen's refresh and its half, from twice it down, above 20 FPS
-	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. A custom cap keeps its place. */
-	static TArray<float> RecommendedFrameRates(float Saved) {
-		int32 Hz = FPlatformMisc::GetMaxRefreshRate();
-		FScreenResolutionArray Modes;
-
-		// desktop: GetMaxRefreshRate is 60 on Linux
-		if (RHIGetAvailableResolutions(Modes, false)) {
-			for (const FScreenResolutionRHI& Mode : Modes)
-				Hz = FMath::Max(Hz, int32(Mode.RefreshRate));
-		}
-
-		TArray<float> Rates;
-		for (const int32 Sixths : { 12, 10, 8, 6, 4, 3, 2 }) {
-			const float Rate = Hz * Sixths / 6.f;
-			if (Rate > 20.f)
-				Rates.Add(Rate);
-		}
-
-		Rates.AddUnique(Saved);
-		Rates.AddUnique(0.f);
-		return Rates;
-	}
-
 	/** To 2 decimals, like stat fps: 25 Hz x 4/3 shows 33.33. */
 	static FString FrameRateLabel(float Limit) {
 		if (Limit <= 0.f)
@@ -1215,7 +1191,7 @@ private:
 		FOV = S.FieldOfView;
 		RenderScale = S.RenderScale;
 		bVSync = S.IsVSyncEnabled();
-		FrameRateLimits = RecommendedFrameRates(S.GetFrameRateLimit());
+		FrameRateLimits = UDFUserSettings::RecommendedFrameRates(S.GetFrameRateLimit());
 		for (float Limit : FrameRateLimits)
 			FrameRates.Add(MakeShared<FString>(FrameRateLabel(Limit)));
 		SelectedFrameRate = FrameRates[FrameRateLimits.IndexOfByKey(S.GetFrameRateLimit())];
