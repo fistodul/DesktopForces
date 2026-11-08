@@ -242,7 +242,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      flipbooks and ambience, swapped in place by the importer's `repoint` step. Only their music
      has no stand-in. Gameplay assets (soldiers, weapons, pickups, vehicles, HUD) still need
      Classic. Not yet cooked or listened to; limits are in the handoff.
-10. **Flat crate in mf-warehouse** (Filip's phone screenshot `Screenshot_20261028-224646.webp`,
+10. ✅ **Flat crate in mf-warehouse** (Filip 2026-11-08: fixed already) (Filip's phone screenshot `Screenshot_20261028-224646.webp`,
     not in the repo: it shows classic textures): outdoors under the sunset sky,
     a light wooden crate stacked on a dark one looks like a single face. Warehouse crates are BSP
     geometry (`rage_warehouse.wood.ware_wood_*`), so likely a brush that lost faces in conversion
@@ -424,3 +424,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     mf-Express_Delivery, mfs-warehouse, mf-Space_station, mf-nc, mf-The_Bank, mf-City_Rush,
     mf-Battlefield, MF-Test_Facility, mf-highwayrun, mf-sawmill, mf-Jungle and 29 with a few
     triangles each (`python3 debug/winding_sweep.py [--check 40]` lists them).
+20. 🟡 **Source (VMF) maps** (Filip's mfs-warehouse run, 2026-11-08: open doorways, black sky, missing
+    textures, ladders, fences, doors). Done: func_breakable / func_door / func_movelinear /
+    func_physbox brushes as closed world geometry; TOOLSINVISIBLELADDER brushes as climbable
+    DFLadderVolumes (16), faced by the ladder model in front of them; MFS's own crate model (147);
+    unmatched materials take their brush's texture or one for their folder; MF warehouse's sky.
+    ⬜ The 312 HL2 models (handrails 100, pallets 59, lights, the ladders' rungs, fences) need MF
+    stand-ins (a replacement table: Valve art can't ship); the top of the shelf ladders doesn't
+    let go onto the shelf yet; 40 materials are still stand-ins (`unmapped_materials` in its
+    level.json).
+
