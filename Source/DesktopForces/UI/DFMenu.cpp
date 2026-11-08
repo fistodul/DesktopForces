@@ -652,18 +652,25 @@ private:
 		Video->AddSlot(0, 0)[Label(LOCTEXT("Res", "Resolution"))];
 		Video->AddSlot(1, 0).Padding(2.f)
 		[
-			SNew(SWidgetSwitcher).WidgetIndex_Lambda([this]() { return PendingWindowMode() == EWindowMode::WindowedFullscreen ? 1 : 0; })
+			// phones are always the whole screen: the size only, no choice (render scale sets the 3D's)
+			SNew(SWidgetSwitcher).WidgetIndex_Lambda([this]() { return PLATFORM_ANDROID || PLATFORM_IOS || PendingWindowMode() == EWindowMode::WindowedFullscreen ? 1 : 0; })
 			+ SWidgetSwitcher::Slot()[Combo(Resolutions, SelectedResolution)]
 			+ SWidgetSwitcher::Slot()
 			[
 				SNew(STextBlock).Font(Font(12)).Text_Lambda([]() {
 					const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
+#if PLATFORM_ANDROID || PLATFORM_IOS
+					return FText::Format(LOCTEXT("FullScreenRes", "{0} x {1} (full screen)"), FText::AsNumber(Desktop.X, &FNumberFormattingOptions::DefaultNoGrouping()), FText::AsNumber(Desktop.Y, &FNumberFormattingOptions::DefaultNoGrouping()));
+#else
 					return FText::Format(LOCTEXT("DesktopRes", "{0} x {1} (desktop)"), FText::AsNumber(Desktop.X, &FNumberFormattingOptions::DefaultNoGrouping()), FText::AsNumber(Desktop.Y, &FNumberFormattingOptions::DefaultNoGrouping()));
+#endif
 				})
 			]
 		];
+#if !PLATFORM_ANDROID && !PLATFORM_IOS // windows don't exist there
 		Video->AddSlot(0, 1)[Label(LOCTEXT("Window", "Display"))];
 		Video->AddSlot(1, 1).Padding(2.f)[Combo(WindowModes, SelectedWindowMode)];
+#endif
 		Video->AddSlot(0, 2)[Label(LOCTEXT("Quality", "Graphics"))];
 		Video->AddSlot(1, 2).Padding(2.f)[Combo(Qualities, SelectedQuality)];
 		Video->AddSlot(0, 3)[Label(LOCTEXT("Bright", "Brightness"))];
