@@ -67,8 +67,10 @@ def map_package(cfg: Config, name: str) -> tuple[str, Path]:
     return f'/{plugin}/Maps/{name}', root / 'Plugins' / plugin / 'Content' / 'Maps' / f'{name}.umap'
 
 
-def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> int:
-    """Bake static lighting (Lightmass) + precomputed visibility for generated maps."""
+def build_lighting(cfg: Config, maps: list[str], quality: str | None = None) -> int:
+    """Bake static lighting (Lightmass) + precomputed visibility for generated maps, at `quality`
+    or else the map's own (map_edits.toml `quality`, default Preview)."""
+    from . import mapedits
     rc = 0
     for m in maps:
         pkg, path = map_package(cfg, m)
@@ -83,7 +85,7 @@ def build_lighting(cfg: Config, maps: list[str], quality: str = 'Preview') -> in
         # instanced props' bounds: the DesktopForcesEditor module refreshes them when the build
         # starts (OnLightingBuildStarted); compiling meshes synchronously instead registers
         # components in parallel, which asserts in UBoxComponent::CreateSceneProxy
-        rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', f'-quality={quality}',
+        rc |= run_commandlet(cfg, 'ResavePackages', '-buildlighting', f'-quality={quality or mapedits.quality(m)}',
                              '-allowcommandletrendering', '-messaging', f'-map={pkg}',
                              watch=('Lightmass crashed', 'Assertion failed', 'Lighting build failed',
                                     'Failed to build lighting'))

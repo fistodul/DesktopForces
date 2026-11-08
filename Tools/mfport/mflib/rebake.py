@@ -15,6 +15,7 @@ import time
 import tomllib
 from pathlib import Path
 
+from . import mapedits
 from .config import TOOL_DIR, Config
 
 FIRST = ['mf-warehouse', 'mf-Polar', 'mf-western', 'mf-sawmill', 'mf-waterfront', 'mf-airport', 'mf-Ghetto',
@@ -25,7 +26,7 @@ SKIP = {'mf-warehouse-merged'}   # merge work in progress, built unlit (Docs/War
 def _maps(cfg: Config, only: list[str] | None = None) -> list[str]:
     have = sorted((p.parent.name for p in (cfg.out_dir / 'Maps').glob('*/level.json')), key=str.casefold)
     wanted = {m.lower() for m in only or []}
-    have = [m for m in have if m not in SKIP and (not wanted or m.lower() in wanted)]
+    have = [m for m in have if m not in SKIP and not mapedits.same_as(m) and (not wanted or m.lower() in wanted)]
     first = [m for f in FIRST for m in have if m.lower() == f.lower()]
     return first + [m for m in have if m not in first]
 

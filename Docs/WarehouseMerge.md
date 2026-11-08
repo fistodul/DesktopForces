@@ -6,6 +6,13 @@
 > `func_breakable` doors and passages, props) get added to it by hand later. What is below
 > is kept as a record and because the alignment (`vmf_maps.toml`) and the prop converter
 > (`mflib/sourcemdl.py`) make it easy to bring individual MFS pieces over in the right place.
+>
+> **2026-11-07 re-check** (fresh `vmf` + `merge` + `debug/seams.py`): still **1475** seam cells
+> (1513 on 10-19): nothing since has closed them. Taking every zone from MFS instead (no MF/MFS
+> borders, so no seams) fails differently: of the original's gameplay spots that stand on an MF
+> floor, 42 have no MFS floor under them or a ceiling / wall in them there (7 player starts,
+> 6 crates, 9 defence points, both flag bases, the det locks, the safe, a generator, 6 ladders).
+> An all-MFS warehouse would need those moved by hand; the decision stands.
 
 
 Goal: **one** mf-warehouse that combines the original map (Billy Thomson, Rage) with the

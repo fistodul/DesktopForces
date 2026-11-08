@@ -18,7 +18,7 @@ import math
 from pathlib import Path
 
 from . import t3d, ucc
-from . import mapedits, minimap
+from . import mapedits, minimap, twins
 from .actors import ActorMapper, ClassTree, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
@@ -100,10 +100,12 @@ class LevelConverter:
         self.usage: dict[str, set[str]] = {}     # texture key (lower) -> blend modes
 
     # --- inputs -----------------------------------------------------------
-    def export_t3d(self) -> Path:
-        t3d_path = self.raw / 'MyLevel.t3d'
+    def export_t3d(self, map_name: str | None = None) -> Path:
+        name = map_name or self.map
+        raw = self.cfg.raw_dir / 'Maps' / name
+        t3d_path = raw / 'MyLevel.t3d'
         if not t3d_path.exists():
-            ucc.batch_export(self.cfg, f'Maps/{self.map}.umf', 'Level', 't3d', self.raw)
+            ucc.batch_export(self.cfg, f'Maps/{name}.umf', 'Level', 't3d', raw)
         return t3d_path
 
     def texture_size(self, key: str | None) -> tuple[int, int]:
@@ -149,7 +151,7 @@ class LevelConverter:
         # stitched into one, else only the first tile got stretched over the whole map
         wide, high = int(p.get('NumTexturesWide', 1) or 1), int(p.get('NumTexturesHigh', 1) or 1)
         tiles = [t3d.parse_object_ref(p.get(f'MiniMapTex({k})')) for k in range(wide * high)]
-        tiles = [f'{self.map}.{t.split(".", 1)[1]}' if t and t.lower().startswith('mylevel.') else t for t in tiles]
+        tiles = [f'{self.layout}.{t.split(".", 1)[1]}' if t and t.lower().startswith('mylevel.') else t for t in tiles]
         size = (round((bounds[2] - bounds[0]) / 64), round((bounds[3] - bounds[1]) / 64))   # MapUnitsToPixels
         key = f'{self.map}.MiniMap'
         try:
@@ -192,13 +194,13 @@ class LevelConverter:
             out.append(tuple(round(c, 4) for c in zone_ambient(a['props'])) if a else (0.0, 0.0, 0.0))
         return out
 
-    def convert_world(self, model: LevelModel, ambients: list[tuple]) -> list[dict]:
+    def convert_world(self, model: LevelModel, ambients: list[tuple], source: list | None = None) -> list[dict]:
         chunks: dict[tuple, MeshBuilder] = {}
         coll: dict[tuple, MeshBuilder] = {}
         areas: dict[tuple, float] = {}
         skipped = 0
         polys = []
-        for poly in model.polygons():
+        for poly in model.polygons() if source is None else source:
             f = poly.poly_flags
             if f & PF_INVISIBLE and f & (PF_NOTSOLID | PF_PORTAL):
                 skipped += 1
@@ -503,19 +505,36 @@ class LevelConverter:
         return actors
 
     # --- driver -------------------------------------------------------------
-    def run(self) -> Path:
+    def run(self) -> Path | None:
         print(f'[{self.map}]')
+        if twin := mapedits.same_as(self.map):
+            print(f'  same map as {twin} (map_edits.toml same_as): not converted')
+            if (self.out / 'level.json').exists():
+                import shutil
+                shutil.rmtree(self.out)   # a conversion from before: nothing imports it again
+            return None
         self.out.mkdir(parents=True, exist_ok=True)
-        pkg = Package(str(self.umf))
+        tree = ClassTree(self.cfg.game_dir)
+        # map_edits.toml layout_from: another release's layout, lit like this map (mflib/twins.py)
+        self.layout = mapedits.layout_from(self.map) or self.map
+        pkg = Package(str(self.cfg.game_dir / 'Maps' / f'{self.layout}.umf'))
         model = LevelModel(pkg)
-        level = t3d.parse(t3d.read_text(self.export_t3d())).children[0]
+        level = t3d.parse(t3d.read_text(self.export_t3d(self.layout))).children[0]
         actors = self.convert_actors(level)
+        source = None
+        if self.layout != self.map:
+            look_model = LevelModel(Package(str(self.umf)))
+            look = self.convert_actors(t3d.parse(t3d.read_text(self.export_t3d())).children[0])
+            for a in look:
+                a['zone'] = model.zone_at(tuple(c / UU_TO_CM for c in a['location']))
+            source = twins.sky_box(model, look_model, actors, look, tree)
+            actors = twins.relight(actors, look, tree)
+            print(f'  layout: {self.layout}, lit like {self.map}')
         mapedits.apply(self.map, actors)   # map_edits.toml
         ambients = self.zone_ambients(model, actors)
-        tree = ClassTree(self.cfg.game_dir)
         waters = {a['name'] for a in actors if tree.is_water(a)}
         self.water_zones = {i for i, name in enumerate(model.zones) if name in waters}
-        world = self.convert_world(model, ambients)
+        world = self.convert_world(model, ambients, source)
         meshes = self.convert_static_meshes(level)
         bounds = self.zone_bounds(model)
         mapper = ActorMapper(bounds, meshes, model.zones, tree)

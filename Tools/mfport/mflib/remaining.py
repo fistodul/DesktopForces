@@ -11,7 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import ue
+from . import mapedits, ue
 from .config import TOOL_DIR, Config
 
 
@@ -21,7 +21,7 @@ def run(cfg: Config, limit: int = 0) -> int:
     checkpoint = folder / 'progress.json'
     state = json.loads(checkpoint.read_text()) if checkpoint.exists() else {}
     for source in sorted((cfg.game_dir / 'Maps').glob('*.umf'), key=lambda p: p.name.casefold()):
-        if source.stem.lower() not in {'entry', 'intro'} and not ue.map_package(cfg, source.stem)[1].exists():
+        if source.stem.lower() not in {'entry', 'intro'} and not mapedits.same_as(source.stem) and not ue.map_package(cfg, source.stem)[1].exists():
             state.setdefault(source.stem, {'converted': False, 'imported': False, 'lit': False})
 
     def save():

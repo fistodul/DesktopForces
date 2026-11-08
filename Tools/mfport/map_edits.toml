@@ -5,6 +5,8 @@
 #   add_vehicles   extra vehicle generators (Gregaras' mutPack addVehicles default spots;
 #                  "...Unboxed" map versions were merged into the regular maps)
 #   bounces        Lightmass indirect bounces (default in level.py)
+#   quality        Lightmass quality for `light` / `rebake`: Preview (default), Medium, High,
+#                  Production (Docs/Roadmap.md #16: chosen per map by comparing bakes)
 #   instance_props meshes without collision placed this often in an 80 m cell share one
 #                  instanced component (default 8, 0 = never); halves a busy map's bake
 #   hull_collision static meshes that collide as one smooth shape (rung ramps)
@@ -12,6 +14,10 @@
 #                  walkable faces, widened to close the gaps, feeds the navmesh only (bots cross)
 #   drop_faces     { <static mesh> = ["<texture>", ...] }: faces of that mesh left out, for
 #                  hidden ones that spoil the bake
+#   same_as        "<map>": a copy of that map (same geometry, its actors a subset): not converted
+#   layout_from    "<map>": another release of the same map (same coordinates) whose layout this
+#                  one takes - world, static meshes, movers, gameplay - keeping only its own look:
+#                  lights, ambient sounds, zone fog / ambient, LevelInfo, sky box (mflib/twins.py)
 #   generators     change a map's generators: { class = "<MF generator class>",
 #                  vehicle = "<MF vehicle class>" } turns every one of that class into a
 #                  VehicleGenerator of that vehicle
@@ -118,3 +124,16 @@ add_vehicles = [
   { vehicle = "jeep.jeep", location = [8815.5, 2583.0, 9.0], yaw = 180.0 },
   { vehicle = "jeep.jeep", location = [-7490.2, 76.5, -1467.0], yaw = 90.0 },
 ]
+
+["MF-BattleBayDarkV1"]
+# Battle Bay at night. mf-battlebaynoonv1 is the later, fuller release on the same coordinates
+# (42 starts to 28, defence points, Captain zones, minimap; it reworked the south shore and the
+# end platforms); debug/twin_diff.py found nothing in the night BSP the noon one lacks except
+# those reworked spots. Both play the noon layout; this one keeps its night lighting
+layout_from = "mf-battlebaynoonv1"
+
+["DM-Modernity-KF"]
+# Modernity's Knife Fight edition: mf-Modernity's geometry, lights, starts and crates; only
+# without its det locks and domination timer (and DefaultGameType KnifeFight.KnifeFightGame,
+# a server choice). mf-Modernity plays every mode it did
+same_as = "mf-Modernity"

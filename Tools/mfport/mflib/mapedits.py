@@ -55,6 +55,21 @@ def drop_faces(map_name: str) -> dict[str, set[str]]:
     return {m.lower(): {t.lower() for t in texs} for m, texs in _edits_for(map_name).get('drop_faces', {}).items()}
 
 
+def same_as(map_name: str) -> str | None:
+    """The map this one is a copy of: not converted (the other carries everything it has)."""
+    return _edits_for(map_name).get('same_as')
+
+
+def layout_from(map_name: str) -> str | None:
+    """Another release of the map whose layout this one takes, keeping its own lighting."""
+    return _edits_for(map_name).get('layout_from')
+
+
+def quality(map_name: str) -> str:
+    """Lightmass quality the map is baked at (Preview, Medium, High, Production; Roadmap #16)."""
+    return _edits_for(map_name).get('quality', 'Preview')
+
+
 def bounces(map_name: str, default: int) -> int:
     """Lightmass indirect bounces: more light in rooms the sun doesn't reach, for bake time only."""
     return _edits_for(map_name).get('bounces', default)
