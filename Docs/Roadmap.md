@@ -361,7 +361,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       Medium is within noise of Production and looks the same in the shots; Preview differs
       visibly in places (Test_Facility's 90th percentile). BuiltData size is the same at every
       quality. So `quality` defaults to Medium now (`mapedits.quality`); the three maps are baked
-      at Medium, ⬜ the rest are still Preview until their next `rebake`.
+      at Medium; ✅ every map rebaked at Medium on 2026-11-08/09 (86 maps, ~16 h on this laptop).
 17. 🟡 **Duplicate maps and lighting variants** (Filip, 2026-11-07). World geometry compared
     across all 88 converted maps (BSP vertices on a 1 m grid, share of the smaller map):
 
@@ -420,7 +420,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       (Racing.u BugBodBlue01 / red skins, not converted: stock buggies for now). Bots fetch their
       car however far it is (`ADFGameMode::GetBotVehicle`); a 6-bot warehouse test ran laps.
     - trailerGameV2 is in Trailer (`TrailerScatterRadius`).
-19. 🟡 **Inside-out props, second pass** (Filip's see-through waterfront bench rings, 2026-11-08).
+19. ✅ **Inside-out props, second pass** (Filip's see-through waterfront bench rings, 2026-11-08).
     `StaticMesh17` (the wooden ring round the marble planters) is four overlapping boxes: edges at
     their corners are shared by 3+ triangles, so `t3d.orient_triangles` split it into pieces, and
     two pieces went by vertex normals smoothed round the corners and faced into the wood. Pieces
@@ -431,7 +431,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     warehouse pipes). ⬜ The other 40 maps need `rebake` (convert, import, light) to get it:
     mf-Express_Delivery, mfs-warehouse, mf-Space_station, mf-nc, mf-The_Bank, mf-City_Rush,
     mf-Battlefield, MF-Test_Facility, mf-highwayrun, mf-sawmill, mf-Jungle and 29 with a few
-    triangles each (`python3 debug/winding_sweep.py [--check 40]` lists them).
+    triangles each (`python3 debug/winding_sweep.py [--check 40]` lists them). ✅ All rebaked
+    with it on 2026-11-08/09.
 20. 🟡 **Source (VMF) maps** (Filip's mfs-warehouse run, 2026-11-08: open doorways, black sky, missing
     textures, ladders, fences, doors). Done: func_breakable / func_door / func_movelinear /
     func_physbox brushes as closed world geometry; TOOLSINVISIBLELADDER brushes as climbable
