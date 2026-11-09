@@ -435,6 +435,7 @@ def package(a: argparse.Namespace) -> None:
     # the request waits out its 20 min timeout ("Reading oplog", 2026-11-08). A new process connects
     # afresh
     cook = ['-ubtargs=-NoUBA', '-build', '-cook', *map_arg]
+    cook_uat = [x for x in uat if x not in ('-pak', '-iostore', '-compressed')]   # UAT paks only what it stages
     staging = ['-skipcook', '-stage', '-prereqs', *map_arg]
 
     build_id_file = project / 'Content/Downloads/ContentBuildId.txt'
@@ -464,7 +465,7 @@ def package(a: argparse.Namespace) -> None:
                 data['Plugins'] = [p for p in data.get('Plugins', []) if p['Name'] not in off] + [{'Name': n, 'Enabled': False} for n in off]
                 uproject.write_text(json.dumps(data, indent='\t') + '\n')
         if not a.downloads:
-            run([*uat, *cook], a.dry_run, env=env)
+            run([*cook_uat, *cook], a.dry_run, env=env)
             run([*uat, *staging, '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
         else:
             # cook and stage, take the packs other than core out of the staged build, then package /
@@ -477,7 +478,7 @@ def package(a: argparse.Namespace) -> None:
                 build_id_file.write_text(build_id)
                 for obb in stage.parent.glob(f'{stage_name}*.obb'):  # else an earlier OBB, every pack in it, is reused
                     obb.unlink()
-            run([*uat, *cook], a.dry_run, env=env)
+            run([*cook_uat, *cook], a.dry_run, env=env)
             run([*uat, *staging], a.dry_run, env=env)
             if not a.dry_run:
                 split_downloads(stage / uproject.stem / 'Content/Paks', project / 'Saved/Cooked' / stage_name / uproject.stem / 'Metadata/ChunkManifest',
