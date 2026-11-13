@@ -509,13 +509,9 @@ float ADFGameMode::ModifyDamage(float Damage, ADFCharacter* Victim, AController*
 	const ADFPlayerState* InstPS = InstigatedBy->GetPlayerState<ADFPlayerState>();
 	if (IsTeamGame() && InstPS && Victim && Victim->GetController() != InstigatedBy && InstPS->GetTeam() == Victim->GetTeam())
 		Damage *= FriendlyFireScale;
-	// changeDamage.mutatorTakeDamage: players' rockets x2; bots / 5 on people in vehicles
-	if (Victim) {
-		if (InstigatedBy->IsPlayerController() && DamageCauser && DamageCauser->IsA<ARocket>())
-			Damage *= RocketDamageScaleOnFoot;
-		else if (!InstigatedBy->IsPlayerController() && Victim->IsPlayerControlled() && Cast<ADFVehicle>(Victim->GetAttachParentActor()))
-			Damage *= BotOccupantDamageScale;
-	}
+	// changeDamage.mutatorTakeDamage: bots / 5 on people in vehicles
+	if (Victim && !InstigatedBy->IsPlayerController() && Victim->IsPlayerControlled() && Cast<ADFVehicle>(Victim->GetAttachParentActor()))
+		Damage *= BotOccupantDamageScale;
 	return Damage;
 }
 
@@ -592,7 +588,7 @@ void ADFGameMode::CheckEndConditions(ADFPlayerState* LastKiller) {
 		if (GS && ScoreLimit > 0) {
 			for (int32 T = 0; T < GS->TeamScores.Num(); ++T) {
 				if (GS->TeamScores[T] >= ScoreLimit) {
-					FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GetGameState<ADFGameState>()->GetTeamName(T).ToString()));
+					TeamWins(T);
 					return;
 				}
 			}
@@ -615,7 +611,7 @@ void ADFGameMode::OnTimeLimit() {
 				bTie = true;
 			}
 		}
-		FinishMatch(bTie ? TEXT("DRAW") : FString::Printf(TEXT("%s Team Wins!"), *GetGameState<ADFGameState>()->GetTeamName(Best).ToString()));
+		FinishMatch(bTie ? TEXT("DRAW") : FString::Printf(TEXT("%s Team Wins!"), *TeamName(Best)));
 		return;
 	}
 	const TArray<ADFPlayerState*> Sorted = GS->GetSortedPlayers();
@@ -704,6 +700,10 @@ void ADFGameMode::GiveOrder(AController* Giver, int32 Order, APlayerState* Targe
 		}),
 			3.f + FMath::FRand(), false);
 	}
+}
+
+void ADFGameMode::TeamWins(uint8 Team) {
+	FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *TeamName(Team)));
 }
 
 void ADFGameMode::FinishMatch(const FString& Winner) {
@@ -795,6 +795,12 @@ FText ADFGameMode::GetSpreeNote(int32 Level) const {
 FName ADFGameMode::GetSpreeSound(int32 Level) const {
 	static const FName Sounds[] = { TEXT("killing_machine"), TEXT("seriously_deranged"), TEXT("ballistic"), TEXT("gunning_for_blood"), TEXT("MOBILE_WAR_HERO") };
 	return Sounds[FMath::Clamp(Level, 0, 4)];
+}
+
+FString ADFGameMode::TeamName(uint8 Team) const {
+	const ADFGameState* GS = GetGameState<ADFGameState>();
+	const FString Name = GS ? GS->GetTeamName(Team).ToString() : FString();
+	return Name.IsEmpty() ? FString(TEXT("Neutral")) : Name;
 }
 
 void ADFGameMode::Event(const FString& Text, uint8 ColourTeam, FName Voice) {

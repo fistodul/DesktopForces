@@ -117,11 +117,16 @@ public:
 
 	/** End the match with this winner line (also announced). */
 	void FinishMatch(const FString& Winner);
+	/** FinishMatch with "<Team> Team Wins!". */
+	void TeamWins(uint8 Team);
 
 	// --- chat and team orders (MF Say / TeamSay, RageVoicePack orders) -----------------------
 	/** Game event line for everyone (MF EventN messages), in ColourTeam's colour (255 = white),
 	 *  with the announcer saying Voice (Sounds/Announcer/<Voice>) if set. */
 	void Event(const FString& Text, uint8 ColourTeam, FName Voice = NAME_None);
+	/** A team's name for messages ("Blue"; "Neutral" for none): the game state's, so a mode's own
+	 *  names (Human / Zombie) and any number of teams read right. */
+	FString TeamName(uint8 Team) const;
 	/** The announcer's order to a player who just joined (InstructionSound): "Kill_them_all",
 	 *  "Destroy_the_enemy", "Get_the_flag" ... */
 	virtual FName GetInstructionSound(const AController* C) const {
@@ -185,13 +190,10 @@ public:
 
 	/*
 	 * The community servers' damage rules (mutPack changeDamage by Gregaras) are the game's:
-	 * players' rockets hit soldiers twice as hard, non-explosive hits hurt vehicles (each damage
-	 * type's VehicleDamageScale; MF: never), bots hurt vehicles and the people in them a fifth
-	 * as much. 1 here: MF's numbers.
+	 * non-explosive hits hurt vehicles (each damage type's VehicleDamageScale; MF: never), bots
+	 * hurt vehicles and the people in them a fifth as much. Not its x2 for players' rockets on
+	 * soldiers: rockets shouldn't outdo the grenade launcher (ImprovedRL buffs them instead).
 	 */
-	/** rocketDamageMultToPlayersOnFoot 2 (rockets fired by players). */
-	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Damage")
-	float RocketDamageScaleOnFoot = 1.f; // stock MF; mutPack's changeDamage sets 2
 	/** 1 / botDamageDivToVehicles (5) and 1 / botDamageDivToPlayerVehOccupants (5). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Damage")
 	float BotVehicleDamageScale = 0.2f;

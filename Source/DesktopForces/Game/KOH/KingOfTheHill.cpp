@@ -57,11 +57,8 @@ void AHoldoutPoint::BeginPlay() {
 		for (AActor* A : Inside)
 			OnOverlap(Trigger, A, nullptr, 0, false, FHitResult());
 	}
-	if (GetNetMode() != NM_DedicatedServer) {
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-			Mesh->SetMaterial(0, M);
+	if (GetNetMode() != NM_DedicatedServer)
 		UpdateLook();
-	}
 }
 
 void AHoldoutPoint::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body, bool bSweep, const FHitResult& Hit) {
@@ -87,8 +84,7 @@ void AHoldoutPoint::UpdateLook() {
 	if (DF::ApplyPropMesh(Mesh, OwnerTeam == 0 ? TEXT("RageGame/RageDomTimerBlueMesh") : OwnerTeam == 1 ? TEXT("RageGame/RageDomTimerRedMesh")
 																										: TEXT("RageGame/RageDomTimerMesh")))
 		return;
-	const FLinearColor C = OwnerTeam == DF::NoTeam ? FLinearColor(0.7f, 0.7f, 0.7f) : UDFGameSettings::Get().GetTeamColor(OwnerTeam);
-	Mesh->SetCustomPrimitiveDataVector4(0, C);
+	DF::Tint(Mesh, OwnerTeam == DF::NoTeam ? FLinearColor(0.7f, 0.7f, 0.7f) : UDFGameSettings::Get().GetTeamColor(OwnerTeam));
 }
 
 // --- game mode -------------------------------------------------------------------------

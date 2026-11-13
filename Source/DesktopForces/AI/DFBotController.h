@@ -64,6 +64,7 @@ protected:
 	FVector AimPoint = FVector::ZeroVector;
 	friend class FDFGameplayLifecycleCheck;
 	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
 	virtual void OnUnPossess() override;
 
 	void Think();
@@ -95,6 +96,10 @@ protected:
 	float LingerUntil = 0.f;
 	/** Walking straight at the current goal for the last few metres. */
 	bool bDirectApproach = false;
+	/** The walk to CurrentGoal, and whether it ended where its path did (not broken off for a
+	 *  fight, a car, death; nor some other walk, onto the navmesh or to a vehicle). */
+	FAIRequestID GoalMove;
+	bool bMoveArrived = false;
 	/** Unstick: jump and re-plan when a move makes no progress (props, railings). */
 	FVector StuckCheckPos = FVector::ZeroVector;
 	float StuckCheckTime = 0.f;

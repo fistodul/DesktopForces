@@ -247,6 +247,12 @@ void ADFBotController::Fight(ADFCharacter* C, ADFCharacter* Target) {
 	}
 }
 
+void ADFBotController::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) {
+	Super::OnMoveCompleted(RequestID, Result);
+	if (RequestID.IsEquivalent(GoalMove))
+		bMoveArrived = Result.IsSuccess();
+}
+
 bool ADFBotController::TryGoal(AActor* G) {
 	// bStopOnOverlap off: walk onto the goal (capture triggers), not just up to its edge
 	const EPathFollowingRequestResult::Type R = MoveToActor(G, 30.f, false);
@@ -257,6 +263,8 @@ bool ADFBotController::TryGoal(AActor* G) {
 		return false;
 	}
 	CurrentGoal = G;
+	GoalMove = GetCurrentMoveRequestID();
+	bMoveArrived = R == EPathFollowingRequestResult::AlreadyAtGoal;
 	return true;
 }
 
@@ -414,7 +422,10 @@ void ADFBotController::Roam(ADFCharacter* C) {
 		}
 		return;
 	}
-	if (AActor* Prev = CurrentGoal.Get()) {
+	// A walk broken off on the way (a fight, a car tried and given up) says nothing about the
+	// goal: ask again below. Only one that ran its path out and still ended short is "out of
+	// reach" - on a big map every walk gets broken off, and each time shut the flag out for 30 s
+	if (AActor* Prev = bMoveArrived || Now < LingerUntil ? CurrentGoal.Get() : nullptr) {
 		if (LingerUntil == 0.f) {
 			// Arrived (or gave up) far from the goal: the navmesh doesn't really get there
 			const FVector D = Prev->GetActorLocation() - C->GetActorLocation();
@@ -422,7 +433,8 @@ void ADFBotController::Roam(ADFCharacter* C) {
 				// path ends short of it (navmesh eroded along a railing / wall): walk straight
 				// at it so its trigger is touched (flags, safes, points)
 				bDirectApproach = true;
-				MoveToLocation(Prev->GetActorLocation(), 20.f, false, false, false);
+				bMoveArrived = MoveToLocation(Prev->GetActorLocation(), 20.f, false, false, false) != EPathFollowingRequestResult::RequestSuccessful;
+				GoalMove = GetCurrentMoveRequestID();
 				return;
 			}
 			if (D.Size2D() > 150.f || FMath::Abs(D.Z) > 250.f) {
@@ -504,13 +516,18 @@ bool ADFBotController::PickVehicle(ADFCharacter* C, AActor* Goal, const FVector&
 		return false;
 	// how much road the trip takes (it counted the bRoad nodes on its route): more than 10
 	// nodes (Level.MinimumRoadDistanceAttack) is worth a vehicle, more than 18 is far away
+	// The count is between the road nodes nearest each end, and in a walled base those can be
+	// on different streets: a bot 8 m from its lock counted 35 nodes, took a buggy and drove
+	// 190 m off. A trip shorter than the walk to fetch a car (MaxB below) needs none
+	const float FinalDist = FVector::Dist(Dest, C->GetActorLocation());
+	if (FinalDist < 5625.f)
+		return false;
 	TArray<int32> Road;
 	const int32 From = Net->FindNearestNode(C->GetActorLocation(), 4500.f, C);
 	const int32 To = Net->FindNearestNode(Dest, 4500.f, Goal);
 	if (From == INDEX_NONE || To == INDEX_NONE || !Net->FindRoute(From, To, Road) || Road.Num() <= 10)
 		return false;
 	const bool bFar = Road.Num() > 18;
-	const float FinalDist = FVector::Dist(Dest, C->GetActorLocation());
 	const float MaxZ = C->GetActorLocation().Z + C->GetCharacterMovement()->MaxStepHeight + C->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	ADFVehicle* Best = nullptr;
 	float BestWeight = 0.f;
@@ -535,6 +552,9 @@ bool ADFBotController::PickVehicle(ADFCharacter* C, AActor* Goal, const FVector&
 	GoingForVehicleSince = Now;
 	DriveGoal = Goal;
 	DriveDest = Dest;
+	// drop the walk to the goal: GoToVehicle leaves a walk under way alone, so the bot went on
+	// past the car and gave it up 25 s later, a street away
+	StopMovement();
 	return GoToVehicle(C);
 }
 

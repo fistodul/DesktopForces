@@ -8,7 +8,10 @@
 class USphereComponent;
 class UStaticMeshComponent;
 
-/** The MoBall ball (MF-mods MoBall's TestMoBallProp): a big rubber ball, pushed by vehicles, soldiers and shots. */
+/**
+ * The MoBall ball (MF-mods MoBall's TestMoBallProp): a big rubber ball, pushed by vehicles and
+ * shots. Soldiers can't shove it: it stands in their way and a push only nudges it (Physical.Bump).
+ */
 UCLASS()
 class DESKTOPFORCES_API AMoBall : public AActor {
 	GENERATED_BODY()
@@ -19,6 +22,7 @@ public:
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
 	virtual void Destroyed() override;
+	virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 
 	/** Scored or lost: gone after this many seconds, then a new one. */
 	void Expire(float Seconds);
@@ -27,9 +31,13 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "MoBall")
 	TObjectPtr<USphereComponent> Sphere;
+	/** What soldiers walk into: the physics sphere ignores them, or their capsule would bat it away. */
+	UPROPERTY(VisibleAnywhere, Category = "MoBall")
+	TObjectPtr<USphereComponent> PawnBlocker;
 	UPROPERTY(VisibleAnywhere, Category = "MoBall")
 	TObjectPtr<UStaticMeshComponent> Mesh;
 	bool bExpiring = false;
+	double LastBumpTime = 0.;
 };
 
 /**
@@ -102,6 +110,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AMoBallGoal>> Goals;
+	/** MoBall's own maps: goal and destruct zones (ADFZoneBox tagged MoBallGoal<team> / MoBallDestruct). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class ADFZoneBox>> BallZones;
 	FTransform BallStart;
 	UPROPERTY(Transient)
 	TObjectPtr<AMoBall> Ball;

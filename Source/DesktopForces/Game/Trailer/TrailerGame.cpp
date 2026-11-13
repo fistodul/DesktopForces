@@ -16,9 +16,6 @@
 
 namespace {
 	constexpr float Uu = 2.25f;
-	const TCHAR* TrailerSquad(uint8 Team) {
-		return Team == 1 ? TEXT("Red Squad") : TEXT("Blue Squad");
-	}
 } // namespace
 
 ATrailerGame::ATrailerGame() {
@@ -141,8 +138,8 @@ void ATrailerGame::CheckDelivery() {
 				// the driver's controller sits on the cab while they drive
 				Scorer = Cab->GetDriver() ? Cab->GetController() : By->GetController();
 				Cab->LockDown();
-				Event(FString::Printf(TEXT("Trailer delivered to %s"), TrailerSquad(Bay.Team)), 1 - Bay.Team, TEXT("trailer_delivered_explosion_imminent"));
-				DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("TrailerSFX.LockDown")), Cab->GetActorLocation());
+				Event(FString::Printf(TEXT("Trailer delivered to %s Squad"), *TeamName(Bay.Team)), 1 - Bay.Team, TEXT("trailer_delivered_explosion_imminent"));
+				ADFEffectActor::SpawnSound(GetWorld(), TEXT("TrailerSFX.LockDown"), Cab->GetActorLocation());
 				Count = 5;
 				CountDown();
 				return;
@@ -181,15 +178,15 @@ void ATrailerGame::Detonate() {
 	ADFPlayerState* PS = By ? By->GetPlayerState<ADFPlayerState>() : nullptr;
 	if (PS)
 		PS->SetScore(PS->GetScore() + (PS->GetTeam() == ScoreTeam ? 7.f : -7.f));
-	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s BASE DESTROYED!!!"), PS ? *PS->GetPlayerName() : TrailerSquad(ScoreTeam),
-			  ScoreTeam == 0 ? TEXT("BLUE") : TEXT("RED"), Bay == 0 ? TEXT("BLUE") : TEXT("RED")),
+	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s BASE DESTROYED!!!"), PS ? *PS->GetPlayerName() : *(TeamName(ScoreTeam) + TEXT(" Squad")),
+			  *TeamName(ScoreTeam).ToUpper(), *TeamName(Bay).ToUpper()),
 		ScoreTeam);
 	if (IsValid(Cab))
 		Cab->Destroy(); // takes the trailer along
 	Cab = nullptr;
 	TrailerVehicle = nullptr;
 	if (GS && ScoreLimit > 0 && GS->GetTeamScore(ScoreTeam) >= ScoreLimit) {
-		FinishMatch(FString::Printf(TEXT("%s wins!"), TrailerSquad(ScoreTeam)));
+		FinishMatch(FString::Printf(TEXT("%s Squad wins!"), *TeamName(ScoreTeam)));
 		return;
 	}
 	GetWorldTimerManager().SetTimer(RespawnTimer, this, &ATrailerGame::SpawnTrailer, 5.f, false);

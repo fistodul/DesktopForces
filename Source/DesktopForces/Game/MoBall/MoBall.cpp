@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Sound/SoundBase.h"
@@ -32,7 +33,19 @@ AMoBall::AMoBall() {
 	Sphere->SetLinearDamping(0.15f);
 	Sphere->SetAngularDamping(0.4f);
 	Sphere->SetNotifyRigidBodyCollision(true);
+	// MF's ball is in a soldier's way and takes Physical.Bump's nudge, no more. A capsule walking
+	// into the physics sphere would knock it off at 1.65 x walking speed (rubber on a body that
+	// can't give way), so soldiers meet a query-only shell instead, like a vehicle's
+	Sphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	RootComponent = Sphere;
+	PawnBlocker = CreateDefaultSubobject<USphereComponent>(TEXT("PawnBlocker"));
+	PawnBlocker->SetupAttachment(Sphere);
+	PawnBlocker->InitSphereRadius(100.f);
+	PawnBlocker->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PawnBlocker->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PawnBlocker->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	PawnBlocker->BodyInstance.bAutoWeld = false;
+	PawnBlocker->SetCanEverAffectNavigation(false);
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(Sphere);
@@ -74,6 +87,19 @@ float AMoBall::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AContro
 	// ApplyForce(Normal(Momentum) * Sqrt(Min(|Momentum|, 100000) * 0.01)): grows with the square root
 	Sphere->AddImpulseAtLocation(Dir * FMath::Sqrt(FMath::Min(Damage, 1000.f)) * 900.f, At);
 	return 0.f;
+}
+
+void AMoBall::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) {
+	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
+	// Physical.Bump: ApplyForce(Other.Location, Normal(RealLocation - Other.Location) * 0.01), where
+	// a shot applies up to 31.6: leaning on the ball creeps it along, nothing like a kick. MF did
+	// that once a tick; by time here (60 a second), whatever the frame rate or the moves per frame
+	if (!HasAuthority() || MyComp != PawnBlocker || !Cast<APawn>(Other))
+		return;
+	const double Now = GetWorld()->GetTimeSeconds();
+	const float Dt = FMath::Min(float(Now - LastBumpTime), 1.f / 60.f);
+	LastBumpTime = Now;
+	Sphere->AddImpulse((GetActorLocation() - Other->GetActorLocation()).GetSafeNormal2D() * 0.01f * 900.f * 60.f * Dt);
 }
 
 void AMoBall::FellOutOfWorld(const UDamageType& DmgType) {
@@ -165,7 +191,8 @@ void AMoBallGame::InitGameState() {
 
 void AMoBallGame::HandleMatchHasStarted() {
 	Super::HandleMatchHasStarted();
-	// PostBeginPlay: goals at the trailer parks, the ball at the trailer generator
+	// PostBeginPlay: on MF's maps goals at the trailer parks, the ball at the trailer generator;
+	// MoBall's own maps (MB-*) have goal zones and a PropGenerator for the ball
 	for (ADFLegacyActor* L : ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerPark"))) {
 		FActorSpawnParameters SP;
 		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -174,11 +201,18 @@ void AMoBallGame::HandleMatchHasStarted() {
 			Goals.Add(G);
 		}
 	}
-	const TArray<ADFLegacyActor*> Gen = ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerGenerator"));
+	for (TActorIterator<ADFZoneBox> It(GetWorld()); It; ++It)
+		if (It->ActorHasTag(TEXT("MoBallGoal0")) || It->ActorHasTag(TEXT("MoBallGoal1")) || It->ActorHasTag(TEXT("MoBallDestruct")))
+			BallZones.Add(*It);
+	TArray<ADFLegacyActor*> Gen = ADFLegacyActor::FindAll(GetWorld(), TEXT("PropGenerator"));
+	if (!Gen.Num())
+		Gen = ADFLegacyActor::FindAll(GetWorld(), TEXT("TrailerGenerator"));
 	BallStart = Gen.Num() ? Gen[0]->GetActorTransform() : FTransform::Identity;
 	BallStart.AddToTranslation(FVector(0.f, 0.f, 225.f)); // Location + (0, 0, 100 uu)
-	UE_LOG(LogDF, Log, TEXT("MoBall: %d goals (%s), ball at %s"), Goals.Num(),
-		*FString::JoinBy(Goals, TEXT(", "), [](const AMoBallGoal* G) { return G->GetActorLocation().ToCompactString(); }), *BallStart.GetLocation().ToCompactString());
+	if (!Gen.Num() || Goals.Num() + BallZones.Num() == 0)
+		UE_LOG(LogDF, Warning, TEXT("MoBall: this map has %s"), Gen.Num() ? TEXT("no goals") : TEXT("no place for the ball"));
+	UE_LOG(LogDF, Log, TEXT("MoBall: %d goals (%s), %d ball zones, ball at %s"), Goals.Num(),
+		*FString::JoinBy(Goals, TEXT(", "), [](const AMoBallGoal* G) { return G->GetActorLocation().ToCompactString(); }), BallZones.Num(), *BallStart.GetLocation().ToCompactString());
 	SpawnBall();
 	GetWorldTimerManager().SetTimer(GoalTimer, this, &AMoBallGame::CheckGoals, 0.1f, true);
 }
@@ -202,17 +236,27 @@ void AMoBallGame::CheckGoals() {
 	if (!Ball || Ball->IsExpiring() || !GS || !IsMatchInProgress())
 		return;
 	const FVector B = Ball->GetActorLocation();
-	for (const AMoBallGoal* G : Goals) {
-		if (G && G->Contains(B)) {
-			const uint8 Scorer = 1 - G->Team; // into your own goal: the others score
-			GS->TeamScores[Scorer] += 1;
-			Event(FString::Printf(TEXT("%s Team Score!"), *GS->GetTeamName(Scorer).ToString()), Scorer);
-			Ball->Expire(5.f); // LifeSpan = 5
-			if (bOverTime || (ScoreLimit > 0 && GS->TeamScores[Scorer] >= ScoreLimit))
-				FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(Scorer).ToString()));
+	uint8 GoalOf = DF::NoTeam;
+	for (const AMoBallGoal* G : Goals)
+		if (G && G->Contains(B))
+			GoalOf = G->Team;
+	for (const ADFZoneBox* Z : BallZones) {
+		if (!Z || !Z->IsInside(B))
+			continue;
+		if (Z->ActorHasTag(TEXT("MoBallDestruct"))) {
+			Ball->Expire(2.f); // MoBallDestructZone: a pit, the edge of the map; no score
 			return;
 		}
+		GoalOf = Z->ActorHasTag(TEXT("MoBallGoal1")) ? 1 : 0;
 	}
+	if (GoalOf == DF::NoTeam)
+		return;
+	const uint8 Scorer = 1 - GoalOf; // into your own goal: the others score
+	GS->TeamScores[Scorer] += 1;
+	Event(FString::Printf(TEXT("%s Team Score!"), *TeamName(Scorer)), Scorer);
+	Ball->Expire(5.f); // LifeSpan = 5
+	if (bOverTime || (ScoreLimit > 0 && GS->TeamScores[Scorer] >= ScoreLimit))
+		TeamWins(Scorer);
 }
 
 void AMoBallGame::OnTimeLimit() {
@@ -226,7 +270,7 @@ void AMoBallGame::OnTimeLimit() {
 		}
 		return;
 	}
-	FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(GS->TeamScores[0] > GS->TeamScores[1] ? 0 : 1).ToString()));
+	TeamWins(GS->TeamScores[0] > GS->TeamScores[1] ? 0 : 1);
 }
 
 AActor* AMoBallGame::GetBotDriveTarget(AController* Bot) const {

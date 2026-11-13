@@ -6,6 +6,7 @@
 #include "Flag.generated.h"
 
 class ADFCharacter;
+class UMeshComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -65,7 +66,14 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<UStaticMeshComponent> Mesh;
+	/** The CTF flag: a staff with the team's emblem flying from it (made on first show). */
+	UPROPERTY(Transient)
+	TObjectPtr<USceneComponent> Staff;
+	UPROPERTY(Transient)
+	TObjectPtr<UMeshComponent> Cloth;
 
+	/** Whoever stands where the flag now lies touches it. */
+	void TouchAnyoneHere();
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bSweep, const FHitResult& Hit);
 	UFUNCTION()
@@ -102,7 +110,6 @@ public:
 	/** Lay untouched for 25 s after a drop: default home with a "returned" line. */
 	virtual void FlagTimedOut(AFlag* Flag);
 
-	static const TCHAR* TeamName(uint8 Team);
 	static FString NameOf(const APawn* P);
 
 protected:

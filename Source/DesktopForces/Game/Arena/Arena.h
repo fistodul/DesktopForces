@@ -35,7 +35,6 @@ public:
 
 protected:
 	virtual void UpdatePoints() override;
-	virtual void OnTimeLimit() override;
 	void RoundEnd(uint8 Winner, bool bCaptured);
 	void NextRound();
 	int32 AliveCount(uint8 Team) const;

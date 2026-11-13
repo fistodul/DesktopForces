@@ -85,7 +85,7 @@ void AArena::UpdatePoints() {
 			CaptureProgress = 0;
 			if (GetWorld()->GetTimeSeconds() - LastAnnounce > 5.f) {
 				LastAnnounce = GetWorld()->GetTimeSeconds();
-				Event(FString::Printf(TEXT("%s team is taking the point"), *GS->GetTeamName(T).ToString()), T);
+				Event(FString::Printf(TEXT("%s team is taking the point"), *TeamName(T)), T);
 			}
 		}
 	}
@@ -104,9 +104,9 @@ void AArena::RoundEnd(uint8 Winner, bool bCaptured) {
 		return;
 	bRoundOver = true;
 	GS->TeamScores[Winner] += 1;
-	const FString Team = GS->GetTeamName(Winner).ToString();
+	const FString Team = TeamName(Winner);
 	if (ScoreLimit > 0 && GS->TeamScores[Winner] >= ScoreLimit) {
-		FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *Team));
+		TeamWins(Winner);
 		return;
 	}
 	Event(bCaptured ? FString::Printf(TEXT("%s team captured the point!"), *Team) : FString::Printf(TEXT("%s team wins the round!"), *Team), Winner);
@@ -122,13 +122,4 @@ void AArena::NextRound() {
 	bRoundOver = false;
 	TGuardValue<bool> Restarting(bRestartingRound, true);
 	RestartRound();
-}
-
-void AArena::OnTimeLimit() {
-	// SetEndCams: more rounds wins, else a draw
-	const ADFGameState* GS = GetGameState<ADFGameState>();
-	if (!GS || GS->TeamScores.Num() < 2)
-		return;
-	const int32 A = GS->TeamScores[0], B = GS->TeamScores[1];
-	FinishMatch(A == B ? FString(TEXT("DRAW")) : FString::Printf(TEXT("%s Team Wins!"), *GS->GetTeamName(A > B ? 0 : 1).ToString()));
 }

@@ -56,7 +56,7 @@ bool ATugOfWar::PreventDeath(ADFCharacter* Victim, AController* Killer, TSubclas
 	const uint8 OldTeam = VPS->GetTeam();
 	VPS->SetTeam(KPS->GetTeam());
 	Victim->Revive(Victim->MaxHealth);
-	BroadcastChat(nullptr, FString::Printf(TEXT("%s joined the %s team"), *VPS->GetPlayerName(), *GetGameState<ADFGameState>()->GetTeamName(KPS->GetTeam()).ToString().ToLower()), false);
+	BroadcastChat(nullptr, FString::Printf(TEXT("%s joined the %s team"), *VPS->GetPlayerName(), *TeamName(KPS->GetTeam()).ToLower()), false);
 	// TugGame.MovedTeam: their old team is gone -> round to the converter's team
 	if (TeamSize(OldTeam) == 0) {
 		KPS->SetScore(KPS->GetScore() + 2.f);
@@ -80,9 +80,9 @@ void ATugOfWar::RoundEnded(int32 Winner) {
 		return;
 	bRoundOver = true;
 	GS->TeamScores[Winner] += 1;
-	const FString Team = GS->GetTeamName(Winner).ToString();
+	const FString Team = TeamName(Winner);
 	if (ScoreLimit > 0 && GS->TeamScores[Winner] >= ScoreLimit) {
-		FinishMatch(FString::Printf(TEXT("%s Team Wins!"), *Team));
+		TeamWins(Winner);
 		return;
 	}
 	BroadcastChat(nullptr, FString::Printf(TEXT("%s team wins the round!"), *Team), false);

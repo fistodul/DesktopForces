@@ -40,7 +40,9 @@ ASafe::ASafe() {
 	// MF CollisionRadius 40, CollisionHeight 40 uu; blocks players and shots
 	Body = CreateDefaultSubobject<UBoxComponent>(TEXT("Body"));
 	Body->InitBoxExtent(FVector(90.f, 90.f, 90.f));
-	Body->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	// a dynamic object, not world: blasts only reach those (ApplyRadialDamage asks for dynamic
+	// object types), and explosives are how a safe is cracked. As BlockAll, no rocket hurt it
+	Body->SetCollisionProfileName(UCollisionProfile::BlockAllDynamic_ProfileName);
 	RootComponent = Body;
 
 	// slightly bigger than the body so walking into it counts as touching (MF Touch / Bump)
@@ -71,11 +73,8 @@ void ASafe::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePro
 
 void ASafe::BeginPlay() {
 	Super::BeginPlay();
-	if (GetNetMode() != NM_DedicatedServer) {
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-			Mesh->SetMaterial(0, M);
+	if (GetNetMode() != NM_DedicatedServer)
 		UpdateLook();
-	}
 }
 
 void ASafe::Init(uint8 InTeam, bool bInCrackable) {
@@ -102,7 +101,7 @@ float ASafe::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AControll
 			GetWorldTimerManager().SetTimer(CloseTimer, FTimerDelegate::CreateWeakLambda(this, [this]() {
 				if (CloseSafe()) {
 					if (ASafecracker* M = SCMode(this))
-						M->Event(FString::Printf(TEXT("The %s safe is repaired!"), AFlagGame::TeamName(Team)), Team);
+						M->Event(FString::Printf(TEXT("The %s safe is repaired!"), *M->TeamName(Team)), Team);
 					GetWorldTimerManager().ClearTimer(CloseTimer);
 				}
 			}),
@@ -123,7 +122,7 @@ void ASafe::OpenSafe() {
 	Gold->UpdateLook();
 	UpdateLook();
 	if (ASafecracker* GM = SCMode(this))
-		GM->Event(FString::Printf(TEXT("The %s safe has been blown!"), AFlagGame::TeamName(Team)), Team);
+		GM->Event(FString::Printf(TEXT("The %s safe has been blown!"), *GM->TeamName(Team)), Team);
 	// someone may already stand at it
 	TArray<AActor*> Inside;
 	Trigger->GetOverlappingActors(Inside, ADFCharacter::StaticClass());
@@ -177,10 +176,7 @@ void ASafe::UpdateLook() {
 							  : (Team == 1 ? TEXT("RageGame/RageSafeMeshRed") : TEXT("RageGame/RageSafeMeshBlue"));
 	if (DF::ApplyPropMesh(Mesh, Prop))
 		return;
-	FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
-	if (bOpen)
-		C *= 0.35f; // blown: dark (the MF open-safe mesh until it's converted)
-	Mesh->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+	DF::Tint(Mesh, UDFGameSettings::Get().GetTeamColor(Team) * (bOpen ? 0.35f : 1.f)); // blown: dark
 }
 
 // --- game mode -------------------------------------------------------------------------
@@ -214,7 +210,7 @@ void ASafecracker::HandleMatchHasStarted() {
 	Super::HandleMatchHasStarted();
 	SpawnSafes();
 	Event(FString::Printf(TEXT("Part %d: %s team attacks, %s team defends its gold."), Part,
-			  TeamName(AttackerTeam()), TeamName(DefenderTeam())),
+			  *TeamName(AttackerTeam()), *TeamName(DefenderTeam())),
 		255);
 }
 
@@ -252,7 +248,7 @@ void ASafecracker::FlagCaptured(AFlag* Flag, ADFCharacter* By) {
 	const int32 Used = GS ? (GS->TimeLimitSeconds > 0 ? GS->TimeLimitSeconds : GS->TimeLimit * 60) - GS->GetRemainingTime() : 0;
 	if (Part == 1)
 		FirstCaptureTime = Used;
-	FinishMatch(FString::Printf(TEXT("%s stole the gold in %d:%02d%s"), TeamName(By->GetTeam()), Used / 60, Used % 60,
+	FinishMatch(FString::Printf(TEXT("%s stole the gold in %d:%02d%s"), *TeamName(By->GetTeam()), Used / 60, Used % 60,
 		Part == 2 ? TEXT(" and win!") : TEXT("")));
 }
 
@@ -262,7 +258,7 @@ void ASafecracker::OnTimeLimit() {
 		FirstCaptureTime = 0;
 	if (ADFGameState* GS = GetGameState<ADFGameState>(); GS && GS->TeamScores.IsValidIndex(DefenderTeam()))
 		GS->TeamScores[DefenderTeam()] += 1;
-	FinishMatch(FString::Printf(TEXT("%s safeguarded their gold%s"), TeamName(DefenderTeam()), Part == 2 ? TEXT(" and win!") : TEXT("!")));
+	FinishMatch(FString::Printf(TEXT("%s safeguarded their gold%s"), *TeamName(DefenderTeam()), Part == 2 ? TEXT(" and win!") : TEXT("!")));
 }
 
 namespace SafecrackerLocal {

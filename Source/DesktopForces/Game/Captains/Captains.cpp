@@ -12,12 +12,6 @@
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 
-namespace {
-	const TCHAR* SquadName(uint8 Team) {
-		return Team == 0 ? TEXT("Blue") : TEXT("Red");
-	}
-} // namespace
-
 ACaptains::ACaptains() {
 	GameName = TEXT("Captains");
 	MFGameClass = TEXT("RageCaptains");
@@ -58,7 +52,7 @@ void ACaptains::SetCaptain(uint8 Team, ADFPlayerState* NewCaptain) {
 	if (ADFBotController* Bot = Cast<ADFBotController>(NewCaptain->GetOwner()))
 		Bot->SetOrder(EDFBotOrder::Freelance, nullptr);
 	if (NewCaptain != Old)
-		BroadcastChat(nullptr, FString::Printf(TEXT("%s is now %s Squad Captain"), *NewCaptain->GetPlayerName(), SquadName(Team)), false);
+		BroadcastChat(nullptr, FString::Printf(TEXT("%s is now %s Squad Captain"), *NewCaptain->GetPlayerName(), *TeamName(Team)), false);
 }
 
 void ACaptains::ChooseRandomCaptain(uint8 Team) {
@@ -103,9 +97,9 @@ void ACaptains::Killed(AController* Killer, AController* Victim, ADFCharacter* V
 	ADFGameState* GS = GetGameState<ADFGameState>();
 	if (GS && GS->TeamScores.IsValidIndex(KPS->GetTeam()))
 		GS->TeamScores[KPS->GetTeam()] += 1;
-	BroadcastChat(nullptr, FString::Printf(TEXT("%s killed %s squad captain - %s"), *KPS->GetPlayerName(), Team == 0 ? TEXT("blue") : TEXT("red"), *VPS->GetPlayerName()), false);
+	BroadcastChat(nullptr, FString::Printf(TEXT("%s killed %s squad captain - %s"), *KPS->GetPlayerName(), *TeamName(Team).ToLower(), *VPS->GetPlayerName()), false);
 	if (GS && ScoreLimit > 0 && GS->GetTeamScore(KPS->GetTeam()) >= ScoreLimit) {
-		FinishMatch(FString::Printf(TEXT("%s Squad wins!"), SquadName(KPS->GetTeam())));
+		FinishMatch(FString::Printf(TEXT("%s Squad wins!"), *TeamName(KPS->GetTeam())));
 		return;
 	}
 	SetCaptain(Team, nullptr);

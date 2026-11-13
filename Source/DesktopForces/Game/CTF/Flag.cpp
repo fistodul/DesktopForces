@@ -7,10 +7,14 @@
 #include "Game/DFGameState.h"
 #include "Game/DFPlayerState.h"
 #include "Player/DFCharacter.h"
+#include "World/DFEffectActor.h"
 #include "World/DFMapActors.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
@@ -65,11 +69,8 @@ void AFlag::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimePro
 
 void AFlag::BeginPlay() {
 	Super::BeginPlay();
-	if (GetNetMode() != NM_DedicatedServer) {
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-			Mesh->SetMaterial(0, M);
-		UpdateLook();
-	}
+	if (!HasAuthority())
+		UpdateLook(); // here the mode says what it is first (team, gold, key), then shows it
 }
 
 AFlag* AFlag::FindCarriedBy(const ADFCharacter* C) {
@@ -92,7 +93,10 @@ void AFlag::SendHome() {
 	ForceNetUpdate();
 	if (AFlagGame* GM = FlagMode(this))
 		GM->FlagWentHome(this);
-	// someone may stand at the base already
+	TouchAnyoneHere(); // someone may stand at the base already
+}
+
+void AFlag::TouchAnyoneHere() {
 	TArray<AActor*> Inside;
 	Trigger->GetOverlappingActors(Inside, ADFCharacter::StaticClass());
 	for (AActor* A : Inside)
@@ -149,16 +153,21 @@ void AFlag::PlaceDropped(const FVector& Spot, const FRotator& Rot) {
 			SendHome();
 	}),
 		25.f, false);
-	TArray<AActor*> Inside;
-	Trigger->GetOverlappingActors(Inside, ADFCharacter::StaticClass());
-	for (AActor* A : Inside)
-		OnOverlap(Trigger, A, nullptr, 0, false, FHitResult());
+	TouchAnyoneHere();
 }
 
 void AFlag::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bSweep, const FHitResult& Hit) {
 	ADFCharacter* C = Cast<ADFCharacter>(Other);
 	AFlagGame* GM = FlagMode(this);
-	if (!HasAuthority() || !GM || !C || !C->IsAlive() || C->GetTeam() == DF::NoTeam)
+	// MF RageBlueFlag.Touch: a live player on foot (aPawn.VehicleIn == none)
+	if (!HasAuthority() || !GM || !C || !C->IsAlive() || C->GetTeam() == DF::NoTeam || C->GetAttachParentActor())
+		return;
+	// A touch can be old news. Sent home off a carrier's back in the middle of that soldier's
+	// move (a capture), the engine still delivers the move's overlaps afterwards: the carrier
+	// "touching" the flag a map away took it again on the spot, and scored with every step into
+	// the base. So whoever touches must be here, and the flag in play (the Detonation key in its
+	// lock is not)
+	if (!GetActorEnableCollision() || FVector::Dist(C->GetActorLocation(), GetActorLocation()) > Trigger->GetScaledSphereRadius() + C->GetSimpleCollisionHalfHeight() + C->GetSimpleCollisionRadius())
 		return;
 	if (State == EDFFlagState::Home) {
 		GM->FlagTouchedAtHome(this, C);
@@ -180,14 +189,49 @@ void AFlag::OnRep_State() {
 
 void AFlag::UpdateLook() {
 	SetActorHiddenInGame(State == EDFFlagState::Home && bHiddenAtHome);
+	if (GetNetMode() == NM_DedicatedServer)
+		return;
 	// MF models: the detonation key (RageDetonationKey), Safecracker's gold (RageSafeObject)
 	const TCHAR* Prop = Team == DF::NoTeam ? TEXT("RageGame/RageDetKeyMesh")
 		: bHiddenAtHome                    ? (Team == 1 ? TEXT("RageGame/SafeObjRedT") : TEXT("RageGame/SafeObjBlueT"))
 										   : nullptr;
+	Mesh->SetVisibility(Prop != nullptr);
+	if (Staff)
+		Staff->SetVisibility(!Prop, true);
 	if (Prop && DF::ApplyPropMesh(Mesh, Prop, 1.f, FVector(0.f, 0.f, 30.f)))
 		return;
-	const FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
-	Mesh->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+	if (Prop) {
+		DF::Tint(Mesh, UDFGameSettings::Get().GetTeamColor(Team)); // the key or the gold without their models: a tinted block
+		return;
+	}
+	// The CTF flag: MF's RageGame.CTFFlagMesh, a staff with the team's emblem waving from it;
+	// without the classic pack a 2.2 m staff and a flat cloth
+	if (!Staff) {
+		Staff = NewObject<USceneComponent>(this);
+		Staff->SetupAttachment(Trigger);
+		Staff->RegisterComponent();
+		Cloth = DF::MakeFlag(Staff, TEXT("CTFFlagMesh"), TEXT("Skin1"));
+	}
+	if (!Cloth) {
+		UStaticMeshComponent* Pole = NewObject<UStaticMeshComponent>(this);
+		Pole->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
+		Pole->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Pole->SetCastShadow(false);
+		Pole->SetCanEverAffectNavigation(false);
+		Pole->SetupAttachment(Staff);
+		Pole->RegisterComponent();
+		Pole->SetRelativeLocation(FVector(0.f, 0.f, 110.f));
+		Pole->SetRelativeScale3D(FVector(0.05f, 0.05f, 2.2f));
+		DF::Tint(Pole, FLinearColor(0.22f, 0.2f, 0.17f)); // CTFFlagTex2: dull metal
+		Cloth = DF::MakeFlatFlag(Staff, FVector(-2.f, 0.f, 186.f), 90.f, 60.f);
+	}
+	DF::SetFlagEmblem(Cloth, Team);
+	// MF state Held: DrawScale 0.6 and rolled 4000 (22 degrees), over the holder's shoulder
+	const bool bHeld = State == EDFFlagState::Held;
+	// MF FlagOffset (-10, 0, 30 uu): its mesh, centred on the staff, stands that far off the base
+	const FVector AtHome = State == EDFFlagState::Home && Cloth->IsA<USkeletalMeshComponent>() ? FVector(-22.5f, 0.f, 67.5f) : FVector::ZeroVector;
+	Staff->SetRelativeLocationAndRotation(bHeld ? FVector(0.f, 0.f, -45.f) : AtHome, FRotator(bHeld ? 22.f : 0.f, 0.f, 0.f));
+	Staff->SetRelativeScale3D(FVector(bHeld ? 0.6f : 1.f));
 }
 
 // --- flag modes --------------------------------------------------------------------------
@@ -197,11 +241,6 @@ AFlagGame::AFlagGame() {
 	NumTeams = 2;
 	RespawnWait = 5;
 	bScoreTeamKills = false;
-}
-
-const TCHAR* AFlagGame::TeamName(uint8 Team) {
-	return Team == 0 ? TEXT("Blue") : Team == 1 ? TEXT("Red")
-												: TEXT("Neutral");
 }
 
 FString AFlagGame::NameOf(const APawn* P) {
@@ -240,18 +279,18 @@ void AFlagGame::CharacterRemoved(ADFCharacter* Character) {
 
 void AFlagGame::FlagPickedUp(AFlag* Flag, ADFCharacter* By) {
 	// RageCTFMessage / RageSCMessage 6 (pickup): TakenSound
-	Event(FString::Printf(TEXT("%s: I have the %s %s! %s"), *NameOf(By), TeamName(Flag->Team), *ObjectName, *CarryLine), Flag->Team,
+	Event(FString::Printf(TEXT("%s: I have the %s %s! %s"), *NameOf(By), *TeamName(Flag->Team), *ObjectName, *CarryLine), Flag->Team,
 		ObjectName == TEXT("gold") ? TEXT("Gold_captured") : TEXT("Flag_captured"));
 	if (Flag->HomeBase)
-		DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("CTFSFX.flagtaken")), Flag->HomeBase->GetActorLocation());
+		ADFEffectActor::SpawnSound(GetWorld(), TEXT("CTFSFX.flagtaken"), Flag->HomeBase->GetActorLocation());
 }
 
 void AFlagGame::FlagDropped(AFlag* Flag, ADFCharacter* Was) {
-	Event(FString::Printf(TEXT("%s: mission abort! %s %s dropped!"), *NameOf(Was), TeamName(Flag->Team), *ObjectName), Flag->Team);
+	Event(FString::Printf(TEXT("%s: mission abort! %s %s dropped!"), *NameOf(Was), *TeamName(Flag->Team), *ObjectName), Flag->Team);
 }
 
 void AFlagGame::FlagReturned(AFlag* Flag, ADFCharacter* By) {
-	Event(FString::Printf(TEXT("%s: %s %s has been returned to %s base!"), *NameOf(By), TeamName(Flag->Team), *ObjectName, TeamName(Flag->Team)), Flag->Team,
+	Event(FString::Printf(TEXT("%s: %s %s has been returned to %s base!"), *NameOf(By), *TeamName(Flag->Team), *ObjectName, *TeamName(Flag->Team)), Flag->Team,
 		ObjectName == TEXT("gold") ? TEXT("Gold_returned") : TEXT("Flag_returned"));
 }
 
@@ -259,7 +298,7 @@ void AFlagGame::FlagWentHome(AFlag* Flag) {
 }
 
 void AFlagGame::FlagTimedOut(AFlag* Flag) {
-	Event(FString::Printf(TEXT("The %s %s was returned!"), TeamName(Flag->Team), *ObjectName), Flag->Team,
+	Event(FString::Printf(TEXT("The %s %s was returned!"), *TeamName(Flag->Team), *ObjectName), Flag->Team,
 		ObjectName == TEXT("gold") ? TEXT("Gold_returned") : TEXT("Flag_returned"));
 	Flag->SendHome();
 }
@@ -272,8 +311,8 @@ void AFlagGame::FlagCaptured(AFlag* Flag, ADFCharacter* By) {
 	ADFGameState* GS = GetGameState<ADFGameState>();
 	if (GS && GS->TeamScores.IsValidIndex(By->GetTeam()))
 		GS->TeamScores[By->GetTeam()] += 1;
-	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s %s %s!!!"), *NameOf(By), By->GetTeam() == 0 ? TEXT("BLUE") : TEXT("RED"),
-			  Flag->Team == 0 ? TEXT("BLUE") : TEXT("RED"), *ObjectName.ToUpper(), ObjectName == TEXT("gold") ? TEXT("STOLEN") : TEXT("CAPTURED")),
+	Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s %s %s!!!"), *NameOf(By), *TeamName(By->GetTeam()).ToUpper(),
+			  *TeamName(Flag->Team).ToUpper(), *ObjectName.ToUpper(), ObjectName == TEXT("gold") ? TEXT("STOLEN") : TEXT("CAPTURED")),
 		By->GetTeam(),
 		ObjectName == TEXT("gold") ? NAME_None : FName(By->GetTeam() == 0 ? TEXT("Blue_score") : TEXT("Red_score"))); // RageCTFMessage CapturedSound
 	Flag->SendHome();
@@ -308,12 +347,7 @@ void AFlagBase::BeginPlay() {
 	// MF RageFlagBase (DrawScale 1.3) stands where the legacy actor was, 130 cm above this plinth
 	if (DF::ApplyPropMesh(Mesh, Team == 1 ? TEXT("RageGame/RageFlagBase1Mesh") : TEXT("RageGame/RageFlagBase0Mesh"), 1.3f, FVector(0.f, 0.f, 130.f)))
 		return;
-	if (GetNetMode() != NM_DedicatedServer) {
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-			Mesh->SetMaterial(0, M);
-		const FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
-		Mesh->SetCustomPrimitiveDataVector4(0, FVector4(C.R * 0.6f, C.G * 0.6f, C.B * 0.6f, 1.f));
-	}
+	DF::Tint(Mesh, UDFGameSettings::Get().GetTeamColor(Team) * 0.6f);
 }
 
 // --- CTF ---------------------------------------------------------------------------------
@@ -353,7 +387,7 @@ void ACaptureTheFlag::FlagTouchedAtHome(AFlag* Flag, ADFCharacter* C) {
 		if (AFlag* Carried = AFlag::FindCarriedBy(C); Carried && Carried != Flag) {
 			FlagCaptured(Carried, C);
 			if (const ADFGameState* GS = GetGameState<ADFGameState>(); GS && ScoreLimit > 0 && GS->GetTeamScore(C->GetTeam()) >= ScoreLimit)
-				FinishMatch(FString::Printf(TEXT("%s team wins!"), TeamName(C->GetTeam())));
+				FinishMatch(FString::Printf(TEXT("%s team wins!"), *TeamName(C->GetTeam())));
 		}
 		return;
 	}

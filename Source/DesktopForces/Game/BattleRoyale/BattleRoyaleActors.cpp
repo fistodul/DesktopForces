@@ -6,6 +6,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -94,7 +95,7 @@ void ABRItemBox::OnTouch(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveCom
 ABRTower::ABRTower() {
 	bReplicates = true;
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	Mesh->SetCollisionProfileName(TEXT("BlockAll"));
+	Mesh->SetCollisionProfileName(UCollisionProfile::BlockAllDynamic_ProfileName); // dynamic: blasts reach it (see ASafe)
 	Mesh->SetMobility(EComponentMobility::Movable);
 	Mesh->SetCanEverAffectNavigation(false);
 	RootComponent = Mesh;

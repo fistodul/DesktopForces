@@ -57,14 +57,8 @@ void ADetonationLock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 void ADetonationLock::BeginPlay() {
 	Super::BeginPlay();
-	if (DF::ApplyPropMesh(Mesh, TEXT("RageGame/RageDetLockMesh")))
-		return;
-	if (GetNetMode() != NM_DedicatedServer) {
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial())
-			Mesh->SetMaterial(0, M);
-		const FLinearColor C = UDFGameSettings::Get().GetTeamColor(Team);
-		Mesh->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
-	}
+	if (!DF::ApplyPropMesh(Mesh, TEXT("RageGame/RageDetLockMesh")))
+		DF::Tint(Mesh, UDFGameSettings::Get().GetTeamColor(Team));
 }
 
 void ADetonationLock::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bSweep, const FHitResult& Hit) {
@@ -190,10 +184,10 @@ void ADetonation::Detonated(AController* Scorer, uint8 ScorerTeam) {
 			GS->TeamScores[ScorerTeam] += 1;
 		Event(FString::Printf(TEXT("%s: %s OBJECTIVE ACHIEVED! - %s DETONATION ACTIVATED!!!"),
 				  Scorer && Scorer->PlayerState ? *Scorer->PlayerState->GetPlayerName() : TEXT("Someone"),
-				  ScorerTeam == 0 ? TEXT("BLUE") : TEXT("RED"), ScorerTeam == 0 ? TEXT("RED") : TEXT("BLUE")),
+				  *TeamName(ScorerTeam).ToUpper(), *TeamName(1 - ScorerTeam).ToUpper()),
 			ScorerTeam);
 		if (GS && ScoreLimit > 0 && GS->GetTeamScore(ScorerTeam) >= ScoreLimit) {
-			FinishMatch(FString::Printf(TEXT("%s team wins!"), TeamName(ScorerTeam)));
+			FinishMatch(FString::Printf(TEXT("%s team wins!"), *TeamName(ScorerTeam)));
 			return;
 		}
 	}
