@@ -31,12 +31,13 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
 - ⬜ Mounted gun aim: the crosshair marks where the gun points, which trails the view while the turret turns; make the gun converge on the view's aim point
 - ✅ Phone frame rates (2026-11-08, Pixel 9a): the list is the rates that divide one of the panel's refresh rates (60 / 120 Hz: 120, 60, 40, 30, 24), and the cap goes to the frame pacer too (`FPlatformRHIFramePacer::SetFramePace`: Swappy picks the panel mode; `t.MaxFPS` alone left the phone at 60). The cap steps down when the frame rate stays under 90 % of it for 30 s (logged, this session only). Measured 59.9 FPS at 60 in Mental Race with 4 bots. That 9a has Smooth Display off (`peak_refresh_rate` 60), so Android holds 60 Hz whatever the game asks: a 120 cap stepped down to 60 after 30 s
-- ⬜ Kill credit left over from the code review: predator missile, sentry and seeker mines still read the owner's controller when they hit, and a gunner's or driver's shots too; projectiles, trip bombs and molotovs keep it from launch
+- ✅ Kill credit left over from the code review: seeker mines, trip lasers and the Predator read their owner's controller when they hit (none once he was dead); they keep it from the placing now, like projectiles, trip bombs, molotovs and the sentry gun (`DF::PlacerCredit`). A gunner's or driver's shots need a living gunner anyway
 - ⬜ Hand-off 2026-11-03, open after the last feedback round:
   - Not tried in game yet: trip laser on vehicles, exiting a rolled vehicle (view level), rocket APC crosshair, rotor start, flags on Armadillo, Jeep and Heli
-  - Review not done for `DFMenu`, `DFHUD`, `DFCheatManager`, the download code, most of Predator and Totem
-  - Beacon keeps announcing if a host joins another server directly (`Stop` only runs on a standalone map)
-  - `mf-warehouse` explosive table: rocket 202 at the centre (135 x 1.5 hardcore), 100 at about 4.5 m, 8 at the 9 m edge; `RocketDamageScaleOnFoot` is mutPack's optional x2
+  - ✅ (2026-11-13) Review of `DFMenu`, `DFHUD`, `DFCheatManager` and the download code. Fixed: `RunAs` is for admins only (on a `?Cheats=1` server anybody could run `Kick` through a logged-in admin: the command ran with the other player's rights); a pack of which only some paks mounted read Installed and Retry did nothing (what mounted is let go, the pack reads Failed); `LocalManifest.txt` is written to a temporary file and renamed; Esc on the Connecting page cancels the connection instead of hiding it; a rename in game turns spaces into `_` as joining does (admin commands take a name as one word). Left: `SetToSelf` / `RunAsLooking` still pass the name as text; the HUD loads a missing texture again every frame in three places (no "tried" flag); the minimap's map info is looked for once only
+  - ✅ (2026-11-13) Beacon kept announcing when a host joined another server directly: it stops itself once the world is a client's (`UDFServerBeacon::Tick`). Read, not played: needs a listen host joining a second server
+  - ✅ (2026-11-13) `AdminLogin` no longer sends the password: the server sends a one-time challenge, the client answers HMAC-SHA1 of it keyed with the password; three wrong answers lock an address out for a minute, doubling up to an hour. Checked with a dedicated server and a client (wrong refused and counted, right accepted). A recorded exchange still allows guessing a weak password offline, and nothing after the login is encrypted (UE's packet encryption needs a key exchange). `SwitchMap` is gone: `Admin servertravel map?game=mode` is the engine's own command
+  - `mf-warehouse` explosive table: rocket 202 at the centre (135 x 1.5 hardcore), 100 at about 4.5 m, 8 at the 9 m edge (mutPack's x2 for players' rockets on soldiers isn't ported: ImprovedRL buffs rockets)
 - ⬜ Hand-off 2026-11-04, after the play-test round:
   - Reference video: `python3 Tools/mfvideos.py --work <dir> scan|report|download|frames` lists the channel (335 videos, 319 on 57 of our maps), kept the newest whole video per map (56, 7.3 GB, 720p, no sound; deleted 2026-11-05 after taking stills every 30 s into `frames/<map>`, `download` fetches them again, `frames` can also read straight from YouTube). Prefer the newest as the truth; older ones may show since-changed play
   - To compare with the videos (no changes without asking): lighting per map and area (MB-DesertArena's spotted half), vehicle smoke, vehicle expiry tint (keep DF's), ladder grab distance (we pull you onto the rungs at radius + capsule radius), climbing
@@ -184,8 +185,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      the camera hole in landscape. Offset it by the safe-zone padding. HUD text is 1.5× on touch
      screens (10c57c2, 4757ce0; checked on the 9a).
    - ✅ 60 FPS offered and held (59.9 FPS in Mental Race with 4 bots, 2026-11-08).
-   - Button icons instead of words, a layout editor (MF-style), touch-look sensitivity, and
-     tap-to-fire on the right half as an option.
+   - 🟡 (2026-11-13) Button signs instead of words (drawn lines, no textures), a layout editor (Esc menu >
+     Options > Controls > Touch buttons, or `DFTouchEdit 1`: drag, Reset, Done saves the offsets), stick look
+     speed (Options > Controls) and "touch the right side to fire" as an option. The sticks' look was a turn
+     per frame, twice as fast at 60 FPS as at 30: it is a rate now (150 degrees a second at full tilt, the
+     speed it had at 60). Seen on the desktop only (signs, the editor's bar and a moved button in a
+     screenshot with `bAlwaysShowTouchInterface`): dragging with a finger, tap to fire and the look speed
+     need the phone.
    - ✅ Options by touch (2026-11-08): Video page, Advanced Graphics, the FPS combo and Apply all work by tapping; the game type list shows the new modes.
    - Since 2026-10-29 the data is in an OBB: a 103 MB APK and a 1.39 GB OBB for two maps
      (classic 1.22 GB of it). It runs from the OBB on the 9a. Install with the generated
@@ -195,7 +201,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      when given an order, and drive to the leader if already driving (1cbb8ac).
    - Untested: a full ride-along. On mf-Tropics the bots headed for the player's Humvee, but
      navmesh gaps and the fighting got in the way.
-   - Test recipe: `-LogCmds="LogDF Verbose"`; DFTeleportNear Buggy 150 (DFEnterSeat needs to be
+   - Test recipe: `-LogCmds="LogDF Verbose"`; TeleportTo Buggy 150 (DFEnterSeat needs to be
      right next to a vehicle; don't `DFLoadout` on maps that don't start in it); DFOrder 3 after
      the bots spawn; KillEnemy every few seconds.
    - Turret seats are not looked at yet.
@@ -292,13 +298,16 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       (game port + 1, 7778, like UE1) answering `\basic\` `\info\` `\rules\` `\players\` `\status\`
       `\echo\`, and `\secure\` with `\validate\` (gsmsalg + cipher); `\heartbeat\<queryport>\gamename\desktopforces`
       to the master's UDP port every few minutes and on state changes (`\statechanged\`). Master
-      list in `DefaultGame.ini`, an `-nomaster` / `?Public=0` switch for private servers;
+      list in `DefaultGame.ini`, an `-nomaster` switch for private servers;
     - client: TCP list request (`\gamename\..\location\0\validate\..\final\` then
       `\list\\gamename\desktopforces\final\`), then query each server itself over UDP for name,
       map, mode, players and ping (as UE1 did); a LAN tab broadcasts the same `\status\` query to
       the query ports on the local subnet, so one protocol covers both;
-    - menu (done 2026-11-01 without sorting choice, filters or LAN: fixed ping order): a server browser page in Join (sort by ping / players, filter mode / map, the pack a
-      map needs from Downloads), refresh, double click joins;
+    - ✅ menu (2026-11-01; sorting, filter and LAN 2026-11-13): Join has an Internet and a LAN list (LAN: one `\status\`
+      broadcast to query ports 7778-7797, `DFServersLan`), columns that sort when pressed, a filter box (words in
+      the name, map or game type), a mark on servers whose map isn't installed; the first press picks a server, a
+      second one joins. Checked: a dedicated server on this PC found by the broadcast, the page in a screenshot
+      (`DFMenuPage 21`). Not tried: a second PC on the network, sorting with several servers, the phone;
     - hosts forward UDP 7777 and 7778 (no NAT traversal in this protocol); IPv4 only; test with a
       local master first (333networks MasterServer runs anywhere), then `master.nofisto.com`.
 14. ✅ **Dedicated server builds** (2026-11-06): `python3 Tools/package.py Linux --server` builds
@@ -442,4 +451,118 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     stand-ins (a replacement table: Valve art can't ship); the top of the shelf ladders doesn't
     let go onto the shelf yet; 40 materials are still stand-ins (`unmapped_materials` in its
     level.json).
+
+21. ✅ **Vehicle bugs** (Filip, 2026-11-09). The expiry flash now covers every mesh the vehicle
+    owns (axles, suspension, turret, rotors too), not just the body and wheels; the blast is
+    MF's `HurtRadius(300, 400 uu, 200000 momentum)` again (it was 150 and pushed nothing), so a
+    buggy beside an APC takes up to 72 of its 100, enough to finish a damaged one as in MF.
+    `DesktopForces.Gameplay.VehicleBlast` checks both.
+22. 🟡 **Online server testing** (Filip, 2026-11-09). `mf.nofisto.com:7787` (query 7788; MF's own
+    server keeps 7777/7778/7780) runs mf-Sardine_City with 1 bot under systemd and is listed on
+    master.nofisto.com. Editor runs carry `ProjectVersion=20261108` (`DefaultGame.ini`) to join it
+    while the replicated code matches that release. Done: the master list is read on threads of its
+    own, replies polled every frame (ping no longer up to 50 ms high). Before, a `ParallelFor` in a
+    background task did the master queries: a game thread waiting on the task graph can run such
+    work itself, sleeping in `ReadUntilFinal` for up to 16 s - Filip's freeze and lag on pressing
+    Join Game (Linux; lag only while the list loaded). Not reproduced on a 16-thread PC either way;
+    recheck on Filip's. Server CPU ~8 %, ping 26-43 ms.
+23. 🟡 **Play-test on the server, mf-Sardine_City** (Filip and testers, 2026-11-10).
+    - ✅ Vehicles in the ground: clients only. A client simulated the replicated body (gravity,
+      no suspension) and the engine's physics replication froze it where it lay once the
+      server's slept: 3 of 9 cars in view sat 55-90 cm low. Clients keep the body kinematic and
+      follow the server now ([Architecture](Architecture.md#networking)); checked with a dedicated
+      server and a client (parked heights, driving).
+    - ✅ MoBall: the ball stands in a soldier's way and only creeps when leaned on, as MF's
+      (`Physical.Bump`); vehicles and shots move it as before ([Gameplay](Gameplay.md)).
+    - ✅ CTF: a capture left the flag with the carrier (a late overlap event after the flag had
+      gone home), so every step into the base scored; flags only count touches from within
+      reach now, and only on foot (MF). The flag has a model: staff and team emblem.
+      Detonation's key checked the same way (walk-in insert, countdown, restart).
+    - ✅ Replacement art: sign sheets keep their layout and get whole words (the shop front at
+      Hake st. 29 reads PIZZA / MARKET / BOOKS / GROCER / OPEN), snow is snow again, the traffic
+      cones are solid, doors, vending machines, barrel ends and windows in walls are drawn as
+      such; 203 automatic entries changed ([Pipeline](Pipeline.md), `lookalike.py --auto
+      --reclassify`). Looked at in game on mf-Sardine_City only.
+    - ✅ Bots on mf-Sardine_City never left their bases, on any mode: the navmesh shut the
+      125 cm spawn room doors (agent radius 38.25 over 19 cm cells erodes three cells; 38 is
+      two), and a walk broken off by a fight counted as "goal out of reach" for 30 s. Radius 38,
+      every navmesh built again, bots ask again after a broken-off walk
+      ([Gameplay](Gameplay.md#loadout)). Found by 4 minute bot matches of every mode with
+      `-LogCmds="LogDF Verbose"`: grep `no full path`, `out of reach`, and the scores.
+    - ✅ Bots and vehicles: a bot that chose a car kept walking to its goal instead (51 of 60
+      tries given up), and took cars for trips of a few metres; fixed, and on mf-Sardine_City
+      bots now drive across, take, drop and return both flags.
+    - ✅ Safecracker: explosives never hurt the safe (world-static collision; radial damage
+      only reaches dynamic objects). Crack, steal and deliver walked through after the fix.
+    - Walked through with `DFWalk` (not teleports) after the fixes: CTF (also on a dedicated
+      server), Detonation, Safecracker, KOH, Trailer, Captains. Bot matches of all 18 modes
+      ran without warnings; native suites 12 / 12.
+    - ✅ COOP-CoopOneUpdate's 12 starts cut off from the rest: the map's own design. Humans play
+      red (CoopMode.ChangeTeam 1) from the starts at the bottom; the twelve blue starts are a
+      sealed room 70 m up, a pen for the mode's own bot team, and both flags stand behind a
+      red-only door at the far end (the finish). Its bots log `no full path` for that reason.
+    - ✅ MoBall's own maps had no goals and dropped the ball into the void at the map's origin
+      (MB-Ballpark, MB-DesertArena, MB-Endaga_Dam, MB-ShippingArena: `PropGenerator`,
+      `MoBallGoalZone`, `MoBallDestructZone` were not supported, only MF maps' trailer parks).
+      The converter writes the zones as boxes, the mode reads them and the generator
+      ([Gameplay](Gameplay.md)); the four maps were patched without a rebake. Checked on
+      MB-Ballpark: a ball brought into each goal scores for the other team, one in the pit
+      comes back without a score (`DFBring MoBall`). Bots on foot still can't reach the ball
+      while it lies on that map's middle mound (no navmesh up its sides): cars knock it down.
+    - ✅ `TeleportTo Name [Dist]` takes over `DFTeleportNear`; `DFWhere` reports a spot
+      ([Commands](Commands.md)).
+    - ✅ White paving for the town's level ground (Filip liked the white bricks the snow
+      texture had become): `retexture` in `map_edits.toml` gives the flat world faces at ground
+      level a texture of ours (`DesktopForces.Paving.snow_bricks`), the snow heaps, roofs and
+      everything sloped keep the snow ([Pipeline](Pipeline.md#map-edits-toolsmfportmap_editstoml));
+      the map was converted, imported and baked again (44 min), so a reimport gives the same.
+    - ✅ MF's waving flags: `CTFFlagMesh` (CTF) and `VehicleFlagMesh` (the pennant of a driven
+      vehicle) come through the skeletal step with their four sequences; without the classic
+      pack the flat stand-ins stay.
+    - ✅ Kill credit: seeker mines, trip lasers and the Predator keep who placed or fired them
+      from that moment (`DF::PlacerCredit`), as the sentry gun did; a dead player's devices
+      still score for him while he stays on the team.
+    - ✅ Sounds only the server played: `DF::PlaySoundAtLocation` plays on the machine that
+      calls it, and seven calls sat in server-only code, so nobody on a dedicated server heard
+      them: the flag taken, the trailer locking down, a turret reloading, the seeker mine's
+      beeps, the Totem and the Predator's "Nuke the whole area". They go out through the
+      replicated effect actor now (`ADFEffectActor::SpawnSound`) or the soldier's voice
+      multicast. Found by reading the Totem and Predator code, which had not been reviewed.
+      2026-11-13: a client of a dedicated server gets the seeker mine's beep (`Effect sound ...
+      (client)` with `-LogCmds="LogDF Verbose"`); the other five on that route and the Predator
+      voice were not triggered. Same day on this round's code: native suites 12 / 12, bot matches
+      of all 18 modes without errors (no flag was taken in the 4 minute CTF one).
+    - The other modes' objects (safes, locks, flag bases) are plain shapes without the classic pack.
+    - Open, found by listing the map actors no code reads: UE1's event actors are not converted
+      (`SpecialEvent` 400 in 11 maps: sounds, messages, damage; `Dispatcher` 4, `Counter` 1,
+      `MusicEvent` 5, `OmniSound` 37 timed sounds, `BreakingGlass` / `ExplodingWall` 3,
+      mf-BraveDwarfes' 198 `LaserBeam` sprites, `ScaledSprite` 1169 in 7 maps). Bot hints
+      (`RageDefensePoint` 706, `Ambushpoint` 365) are unused too.
+
+24. ⬜ **Graphics options and bake quality: measure, then set the defaults** (Filip,
+    2026-11-12; held back that day: the laptop was on battery, which throttles the GPU).
+    - Options: `python3 Tools/mfport/debug/gfxbench.py <out dir>` walks every scalability group
+      (anti-aliasing, textures, view distance, effects, post-processing, shadows, GI,
+      reflections, shading) one level at a time from Medium, render scale 50 / 75 / 150 %, and
+      the Low / High / Epic presets, at fixed cameras on mf-Sardine_City (roofs, street) and
+      mf-warehouse: median frame and GPU ms, and how far the picture moves from Medium's. Run it
+      on mains power with nothing else busy, twice, and trust only differences well above the
+      gap between its first and last Medium rows. Then: raise at Medium whatever costs nothing
+      (anisotropy, 4x MSAA if the GPU ms stay flat), drop what costs without showing, and write
+      the table into [Performance](Performance.md#player-graphics-controls). A try on battery
+      showed every setting within the run's own +-10 % and under 1 ms of GPU time at 1080p on
+      the RTX PRO 500 (the frame is CPU-bound there), so the numbers that matter need a weak GPU
+      too: the phone, or an integrated one. Effects quality needs a fight on screen (a bot match
+      at a fixed camera, long captures) - a still scene has no particles.
+    - First numbers (2026-11-13, mains power, 12 bots, CTF on mf-Sardine_City, `stat dumpframe`, 8
+      frames each): the HUD took 0.59 ms of a frame's game thread, 0.42 ms after its "loadout
+      available here" sign stopped searching the map's loadout sources every frame
+      (`DrawHealthMF` 0.14 -> 0.03 ms). What is left: minimap 0.16 ms, captain markers 0.04 ms (drawn
+      in every mode), inventory, identify and game info about 0.05 ms each. Every part has a named
+      counter now (`STAT_DFHUD_*` in `stat dumpframe -ms=0.002`). A phone's CPU is several times
+      slower: measure there before more caching.
+    - Bake quality, with it: the per-map `quality` choice of #16 (Medium everywhere so far; High
+      or Production where shots tell them apart), the GPU Lightmass test on the Windows side
+      (#16), 4 bounces on the dim indoor maps only, and the meshes Lightmass still reports
+      with overlapping lightmap charts (what #15 left: charts smaller than a texel). Same method: fixed cameras, grey-level difference, bake minutes.
 
