@@ -1085,7 +1085,44 @@ void ADFPlayerController::BehindView(int32 On) {
 }
 
 void ADFPlayerController::AdminLogin(const FString& Password) {
-	ServerAdmin(TEXT("AdminLogin ") + Password.Left(128));
+	if (!IsLocalController())
+		return;
+	if (HasAuthority()) { // the host: nothing travels
+		if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>(); GM && !GM->AdminLogin(this, Password))
+			ClientMessage(TEXT("Admin login failed."));
+		return;
+	}
+	PendingAdminPassword = Password.Left(128);
+	ServerAdminHello();
+}
+
+void ADFPlayerController::ServerAdminHello_Implementation() {
+	ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
+	FString Why;
+	if (!GM)
+		return;
+	if (!GM->CanTryAdminLogin(this, Why)) {
+		ClientMessage(Why);
+		return;
+	}
+	AdminChallenge = FGuid::NewGuid().ToString(EGuidFormats::Digits) + FGuid::NewGuid().ToString(EGuidFormats::Digits);
+	ClientAdminChallenge(AdminChallenge);
+}
+
+void ADFPlayerController::ClientAdminChallenge_Implementation(const FString& Challenge) {
+	if (PendingAdminPassword.IsEmpty())
+		return; // nobody typed AdminLogin: not answering a server's fishing
+	const FString Proof = ADFGameMode::AdminProofOf(Challenge, PendingAdminPassword);
+	PendingAdminPassword.Empty();
+	ServerAdminProof(Proof);
+}
+
+void ADFPlayerController::ServerAdminProof_Implementation(const FString& Proof) {
+	const FString Challenge = AdminChallenge;
+	AdminChallenge.Empty(); // one answer per challenge
+	ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
+	if (GM && !Challenge.IsEmpty() && !GM->AdminProof(this, Challenge, Proof.Left(64)))
+		ClientMessage(TEXT("Admin login failed."));
 }
 
 void ADFPlayerController::AdminLogout() {
@@ -1106,10 +1143,9 @@ void ADFPlayerController::ServerAdmin_Implementation(const FString& Command) {
 	ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
 	if (!GM || Command.IsEmpty())
 		return;
-	FString Password;
-	if (Command.Split(TEXT(" "), nullptr, &Password) && Command.StartsWith(TEXT("AdminLogin "), ESearchCase::IgnoreCase)) {
-		if (!GM->AdminLogin(this, Password.TrimStartAndEnd()))
-			ClientMessage(TEXT("Admin login failed."));
+	if (Command.StartsWith(TEXT("AdminLogin"), ESearchCase::IgnoreCase)) {
+		// not this door: it would carry the password as typed (AdminLogin does a challenge)
+		ClientMessage(TEXT("Type AdminLogin <password> on its own, not through Admin."));
 		return;
 	}
 	if (Command.Equals(TEXT("AdminLogout"), ESearchCase::IgnoreCase)) {

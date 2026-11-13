@@ -203,8 +203,11 @@ public:
 	/**
 	 * Admins (MF bAdmin): `AdminLogin <password>` with this password (empty: nobody logs in
 	 * remotely; the listen server's host and single player are admins anyway). Admins may use
-	 * cheats and `Admin <command>` (any console command on the server: Kick, SwitchMap,
+	 * cheats and `Admin <command>` (any console command on the server: Kick, the engine's
 	 * servertravel ...). Game.ini [/Script/DesktopForces.DFGameMode] AdminPassword=...
+	 * The password itself never travels: the server sends a one-time challenge and the client
+	 * answers with AdminProofOf (ADFPlayerController::AdminLogin); three wrong answers from an
+	 * address lock it out for a minute, doubling with each further one.
 	 */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "DF|Admin")
 	FString AdminPassword;
@@ -216,6 +219,12 @@ public:
 	bool IsAdmin(const AController* C) const;
 	/** Server: log in (true) or say why not. */
 	bool AdminLogin(APlayerController* PC, const FString& Password);
+	/** HMAC-SHA1 of the challenge keyed with the password, in hex. */
+	static FString AdminProofOf(const FString& Challenge, const FString& Password);
+	/** A remote login may be tried from PC's address now (not locked out); else why not. */
+	bool CanTryAdminLogin(const APlayerController* PC, FString& OutWhy) const;
+	/** A remote client's answer to Challenge: admin if it matches. */
+	bool AdminProof(APlayerController* PC, const FString& Challenge, const FString& Proof);
 
 	/** Gregaras' parachutes (the community servers' mutPack bCanUseParachutes): hold Jump while
 	 *  falling fast and a canopy opens; steer by looking. ?Parachutes=0 off. */

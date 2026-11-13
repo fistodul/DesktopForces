@@ -117,10 +117,20 @@ public:
 	/** Run a console command on the server: cheats if allowed; admins: any command. */
 	UFUNCTION(Exec)
 	void Admin(const FString& Command);
-	/** The one server door for all of these (UE won't let an Exec function be an RPC):
-	 *  "AdminLogin <password>", "AdminLogout", or a command to run (forwarded cheats too). */
+	/** The one server door for these (UE won't let an Exec function be an RPC):
+	 *  "AdminLogout", or a command to run (forwarded cheats too). */
 	UFUNCTION(Server, Reliable)
 	void ServerAdmin(const FString& Command);
+	/** AdminLogin from a client, the password staying here: ask, get a one-time challenge,
+	 *  answer it with ADFGameMode::AdminProofOf. */
+	UFUNCTION(Server, Reliable)
+	void ServerAdminHello();
+	UFUNCTION(Client, Reliable)
+	void ClientAdminChallenge(const FString& Challenge);
+	UFUNCTION(Server, Reliable)
+	void ServerAdminProof(const FString& Proof);
+	FString AdminChallenge; // server: the one sent, until it is answered
+	FString PendingAdminPassword; // client: as typed, until the challenge comes
 	/** Cheats may run here (single player, admin, a ?Cheats=1 server); client side, for show. */
 	bool CanCheat() const;
 

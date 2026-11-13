@@ -55,11 +55,10 @@ public:
 	void BecomeZombie();
 	UFUNCTION(Exec)
 	void BecomeNemesis();
-	/** Admins: throw a player out; change the map (SwitchMap mf-warehouse?game=ctf). */
+	/** Admins: throw a player out (AGameSession::KickPlayer). The map changes with the engine's
+	 *  own command: Admin servertravel mf-warehouse?game=ctf. */
 	UFUNCTION(Exec)
 	void Kick(const FString& PlayerName);
-	UFUNCTION(Exec)
-	void SwitchMap(const FString& URL);
 
 	// --- Mobile Forces cheats (same names as the original; UE adds God, Ghost, Fly, Walk,
 	//     Slomo, Summon, Teleport, PlayersOnly, ViewSelf, DestroyAll ...) ---------------

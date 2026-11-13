@@ -1,4 +1,6 @@
 #include "Game/DFGameMode.h"
+#include "Misc/SecureHash.h"
+#include "Engine/NetConnection.h"
 #include "Core/DFServerBeacon.h"
 #include "World/MineGenerator.h"
 #include "AI/DFNavigationSystem.h"
@@ -343,6 +345,52 @@ bool ADFGameMode::AllowCheats(APlayerController* P) {
 bool ADFGameMode::IsAdmin(const AController* C) const {
 	const ADFPlayerState* PS = C ? C->GetPlayerState<ADFPlayerState>() : nullptr;
 	return PS && PS->bAdmin;
+}
+
+namespace {
+	/** Wrong admin logins by address, for the process's life (a map change must not clear them). */
+	struct FAdminTries {
+		int32 Failed = 0;
+		double LockedUntil = 0.0;
+	};
+	TMap<FString, FAdminTries> GAdminTries;
+
+	FString AdminAddress(const APlayerController* PC) {
+		UNetConnection* C = PC ? PC->GetNetConnection() : nullptr;
+		return C ? C->LowLevelGetRemoteAddress(false) : FString(TEXT("local"));
+	}
+} // namespace
+
+FString ADFGameMode::AdminProofOf(const FString& Challenge, const FString& Password) {
+	const FTCHARToUTF8 Key(*Password), Data(*Challenge);
+	uint8 Hash[FSHA1::DigestSize];
+	FSHA1::HMACBuffer(Key.Get(), Key.Length(), Data.Get(), Data.Length(), Hash);
+	return BytesToHex(Hash, sizeof(Hash));
+}
+
+bool ADFGameMode::CanTryAdminLogin(const APlayerController* PC, FString& OutWhy) const {
+	const FAdminTries* T = GAdminTries.Find(AdminAddress(PC));
+	const double Wait = T ? T->LockedUntil - FPlatformTime::Seconds() : 0.0;
+	if (Wait <= 0.0)
+		return true;
+	OutWhy = FString::Printf(TEXT("Too many wrong admin logins: wait %d s."), FMath::CeilToInt32(Wait));
+	return false;
+}
+
+bool ADFGameMode::AdminProof(APlayerController* PC, const FString& Challenge, const FString& Proof) {
+	FString Why;
+	if (!PC || Challenge.IsEmpty() || !CanTryAdminLogin(PC, Why))
+		return false;
+	const FString Address = AdminAddress(PC);
+	if (AdminPassword.IsEmpty() || !Proof.Equals(AdminProofOf(Challenge, AdminPassword), ESearchCase::IgnoreCase)) {
+		FAdminTries& T = GAdminTries.FindOrAdd(Address);
+		if (++T.Failed >= 3) // 1 min, 2, 4 ... an hour at most
+			T.LockedUntil = FPlatformTime::Seconds() + FMath::Min(3600.0, 60.0 * FMath::Pow(2.0, double(FMath::Min(T.Failed - 3, 10))));
+		UE_LOG(LogDF, Warning, TEXT("Admin login refused: %s from %s (%d wrong)"), PC->PlayerState ? *PC->PlayerState->GetPlayerName() : TEXT("?"), *Address, T.Failed);
+		return false;
+	}
+	GAdminTries.Remove(Address);
+	return AdminLogin(PC, AdminPassword);
 }
 
 bool ADFGameMode::AdminLogin(APlayerController* PC, const FString& Password) {

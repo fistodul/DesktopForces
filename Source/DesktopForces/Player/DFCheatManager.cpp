@@ -695,6 +695,12 @@ bool UDFCheatManager::IsAdmin() const {
 }
 
 void UDFCheatManager::RunAs(const FString& PlayerAndCommand) {
+	// admins only, not everybody on a ?Cheats=1 server: the command runs with the other
+	// player's rights, and through an admin that would be Kick for anyone
+	if (!IsAdmin()) {
+		Say(TEXT("RunAs: admins only"));
+		return;
+	}
 	FString Command;
 	const FString Name = SplitFirst(PlayerAndCommand, Command);
 	AController* C = nullptr;
@@ -818,11 +824,4 @@ void UDFCheatManager::Kick(const FString& PlayerName) {
 		return;
 	}
 	GM->GameSession->KickPlayer(Target, FText::FromString(TEXT("Kicked by an admin")));
-}
-
-void UDFCheatManager::SwitchMap(const FString& URL) {
-	if (!IsAdmin() || URL.IsEmpty())
-		return;
-	Say(FString::Printf(TEXT("Switching to %s"), *URL));
-	GetWorld()->ServerTravel(URL);
 }

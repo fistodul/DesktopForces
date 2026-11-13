@@ -182,7 +182,7 @@ Each mode's own options are in its class (`[/Script/DesktopForces.ZombieGame]`
 ## Running it
 
 Log in with `AdminLogin <password>`, then (see [Commands.md](Commands.md#admin)):
-`Kick <name>`, `SwitchMap <map?game=...>`, `AddBots N`, `Admin <any console command>`;
+`Kick <name>`, `Admin servertravel <map?game=...>`, `AddBots N`, `Admin <any console command>`;
 players vote with `CallVote travel <map> [mode]`, `CallVote nextmap`, `Vote yes`.
 
 ## Match limits and parachutes

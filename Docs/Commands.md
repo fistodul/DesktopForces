@@ -61,11 +61,10 @@ Game.ini, or `-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=...` on
 
 | Command | Does |
 |---|---|
-| `AdminLogin Password` / `AdminLogout` | become / stop being admin |
-| `Admin Command` | run a command on the server: any cheat, and for admins any console command (`Admin servertravel mf-warehouse?game=ctf`) |
+| `AdminLogin Password` / `AdminLogout` | become / stop being admin. The password stays on your PC: the server sends a one-time challenge, the game answers with a hash of both. Three wrong tries lock your address out for a minute, then two, four ... |
+| `Admin Command` | run a command on the server: any cheat, and for admins any console command (`Admin servertravel mf-warehouse?game=ctf` changes the map: the engine's own command, short map names and mode aliases work) |
 | `Kick Name` | throw a player out (admins) |
-| `SwitchMap URL` | change map, e.g. `SwitchMap mf-warehouse?game=/Script/DesktopForces.CaptureTheFlag` (admins) |
-| `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame) |
+| `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame); admins only, also where `?Cheats=1` is on |
 | `SetTo Name Property Value` / `GetTo Name Property` | set / read a property of a player's soldier (then player state, controller), e.g. `SetTo Bob MaxHealth 300` |
 | `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
 | `TeleportTo Name [Dist]` | to a player, else a pawn of that name (`Buggy_3`), else the nearest actor of that class, taking what you drive along: `TeleportTo Bob`, `TeleportTo Buggy 180`, `TeleportTo DFCharacter` (a bot). Dist cm in front of it; without one, somewhere around a player (ZombieGame's `Teleport`) and 600 in front of anything else. A name with spaces goes in quotes. UE's `Teleport` goes where you aim |
