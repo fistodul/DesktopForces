@@ -9,6 +9,7 @@
 class ADFCharacter;
 class UBoxComponent;
 class UCameraComponent;
+class UMeshComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
 
@@ -87,6 +88,8 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void OnRep_ReplicatedMovement() override;
+	virtual FVector GetVelocity() const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override {}
 	virtual void Destroyed() override;
@@ -383,12 +386,16 @@ protected:
 	UPROPERTY(Replicated)
 	TObjectPtr<ADFCharacter> Driver;
 
+	/** Put a soldier in a seat: attached there, not moving, and through the vehicle and other pawns. */
+	void SeatRider(ADFCharacter* C, int32 Seat);
 	/** VehicleFlag: a team flag on a pole while a team member drives (Vehicle.SetTeam). */
 	void UpdateFlag();
 	UPROPERTY(Transient)
-	TObjectPtr<UStaticMeshComponent> FlagCloth;
+	TObjectPtr<UMeshComponent> FlagCloth;
+	FTimerHandle FlagFlapTimer;
 	uint8 FlagTeam = 255;
 	bool bFlagDriven = false;
+	bool bFlagUp = false;
 	float WaterCheck = 0.f;
 	FTimerHandle FlagTimer;
 
@@ -416,6 +423,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<class UMaterialInstanceDynamic> ExpiryMaterial;
 	void UpdateExpiryWarning();
+	TArray<UStaticMeshComponent*> ExpiryMeshes() const;
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastExpireFX();
 	bool FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const;
@@ -496,8 +504,20 @@ protected:
 	void OnPawnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
 
 	void SimulateWheels(float DeltaSeconds);
+	/** Wheel Index's suspension ray: what it stands on and how far that pushes it up its travel. */
+	bool TraceWheel(int32 Index, FHitResult& Hit, float& OutCompression) const;
+	/** Clients: the server's last word on the body and its age (below 0: none yet); FollowServer
+	 *  moves the body there, see OnRep_ReplicatedMovement. */
+	FVector NetLocation = FVector::ZeroVector, NetVelocity = FVector::ZeroVector;
+	FQuat NetRotation = FQuat::Identity;
+	float NetAge = -1.f;
+	bool bWheelsStale = true; // the body moved since the wheels' travel was last measured (clients)
+	void FollowServer(float DeltaSeconds);
 	void UpdateWheelVisuals(float DeltaSeconds);
 	void BlowUp(AController* By);
+	/** MF Vehicle.BlowUp: HurtRadius(ExplosionDamage 300, ExplosionRadius 400 uu, 'Exploded',
+	 *  ExplosionMomentum 200000 uu). Next to another car, x 1.5 for explosives and its armour. */
+	static constexpr float ExplosionDamage = 300.f, ExplosionRadius = 400.f * 2.25f, ExplosionMomentum = 200000.f;
 	FVector DoorExit(int32 Door) const;
 };
 

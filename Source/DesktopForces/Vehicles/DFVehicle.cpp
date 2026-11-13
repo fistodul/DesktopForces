@@ -13,6 +13,7 @@
 #include "Vehicles/DFVehicleTurret.h"
 #include "DesktopForces.h"
 #include "Core/DFProps.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Player/DFCharacter.h"
 #include "Vehicles/VehicleFrag.h"
 #include "Vehicles/Heli/Heli.h"
@@ -198,7 +199,7 @@ void ADFVehicle::BeginPlay() {
 	}
 	WheelDamage.Init(0, Wheels.Num());
 	ReInflateTimers.SetNum(Wheels.Num());
-	LastCompression.Init(0.f, Wheels.Num());
+	LastCompression.Init(HasAuthority() ? 0.f : SuspensionTravel * 0.5f, Wheels.Num()); // clients: mid travel until measured
 	WheelSpin.Init(0.f, Wheels.Num());
 	Body->OnComponentHit.AddDynamic(this, &ADFVehicle::OnBodyHit);
 	Body->OnComponentBeginOverlap.AddDynamic(this, &ADFVehicle::OnPawnOverlap);
@@ -223,6 +224,46 @@ void ADFVehicle::BeginPlay() {
 		Body->SetSimulatePhysics(true);
 		GetWorldTimerManager().SetTimer(AbandonmentTimer, this, &ADFVehicle::CheckAbandonment, 1.f, true);
 	}
+}
+
+void ADFVehicle::OnRep_ReplicatedMovement() {
+	// Only the server simulates the body: its suspension carries the car. The engine has a client
+	// simulate a replicated physics body too (AActor::SyncReplicatedPhysicsSimulation, once,
+	// before this), here with gravity and nothing under it, and its physics replication puts the
+	// body to sleep where it lies once the server's sleeps: cars seen sunk to the floor pan on
+	// servers. So a client's body stays kinematic and follows the server's (FollowServer).
+	// Not Super: it would simulate again, and move the body at once
+	if (Body->IsSimulatingPhysics())
+		Body->SetSimulatePhysics(false);
+	const FRepMovement& Rep = GetReplicatedMovement();
+	NetLocation = FRepMovement::RebaseOntoLocalOrigin(Rep.Location, this);
+	NetRotation = Rep.Rotation.Quaternion();
+	NetVelocity = Rep.LinearVelocity;
+	bWheelsStale = true;
+	if (NetAge < 0.f)
+		SetActorLocationAndRotation(NetLocation, NetRotation, false, nullptr, ETeleportType::TeleportPhysics);
+	NetAge = 0.f;
+}
+
+void ADFVehicle::FollowServer(float Dt) {
+	if (NetAge < 0.f)
+		return;
+	// where the server's body should be by now (a quarter second of dead reckoning at most):
+	// keep the speed it had, and close what's left of the gap smoothly; a big gap is a teleport
+	const float Ahead = FMath::Min(NetAge, 0.25f);
+	const FVector Target = NetLocation + NetVelocity * Ahead;
+	const FVector Now = GetActorLocation() + (NetAge < 0.25f ? NetVelocity * Dt : FVector::ZeroVector);
+	NetAge += Dt;
+	if (NetVelocity.IsZero() && Now.Equals(Target, 0.05f) && GetActorQuat().Equals(NetRotation, 1e-4f))
+		return; // parked
+	const bool bSnap = FVector::DistSquared(Now, Target) > FMath::Square(400.f);
+	const float Alpha = bSnap ? 1.f : 1.f - FMath::Exp(-Dt * 12.f);
+	SetActorLocationAndRotation(FMath::Lerp(Now, Target, Alpha), FQuat::Slerp(GetActorQuat(), NetRotation, Alpha), false, nullptr,
+		bSnap ? ETeleportType::TeleportPhysics : ETeleportType::None);
+}
+
+FVector ADFVehicle::GetVelocity() const {
+	return HasAuthority() ? Super::GetVelocity() : NetVelocity; // a client's body is moved, not simulated
 }
 
 float ADFVehicle::GetSpeedKmh() const {
@@ -290,6 +331,8 @@ void ADFVehicle::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 	if (HasAuthority() && !bBlownUp && Body->IsSimulatingPhysics())
 		SimulateWheels(FMath::Min(DeltaSeconds, 0.05f));
+	if (!HasAuthority())
+		FollowServer(DeltaSeconds);
 	if (GetNetMode() != NM_DedicatedServer) {
 		UpdateWheelVisuals(DeltaSeconds);
 		UpdateEngineSound();
@@ -334,6 +377,23 @@ void ADFVehicle::ApplyWater(float Dt) {
 	}
 }
 
+bool ADFVehicle::TraceWheel(int32 Index, FHitResult& Hit, float& OutCompression) const {
+	const FDFWheelSetup& W = Wheels[Index];
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFWheel), false, this);
+	if (Driver)
+		Params.AddIgnoredActor(Driver);
+	// from a wheel radius above the travel's top: inside the body, so a car that bottomed
+	// out (box on the ground, wheel tops below it) still finds the ground and lifts again.
+	// A flat tyre (MF BlowOutWheel) runs on the rim: lower
+	const FTransform& T = Body->GetComponentTransform();
+	const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f + W.Radius));
+	const float RayLen = SuspensionTravel + W.Radius * (IsWheelBlown(Index) ? 1.75f : 2.f);
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Top, Top - T.GetUnitAxis(EAxis::Z) * RayLen, ECC_Visibility, Params))
+		return false;
+	OutCompression = FMath::Clamp(RayLen - Hit.Distance, 0.f, SuspensionTravel);
+	return true;
+}
+
 void ADFVehicle::SimulateWheels(float Dt) {
 	ApplyWater(Dt);
 	// Parked on a slope, the speed-proportional hold below only slows the creep to a few cm/s:
@@ -369,20 +429,13 @@ void ADFVehicle::SimulateWheels(float Dt) {
 	// the nose the other way, so nitro alone steered backwards)
 	const bool bNitroOn = bTurbo && bNitro && Driver && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed;
 	const bool bCoasting = FMath::IsNearlyZero(Throttle) && !bNitroOn;
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFWheel), false, this);
-	if (Driver)
-		Params.AddIgnoredActor(Driver);
 	int32 Grounded = 0;
 	for (int32 i = 0; i < Wheels.Num(); ++i) {
 		const FDFWheelSetup& W = Wheels[i];
-		// a flat tyre (MF BlowOutWheel) runs on the rim: lower, little grip, little drive
 		const bool bFlat = IsWheelBlown(i);
-		// from a wheel radius above the travel's top: inside the body, so a car that bottomed
-		// out (box on the ground, wheel tops below it) still finds the ground and lifts again
-		const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f + W.Radius));
-		const float RayLen = SuspensionTravel + W.Radius * (bFlat ? 1.75f : 2.f);
 		FHitResult Hit;
-		if (!GetWorld()->LineTraceSingleByChannel(Hit, Top, Top - Up * RayLen, ECC_Visibility, Params)) {
+		float Compression = 0.f;
+		if (!TraceWheel(i, Hit, Compression)) {
 			LastCompression[i] = 0.f;
 			AirborneWheels |= 1 << i;
 			continue;
@@ -396,7 +449,6 @@ void ADFVehicle::SimulateWheels(float Dt) {
 			}
 		}
 		++Grounded;
-		const float Compression = FMath::Clamp(RayLen - Hit.Distance, 0.f, SuspensionTravel);
 		const float CompVel = (Compression - LastCompression[i]) / FMath::Max(Dt, 1e-3f);
 		LastCompression[i] = Compression;
 		const float Fz = FMath::Max(0.f, K * Compression + C * CompVel);
@@ -465,12 +517,19 @@ void ADFVehicle::SimulateWheels(float Dt) {
 void ADFVehicle::UpdateWheelVisuals(float DeltaSeconds) {
 	const FVector Fwd = GetActorForwardVector();
 	const float Speed = FVector::DotProduct(GetVelocity(), Fwd);
+	// a client measures its own wheels' travel, for cars in view the server still moves (the last
+	// measure stays for a parked one): drawn at mid travel they stood up to 21 cm in the ground
+	const bool bMeasure = !HasAuthority() && bWheelsStale && BodyMesh->WasRecentlyRendered(0.2f);
+	if (bMeasure)
+		bWheelsStale = NetAge < 1.f; // FollowServer still closes in for a moment after the last word
 	for (int32 i = 0; i < WheelMeshes.Num() && i < Wheels.Num(); ++i) {
 		const FDFWheelSetup& W = Wheels[i];
 		if (!HasAuthority())
 			WheelSpin[i] += Speed / FMath::Max(W.Radius, 1.f) * DeltaSeconds;
+		if (FHitResult Hit; bMeasure && !TraceWheel(i, Hit, LastCompression[i]))
+			LastCompression[i] = 0.f;
 		// suspension drop when not compressed, steering, rolling
-		const float Drop = HasAuthority() ? SuspensionTravel * 0.5f - LastCompression[i] : 0.f;
+		const float Drop = SuspensionTravel * 0.5f - LastCompression[i];
 		const FVector Pos = W.Position - BoxCenter - FVector(0.f, 0.f, FMath::Clamp(Drop, -SuspensionTravel * 0.5f, SuspensionTravel * 0.5f));
 		WheelMeshes[i]->SetRelativeLocation(Pos);
 		const float Yaw = W.bSteer ? Steer * SteerLock * WheelTurnShown : 0.f;
@@ -553,15 +612,19 @@ void ADFVehicle::SeatPassenger(ADFCharacter* C, int32 Seat) {
 	Passengers[Seat] = C;
 	// rides along at the seat, still a soldier: looks around and shoots (InCarState), never
 	// pushes the vehicle it sits in
-	C->StopParachuting();
-	C->GetCharacterMovement()->DisableMovement();
+	SeatRider(C, Seat);
+	PassengerEntered(C, Seat);
+}
+
+void ADFVehicle::SeatRider(ADFCharacter* C, int32 Seat) {
 	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
 	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
 	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	Body->IgnoreActorWhenMoving(C, true);
+	C->StopParachuting();
+	C->GetCharacterMovement()->DisableMovement(); // stays in sight in the seat (Drive / passenger animations)
 	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	C->SetActorRelativeLocation(GetSeatOffset(Seat, C));
-	PassengerEntered(C, Seat);
 }
 
 void ADFVehicle::UnseatPassenger(ADFCharacter* C) {
@@ -675,14 +738,7 @@ bool ADFVehicle::EnterDriver(ADFCharacter* C) {
 	if (ADFWeapon* W = C->GetCurrentWeapon())
 		W->ForceInactive();
 	C->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
-	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
-	C->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	Body->IgnoreActorWhenMoving(C, true);
-	C->StopParachuting();
-	C->GetCharacterMovement()->DisableMovement(); // stays in sight at the wheel (Drive animations)
-	C->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	C->SetActorRelativeLocation(GetSeatOffset(0, C));
+	SeatRider(C, 0);
 	LastDriver = C;
 	if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>())
 		GM->VehicleEntered(this, C); // before possession: the soldier still has the player state
@@ -848,6 +904,8 @@ void ADFVehicle::ApplyHitPush(const FDamageEvent& DamageEvent, AActor* DamageCau
 		Momentum = W->HitMomentum / 2.25f;
 	else if (const ADFProjectile* P = Cast<ADFProjectile>(DamageCauser))
 		Momentum = P->Momentum / 2.25f;
+	else if (Cast<ADFVehicle>(DamageCauser))
+		Momentum = ExplosionMomentum; // another vehicle blowing up
 	FVector Dir = FVector::ZeroVector, At = GetActorLocation();
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID)) {
 		const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
@@ -920,7 +978,7 @@ void ADFVehicle::BlowUp(AController* By) {
 		C->TakeDamage(1000.f, Ev, By, this);
 	}
 	TArray<AActor*> Ignore{ this };
-	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 150.f, 0.f, GetActorLocation(), 0.f, 900.f, 1.f,
+	UGameplayStatics::ApplyRadialDamageWithFalloff(this, ExplosionDamage, 0.f, GetActorLocation(), 0.f, ExplosionRadius, 1.f,
 		UDFDamage_Explosion::StaticClass(), Ignore, this, By, ECC_Visibility);
 	MulticastBlowUpFX();
 	SetLifeSpan(0.1f);
@@ -1195,37 +1253,30 @@ void ADFVehicle::UpdateFlag() {
 		: DriverState                                                ? DriverState->PreferredTeam
 																	 : DF::NoTeam;
 	const bool bDriven = Driver != nullptr;
+	USkeletalMeshComponent* Pennant = Cast<USkeletalMeshComponent>(FlagCloth);
+	// MF VehicleFlag.Tick: streaming over 4 UU a tick (5.4 m/s), hanging under that
+	if (const bool bUp = GetVelocity().SizeSquared() > FMath::Square(540.f); Pennant && bDriven && bUp != bFlagUp) {
+		bFlagUp = bUp;
+		const float Length = DF::PlayFlag(Pennant, bUp ? TEXT("FlagUp") : TEXT("FlagDown"), false);
+		GetWorldTimerManager().SetTimer(FlagFlapTimer, FTimerDelegate::CreateWeakLambda(this, [this, Pennant] { DF::PlayFlag(Pennant, bFlagUp ? TEXT("FlagUpFlap") : TEXT("FlagDownFlap"), true); }), FMath::Max(Length, 0.05f), false);
+	}
 	if (Team == FlagTeam && bDriven == bFlagDriven)
 		return;
 	FlagTeam = Team;
 	bFlagDriven = bDriven;
 	if (!FlagCloth) {
-		// a pennant at FlagPos, the tip of the vehicle's own antenna (MF's waving VehicleFlag is a
-		// skeletal mesh not converted yet)
-		UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
-		auto Make = [this](UStaticMesh* Mesh) {
-			UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
-			C->SetStaticMesh(Mesh);
-			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			C->SetCastShadow(false);
-			C->SetCanEverAffectNavigation(false);
-			C->SetupAttachment(Body);
-			C->RegisterComponent();
-			return C;
-		};
-		FlagCloth = Make(Plane);
-		FlagCloth->SetRelativeLocation(FlagPosition - BoxCenter + FVector(-20.f, 0.f, 0.f));
-		FlagCloth->SetRelativeRotation(FRotator(0.f, 0.f, 90.f)); // upright, along the car
-		FlagCloth->SetRelativeScale3D(FVector(-0.4f, 0.26f, 1.f)); // 40 x 26 cm, the tied edge at the antenna
-		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_VehicleFlag.M_MF_VehicleFlag")))
-			FlagCloth->CreateDynamicMaterialInstance(0, M);
+		// MF's VehicleFlag at FlagPos, the tip of the vehicle's own antenna
+		if (USkeletalMeshComponent* Waving = DF::MakeFlag(Body, TEXT("VehicleFlagMesh"), TEXT("Skin0"))) {
+			Waving->SetRelativeLocation(FlagPosition - BoxCenter);
+			DF::PlayFlag(Waving, TEXT("FlagDownFlap"), true);
+			FlagCloth = Waving;
+		}
 	}
-	const bool bShow = bDriven;
-	FlagCloth->SetVisibility(bShow);
-	if (bShow) {
-		if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(FlagCloth->GetMaterial(0)))
-			M->SetTextureParameterValue(TEXT("Texture"), DF::LoadClassic<UTexture2D>(Team <= 1 ? FString::Printf(TEXT("Textures/Rage/Skins/VehicleFlagTex%d"), Team) : FString(TEXT("Textures/Rage/Skins/VehicleFlagNeutral"))));
-	}
+	if (!FlagCloth)
+		FlagCloth = DF::MakeFlatFlag(Body, FlagPosition - BoxCenter, 40.f, 26.f);
+	FlagCloth->SetVisibility(bDriven);
+	if (bDriven)
+		DF::SetFlagEmblem(FlagCloth, Team);
 }
 
 // --- MF engine and gearbox ------------------------------------------------------------------
@@ -1361,10 +1412,8 @@ void ADFVehicle::UpdateExpiryWarning() {
 				ExpiryMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.55f, 0.12f, 0.05f));
 			}
 		UMaterialInterface* Overlay = bWarn ? ExpiryMaterial.Get() : nullptr;
-		BodyMesh->SetOverlayMaterial(Overlay);
-		for (UStaticMeshComponent* Wheel : WheelMeshes)
-			if (Wheel)
-				Wheel->SetOverlayMaterial(Overlay);
+		for (UStaticMeshComponent* Mesh : ExpiryMeshes())
+			Mesh->SetOverlayMaterial(Overlay);
 		NextExpiryPulse = Now;
 	}
 	if (!bWarn)
@@ -1375,10 +1424,17 @@ void ADFVehicle::UpdateExpiryWarning() {
 	}
 	// MF: AmbientGlow 255 fading by 500 a second (half a second); no warning beep (it read as a bomb)
 	const float Pulse = FMath::Max(0.f, 1.f - (Now - ExpiryPulseAt) / 0.51f);
-	BodyMesh->SetCustomPrimitiveDataFloat(4, Pulse);
-	for (UStaticMeshComponent* Wheel : WheelMeshes)
-		if (Wheel)
-			Wheel->SetCustomPrimitiveDataFloat(4, Pulse);
+	for (UStaticMeshComponent* Mesh : ExpiryMeshes())
+		Mesh->SetCustomPrimitiveDataFloat(4, Pulse);
+}
+
+TArray<UStaticMeshComponent*> ADFVehicle::ExpiryMeshes() const {
+	// MF glows the whole vehicle: body, wheels, axles, suspension, turret, rotors - every mesh it
+	// owns but the team pennant (MF's VehicleFlag is an actor of its own)
+	TArray<UStaticMeshComponent*> Meshes;
+	GetComponents(Meshes);
+	Meshes.Remove(Cast<UStaticMeshComponent>(FlagCloth));
+	return Meshes;
 }
 
 void ADFVehicle::MulticastExpireFX_Implementation() {

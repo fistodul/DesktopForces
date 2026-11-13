@@ -9,6 +9,10 @@
 #include "Engine/World.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Player/DFCharacter.h"
+#include "Core/DFTypes.h"
+#include "Engine/DamageEvents.h"
+#include "Vehicles/ArmedAPC/ArmedAPC.h"
+#include "Vehicles/Buggy/Buggy.h"
 #include "Vehicles/Humvee/Humvee.h"
 #include "Vehicles/Jeep/Jeep.h"
 
@@ -200,6 +204,79 @@ namespace {
 		double Next = 0;
 		int32 Stage = 0;
 	};
+	/** MF Vehicle.BlowUp next to an APC: HurtRadius 300 x 1.5 (explosive) x (1 - 0.84 armour) takes
+	 *  up to 72 of its 100. And an expiring vehicle flashes on every mesh, turret and axles too. */
+	class FDFVehicleBlastCheck : public IAutomationLatentCommand {
+	public:
+		FDFVehicleBlastCheck(FAutomationTestBase* InTest, UWorld* InWorld)
+			: Test(InTest),
+			  World(InWorld) {}
+
+		virtual bool Update() override {
+			const double Now = World->GetTimeSeconds();
+			if (Stage == 0) {
+				Floor = World->SpawnActor<AActor>();
+				UBoxComponent* Box = NewObject<UBoxComponent>(Floor.Get());
+				Floor->SetRootComponent(Box);
+				Box->InitBoxExtent(FVector(3000, 3000, 50));
+				Box->SetWorldLocation(Origin - FVector(0, 0, 50));
+				Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+				Box->SetCollisionObjectType(ECC_WorldStatic);
+				Box->SetCollisionResponseToAllChannels(ECR_Block);
+				Box->SetMobility(EComponentMobility::Static);
+				Box->RegisterComponent();
+				FActorSpawnParameters Spawn;
+				Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				Buggy = World->SpawnActor<ABuggy>(Origin + FVector(0, 0, 150), FRotator::ZeroRotator, Spawn);
+				Apc = World->SpawnActor<AArmedAPC>(Origin + FVector(0, 450, 200), FRotator::ZeroRotator, Spawn);
+				Next = Now + 3; // settle on the floor
+				Stage = 1;
+				return false;
+			}
+			if (Now < Next)
+				return false;
+			if (!Apc.IsValid() || (Stage == 1 && !Buggy.IsValid())) { // the buggy goes once it blows
+				Test->AddError(TEXT("Test vehicles were destroyed unexpectedly."));
+				Cleanup();
+				return true;
+			}
+			if (Stage == 1) {
+				if (FFloatProperty* Prop = FindFProperty<FFloatProperty>(ADFVehicle::StaticClass(), TEXT("ExpireAt")))
+					Prop->SetPropertyValue_InContainer(Apc.Get(), float(Now) + 20.f);
+				const FDamageEvent Blast(UDFDamage_Explosion::StaticClass());
+				Buggy->TakeDamage(10000.f, Blast, nullptr, nullptr);
+				Next = Now + 0.5;
+				Stage = 2;
+				return false;
+			}
+			const int32 Taken = 100 - Apc->Health;
+			Test->AddInfo(FString::Printf(TEXT("APC beside an exploding buggy took %d (MF: up to 72)"), Taken));
+			Test->TestTrue(TEXT("The blast does MF's 300 x 1.5 x armour, not half of it"), Taken > 36 && Taken <= 72);
+			TInlineComponentArray<UStaticMeshComponent*> Meshes(Apc.Get());
+			int32 Flashing = 0;
+			for (UStaticMeshComponent* Mesh : Meshes)
+				Flashing += Mesh->GetOverlayMaterial() != nullptr;
+			Test->AddInfo(FString::Printf(TEXT("Expiring APC: %d of %d meshes flash"), Flashing, Meshes.Num()));
+			Test->TestTrue(TEXT("Body, wheels, axles, suspension and turret all flash"), Meshes.Num() > 5 && Flashing == Meshes.Num());
+			Cleanup();
+			return true;
+		}
+
+	private:
+		void Cleanup() {
+			for (TWeakObjectPtr<AActor> A : { TWeakObjectPtr<AActor>(Buggy.Get()), TWeakObjectPtr<AActor>(Apc.Get()), Floor })
+				if (A.IsValid())
+					A->Destroy();
+		}
+		FAutomationTestBase* Test;
+		UWorld* World;
+		TWeakObjectPtr<AActor> Floor;
+		TWeakObjectPtr<ABuggy> Buggy;
+		TWeakObjectPtr<AArmedAPC> Apc;
+		FVector Origin = FVector(-30000, 30000, 10000);
+		double Next = 0;
+		int32 Stage = 0;
+	};
 } // namespace
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFVehicleParkingTest, "DesktopForces.Gameplay.VehicleParking",
@@ -222,6 +299,19 @@ bool FDFVehiclePhysicsTest::RunTest(const FString& Parameters) {
 	for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		if (UWorld* World = Context.World(); World && World->IsGameWorld() && World->GetAuthGameMode()) {
 			ADD_LATENT_AUTOMATION_COMMAND(FDFVehiclePhysicsCheck(this, World));
+			return true;
+		}
+	AddError(TEXT("Run this test in a standalone/listen game."));
+	return false;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFVehicleBlastTest, "DesktopForces.Gameplay.VehicleBlast",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FDFVehicleBlastTest::RunTest(const FString& Parameters) {
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (UWorld* World = Context.World(); World && World->IsGameWorld() && World->GetAuthGameMode()) {
+			ADD_LATENT_AUTOMATION_COMMAND(FDFVehicleBlastCheck(this, World));
 			return true;
 		}
 	AddError(TEXT("Run this test in a standalone/listen game."));
