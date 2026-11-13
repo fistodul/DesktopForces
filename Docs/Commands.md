@@ -68,7 +68,7 @@ Game.ini, or `-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=...` on
 | `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame) |
 | `SetTo Name Property Value` / `GetTo Name Property` | set / read a property of a player's soldier (then player state, controller), e.g. `SetTo Bob MaxHealth 300` |
 | `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
-| `TeleportTo Name` | next to a player (ZombieGame's `Teleport`; UE's `Teleport` goes where you aim) |
+| `TeleportTo Name [Dist]` | to a player, else a pawn of that name (`Buggy_3`), else the nearest actor of that class, taking what you drive along: `TeleportTo Bob`, `TeleportTo Buggy 180`, `TeleportTo DFCharacter` (a bot). Dist cm in front of it; without one, somewhere around a player (ZombieGame's `Teleport`) and 600 in front of anything else. A name with spaces goes in quotes. UE's `Teleport` goes where you aim |
 | `BecomeHuman` / `BecomeSurvivor` / `BecomeZombie` / `BecomeNemesis` | Zombie mode: that side's stats on you (not a team change) |
 
 ## Cheats
@@ -110,7 +110,8 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFTeleport X Y Z`, `DFHurt N`, `DFFire [Alt] [Seconds]` | move your pawn (a driven vehicle takes its trailer along), take damage, hold fire (scripted tests; default 0.1 s; `DFFire 1` alt fire) |
 | `DFTouch Action 1\|0` | press / release a touch button's action (`DFTouch Fire 1`) |
 | `DFAimAt X Y Z`, `DFAimAtNearest Class` | turn to a point; to the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
-| `DFTeleportNear Class [Dist]` | move yourself (or what you drive) Dist cm (600) in front of the nearest actor of a class (`DFTeleportNear DFCharacter`: next to a bot) |
+| `DFBring Class [Dist]` | put the nearest actor of a class 300 cm (or Dist) in front of you (`DFBring MoBall`) |
+| `DFWhere` | say where you stand and look as `DFTeleport X Y Z \| DFCam X Y Z Yaw Pitch`, and put that on the clipboard (to report a spot) |
 | `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
 | `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |

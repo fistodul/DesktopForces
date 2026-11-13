@@ -1,4 +1,5 @@
 #include "Player/DFCheatManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Weapons/DFProjectile.h"
 #include "World/DFDecals.h"
 #include "Materials/MaterialInterface.h"
@@ -515,12 +516,21 @@ void UDFCheatManager::DFAimAtNearest(const FString& ClassName) {
 	}
 }
 
-void UDFCheatManager::DFTeleportNear(const FString& ClassName, float Dist) {
-	if (const AActor* Best = FindNearest(GetWorld(), GetPlayerController()->GetPawn(), ClassName)) {
-		// Dist in front of it, a little up (vehicles settle)
-		const FVector At = Best->GetActorLocation() + Best->GetActorForwardVector() * Dist + FVector(0.f, 0.f, 50.f);
-		DFTeleport(At.X, At.Y, At.Z);
-	}
+void UDFCheatManager::DFBring(const FString& ClassName, float Dist) {
+	const APawn* Me = GetPlayerController()->GetPawn();
+	if (AActor* Best = const_cast<AActor*>(FindNearest(GetWorld(), Me, ClassName)))
+		Best->SetActorLocation(Me->GetActorLocation() + FRotator(0.f, Me->GetActorRotation().Yaw, 0.f).Vector() * Dist, false, nullptr, ETeleportType::ResetPhysics);
+}
+
+void UDFCheatManager::DFWhere() {
+	const APlayerController* PC = GetPlayerController();
+	FVector Eye;
+	FRotator View;
+	PC->GetPlayerViewPoint(Eye, View);
+	const FVector At = PC->GetPawn() ? PC->GetPawn()->GetActorLocation() : Eye;
+	const FString Line = FString::Printf(TEXT("DFTeleport %.0f %.0f %.0f | DFCam %.0f %.0f %.0f %.0f %.0f"), At.X, At.Y, At.Z, Eye.X, Eye.Y, Eye.Z, View.Yaw, View.Pitch);
+	FPlatformApplicationMisc::ClipboardCopy(*Line);
+	Say(Line);
 }
 
 void UDFCheatManager::DFOrder(int32 Order) {
@@ -587,7 +597,7 @@ bool UDFCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UO
 		// views and test helpers stay on this machine (and only where cheats are on: a free
 		// camera sees through walls); everything else changes the game, so the server runs it
 		static const TCHAR* Local[] = { TEXT("DFCam"), TEXT("DFTopView"), TEXT("DFNavTest"), TEXT("DFNavPath"), TEXT("DFNavRelevant"),
-			TEXT("DFTraceMat"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFTouch"), TEXT("DFVehicles"),
+			TEXT("DFTraceMat"), TEXT("DFWhere"), TEXT("DFDecal"), TEXT("DFWalk"), TEXT("DFAimAt"), TEXT("DFAimAtNearest"), TEXT("DFFire"), TEXT("DFTouch"), TEXT("DFVehicles"),
 			TEXT("ViewSelf"), TEXT("FreezeFrame"), TEXT("DebugCapsuleSweep") };
 		const TCHAR* Str = Cmd;
 		FString Name;
@@ -747,17 +757,31 @@ void UDFCheatManager::GetToLooking(const FString& Property) {
 	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *GetNameSafe(A), *Property, *Value) : FString::Printf(TEXT("GetToLooking: no %s on %s"), *Property, *GetNameSafe(A)));
 }
 
-void UDFCheatManager::TeleportTo(const FString& PlayerName) {
-	APawn* Me = GetPlayerController()->GetPawn();
-	const AActor* Them = FindPlayer(PlayerName);
-	if (!Me || !Them)
+void UDFCheatManager::TeleportTo(const FString& Name, float Dist) {
+	const APawn* Me = GetPlayerController()->GetPawn();
+	const AActor* Them = FindPlayer(Name);
+	const bool bPlayer = Them != nullptr;
+	for (TActorIterator<APawn> It(GetWorld()); It && !Them; ++It)
+		if (It->GetName().Equals(Name, ESearchCase::IgnoreCase))
+			Them = *It;
+	if (!Them)
+		Them = FindNearest(GetWorld(), Me, Name);
+	if (!Me || !Them || Them == Me) {
+		Say(FString::Printf(TEXT("TeleportTo: no %s"), *Name));
 		return;
-	// ZombiePlayer.Teleport: a few random spots around them (VRand x (100, 100, 10) uu)
-	for (int32 Try = 0; Try < 9; ++Try) {
-		const FVector At = Them->GetActorLocation() + FMath::VRand() * FVector(225.f, 225.f, 22.5f);
-		if (Me->TeleportTo(At, Me->GetActorRotation()))
-			return;
 	}
+	if (bPlayer && Dist <= 0.f) {
+		// ZombiePlayer.Teleport: a few random spots around them (VRand x (100, 100, 10) uu)
+		for (int32 Try = 0; Try < 9; ++Try) {
+			const FVector At = Them->GetActorLocation() + FMath::VRand() * FVector(225.f, 225.f, 22.5f);
+			if (GetPlayerController()->GetPawn()->TeleportTo(At, Me->GetActorRotation()))
+				return;
+		}
+		return;
+	}
+	// in front of it, a little up (vehicles settle)
+	const FVector At = Them->GetActorLocation() + Them->GetActorForwardVector() * (Dist > 0.f ? Dist : 600.f) + FVector(0.f, 0.f, 50.f);
+	DFTeleport(At.X, At.Y, At.Z);
 }
 
 void UDFCheatManager::BecomeHuman() {

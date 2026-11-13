@@ -38,9 +38,14 @@ public:
 	void SetToLooking(const FString& PropertyAndValue);
 	UFUNCTION(Exec)
 	void GetToLooking(const FString& Property);
-	/** Go next to a player (ZombiePlayer.Teleport; UE's Teleport goes where you look). */
+	/**
+	 * Go (with what you drive) to a player, else a pawn of that name (Buggy_3), else the nearest
+	 * actor of that class: TeleportTo Bob, TeleportTo Buggy 180. Dist cm in front of it; without
+	 * one, somewhere around a player (ZombiePlayer.Teleport) and 600 in front of anything else.
+	 * A name with spaces goes in quotes. UE's Teleport goes where you look.
+	 */
 	UFUNCTION(Exec)
-	void TeleportTo(const FString& PlayerName);
+	void TeleportTo(const FString& Name, float Dist = 0.f);
 	/** Zombie mode: a human's / survivor's / zombie's / nemesis' stats (not a team change). */
 	UFUNCTION(Exec)
 	void BecomeHuman();
@@ -96,9 +101,12 @@ public:
 	/** Turn to the nearest actor whose class is called ClassName (or derives from it). */
 	UFUNCTION(Exec)
 	void DFAimAtNearest(const FString& ClassName);
-	/** Move yourself (or what you drive) Dist cm in front of the nearest actor of a class (tests). */
+	/** Put the nearest actor of that class Dist cm in front of you (a ball into a goal, a car to hand). */
 	UFUNCTION(Exec)
-	void DFTeleportNear(const FString& ClassName, float Dist = 600.f);
+	void DFBring(const FString& ClassName, float Dist = 300.f);
+	/** Say where you stand and look, as DFTeleport / DFCam lines; also put on the clipboard. */
+	UFUNCTION(Exec)
+	void DFWhere();
 
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)
