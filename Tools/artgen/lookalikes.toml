@@ -16,13 +16,29 @@
 #   panel       border, rust, rust_color, flanges, rivets = {cols, rows}, bolt
 #   pipes       n
 #   lamp        kind = round | grid | tube, n, glow, housing, back
-#   sign        color, mark
+#   sign        color, mark, style = words | emblem | stripes, words, shop (street names, not site
+#               notices), panels = [[x0, y0, x1, y1, [back], [ink]], ...] for a sheet of several signs
+#   door        leaves = 1 | 2, rows, glass
+#   disc        back, grid, hole (a round face: barrel end, drain cover, pipe mouth)
+#   machine     goods = [[r, g, b], ...] (a vending machine's front)
+#   checker     n, colors
+#   window = [x0, y0, x1, y1], glass, sill: a window let into any of the above
 #   flat        top, bottom
 #   lattice     rows, cols, thick, cross (see-through between the bars)
 #   tree        leaves, leaf, forks, depth, trunk, bark (see-through card)
 #   palm        blades (see-through card)
 #   splat       drops (see-through)
 # Every entry may set scale (default 2: 256 px originals become 512, our cap).
+
+# --- ours: textures no MF package holds, used by map_edits.toml `retexture` (size is needed) ------
+["DesktopForces.Paving.snow_bricks"]   # mf-Sardine_City's ground: white paving under trodden snow
+size = [256, 256]
+gen = "bricks"
+dark = [201, 207, 215]
+mid = [218, 223, 229]
+light = [230, 233, 238]
+rows = 6
+cols = 2
 
 # --- MF-Filip (AKVARI) ------------------------------------------------------------------
 ["rage_airport.box-cargo.ap_MetalBox1"]
@@ -238,6 +254,7 @@ n = 2
 
 ["rage_warehouse.Sign.ware_sign_17"]
 gen = "sign"
+style = "stripes"
 color = [250, 205, 20]
 
 ["rage_warehouse.Wood.ware_wood_1"]
@@ -635,3 +652,9 @@ n = 3
 vertical = false
 gain = 0.6
 
+# --- game art borrowed by maps -------------------------------------------------------------
+# the debug ball's skin, flat red and white quarters: mf-Sardine_City's traffic cones wear it
+["Rage.Skins.JBallMesh1"]
+gen = "checker"
+n = 2
+colors = [[255, 0, 0], [253, 253, 253]]

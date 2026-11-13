@@ -123,5 +123,68 @@ class AmbienceTests(unittest.TestCase):
         self.assertTrue(np.array_equal(ambience.make('Seagulls1', 1.0, 0.1), ambience.make('Seagulls1', 1.0, 0.1)))
 
 
+class LookalikeRuleTests(unittest.TestCase):
+    """What --auto decides from a picture and its name (play-test 2026-11-10)."""
+
+    @staticmethod
+    def sheet(bands):
+        """A sheet of signs: bands of (height, colour), each with dark lettering across it."""
+        img = Image.new('RGB', (256, 256))
+        y = 0
+        for height, colour in bands:
+            img.paste(colour, (0, y, 256, y + height))
+            for x in range(20, 236, 24):               # letters: blocks covering a third of the row
+                img.paste((20, 20, 20), (x, y + height // 3, x + 10, y + 2 * height // 3))
+            y += height
+        return img
+
+    def test_a_sheet_of_signs_keeps_its_signs(self):
+        four = self.sheet([(64, (240, 240, 240)), (64, (40, 40, 60)), (64, (240, 190, 20)), (64, (190, 30, 30))])
+        panels = lookalike.sign_panels(four)
+        self.assertEqual([round(p[1] * 4) for p in panels], [0, 1, 2, 3])
+        self.assertEqual(panels[2][4][:2], [240, 190])   # each its own colour
+
+    def test_one_sign_is_not_cut_through_its_words(self):
+        self.assertEqual(len(lookalike.sign_panels(self.sheet([(256, (30, 60, 200))]))), 1)
+
+    def test_every_sign_on_a_sheet_gets_a_whole_word(self):
+        spec = {'size': [256, 256], 'gen': 'sign', 'dark': [0, 0, 0], 'mid': [90, 90, 90], 'light': [200, 200, 200],
+                'panels': [[0, 0, 1, 0.5, [200, 30, 30], [255, 255, 255]], [0, 0.5, 1, 1, [20, 20, 20], [255, 255, 255]]]}
+        img = np.asarray(lookalike.make('Test.Sign.sheet', spec).convert('RGB'), np.int32)
+        for half in (img[:256], img[256:]):
+            lit = (half.min(axis=2) > 200)
+            self.assertGreater(lit[40:216].sum(), 500)                 # lettering in the middle of each
+            self.assertFalse(lit[70:186, 28:44].any() or lit[70:186, -44:-28].any())   # clear of the frame: none cut off
+
+    def test_names_are_read_without_the_package(self):
+        gray = Image.fromarray(np.full((64, 64, 3), 128, np.uint8))
+        noise = Image.fromarray(np.random.default_rng(1).integers(90, 170, (64, 64, 3), dtype=np.uint8))
+        self.assertEqual(lookalike.auto_spec('rage_generic.Sign.Grey', gray, {'opaque'})['gen'], 'flat')
+        self.assertEqual(lookalike.auto_spec('rage_airport.Terminal.ap_DepIntWall1', noise, {'opaque'})['gen'], 'noise')
+        self.assertNotEqual(lookalike.auto_spec('Rage.Skins.JBallMesh1', noise, {'masked'})['gen'], 'grate')
+
+    def test_snow_is_never_laid_in_courses(self):
+        rows = np.zeros((128, 128, 3), np.uint8) + 225
+        rows[::16] = 190                                               # even courses, as bricks have
+        rows[:, ::32] = 200
+        self.assertEqual(lookalike.auto_spec('rage_snow.snow', Image.fromarray(rows), {'opaque'})['gen'], 'noise')
+
+    def test_a_window_is_found_in_a_wall_only(self):
+        wall = np.full((128, 128), 170, np.float32)
+        wall[40:90, 45:85] = 30
+        np.testing.assert_allclose(lookalike.window_rect(wall), [45 / 128, 40 / 128, 85 / 128, 90 / 128], atol=0.02)
+        corner = np.full((128, 128), 170, np.float32)
+        corner[100:128, 100:128] = 30                                  # a shadow in the corner
+        self.assertIsNone(lookalike.window_rect(corner))
+
+    def test_round_faces_are_told_from_stripes(self):
+        yy, xx = np.mgrid[0:128, 0:128]
+        disc = np.where(np.hypot(xx - 63.5, yy - 63.5) < 60, 180.0, 10.0).astype(np.float32)
+        self.assertIsNotNone(lookalike.disc_shape(disc))
+        stripe = np.full((128, 128), 10, np.float32)
+        stripe[:, 30:98] = 180
+        self.assertIsNone(lookalike.disc_shape(stripe))
+
+
 if __name__ == '__main__':
     unittest.main()

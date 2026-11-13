@@ -15,7 +15,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 OUT = Path(__file__).resolve().parent / 'out' / 'UI' / 'HUD'
 SS = 4     # drawn this much bigger, then reduced: smooth edges

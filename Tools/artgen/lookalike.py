@@ -15,7 +15,8 @@ Output: Tools/mfport/work/generated/textures/<package>/<group>/<name>.png (git-i
 re-created by this script), which the pipeline takes as replacement art after any hand-made
 file in Tools/mfport/overrides/textures (committed, wins).
 
-    python3 Tools/artgen/lookalike.py --auto       # (re)classify what core maps need
+    python3 Tools/artgen/lookalike.py --auto       # classify what non-classic maps newly need
+    python3 Tools/artgen/lookalike.py --auto --reclassify   # ask again for every automatic entry
     python3 Tools/artgen/lookalike.py              # generate every entry
     python3 Tools/artgen/lookalike.py ap_road3     # entries whose key contains the text
     python3 Tools/artgen/lookalike.py --sheet      # also write a comparison sheet (scratch)
@@ -98,7 +99,11 @@ def tones(src: Image.Image | None, fallback=((60, 60, 60), (128, 128, 128), (200
     averaged around each): the only thing taken from it."""
     if src is None:
         return [np.array(c, np.float32) for c in fallback]
-    a = np.asarray(src.convert('RGB').resize((64, 64)), np.float32).reshape(-1, 3)
+    return tones_of(np.asarray(src.convert('RGB').resize((64, 64)), np.float32).reshape(-1, 3))
+
+
+def tones_of(a: np.ndarray) -> list[np.ndarray]:
+    """tones() of a list of pixels (n, 3): part of a picture, say a wall without its window."""
     lum = a @ np.array([0.299, 0.587, 0.114], np.float32)
     order = np.argsort(lum)
     n = len(order)
@@ -551,18 +556,24 @@ def g_lamp(rng, h, w, t, o):
     return rgb
 
 
-SIGN_WORDS = ['DEPOT', 'CARGO', 'ZONE 3', 'NO ENTRY', 'EXIT', 'STORE', 'GARAGE', 'OFFICE', 'DOCK 2',
-              'SECTOR 7', 'DANGER', 'KEEP OUT', 'LOADING', 'PARTS', 'SERVICE', 'AUTO', 'MARKET', 'HOTEL',
-              'CAFE', 'POWER', 'FUEL', 'STAFF ONLY', 'BAY 4', 'TOOLS', 'DESKTOP FORCES', 'RADIO', 'CLINIC']
+# Words of our own, never the originals': a shop front's names, a work site's notices
+SHOP_WORDS = ['BAKERY', 'CAFE', 'BOOKS', 'PHARMACY', 'MARKET', 'HOTEL', 'FLOWERS', 'TOOLS', 'RADIO', 'CLINIC',
+              'LAUNDRY', 'BARBER', 'KIOSK', 'GARAGE', 'BANK', 'POST', 'TAILOR', 'GROCER', 'FISH', 'FRUIT',
+              'TOYS', 'MUSIC', 'SHOES', 'TO LET', 'OPEN', 'SALE', 'CINEMA', 'TAXI', 'PIZZA', 'OFFICE']
+SITE_WORDS = ['DEPOT', 'CARGO', 'ZONE 3', 'NO ENTRY', 'EXIT', 'STORE', 'OFFICE', 'DOCK 2', 'SECTOR 7', 'DANGER',
+              'KEEP OUT', 'LOADING', 'PARTS', 'SERVICE', 'POWER', 'FUEL', 'STAFF ONLY', 'BAY 4', 'CAUTION']
 
 
 def g_sign(rng, h, w, t, o):
-    """Our own sign: an emblem, words of our own, or hazard stripes on the sign's colour."""
+    """Our own sign. `panels` ([[x0, y0, x1, y1, [r, g, b], [r, g, b]], ...], 0..1, each with its
+    colour and its lettering's) is the original's layout: a sheet of four shop signs gets four
+    signs, each with a whole word, because the map shows them one at a time. Without panels the
+    texture is one sign. style = 'emblem' / 'stripes' for a mark or hazard stripes instead of words."""
     from PIL import ImageFont
     col = rgb_from(o.get('color', t[2]))
-    mark = tuple(int(c) for c in o.get('mark', (255, 255, 255)))
+    mark = [int(c) for c in o.get('mark', (255, 255, 255))]
     rgb = shade(np.broadcast_to(col, (h, w, 3)).copy(), 0.95 + 0.08 * fbm(rng, h, w, 1.2))
-    style = o.get('style') or ['emblem', 'words', 'words', 'stripes'][int(rng.integers(0, 4))]
+    style = o.get('style', 'words')
     if style == 'emblem':
         return emblem(rgb, {'size': 0.32, 'color': mark, 'opacity': 1.0})
     img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
@@ -570,19 +581,171 @@ def g_sign(rng, h, w, t, o):
     if style == 'stripes':
         step = max(8, min(w, h) // 5)
         for x in range(-h, w + h, step * 2):
-            d.polygon([(x, h), (x + step, h), (x + step + h, 0), (x + h, 0)], fill=mark)
+            d.polygon([(x, h), (x + step, h), (x + step + h, 0), (x + h, 0)], fill=tuple(mark))
         return np.asarray(img, np.float32)
-    border = max(2, min(w, h) // 20)
-    d.rectangle((border, border, w - 1 - border, h - 1 - border), outline=mark, width=border)
-    words = o.get('words') or SIGN_WORDS[int(rng.integers(0, len(SIGN_WORDS)))]
-    size = max(8, int(h * 0.42))
-    font = ImageFont.load_default(size=size)
-    box = d.textbbox((0, 0), words, font=font)
-    while size > 8 and box[2] - box[0] > (w - 4 * border) * 0.9:   # shrink to fit inside the border
-        size = int(size * 0.85)
+    panels = o.get('panels') or [[0, 0, 1, 1, [int(c) for c in col], mark]]
+    pool = list(SHOP_WORDS if o.get('shop', len(panels) > 1) else SITE_WORDS)
+    for x0, y0, x1, y1, back, ink in panels:
+        box = (round(x0 * w), round(y0 * h), round(x1 * w) - 1, round(y1 * h) - 1)
+        pw, ph = box[2] - box[0] + 1, box[3] - box[1] + 1
+        d.rectangle(box, fill=tuple(back))
+        edge = max(2, min(pw, ph) // 16)
+        if min(pw, ph) > 4 * edge:
+            d.rectangle((box[0] + edge, box[1] + edge, box[2] - edge, box[3] - edge), outline=tuple(ink), width=max(1, edge // 2))
+        words = o['words'] if 'words' in o and len(panels) == 1 else pool.pop(int(rng.integers(0, len(pool))))
+        if not pool:
+            pool = list(SHOP_WORDS)
+        size = max(8, int(ph * 0.5))
         font = ImageFont.load_default(size=size)
-        box = d.textbbox((0, 0), words, font=font)
-    d.text(((w - (box[2] - box[0])) / 2 - box[0], (h - (box[3] - box[1])) / 2 - box[1]), words, font=font, fill=mark)
+        tb = d.textbbox((0, 0), words, font=font)
+        while size > 8 and tb[2] - tb[0] > (pw - 6 * edge) * 0.92:   # shrink to fit inside the border
+            size = int(size * 0.88)
+            font = ImageFont.load_default(size=size)
+            tb = d.textbbox((0, 0), words, font=font)
+        if size >= max(10, h * 0.06):                 # a sliver stays a plain plate: specks of lettering read as dirt
+            d.text((box[0] + (pw - (tb[2] - tb[0])) / 2 - tb[0], box[1] + (ph - (tb[3] - tb[1])) / 2 - tb[1]), words, font=font, fill=tuple(ink))
+    return np.asarray(img, np.float32)
+
+
+def g_checker(rng, h, w, t, o):
+    """Flat squares of two colours, n x n (the ball skin: traffic cones wear its red and white)."""
+    n = o.get('n', 2)
+    a, b = (rgb_from(c) for c in o.get('colors', (t[0], t[2])))
+    yy, xx = np.mgrid[0:h, 0:w]
+    odd = ((yy * n // h) + (xx * n // w)) % 2 == 1
+    return np.where(odd[..., None], b, a).astype(np.float32)
+
+
+def bevel_box(d, box, face, light, dark, width):
+    """A raised (or, colours swapped, sunk) panel: lit from the top left."""
+    x0, y0, x1, y1 = box
+    d.rectangle(box, fill=face)
+    for i in range(width):
+        d.line([(x0 + i, y1 - i), (x0 + i, y0 + i), (x1 - i, y0 + i)], fill=light)
+        d.line([(x1 - i, y0 + i), (x1 - i, y1 - i), (x0 + i, y1 - i)], fill=dark)
+
+
+def g_door(rng, h, w, t, o):
+    """A door, so that a doorway reads as one: frame, one or two leaves of raised panels (or
+    glazed), a handle by the meeting edge. leaves 1 | 2, rows of panels, glass."""
+    dark, mid, light = t
+    leaves, rows, glass = o.get('leaves', 1), o.get('rows', 3), o.get('glass', False)
+    grain = ramp(0.38 + 0.3 * stretched(rng, h, w, 1, 9) + 0.12 * fbm(rng, h, w, 1.8), dark, mid, light)
+    img = Image.fromarray(np.clip(grain, 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    c = lambda v: tuple(int(x) for x in np.clip(v, 0, 255))
+    fw = max(2, w // 28)
+    d.rectangle((0, 0, w - 1, h - 1), outline=c(dark * 0.55), width=fw)                   # frame
+    lw = (w - 2 * fw) / leaves
+    for leaf in range(leaves):
+        x0, x1 = fw + leaf * lw, fw + (leaf + 1) * lw
+        d.line([(x1, fw), (x1, h - fw)], fill=c(dark * 0.4), width=max(1, fw // 2))      # meeting edge
+        stile = lw * 0.13
+        for r in range(rows):
+            y0 = fw + stile + r * (h - 2 * fw - stile) / rows
+            y1 = fw + (r + 1) * (h - 2 * fw - stile) / rows
+            box = (int(x0 + stile), int(y0), int(x1 - stile), int(y1))
+            if box[2] - box[0] < 4 or box[3] - box[1] < 4:
+                continue
+            if glass:
+                if r == 0:   # one pane the leaf's height, a push bar across it
+                    pane = (box[0], box[1], box[2], int(h - fw - stile))
+                    d.rectangle((pane[0] - fw, pane[1] - fw, pane[2] + fw, pane[3] + fw), fill=c(light))
+                    d.rectangle(pane, fill=c(dark * 0.35 + np.array([4, 8, 14])))
+                    d.polygon([(pane[0], pane[3]), (pane[0], pane[1] + (pane[3] - pane[1]) * 0.6), (pane[0] + (pane[2] - pane[0]) * 0.6, pane[1]),
+                               (pane[2], pane[1]), (pane[2], pane[1] + (pane[3] - pane[1]) * 0.1)], fill=c(dark * 0.5 + np.array([8, 14, 22])))
+                    d.rectangle((pane[0], int(h * 0.5), pane[2], int(h * 0.5) + fw), fill=c(light * 0.9))
+            else:
+                bevel_box(d, box, c(mid * 0.92), c(dark * 0.6), c(light), max(1, fw // 2))   # sunk field
+                inner = (box[0] + fw, box[1] + fw, box[2] - fw, box[3] - fw)
+                if inner[2] > inner[0] + 4 and inner[3] > inner[1] + 4:
+                    bevel_box(d, inner, c(mid), c(light), c(dark * 0.6), max(1, fw // 2))   # raised panel
+        hx = x1 - stile * 0.5 if leaf == 0 else x0 + stile * 0.5                          # handles meet
+        hr = max(2, w // 64)
+        if glass:
+            continue
+        d.ellipse((hx - hr, h * 0.52 - hr * 2.2, hx + hr, h * 0.52 + hr * 2.2), fill=c(dark * 0.35))
+        d.ellipse((hx - hr * 0.5, h * 0.52 - hr * 1.6, hx + hr * 0.3, h * 0.52 - hr * 0.4), fill=c(light * 1.1))
+    return np.asarray(img, np.float32) * (0.9 + 0.2 * fbm(rng, h, w, 1.2))[..., None]
+
+
+def g_disc(rng, h, w, t, o):
+    """A round face on its backdrop (barrel ends, drain covers, pipe mouths): the map shows the
+    circle and hides the corners. back = corner colour, grid = a cover's tread, hole = a dark middle."""
+    dark, mid, light = t
+    back = rgb_from(o.get('back', dark * 0.3))
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    r = np.hypot(xx / w - 0.5, yy / h - 0.5) * 2 / o.get('fill', 0.96)
+    face = ramp(0.45 + 0.3 * fbm(rng, h, w, 1.8) + 0.12 * np.cos(r * 9), dark, mid, light)
+    if o.get('grid'):
+        n = o['grid']
+        bars = (((xx / w * n) % 1) < 0.18) | (((yy / h * n) % 1) < 0.18)
+        face = np.where(bars[..., None], face * 0.62, face * 1.08)
+    rim = (r > 0.86) & (r <= 1)
+    face = np.where(rim[..., None], shade(face, 1.25 - (r[..., None] - 0.86) * 3), face)
+    if o.get('hole'):
+        face = np.where((r < o['hole'])[..., None], dark * 0.15, face)
+    else:
+        cap = np.hypot(xx / w - 0.3, yy / h - 0.3) * 2 < 0.1
+        face = np.where(cap[..., None], light * 0.9, face)
+    edge = np.clip((1 - r) * w / 4, 0, 1)[..., None]
+    return face * edge + back * (1 - edge)
+
+
+def g_machine(rng, h, w, t, o):
+    """A vending machine's front: a lit window with rows of goods (colours given), a panel with
+    buttons and a slot beside it, the tray below."""
+    dark, mid, light = t
+    body = ramp(0.45 + 0.2 * fbm(rng, h, w, 1.8), dark, mid, light)
+    img = Image.fromarray(np.clip(body, 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    c = lambda v: tuple(int(x) for x in np.clip(v, 0, 255))
+    goods = [rgb_from(g) for g in o.get('goods', ((200, 60, 50), (240, 190, 40), (70, 150, 80), (60, 110, 190)))]
+    d.rectangle((0, 0, w - 1, h - 1), outline=c(dark * 0.5), width=max(2, w // 40))
+    wx0, wy0, wx1, wy1 = int(w * 0.07), int(h * 0.07), int(w * 0.68), int(h * 0.78)
+    d.rectangle((wx0, wy0, wx1, wy1), fill=c(dark * 0.3), outline=c(light), width=max(1, w // 90))
+    rows, cols = 5, 5
+    for r in range(rows):
+        y0 = wy0 + (r + 0.12) * (wy1 - wy0) / rows
+        y1 = wy0 + (r + 0.86) * (wy1 - wy0) / rows
+        d.line([(wx0 + 2, y1 + 2), (wx1 - 2, y1 + 2)], fill=c(mid * 0.8), width=max(1, h // 128))   # shelf
+        for k in range(cols):
+            x0 = wx0 + (k + 0.16) * (wx1 - wx0) / cols
+            x1 = wx0 + (k + 0.84) * (wx1 - wx0) / cols
+            g = goods[int(rng.integers(0, len(goods)))]
+            d.rounded_rectangle((x0, y0, x1, y1), radius=max(1, w // 100), fill=c(g))
+            d.rectangle((x0 + (x1 - x0) * 0.2, y0 + (y1 - y0) * 0.3, x1 - (x1 - x0) * 0.2, y0 + (y1 - y0) * 0.6), fill=c(g * 0.5 + 120))
+    px0, px1 = int(w * 0.74), int(w * 0.93)
+    d.rectangle((px0, wy0, px1, int(h * 0.5)), fill=c(dark * 0.6), outline=c(light * 0.9))
+    for i in range(6):
+        bx, by = px0 + (0.2 + 0.4 * (i % 2)) * (px1 - px0), wy0 + (0.12 + 0.13 * (i // 2)) * h
+        d.rectangle((bx, by, bx + (px1 - px0) * 0.25, by + h * 0.05), fill=c(light))
+    d.rectangle((px0 + (px1 - px0) * 0.3, int(h * 0.58), px1 - (px1 - px0) * 0.3, int(h * 0.6)), fill=c(dark * 0.2))   # coin slot
+    d.rectangle((int(w * 0.14), int(h * 0.84), int(w * 0.6), int(h * 0.93)), fill=c(dark * 0.35), outline=c(light * 0.8))   # tray
+    return np.asarray(img, np.float32)
+
+
+def window_inset(rgb, spec, t):
+    """A window let into any wall (`window = [x0, y0, x1, y1]`, `glass`, `sill` colours): frame,
+    glazing bars, dark glass with a sheen, a sill casting a line of shadow."""
+    h, w, _ = rgb.shape
+    x0, y0, x1, y1 = (int(round(v * s)) for v, s in zip(spec['window'], (w, h, w, h)))
+    glass = rgb_from(spec.get('glass', t[0] * 0.5))
+    trim = rgb_from(spec.get('sill', t[2]))
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    c = lambda v: tuple(int(x) for x in np.clip(v, 0, 255))
+    fw = max(2, (x1 - x0) // 14)
+    d.rectangle((x0 - fw, y0 - fw, x1 + fw, y1 + fw), fill=c(trim * 0.8))
+    d.rectangle((x0, y0, x1, y1), fill=c(glass))
+    d.polygon([(x0, y1), (x0, y0 + (y1 - y0) * 0.55), (x0 + (x1 - x0) * 0.5, y0), (x0 + (x1 - x0) * 0.8, y0), (x0, y1 - (y1 - y0) * 0.1)], fill=c(glass * 1.25 + 10))
+    nx, ny = (2, 3) if (y1 - y0) > (x1 - x0) * 1.2 else (2, 2)
+    for i in range(1, nx):
+        d.line([(x0 + (x1 - x0) * i / nx, y0), (x0 + (x1 - x0) * i / nx, y1)], fill=c(trim * 0.8), width=max(1, fw // 2))
+    for i in range(1, ny):
+        d.line([(x0, y0 + (y1 - y0) * i / ny), (x1, y0 + (y1 - y0) * i / ny)], fill=c(trim * 0.8), width=max(1, fw // 2))
+    d.rectangle((x0 - 2 * fw, y1 + fw, x1 + 2 * fw, y1 + 2 * fw), fill=c(trim))
+    d.line([(x0 - 2 * fw, y1 + 2 * fw + 1), (x1 + 2 * fw, y1 + 2 * fw + 1)], fill=c(t[0] * 0.5), width=max(1, fw // 2))
     return np.asarray(img, np.float32)
 
 
@@ -661,6 +824,7 @@ GENERATORS = {
     'panel': g_panel, 'pipes': g_pipes, 'lamp': g_lamp, 'sign': g_sign, 'flat': g_flat,
     'sky': g_sky, 'glow': g_glow, 'screen': g_screen, 'window': g_window,
     'bands': g_bands, 'lattice': g_lattice, 'tree': g_tree, 'palm': g_palm, 'splat': g_splat,
+    'checker': g_checker, 'door': g_door, 'disc': g_disc, 'machine': g_machine,
 }
 
 
@@ -706,8 +870,10 @@ def make(key: str, spec: dict) -> Image.Image:
             t[i] = rgb_from(spec[name])
     out = GENERATORS[spec['gen']](rng, h, w, t, spec)
     rgb, alpha = out if isinstance(out, tuple) else (out, None)
+    if 'window' in spec:
+        rgb = window_inset(rgb, spec, t)
     # surface detail on top of every material: fine grit and big soft grime patches
-    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen', 'splat', 'bands')
+    plain = spec['gen'] in ('lamp', 'sign', 'flat', 'sky', 'glow', 'screen', 'splat', 'bands', 'checker')
     grit = spec.get('grit', 0.0 if plain else 0.22)
     grime = spec.get('grime', 0.0 if plain else 0.25)
     if grit:
@@ -725,25 +891,122 @@ def make(key: str, spec: dict) -> Image.Image:
 
 # --- automatic specs ------------------------------------------------------------------------
 
-KEYWORDS = [   # first match wins: (words in the key, generator, options)
+# Matched against the texture's group and name, not its package: rage_snow isn't snow all
+# through, an airport's Terminal group holds walls, Rage.Skins.JBallMesh1 isn't wire mesh.
+KEYWORDS = [   # first match wins: (words in the name, generator, options)
     (('sky', 'cloud', 'des_sun'), 'sky', {}),
     (('spark', 'smoke', 'flash', 'blood', 'flame', 'fire', 'glow', 'flare', 'explo', 'corona'), 'glow', {}),
     (('light', 'lamp', 'bulb'), 'lamp', {'kind': 'round'}),
     (('sign', 'poster', 'logo', 'advert', 'arrow', 'notice', 'label', 'flag', 'decal', 'stripe'), 'sign', {}),
-    (('screen', 'monitor', 'console', 'terminal', 'radar', 'computer', 'tconsole', 'display'), 'screen', {}),
+    (('screen', 'monitor', 'console', 'radar', 'computer', 'display'), 'screen', {}),
+    (('drink', 'snack', 'vend', 'soda', 'cola'), 'machine', {}),
     (('window', 'glass', 'win_'), 'window', {}),
-    (('grate', 'grill', 'mesh', 'fence', 'net', 'wire', 'vent'), 'grate', {'n': 12}),
-    (('brick',), 'bricks', {}),
+    (('grate', 'grill', 'fence', 'wire', 'vent', 'chainlink', 'netting'), 'grate', {'n': 12}),
+    (('brick', 'brck'), 'bricks', {}),
     (('tile', 'slab', 'floortile'), 'tiles', {}),
-    (('plank', 'wood', 'board', 'ply', 'lumber_wood'), 'planks', {}),
+    (('plank', 'wood', 'board', 'ply'), 'planks', {}),
     (('crate', 'box', 'cargo', 'container', 'locker'), 'panel', {'border': 0.07}),
-    (('door',), 'panel', {'border': 0.06, 'bolt': True}),
+    (('roller', 'shutter'), 'corrugated', {'ridges': 20, 'vertical': False}),
+    (('door',), 'door', {}),
     (('pipe', 'tube'), 'pipes', {}),
     (('roof', 'corrug', 'sheet', 'cladding'), 'corrugated', {}),
     (('metal', 'steel', 'iron', 'rust', 'crane', 'girder', 'beam'), 'panel', {'border': 0.0}),
-    (('ground', 'dirt', 'sand', 'mud', 'grass', 'snow', 'rock', 'stone', 'gravel', 'road', 'concrete',
-      'floor', 'wall', 'plaster', 'cement'), 'noise', {}),
+    # nature has no courses or seams: never bricks, tiles or boards, whatever repeats in it
+    (('snow', 'grass', 'sand', 'dirt', 'mud', 'rock', 'gravel', 'water', 'moss', 'soil'), 'noise', {'natural': True}),
+    (('ground', 'stone', 'road', 'concrete', 'floor', 'wall', 'plaster', 'cement'), 'noise', {}),
 ]
+
+
+def subject(key: str) -> str:
+    """What a texture is called: its group and name, lower case, without the package."""
+    return '.'.join(key.lower().split('.')[1:]) or key.lower()
+
+
+def cuts(block: np.ndarray, least: int) -> list[int]:
+    """Rows at which a picture (rows, columns, 3) is ruled right across: where one sign on a sheet
+    ends and the next begins. Lettering, logos and photographs change colour too, but never along
+    two thirds of a straight line. Stretches come out at least `least` rows tall."""
+    n = len(block)
+    edge = np.zeros(n)
+    edge[1:-1] = (np.abs(block[2:] - block[:-2]).sum(axis=2) > 60).mean(axis=1)
+    out: list[int] = []
+    for i in np.argsort(-edge):
+        if edge[i] < 0.66:
+            break
+        if least <= i <= n - least and all(abs(i - j) >= least for j in out):
+            out.append(int(i))
+    return sorted(out)
+
+
+def sign_panels(rgb: Image.Image) -> list:
+    """The signs on a sheet: [x0, y0, x1, y1, back, ink] in 0..1 with each one's colour and its
+    lettering's (colours and rectangles are all that is taken). One entry: the sheet is one sign."""
+    n = 96
+    a = np.asarray(rgb.resize((n, n), Image.BILINEAR), np.float32)
+    out = []
+    ys = [0] + cuts(a, n // 8) + [n]
+    for y0, y1 in zip(ys, ys[1:]):
+        xs = [0] + cuts(a[y0:y1].transpose(1, 0, 2), n // 4) + [n]
+        for x0, x1 in zip(xs, xs[1:]):
+            px = a[y0:y1, x0:x1].reshape(-1, 3)
+            back = np.median(px, axis=0)
+            far = px[np.abs(px - back).sum(axis=1) > 120]
+            ink = np.median(far, axis=0) if len(far) > 0.04 * len(px) else None
+            lum = lambda c: float(c @ np.array([0.299, 0.587, 0.114]))
+            if ink is None or abs(lum(ink) - lum(back)) < 70:
+                ink = np.array([245.0, 245.0, 240.0] if lum(back) < 140 else [30.0, 30.0, 30.0])
+            out.append([round(x0 / n, 3), round(y0 / n, 3), round(x1 / n, 3), round(y1 / n, 3),
+                        [int(c) for c in back], [int(c) for c in ink]])
+    return out if len(out) <= 8 else out[:0]
+
+
+def window_rect(gray: np.ndarray) -> list[float] | None:
+    """A window in a wall texture: one dark rectangle well inside it (x0, y0, x1, y1 in 0..1)."""
+    n = gray.shape[0]
+    g = np.asarray(Image.fromarray(np.clip(gray, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2)), np.float32)
+    dark = g < np.median(g) - max(28.0, 1.1 * g.std())
+    if not 0.03 < dark.mean() < 0.45:
+        return None
+
+    def run(share: np.ndarray) -> tuple[int, int]:
+        best, start = (0, 0), None
+        for i, on in enumerate(list(share > 0.12) + [False]):
+            if on and start is None:
+                start = i
+            elif not on and start is not None:
+                best, start = max(best, (start, i), key=lambda r: r[1] - r[0]), None
+        return best
+    y0, y1 = run(dark.mean(axis=1))
+    x0, x1 = run(dark.mean(axis=0))
+    edge, least = n // 10, n // 10
+    if min(x1 - x0, y1 - y0) < least or min(x0, y0, n - x1, n - y1) < edge:
+        return None
+    inside = dark[y0:y1, x0:x1]
+    if inside.mean() < 0.7 or inside.sum() < 0.8 * dark.sum() or not 0.4 < (x1 - x0) / (y1 - y0) < 2.5:
+        return None                                   # patchy, or dark elsewhere too: stains, not a window
+    return [round(v / n, 3) for v in (x0, y0, x1, y1)]
+
+
+def disc_shape(gray: np.ndarray) -> dict | None:
+    """A round face on a plain backdrop (a barrel end, a drain cover): corners alike and unlike
+    the middle. Says whether its centre is a dark hole."""
+    n = gray.shape[0]
+    c = n // 8
+    corners = [gray[:c, :c], gray[:c, -c:], gray[-c:, :c], gray[-c:, -c:]]
+    means = np.array([x.mean() for x in corners])
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    r = np.hypot(xx - (n - 1) / 2, yy - (n - 1) / 2) / (n / 2)
+    inner, ring = gray[r < 0.8], gray[(r > 0.8) & (r < 0.93)]
+    if np.ptp(means) > 14 or max(x.std() for x in corners) > 12:
+        return None
+    if abs(inner.mean() - means.mean()) < 45 or abs(ring.mean() - means.mean()) < 30:
+        return None
+    m = n // 2
+    sides = np.array([gray[c // 2:c + c // 2, m - c:m + c].mean(), gray[-c - c // 2:-c // 2, m - c:m + c].mean(),
+                      gray[m - c:m + c, c // 2:c + c // 2].mean(), gray[m - c:m + c, -c - c // 2:-c // 2].mean()])
+    if np.abs(sides - means.mean()).min() < 30 or np.ptp(sides) > 50:
+        return None                                   # a stripe or a picture between two margins: not round
+    return {'hole': 0.3} if gray[r < 0.22].mean() < 0.45 * inner.mean() else {}
 
 
 def periodicity(gray: np.ndarray) -> tuple[int, float, int, float]:
@@ -768,7 +1031,10 @@ def line_share(gray: np.ndarray, vertical: bool) -> float:
 
 
 def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
-    k = key.lower()
+    """A recipe for one borrowed texture. A shape (bricks, a door, a sign's words) is drawn only
+    where the name or the picture clearly calls for it; anything unsure stays a plain surface in
+    the original's colours, which reads as nothing in particular rather than as something wrong."""
+    k = subject(key)
     rgb = img.convert('RGB')
     gray = np.asarray(rgb.convert('L').resize((128, 128)), np.float32)
     std = float(gray.std())
@@ -779,6 +1045,18 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
         if any(w in k for w in words):
             gen, opts = g, dict(o)
             break
+    natural = opts.pop('natural', False)
+    name = key.lower().split('.')[-1]
+    if gen == 'door' and 'door' not in name:
+        gen, opts = None, {}                          # the Door group also holds shutters, belts, panels
+    small = np.asarray(rgb.resize((64, 64)), np.float32)
+    goods = small.reshape(-1, 3)[(small.max(axis=2) - small.min(axis=2)).ravel() > 110]   # strong colours
+    if gen == 'machine' and len(goods) < 80:
+        gen, opts = None, {}                          # the machine's plain side
+    if std < 4 and small.reshape(-1, 3).std(axis=0).max() < 5 and 'additive' not in modes:
+        gen, opts = 'flat', {'top': [int(c) for c in mid], 'bottom': [int(c) for c in mid]}   # one colour all over
+    if 'masked' in modes and (np.asarray(img.convert('RGBA'))[..., 3] < 128).mean() < 0.005:
+        modes = modes - {'masked'}                    # drawn masked but solid all over (the ball skin)
     if 'masked' in modes and gen != 'grate':
         return None                                   # see-through shapes (foliage, decals): later, by hand
     blob = gray[:12].mean() + gray[-12:].mean() + gray[:, :12].mean() + gray[:, -12:].mean() < gray[44:84, 44:84].mean()
@@ -786,12 +1064,21 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
         gen, opts = 'glow', {}
     elif gen == 'glow' and not ('additive' in modes and blob):
         gen, opts = None, {}                          # water or a wall drawn added: no black backdrop
+    disc = disc_shape(gray) if gen in (None, 'noise', 'tiles', 'panel', 'bricks') and 'additive' not in modes else None
+    if disc is not None:
+        yy, xx = np.mgrid[0:64, 0:64]
+        face = np.hypot(xx - 31.5, yy - 31.5) < 26
+        dark, mid, light = tones_of(small[face])
+        back = np.concatenate([small[:6, :6], small[:6, -6:], small[-6:, :6], small[-6:, -6:]]).reshape(-1, 3).mean(axis=0)
+        gen, opts = 'disc', {'back': [int(c) for c in back], **disc}
+        if any(w in k for w in ('manhole', 'drain', 'cover')):
+            opts['grid'] = 8
     nx, px, ny, py = periodicity(gray)
     ex = float(np.abs(np.diff(gray, axis=1)).mean())   # edges across x (vertical lines)
     ey = float(np.abs(np.diff(gray, axis=0)).mean())   # edges across y (horizontal lines)
-    if gen in (None, 'noise', 'corrugated', 'panel') and py > 12 and ny >= 4 and 0.45 < ex / max(ey, 1e-3) < 1.1 and 'roof' not in k:
+    if not natural and gen in (None, 'noise', 'corrugated', 'panel') and py > 12 and ny >= 4 and 0.45 < ex / max(ey, 1e-3) < 1.1 and 'roof' not in k:
         gen = 'bricks'   # rows of courses with short joints between: a brick / block wall
-    if gen in (None, 'noise', 'panel', 'corrugated', 'planks', 'tiles', 'bricks'):
+    if not natural and gen in (None, 'noise', 'panel', 'corrugated', 'planks', 'tiles', 'bricks'):
         strong_x, strong_y = px > 12, py > 12
         if gen == 'bricks':
             opts.update(rows=int(min(16, max(4, ny))), cols=int(min(8, max(2, nx // 2 or 2))))
@@ -805,19 +1092,31 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
         elif gen == 'planks' or (gen in (None, 'noise') and strong_y and not strong_x and 'wood' in k):
             gen = 'planks'
             opts.update(n=int(min(10, max(1, ny if strong_y else 4))), vertical=bool(strong_x and not strong_y))
-        elif strong_x != strong_y and gen in (None, 'noise', 'panel', 'corrugated'):
+        elif strong_x != strong_y and gen in (None, 'noise', 'panel', 'corrugated') and 'ridges' not in opts:
             n = nx if strong_x else ny
             gen = 'corrugated' if n >= 6 else 'siding' if n > 2 else 'noise'   # 1-2 stripes: stains, not boards
             opts = {'ridges': int(min(24, n)), 'vertical': bool(strong_x)} if gen == 'corrugated' else {'n': int(n), 'vertical': bool(strong_x)} if gen == 'siding' else {}
         elif gen is None:
             gen = 'noise'
-    if gen in ('corrugated', 'siding') and max(line_share(gray, True), line_share(gray, False)) < 0.2:
+    gen = gen or 'noise'
+    if gen in ('corrugated', 'siding') and 'ridges' not in opts and max(line_share(gray, True), line_share(gray, False)) < 0.2:
         gen, opts = 'noise', {}                       # a repeat in the stains: stripes would be invented
+    walls = any(w in k for w in ('wall', 'wal0', 'brick', 'brck', 'house', 'build', 'facade'))
+    hole = window_rect(gray) if walls and gen in ('noise', 'bricks', 'tiles', 'siding', 'corrugated', 'panel') and 'additive' not in modes else None
+    if hole:
+        # a wall with a window in it: the wall from what's around the window, then the window
+        x0, y0, x1, y1 = (int(round(v * 64)) for v in hole)
+        wall = np.ones((64, 64), bool)
+        wall[y0:y1, x0:x1] = False
+        dark, mid, light = tones_of(small[wall])
+        if gen in ('tiles', 'siding', 'corrugated', 'panel'):
+            gen, opts = 'noise', {}                   # the "grid" was the window's own edges
+        opts.update(window=hole, glass=[int(c) for c in np.median(small[y0:y1, x0:x1].reshape(-1, 3), axis=0)], sill=[int(c) for c in light])
     if gen == 'noise':
         opts.setdefault('contrast', round(float(np.clip(std / 32.0, 0.4, 1.6)), 2))
         opts.setdefault('beta', 1.8)
         dark_frac = float((gray < gray.mean() - 2.2 * std).mean()) if std > 1 else 0.0
-        if dark_frac > 0.01:
+        if dark_frac > 0.01 and not hole and float(mid.mean()) < 190:   # on snow or white paint specks read as dirt
             opts['spots'] = round(min(0.2, dark_frac * 4), 3)
     if gen == 'grate' and 'masked' in modes:
         opts['masked'] = True
@@ -827,10 +1126,49 @@ def auto_spec(key: str, img: Image.Image, modes: set[str]) -> dict | None:
         base = np.asarray(rgb.resize((32, 32)), np.float32).reshape(-1, 3)
         col = base[hsv[:, 1] > 80].mean(axis=0) if len(vivid) > 20 else mid
         opts.update(color=[int(c) for c in col], mark=[255, 255, 255] if col.mean() < 150 else [30, 30, 30])
+        if any(w in k for w in ('stripe', 'hazard', 'chevron')):
+            opts['style'] = 'stripes'
+        elif any(w in k for w in ('logo', 'emblem', 'flag', 'badge')):
+            opts['style'] = 'emblem'
+        else:
+            opts.update(sign_layout(key, rgb, opts['color'], opts['mark']))
+    if gen == 'door':
+        edges = np.abs(np.diff(gray, axis=1)).mean(axis=0)
+        opts['leaves'] = 2 if edges[61:66].max() > 3 * np.median(edges) else 1
+        if gray[32:96, 16:112].mean() < 60 and (gray > 165).mean() > 0.04:
+            opts['glass'] = True                      # dark panes in a light frame
+    if gen == 'machine':
+        pal = Image.fromarray(goods.astype(np.uint8)[None]).quantize(4).getpalette()[:12]
+        opts['goods'] = [pal[i:i + 3] for i in range(0, 12, 3)]
     if gen == 'window':
         opts.update(nx=int(min(6, max(1, nx if px > 8 else 2))), ny=int(min(6, max(1, ny if py > 8 else 2))))
     spec.update(gen=gen, dark=[int(c) for c in dark], mid=[int(c) for c in mid], light=[int(c) for c in light])
     spec.update(opts)
+    return spec
+
+
+def sign_layout(key: str, rgb: Image.Image, color: list, mark: list) -> dict:
+    """A sign's options beyond its colours: the panels on its sheet, and whether it hangs in a
+    street (shop names) or on a work site (notices). The package says where."""
+    k = key.lower()
+    out: dict = {'panels': sign_panels(rgb) or [[0, 0, 1, 1, color, mark]]}
+    if len(out['panels']) == 1:
+        if any(w in k.split('.')[-1] for w in ('men', 'toilet', 'potty')):
+            out['words'] = 'WC'
+        elif any(w in k for w in ('billboard', 'park', 'marina', 'urban', 'pueblo', 'shop', 'store', 'mall', 'cafe', 'market')):
+            out['shop'] = True
+    return out
+
+
+def with_gain(key: str, spec: dict, img: Image.Image) -> dict:
+    """spec, with a `gain` if what it makes is off the original's brightness by over a quarter."""
+    spec.pop('gain', None)
+    if 'panels' in spec:
+        return spec                                   # every panel has the original's own colours already
+    want = float(np.asarray(img.convert('RGB').resize((32, 32)), np.float32).mean())
+    got = float(np.asarray(make(key, spec).convert('RGB').resize((32, 32)), np.float32).mean())
+    if got > 1 and abs(want / got - 1) > 0.25:
+        spec['gain'] = round(float(np.clip(want / got, 0.3, 3.0)), 2)
     return spec
 
 
@@ -855,30 +1193,62 @@ def needed_textures() -> dict[str, set[str]]:
     return need
 
 
-def write_auto_table() -> None:
+def asks_again(key: str, old: dict, spec: dict, img: Image.Image) -> bool:
+    """--reclassify: whether an entry takes the new recipe. Only where the old one came from a
+    rule since found wrong; the rest were looked at in game (some set by hand) and stay.
+    A sign stays a sign and gets the original's layout."""
+    if spec['gen'] == 'flat':
+        return old['gen'] in ('sign', 'screen', 'grate')   # a colour swatch, whatever its group is called
+    if old['gen'] == 'sign':
+        if 'style' in old or 'panels' in old:
+            return False
+        new = {k: spec[k] for k in ('style',) if spec['gen'] == 'sign' and k in spec}
+        new = new or sign_layout(key, img.convert('RGB'), old.get('color', old['mid']), old.get('mark', [255, 255, 255]))
+        spec.clear()
+        spec.update(old, **new)
+        return True
+    if spec['gen'] == 'door':
+        return old['gen'] in ('panel', 'noise', 'screen')   # a striped one is a shutter: stays
+    if spec['gen'] in ('disc', 'machine') or 'window' in spec:
+        return True                                   # shapes there was no generator for
+    if old['gen'] in ('screen', 'grate') and spec['gen'] != old['gen']:
+        return True                                   # named after its package or group (Terminal walls, ...Mesh skins)
+    natural = any(w in subject(key) for w in next(words for words, _, o in KEYWORDS if o.get('natural')))
+    return natural and old['gen'] in ('bricks', 'tiles', 'siding', 'corrugated', 'planks') and spec['gen'] == 'noise'
+
+
+def write_auto_table(reclassify: bool = False) -> None:
     hand = {k.lower() for k in tomllib.loads(TABLE.read_text())}
     # entries already there stay as they are: their art is imported and reviewed, and a map joining
-    # the list must not change it for the others
+    # the list must not change it for the others. --reclassify asks every one of them again (after
+    # the rules here changed) and keeps those whose generator comes out the same, signs apart:
+    # their layout is read from the original now
     kept = tomllib.loads(AUTO_TABLE.read_text()) if AUTO_TABLE.exists() else {}
-    known = {k.lower() for k in kept}
+    known = {} if reclassify else {k.lower() for k in kept}
     man = {k.lower(): (k, v) for k, v in json.loads((MFPORT / 'work' / 'out' / 'textures.json').read_text()).items()}
     lines = ['# Written by `lookalike.py --auto` (re-run after converting more core maps); edit an entry or',
              '# move it to lookalikes.toml to tune it. Colours were sampled from the originals.', '']
-    skipped, n = [], len(kept)
-    specs = dict(kept)
-    for lk, modes in sorted(needed_textures().items()):
+    skipped, changed = [], []
+    need = needed_textures()
+    specs = {k: v for k, v in kept.items() if k.lower() not in hand}
+    for lk, modes in sorted(need.items()):
         if lk in hand or lk in known or lk not in man:
             continue
         key, info = man[lk]
         f = MFPORT / 'work' / 'out' / info['file']
         if not f.exists():
             continue
-        spec = auto_spec(key, Image.open(f), modes)
+        img = Image.open(f)
+        spec = auto_spec(key, img, modes)
+        old = kept.get(key)
         if spec is None:
-            skipped.append(key)
+            if old is None:
+                skipped.append(key)
             continue
-        specs[key] = spec
-        n += 1
+        if old and not asks_again(key, old, spec, img):
+            continue
+        specs[key] = with_gain(key, spec, img)
+        changed.append(f'{key}: {old["gen"] if old else "-"} -> {spec["gen"]}' + (' + window' if 'window' in spec else ''))
     for key, spec in sorted(specs.items(), key=lambda kv: kv[0].lower()):
         lines.append(f'["{key}"]')
         for name, val in spec.items():
@@ -887,12 +1257,15 @@ def write_auto_table() -> None:
     if skipped:
         lines.append('# not generated (see-through shapes; replace by hand): ' + ', '.join(skipped))
     AUTO_TABLE.write_text('\n'.join(lines) + '\n')
-    print(f'[lookalike] {n} automatic entries -> {AUTO_TABLE.name} ({len(skipped)} left for hand-made art)')
+    report = HERE / 'preview' / 'auto_changes.txt'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text('\n'.join(changed) + '\n')
+    print(f'[lookalike] {len(specs)} automatic entries -> {AUTO_TABLE.name}: {len(changed)} new or changed ({report}), {len(skipped)} left for hand-made art')
 
 
 def main(argv: list[str]) -> None:
     if '--auto' in argv:
-        write_auto_table()
+        write_auto_table('--reclassify' in argv)
         if len([a for a in argv if not a.startswith('--')]) == 0 and '--sheet' not in argv:
             return
     table = tomllib.loads(TABLE.read_text())
