@@ -244,7 +244,9 @@ public:
 			return FReply::Handled();
 		}
 		if (Key.GetKey() == EKeys::Escape) {
-			if (Switcher->GetActiveWidgetIndex() != 0)
+			if (Switcher->GetActiveWidgetIndex() == 6)
+				CancelConnect(); // not just the page: the connection would carry on behind the menu
+			else if (Switcher->GetActiveWidgetIndex() != 0)
 				Switcher->SetActiveWidgetIndex(0);
 			else if (bInGame)
 				DFMenu::Close(Owner.Get());
@@ -502,6 +504,7 @@ private:
 	}
 
 	void RefreshServers() {
+		GJoinError.Empty(); // the last try's failure made room for the count again
 		if (UDFServerBrowser* B = Browser())
 			B->Refresh(bLanList);
 		if (!ServerTimer.IsValid())
@@ -1507,7 +1510,7 @@ private:
 			if (ADFPlayerController* DFPC = Cast<ADFPlayerController>(PC))
 				DFPC->DFApplyUserSettings(); // the menu's own controller has nothing to apply
 			if (PC->PlayerState && !PlayerName.IsEmpty() && PC->PlayerState->GetPlayerName() != PlayerName)
-				PC->SetName(PlayerName.Replace(TEXT("?"), TEXT("")).Left(20)); // in a game: rename now
+				PC->SetName(PlayerName.Replace(TEXT("?"), TEXT("")).Replace(TEXT(" "), TEXT("_")).Left(20)); // in a game: rename now (as NameOption: admin commands take a name as one word)
 		}
 		Switcher->SetActiveWidgetIndex(0);
 	}

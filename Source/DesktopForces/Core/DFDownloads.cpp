@@ -228,19 +228,31 @@ void UDFDownloads::OnDownloaded(int32 Chunk, bool bSuccess, int32 ForGeneration)
 }
 
 bool UDFDownloads::Mount(int32 Chunk) {
-	bool bAny = false, bAll = true;
+	TArray<FString> Done;
+	bool bAll = true;
 	for (const FFile& F : Files)
 		if (F.Chunk == Chunk && F.Name.EndsWith(TEXT(".pak"))) {
-			const bool bOk = FCoreDelegates::MountPak.Execute(CacheDir() / F.Name, INDEX_NONE) != nullptr;
+			const FString Path = CacheDir() / F.Name;
+			const bool bOk = FCoreDelegates::MountPak.Execute(Path, INDEX_NONE) != nullptr;
 			UE_LOG(LogDF, Log, TEXT("Downloads: mount %s: %s"), *F.Name, bOk ? TEXT("ok") : TEXT("FAILED"));
-			bAny |= bOk;
-			bAll &= bOk;
+			if (bOk)
+				Done.Add(Path);
+			else
+				bAll = false;
 		}
-	if (bAny) {
+	if (!bAll) {
+		// part of a pack is no pack: it would read Installed with maps that fail to load, and
+		// Retry would do nothing. Let go of what did mount, so the pack is plainly failed
+		for (const FString& Path : Done)
+			if (FCoreDelegates::OnUnmountPak.IsBound())
+				FCoreDelegates::OnUnmountPak.Execute(Path);
+		return false;
+	}
+	if (Done.Num() > 0) {
 		Mounted.Add(Chunk);
 		DF::ResetContentLookups(); // content that was missing may be here now
 	}
-	return bAny && bAll;
+	return Done.Num() > 0;
 }
 
 uint64 UDFDownloads::BytesOnDisk(int32 Chunk) const {
@@ -262,7 +274,11 @@ void UDFDownloads::SaveLocalManifest() const {
 			Text += FString::Printf(TEXT("%s\t%llu\t%s\t-1\t/\n"), *F.Name, F.Size, *F.Version);
 			++Num;
 		}
-	FFileHelper::SaveStringToFile(FString::Printf(TEXT("$NUM_ENTRIES = %d\n"), Num) + Text, *(CacheDir() / TEXT("LocalManifest.txt")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	// whole or not at all: killed halfway through writing it in place, the record came back cut
+	// short and the finished files it no longer named were downloaded again
+	const FString Path = CacheDir() / TEXT("LocalManifest.txt"), Temp = Path + TEXT(".tmp");
+	if (FFileHelper::SaveStringToFile(FString::Printf(TEXT("$NUM_ENTRIES = %d\n"), Num) + Text, *Temp, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+		IFileManager::Get().Move(*Path, *Temp, true, true);
 }
 
 FText UDFDownloads::GetError() const {

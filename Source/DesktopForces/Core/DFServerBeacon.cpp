@@ -142,6 +142,13 @@ TArray<FString> UDFServerBeacon::MasterList() {
 bool UDFServerBeacon::Tick(float DeltaTime) {
 	if (!Socket)
 		return false;
+	// a host who joined somebody else's server: no game mode runs here to say so (StartPlay
+	// stops it on a standalone map), and the masters would keep listing a server that's gone
+	if (const UWorld* World = GetGameInstance()->GetWorld(); World && World->GetNetMode() == NM_Client) {
+		UE_LOG(LogDF, Display, TEXT("Server query port %d closed: playing on another server"), QueryPort);
+		Stop();
+		return false;
+	}
 	uint32 Size = 0;
 	uint8 Buffer[1500];
 	TSharedRef<FInternetAddr> From = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
