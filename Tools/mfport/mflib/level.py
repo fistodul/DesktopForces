@@ -215,6 +215,8 @@ class LevelConverter:
         self.map_ambient = max(weights, key=weights.get) if weights else (0.0, 0.0, 0.0)
         welded, inserted = weld_tjunctions([p.vertices for p in polys])
         print(f'  world: {inserted} T-junction vertices welded')
+        rules = mapedits.retexture(self.map)   # map_edits.toml
+        changed = 0
         for poly, verts in zip(polys, welded):
             f = poly.poly_flags
             render = not f & PF_INVISIBLE
@@ -222,7 +224,11 @@ class LevelConverter:
             c = tuple(sum(v[i] for v in poly.vertices) / len(poly.vertices) for i in range(3))
             cell = (math.floor(c[0] / CHUNK_SIZE), math.floor(c[1] / CHUNK_SIZE))
             if render:
-                key = material_key(poly.texture, f | self.texture_flags(poly.texture))
+                # the new texture is laid like the old one (same texels per metre: _emit_poly
+                # goes by the original's size)
+                texture = self._retextured(poly, c, rules)
+                changed += texture != poly.texture
+                key = material_key(texture, f | self.texture_flags(poly.texture))
                 self._use(key)
                 # sky windows go in their own chunks: drawn, but they cast no shadow, so sunlight
                 # and the sky's ambient come in through them (UE1 sunlight lit what saw the sky)
@@ -255,7 +261,22 @@ class LevelConverter:
         for cell, cb in coll.items():
             out.append(self._chunk_entry(cb, cell, geo))
         print(f'  world: {len(chunks)} render chunks (incl. sky), {len(coll)} collision chunks, {skipped} portal polys skipped')
+        if rules:
+            print(f'  map edit: {changed} world faces retextured')
         return out
+
+    @staticmethod
+    def _retextured(poly, centre, rules: list[dict]) -> str | None:
+        """The texture a world face is drawn with: its own, or a map_edits.toml `retexture` rule's."""
+        for r in rules:
+            if (poly.texture or '').lower() != r['from']:
+                continue
+            if r.get('faces') == 'floor' and poly.normal[2] < 0.99:
+                continue
+            if 'below' in r and centre[2] * UU_TO_CM > r['below']:
+                continue
+            return r['to']
+        return poly.texture
 
     def apply_lightmap_budget(self, world: list[dict], meshes: dict[str, dict], spawns: list[dict]):
         """Coarser texels when the map would need more than LIGHTMAP_BUDGET lightmap texels.

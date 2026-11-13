@@ -34,6 +34,10 @@ LICENSED_DIR = TOOL_DIR / 'overrides' / 'licensed'
 # procedural replacement art from Tools/artgen/lookalike.py (git-ignored; hand-made overrides win)
 GENERATED_DIR = TOOL_DIR / 'work' / 'generated' / 'textures'
 SAME_AT_DB = 45.0
+# Textures of ours that maps use by key like any other (map_edits.toml `retexture`): no MF
+# package holds them, their picture is an override or a lookalikes.toml entry with a `size`
+OWN_PACKAGE = 'DesktopForces'
+OWN_SIZE = 256                  # laid like a 256 px MF texture, whatever the picture's size
 
 # Textures the game code uses directly (HUD), converted even if no map references them.
 UI_TEXTURES = {
@@ -197,6 +201,28 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
             'ui': bool(modes & {'ui', 'fontalpha', 'lumalpha'}),
             **({'detail': True} if is_detail(key) else {}),
         }
+    return manifest
+
+
+def convert_own(cfg: Config, usage: dict[str, set[str]]) -> dict[str, dict]:
+    """Manifest entries for the textures of ours that maps use (OWN_PACKAGE), copied to work/out."""
+    found: dict[str, tuple[Path, Path]] = {}
+    for root in (OVERRIDE_DIR, LICENSED_DIR, GENERATED_DIR):   # hand-made ones win
+        for src in sorted(root.glob(f'{OWN_PACKAGE}/**/*.png')):
+            rel = src.relative_to(root)
+            found.setdefault('.'.join(rel.with_suffix('').parts).lower(), (src, rel))
+    manifest = {}
+    for lkey in sorted(k for k in usage if k.split('.')[0] == OWN_PACKAGE.lower()):
+        if lkey not in found:
+            print(f'  ! no picture for {lkey}: Tools/artgen/lookalikes.toml (an entry with a size) or overrides/textures')
+            continue
+        src, rel = found[lkey]
+        key = '.'.join(rel.with_suffix('').parts)
+        dst = cfg.out_dir / 'Textures' / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _limit_size(Image.open(src).convert('RGB'), size_limit(cfg, key)).save(dst, optimize=True)
+        manifest[key] = {'file': str(dst.relative_to(cfg.out_dir)), 'usize': OWN_SIZE, 'vsize': OWN_SIZE,
+                         'alpha': False, 'override': False, 'ui': False, **({'detail': True} if is_detail(key) else {})}
     return manifest
 
 

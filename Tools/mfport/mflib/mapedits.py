@@ -55,6 +55,12 @@ def drop_faces(map_name: str) -> dict[str, set[str]]:
     return {m.lower(): {t.lower() for t in texs} for m, texs in _edits_for(map_name).get('drop_faces', {}).items()}
 
 
+def retexture(map_name: str) -> list[dict]:
+    """World faces that get another texture: [{from, to, faces, below}] with keys in lower case.
+    `faces = "floor"` takes only faces lying flat, `below` only those up to that height (cm)."""
+    return [dict(r, **{'from': r['from'].lower()}) for r in _edits_for(map_name).get('retexture', [])]
+
+
 def same_as(map_name: str) -> str | None:
     """The map this one is a copy of: not converted (the other carries everything it has)."""
     return _edits_for(map_name).get('same_as')

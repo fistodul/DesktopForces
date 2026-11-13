@@ -259,6 +259,12 @@ class ActorMapper:
                                 damage_type=(t3d.parse_object_ref(props.get('DamageType')) or props.get('DamageType', '') or '').strip("'\""),
                                 velocity=[c * UU_TO_CM for c in vel],
                                 zone_name=props.get('ZoneName', '').strip('"')))
+            # MoBall's own maps (MB-*): the ball entering a goal zone scores for the other team,
+            # a destruct zone loses it (MoBallGoalZone / MoBallDestructZone.ActorEntered)
+            if box and self.tree.is_a(cls, 'MoBallGoalZone'):
+                out.append(dict(base, type='zone_box', tag=f'MoBallGoal{_int(props, "Team", {"Team": 0})}', box_min=box[0], box_max=box[1]))
+            elif box and self.tree.is_a(cls, 'MoBallDestructZone'):
+                out.append(dict(base, type='zone_box', tag='MoBallDestruct', box_min=box[0], box_max=box[1]))
             return out
 
         if cls == 'LevelInfo':

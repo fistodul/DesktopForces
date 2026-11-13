@@ -13,7 +13,6 @@ import subprocess
 import sys
 import time
 import tomllib
-from pathlib import Path
 
 from . import mapedits
 from .config import TOOL_DIR, Config

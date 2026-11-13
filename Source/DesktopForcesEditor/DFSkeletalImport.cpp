@@ -22,11 +22,6 @@ bool FDFImporter::ImportSkeletal() {
 		UE_LOG(LogDFEditor, Warning, TEXT("No Skeletal/skeletal.json - run mfport.py skeletal"));
 		return false;
 	}
-	// skinned meshes need their master material compiled for skeletal meshes too
-	if (UMaterial* Master = GetMasterMaterial(TEXT("Opaque"))->GetMaterial(); Master && !Master->GetUsageByFlag(MATUSAGE_SkeletalMesh)) {
-		Master->SetMaterialUsage(MATUSAGE_SkeletalMesh);
-		SaveAsset(Master);
-	}
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	int32 Ok = 0;
@@ -68,6 +63,11 @@ bool FDFImporter::ImportSkeletal() {
 			FString Key;
 			if (Keys && (*Keys)->TryGetStringField(Slot.MaterialSlotName.ToString().RightChop(4), Key))
 				Slot.MaterialInterface = GetMaterial(Key);
+			// skinned meshes need their master material compiled for skeletal meshes too
+			if (UMaterial* Master = Slot.MaterialInterface ? Slot.MaterialInterface->GetMaterial() : nullptr; Master && !Master->GetUsageByFlag(MATUSAGE_SkeletalMesh)) {
+				Master->SetMaterialUsage(MATUSAGE_SkeletalMesh);
+				SaveAsset(Master);
+			}
 		}
 		const TArray<TSharedPtr<FJsonValue>>* Extra = nullptr;
 		if (M->TryGetArrayField(TEXT("extra_materials"), Extra))

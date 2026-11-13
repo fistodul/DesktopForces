@@ -82,8 +82,8 @@ def cmd_textures(cfg):
     for k, modes in fonts.texture_usage(cfg).items():   # MF bitmap fonts' pages
         usage.setdefault(k, set()).update(modes)
     fonts.write(cfg)
-    packages = sorted({k.split('.')[0] for k in usage} - {'engine', 'none'})
-    manifest = {}
+    packages = sorted({k.split('.')[0] for k in usage} - {'engine', 'none', textures.OWN_PACKAGE.lower()})
+    manifest = textures.convert_own(cfg, usage)
     for pkg in packages:
         print(f'[textures] {pkg}')
         try:

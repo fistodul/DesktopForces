@@ -889,6 +889,10 @@ void FDFImporter::EnsureVehicleMaterials() {
 		Flag->PostEditChange();
 		SaveAsset(Flag);
 	}
+	if (!Flag->GetUsageByFlag(MATUSAGE_SkeletalMesh)) { // MF's flags are skinned (DF::MakeFlag)
+		Flag->SetMaterialUsage(MATUSAGE_SkeletalMesh);
+		SaveAsset(Flag);
+	}
 	UMaterial* Warning = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_VehicleWarning"), bCreated);
 	if (bCreated) {
 		UMaterialExpressionVectorParameter* Color = NewObject<UMaterialExpressionVectorParameter>(Warning);

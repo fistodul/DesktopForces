@@ -423,6 +423,13 @@ SOLDIERS = (('RagePlayer1Mesh', 'RagePlayerAAnim', 'RagePlayerGfx.MFTeamA'),
             ('RagePlayer2Mesh', 'RagePlayerBAnim', 'RagePlayerGfx.MFTeamB'))
 
 
+# The waving team flags: CTF's on its staff (RageGame.RageBlueFlag: bUnlit, MultiSkins(1) the
+# team's emblem, the staff CTFFlagTex2) and the pennant of a driven vehicle (Rage.VehicleFlag:
+# its one skin is the actor's Texture). The game puts the team's emblem on the cloth.
+FLAGS = (('RageGame', 'CTFFlagMesh', 'CTFFlagAnim', {'0': 'RageGame.Skins.CTFFlagTex2|opaque_unlit', '1': 'Rage.Skins.VehicleFlagTex0|masked_unlit_2s'}),
+         ('Rage', 'VehicleFlagMesh', 'VehicleFlagAnim', {'0': 'Rage.Skins.VehicleFlagTex0|masked_unlit_2s'}))
+
+
 def _view_meshes(cfg):
     """First-person weapons: every '<X>PlayerMesh' skeletal mesh in the weapon packages, with
     the package's '<X>PlayerAnim' (or its only animation)."""
@@ -443,7 +450,7 @@ def _view_meshes(cfg):
 
 
 def convert(cfg) -> Path:
-    """Soldiers and first-person weapons -> Skeletal/<package>/<mesh>.glb + skeletal.json."""
+    """Soldiers, flags and first-person weapons -> Skeletal/<package>/<mesh>.glb + skeletal.json."""
     from .level import material_key
     from .textures import _package_path
     out = cfg.out_dir / 'Skeletal'
@@ -466,6 +473,8 @@ def convert(cfg) -> Path:
         for i in range(4, 10):
             usage.setdefault(f'{skin}{i:02d}'.lower(), set()).add('opaque')
         entries[-1]['extra_materials'] = [f'{skin}{i:02d}|opaque' for i in range(10)]
+    for pkg_name, mesh, anim, materials in FLAGS:
+        add(pkg_name, Package(str(_package_path(cfg, pkg_name))), mesh, anim, 'Flags', materials)
     for pkg_name, pkg, mesh, anim in _view_meshes(cfg):
         m = read(pkg, mesh)
         flags = {tex: f for f, tex in m.materials}

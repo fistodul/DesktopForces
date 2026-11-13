@@ -15,6 +15,11 @@
 #                  walkable faces, widened to close the gaps, feeds the navmesh only (bots cross)
 #   drop_faces     { <static mesh> = ["<texture>", ...] }: faces of that mesh left out, for
 #                  hidden ones that spoil the bake
+#   retexture      [{ from = "<texture>", to = "<texture>", faces = "floor", below = <cm> }]: world
+#                  (BSP) faces drawn with another texture, laid like the old one; `faces = "floor"`
+#                  takes only faces lying flat, `below` only those up to that height. `to` may be
+#                  a texture of ours: DesktopForces.<Group>.<Name>, its picture a
+#                  Tools/artgen/lookalikes.toml entry with a size (mflib/textures.py convert_own)
 #   same_as        "<map>": a copy of that map (same geometry, its actors a subset): not converted
 #   layout_from    "<map>": another release of the same map (same coordinates) whose layout this
 #                  one takes - world, static meshes, movers, gameplay - keeping only its own look:
@@ -33,6 +38,12 @@
 # terrain1's underside: 35 sky-textured faces looking down from under the whole arena, never
 # seen; with them Lightmass gave the floor above no light at all (lighting-only view: black)
 drop_faces = { terrain1 = ["rage_warehouse.sky.ware_sky_2"] }
+
+["mf-Sardine_City"]
+# Filip, 2026-11-10: the town's ground reads better paved white (what a wrong stand-in for the snow
+# texture had made of it) - yards and pavements, everything level around the roads. The snow
+# heaps, the snow on roofs, cars and benches (static meshes, sloped faces, higher up) stay snow
+retexture = [{ from = "rage_snow.snow", to = "DesktopForces.Paving.snow_bricks", faces = "floor", below = -300.0 }]
 
 ["BR-thebigisland"]
 # its truck was placed for the servers' replaceVehicles to make a heli

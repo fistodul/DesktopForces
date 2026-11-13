@@ -84,7 +84,7 @@ def parse_struct(value: str) -> dict:
     value = value.strip()
     if value.startswith('(') and value.endswith(')'):
         value = value[1:-1]
-    out, depth, key, cur = {}, 0, None, ''
+    out, depth, cur = {}, 0, ''
     for ch in value + ',':
         if ch == '(':
             depth += 1

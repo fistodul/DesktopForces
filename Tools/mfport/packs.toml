@@ -59,6 +59,7 @@ remaster_classic = false              # true: classic maps use replacement art t
 "mf-Worlds_Peak" = "Marcin"
 
 [community.packages]
+"DesktopForces" = "ours: textures made for map_edits.toml retexture (Tools/artgen/lookalikes.toml)"
 "parachute" = "Gregaras (model, textures, sound: CC0, sources listed in parachute.uc)"
 # texture packages made for those maps (names differ from every retail texture; the art
 # itself has not been checked texture by texture)
