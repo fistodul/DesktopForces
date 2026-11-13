@@ -165,9 +165,25 @@ by hand and drop them into `Saved/Paks/`.
 
 Cooking is deterministic: a pack whose content didn't change comes out byte for byte the same in
 the next build, so players keep it across updates (ChunkDownloader keeps a file whose SHA1 is
-unchanged) and the server can hardlink it between build folders
-(`rsync --link-dest=<previous build> ...`). Platforms can't share paks: each carries its
-platform's cooked data and shaders (Android: ASTC textures, mobile shaders).
+unchanged) and the server can hardlink it between build folders. Platforms can't share paks:
+each carries its platform's cooked data and shaders (Android: ASTC textures, mobile shaders).
+
+`Tools/upload_downloads.sh` uploads one build with rsync (Linux or WSL). Without arguments it
+lists the local builds and the server's (`<Platform> <id>`); then name the build to upload and,
+optionally, the server builds to hardlink unchanged files to:
+
+```bash
+bash Tools/upload_downloads.sh
+bash Tools/upload_downloads.sh --dry-run Windows 20261109-094119-beb543da 20261030-112948-622d212
+bash Tools/upload_downloads.sh Windows 20261109-094119-beb543da 20261030-112948-622d212
+```
+
+It sends `Saved/Packages/*-downloads/Downloads/<Platform>/<id>/` (never `Private/` or `Sideload/`)
+to `<Platform>/<id>/` under `DF_DOWNLOAD_DEST` (default
+`mf.nofisto.com:/opt/mobileforces/website/public/download`), owned by `DF_DOWNLOAD_OWNER`
+(default `mobileforces:mobileforces`). Files are compared by content (`-c`) and get no times from
+the build: a new cook gives unchanged paks new ones, and a hardlink needs equal attributes.
+Re-running resumes. It deletes nothing; remove a build's folder once no player has it.
 
 The packager refuses to put a chunk into `Downloads/` whose cooker list names a classic package.
 **Classic content never goes on a public server.** For your own devices, copy the `Sideload/`

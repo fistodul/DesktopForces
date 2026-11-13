@@ -149,6 +149,19 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   they leave no hole in the navmesh.
 - Bots off the navmesh (on a crate, blown onto a ledge) walk straight to the nearest mesh point
   before roaming, since no path starts off the mesh.
+- The navmesh keeps a soldier's radius off every wall, counted in whole 19 cm cells: the agent
+  radius is 38 (two cells), not the capsule's 38.25, which Recast rounded up to three (57 cm) and
+  so shut every doorway under 133 cm. mf-Sardine_City's spawn room doors are 125 cm: 40 of its
+  51 starts could reach nothing outside their base and bots never left (2026-11-11). Every
+  map's navmesh was built again (`mfport.py import <map> --steps navmesh`).
+- A bot's walk to a goal that gets broken off (a fight, a car it tried for, death) says nothing
+  about the goal: it asks again. Only a walk that ran its path out and still ended short marks
+  the goal out of reach for 30 s. Counting every stop that way, bots on a big map shut the enemy
+  flag out again and again and never arrived.
+- A bot that picks a vehicle drops its walk and goes to the vehicle (it used to walk on to its
+  goal and give the car up 25 s later, a street away), and takes none for a trip shorter than
+  56 m: the road count is between the road nodes nearest each end, which in a walled base can
+  be streets apart (a bot 8 m from its lock counted 35 nodes and drove off).
 - Bots don't spawn at starts they can't walk away from (not over the navmesh within 7 m, nor
   within 5 m of it) unless nothing else is free: some MF starts are on a 72 cm plank edge
   (MF-CrazyHouseV2), in a sink, on round pipes (mf-Ghetto) or on fire-escape balconies. Players
@@ -195,8 +208,18 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   attackers must beat part 1's time. Carrier kill +4, steal +7, respawn 5 s. Dropped gold
   goes home after 25 s or when a defender touches it. HUD: safe meter + countdown bottom
   right (RageSafeCrackerHud). Safes/gold are placeholders until the MF meshes convert.
+  The safe is a dynamic object (`BlockAllDynamic`): UE's radial damage only reaches dynamic
+  object types, and as world-static no rocket hurt it (6 rockets crack it now, 100 health at
+  0.15 of an explosive's damage). The Battle Royale towers had the same.
 - **CTF** (`ctf`, RageCTF): touch your own flag at home while carrying theirs. 4 captures /
   20 min, carrier kill +4, capture +7, dropped flag home after 25 s or on your team's touch.
+  Only on foot (MF `VehicleIn == none`). The flag is MF's `CTFFlagMesh`, a staff with the
+  team's emblem waving from it (classic pack; without it a 2.2 m staff and a flat cloth), at
+  0.6 size and tilted over the shoulder while carried (MF state Held). A touch only counts from
+  someone within reach of the flag: sent home off the carrier's back in the middle of that
+  soldier's move (a capture), the engine still delivered the move's overlap events afterwards,
+  so the carrier "touched" the flag a map away, took it again on the spot and scored with every
+  step into the base (play-test 2026-11-10; walking in, not teleporting, shows it).
 - **Detonation** (`det`, RageDetonation): one neutral key at a random key spot; carry it to
   the enemy lock: 5 s countdown, then that team dies one by one (random 0-1 s apart), +7
   and a team point, the key restarts elsewhere. An untouched key moves after 25 s. 4 / 10 min.
@@ -216,11 +239,20 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   that stands on it alone for 10 s takes the round; stepping off, or an enemy stepping on, starts
   the count over. Wiping out the other team takes the round too. 5 rounds, 10 min.
 - **MoBall** (`moball`, MF-mods MoBall renamed, `Game/MoBall`): football with vehicles. A rubber ball
-  (MF `ball.COL`: 1 m radius) appears at the trailer generator; vehicles, soldiers and shots push
-  it (by the square root of the damage, shotgun pellets 40 % of the time); into the other team's
+  (MF `ball.COL`: 1 m radius) appears at the trailer generator (on MoBall's own maps, `MB-*`,
+  at their `PropGenerator`); vehicles and shots push it (by
+  the square root of the damage, shotgun pellets 40 % of the time). A soldier can't: the ball
+  stands in the way and leaning on it only creeps it along (MF `Physical.Bump` applies 0.01
+  where a shot applies up to 31.6; here 18 cm/s per second of pushing). Soldiers meet a
+  query-only shell, since a capsule walking into the physics sphere batted it off at 1.65 x
+  walking speed. Into the other team's
   trailer park (192 + 128 uu, 64 up or down) scores, the ball goes 5 s later and a new one comes.
   The goals show as rings of glowing net in the team colour over that whole scoring area (MF
-  drew a smaller faint ring, MoBallGoal).
+  drew a smaller faint ring, MoBallGoal). MoBall's own maps have built goals instead: the ball
+  entering a `MoBallGoalZone` scores for the other team, a `MoBallDestructZone` (a pit, the
+  edge of the map) takes it away after 2 s without a score; the converter writes both as zone
+  boxes (`MoBallGoal<team>` / `MoBallDestruct`). Not ported: `MBVehicleDestructZone` (no
+  converted map has one), `GoalDefencePoint` (a bot hint).
   Loadouts only hand out groups 1, 2, 9, 10, 11 (knife, pistol, gadgets; `bRestrictWeapons`).
   First to 4; a draw after 15 min goes to sudden death. Works on any map with a trailer generator.
 - **Battle Royale** (`br`, MF-mods battleRoyale by Gregaras, `Game/BattleRoyale`): free for all,
@@ -409,6 +441,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   second), up to 10 a second and a darker core from a third of the health gone, mild throughout
   (compared with a recording of the game). It uses a bounded local emitter; replicated health
   drives its rate and opacity on each client.
+- Blowing up deals MF's `HurtRadius(ExplosionDamage 300, ExplosionRadius 400 uu, 'Exploded',
+  ExplosionMomentum 200000)`; another vehicle takes it x 1.5 (explosive) x (1 - Armour): an APC
+  beside a buggy up to 72 of its 100.
 - Blowing up (EffectsFix.VehExplosion -> RageEffects.VehicleExplosion): a fireball of smoke and
   flames, 2-4 fires on the ground around it, and 16 chunks (RageEffects.VehicleFrag carfrag01-09)
   that spin, bounce with half their speed and clank (FragHit1-3), then lie there 10-17 s; up to
@@ -513,4 +548,6 @@ rules. Auto preserves automatic assignment. The classic loadout now shows each o
 instance’s live ammunition rather than the shop’s default quantities.
 
 Truck turbo uses the existing server `TurboCars` option and nitro input, like other eligible
-vehicles. Vehicle flags use the original MF team emblems on a two-sided masked material.
+vehicles. Vehicle flags use the original MF team emblems on a two-sided masked material:
+MF's `VehicleFlagMesh` pennant with the classic pack (hanging, then streaming above 5.4 m/s:
+FlagDownFlap / FlagUp / FlagUpFlap, VehicleFlag.Tick), a flat one without it.

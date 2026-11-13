@@ -26,7 +26,7 @@ Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine o
 | `mfport.py props` | gameplay meshes from Rage.u / RageGame.u / RageWeapons.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers; `LodMesh`: weapon models, rockets, det key) → `.mfmesh` |
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`, ≤ `detail_texture_size` for `detail.toml`), read straight from the packages (see below) |
 | `mfport.py effects` | MF sprite particles (`mflib/effects.py`): the effect textures' AnimNext chains → flipbook atlases, plus emitter descriptions for the scripted effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, EffectsFix smoke puffs, wall hits, blood) and every map's ParticleEffect / FireyExample → `Effects/effects.json`. Run after `map` |
-| `mfport.py skeletal` | skeletal meshes with their animations → glTF (`Skeletal/<package>/*.glb`, `skeletal.json`): the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava, 302 animations each) and every first-person weapon (`<X>PlayerMesh` in the weapon packages); the importer's `skeletal` step brings them in through Interchange (`<pack>/Soldiers/…`, `<pack>/Weapons/…`) and puts MF's textures (team skins) on |
+| `mfport.py skeletal` | skeletal meshes with their animations → glTF (`Skeletal/<package>/*.glb`, `skeletal.json`): the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava, 302 animations each) every first-person weapon (`<X>PlayerMesh` in the weapon packages) and the waving team flags (RageGame `CTFFlagMesh`, Rage `VehicleFlagMesh`, 4 sequences each); the importer's `skeletal` step brings them in through Interchange (`<pack>/Soldiers/…`, `<pack>/Weapons/…`, `<pack>/Flags/…`) and puts MF's textures (team skins) on |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
@@ -315,6 +315,17 @@ actor list before anything is built; `import <maps> --steps patch` re-places a b
 vehicle generators without re-baking. Server admins can still add / swap vehicles at run time
 (`AddedVehicles` / `VehicleSwaps`, [Hosting.md](Hosting.md)).
 
+`retexture` gives world (BSP) faces another texture: `{ from, to, faces = "floor", below = <cm> }`
+takes the faces drawn with `from`, only those lying flat with `faces = "floor"`, only those up to
+that height with `below`. The new texture is laid like the old one. mf-Sardine_City's level
+ground (yards, pavements) is white paving that way while the snow heaps, roofs and everything
+sloped keep the snow. `to` can be a texture of ours, `DesktopForces.<Group>.<Name>`: no MF
+package holds it, its picture is a `Tools/artgen/lookalikes.toml` entry with a `size` (or a file
+under `overrides/textures/DesktopForces/`), `mfport.py textures` lists it in the manifest
+(`mflib/textures.py convert_own`) and it is imported with the community pack
+(`/Game/MF/Community/Textures/DesktopForces/...`). A retextured map needs `rebake <map>`
+(its world meshes change).
+
 `nav_decks` lists static meshes walked across gaps (mf-sawmill's rope bridge: 33 - 45 cm between
 the planks). A soldier's 38 cm capsule steps across, Recast's 19 cm cells don't and left the bridge
 to players only (a plank is also missing at every rope joint, up to 146 cm; running soldiers
@@ -391,8 +402,31 @@ hand-made override. See-through shapes (foliage, decals) are left for hand-made 
 end of the auto table).
 
     python3 Tools/artgen/lookalike.py --auto    # after converting more core maps
-    python3 Tools/artgen/lookalike.py           # generate (7 min for ~850)
+    python3 Tools/artgen/lookalike.py           # generate (8 min for ~1400)
     python3 Tools/mfport/mfport.py textures && python3 Tools/mfport/mfport.py import --steps textures
+
+A shape is drawn only where the name or the picture clearly calls for it; anything unsure stays
+a plain surface in the original's colours, which reads as nothing in particular instead of as
+something wrong (play-test 2026-11-10: a sheet of four shop signs had become one "EXIT" cut in
+four, snow had become white bricks, traffic cones wire mesh). The rules:
+
+- Names are matched on group and name, not the package (`rage_snow` isn't snow all through, an
+  airport's `Terminal` group holds walls, `Rage.Skins.JBallMesh1` isn't wire mesh).
+- Nature (snow, grass, sand, rock, water ...) never becomes bricks, tiles or boards.
+- A texture flagged masked but solid all over is opaque.
+- Signs keep the original's layout: `sign_panels` finds where the sheet is ruled right across
+  (two thirds of a straight line change colour) and every panel gets its own colour, its
+  lettering's colour and one whole word of ours - shop names in streets, notices on work sites.
+  A sliver too small for readable letters stays a plain plate.
+- Doors (`door`: leaves, panels, glazing), round faces on a backdrop (`disc`: barrel ends,
+  drain covers), vending machine fronts (`machine`), a window in a wall (`window = [...]` on any
+  generator, for wall names only), one-colour swatches (`flat`).
+- `gain` keeps a recipe within a quarter of the original's brightness.
+
+`--auto --reclassify` asks again for every automatic entry after such rule changes and takes the
+new recipe only where the old one came from a rule since found wrong (`asks_again`); the rest
+were looked at in game, some set by hand, and stay. It writes what changed to
+`Tools/artgen/preview/auto_changes.txt`: look at those before importing.
 
 Generators cover every community and unverified map since 2026-10-30. `--auto` only adds
 entries: art already reviewed and imported doesn't change when a map joins the list. Textures

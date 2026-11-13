@@ -52,7 +52,7 @@ names: `GameModeClassAliases`). The old `MF` names redirect (`[CoreRedirects]`).
 | `World/` | `ADFLadderVolume` | `LadderClimber` | ladder movement trigger + two-way nav link (ends placed by the level builder) |
 | `World/` | `ADFZoneVolume` | `ZoneInfo` water / pain / `ZoneVelocity` / `ZoneGravity` | physics volume over a UE1 zone's bounds: swimming, drowning, pain / healing, currents, its own gravity (`GetGravityZ`) |
 | `World/` | `ATeleporter`, `ADFPeriodicSound`, `ADFPickupSpot` | `Teleporter`, `PeriodicSound`, `Inventory` placed in maps | teleporters (URL -> Tag), ambient loops on a period, items lying around that respawn after their RespawnTime |
-| `World/` | `ADFMover`, `ALoadoutBlocker` | `Mover`, blocking `Trigger`s, `LoadoutBlocker` | brushes outside the BSP (scenery, spinners, bump doors; GameInfo.IsRelevant per mode), invisible walls, team spawn-room doors |
+| `World/` | `ADFMover`, `ALoadoutBlocker` | `Mover`, blocking `Trigger`s, | brushes outside the BSP (scenery, spinners, bump doors; GameInfo.IsRelevant per mode), invisible walls, team spawn-room doors |
 | `World/` | `ADFRoadNetwork` | `RoadPoint`, `ReachSpec` with `R_ROAD` | the map's road graph (MF's reach specs, read from the `.umf`), A* routes for driving bots, `RoadPoint.MaxSpeed` per node |
 | `AI/` | `ADFBotController` | `RageBot` | 5 Hz think: loadout, fight (skill-based aim), objectives from the game mode, roam; remembers unreachable goals; takes vehicles for long trips (`PickVehcicle` weights) and drives the road graph, rides and shoots as a passenger |
 | `Vehicles/` | `ADFVehicle` (+`_Buggy`, `_Humvee`, `_Truck`, `_Armadillo`, `_TrailerCab`, `_Trailer`), `AVehicleGenerator` | `RageVehicle`s, `*Generator` | physics box + raycast wheels (springs use the world's gravity: MF's is 2.2x UE's), handling from `handling.hnd2` / `.COL` |
@@ -67,6 +67,18 @@ Server-authoritative, UE replication from day one (listen and dedicated servers)
   damage; the owning client runs the same state machine for instant feedback; other
   clients play effects on `BurstCounter` changes. Ammo replicates to the owner only.
 - Loadout: client only *displays* the menu (`ADFHUD`), picks go through `ServerLoadoutPick`.
+- Sounds and effects are local: `DF::PlaySoundAtLocation` / `PlaySoundRadius` / `SpawnEffect`
+  play on the machine that calls them. Call them where every machine runs (a multicast, an
+  `OnRep`, `BeginPlay` of a replicated actor); from server-only code (game modes, weapon
+  logic past `HasAuthority`) use `ADFEffectActor::Spawn` / `SpawnSound`, a short-lived
+  replicated actor that plays them on every client.
+- Vehicles: only the server simulates the body (its suspension rays carry the car). The engine
+  would have a client simulate a replicated physics body too - with gravity and nothing under
+  it - and its physics replication puts that body to sleep where it lies once the server's
+  sleeps: parked cars sunk to the floor pan on servers. `ADFVehicle::OnRep_ReplicatedMovement`
+  keeps the client's body kinematic and `FollowServer` moves it to the replicated state (the
+  velocity it had, up to 0.25 s of dead reckoning, the rest of the gap closed smoothly). Clients
+  measure their own wheels' travel for the cars in view.
 
 ### Adding a weapon
 1. Subclass `ADFWeapon` (or an existing weapon) in a new folder, `Weapons/<Name>/<Name>.h/.cpp` (class `A<Name>`)
