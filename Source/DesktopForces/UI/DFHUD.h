@@ -145,6 +145,9 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<class ADFMapInfo> MapInfo;
 	bool bLookedForMapInfo = false;
+	/** DrawHealthMF's "loadout available here" sign: the last answer and when it was asked. */
+	bool bLoadoutHere = false;
+	double LoadoutHereAt = 0.0;
 	/** RageTeamHUD.DrawScoreBar: box in a colour set, fill, icon to the right, text. */
 	void DrawScoreBarMF(float X, float Y, float W, float H, int32 BoxSet, int32 Icon, const FString& Label, float Level);
 	/** Bottom right: team score panels (RageTeamHUD.DrawTeamScores) or the mode's bars. True if drawn. */

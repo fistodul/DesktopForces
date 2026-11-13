@@ -205,6 +205,7 @@ void ADFHUD::DrawHUD() {
 }
 
 void ADFHUD::DrawMOTDMF(const ADFGameState* GS) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawMOTDMF); // `stat dumpframe` shows each part of the HUD by name
 	// MOTDFadeOutTime 600, falling 55 a second: 10.9 s from the HUD's first frame
 	const float Now = GetWorld()->GetTimeSeconds();
 	if (MOTDStart < 0.f)
@@ -238,6 +239,7 @@ void ADFHUD::DrawMOTDMF(const ADFGameState* GS) {
 }
 
 void ADFHUD::DrawIdentifyMF(const ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawIdentifyMF);
 	// TraceIdentify: along the view 2000 uu; a player hit is named for the next 3 s
 	const float Now = GetWorld()->GetTimeSeconds();
 	FVector Eye;
@@ -288,6 +290,7 @@ bool ADFHUD::DrawPowerBarMF(const ADFCharacter* C) {
 }
 
 void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawMuzzleFlash);
 	// RageWeapon.RenderMuzzleFlash: on the canvas, where the barrel points on screen; at the hip
 	// off to the weapon hand, zoomed under the sights. Its pixels were for a 640 x 480 screen.
 	const ADFWeapon* W = C->GetCurrentWeapon();
@@ -309,6 +312,7 @@ void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 }
 
 void ADFHUD::DrawCrosshair(ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawCrosshair);
 	ADFWeapon* W = C->GetCurrentWeapon();
 	if (W && W->DrawHUD(Canvas))
 		return;
@@ -391,6 +395,7 @@ void ADFHUD::DrawItemCell(const ADFWeapon* W, float X, float Y, float CellW, flo
 }
 
 void ADFHUD::DrawStatus(ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawStatus);
 	// Bottom left like MF: health and armour numbers
 	const float X = 16.f * UIScale, Y = Canvas->ClipY - 66.f * UIScale;
 	const int32 Health = FMath::Max(0, C->GetHealth());
@@ -407,6 +412,7 @@ void ADFHUD::DrawStatus(ADFCharacter* C) {
 }
 
 void ADFHUD::DrawWeaponBar(ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawWeaponBar);
 	// MF carry strip (bottom centre): one box per carried item, as wide as the carry blocks
 	// it uses; free blocks stay as empty frames so you see what still fits
 	TArray<ADFWeapon*> Items;
@@ -487,6 +493,7 @@ bool ADFHUD::DrawGameInfoMF(ADFGameState* GS) {
 }
 
 void ADFHUD::DrawGameInfo(ADFGameState* GS, ADFPlayerController* PC) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawGameInfo);
 	const float CX = Canvas->ClipX * 0.5f;
 	const bool bMFPanels = LoadMFArt() && DrawGameInfoMF(GS);
 	if (const int32 Left = GS->GetRemainingTime(); Left >= 0 && !(bMFPanels && GS->GameName == TEXT("SafeCracker")))
@@ -520,6 +527,7 @@ void ADFHUD::DrawGameInfo(ADFGameState* GS, ADFPlayerController* PC) {
 }
 
 void ADFHUD::DrawMessages() {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawMessages);
 	// RageHUD.DrawSmallMessages: top left right of the minimap (3.5 blocks), newest last
 	const float Now = GetWorld()->GetTimeSeconds();
 	Messages.RemoveAll([Now](const FMessage& M) { return Now - M.Time > 6.f; });
@@ -533,6 +541,7 @@ void ADFHUD::DrawMessages() {
 }
 
 void ADFHUD::DrawMiniMapMF(ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawMiniMapMF);
 	if (!bLookedForMapInfo) {
 		bLookedForMapInfo = true;
 		for (TActorIterator<ADFMapInfo> It(GetWorld()); It; ++It)
@@ -630,6 +639,7 @@ void ADFHUD::DrawMiniMapMF(ADFCharacter* C) {
 }
 
 void ADFHUD::DrawCaptainMarkers(ADFPlayerController* PC) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawCaptainMarkers);
 	FVector Eye;
 	FRotator ViewRot;
 	PC->GetPlayerViewPoint(Eye, ViewRot);
@@ -698,6 +708,7 @@ int32 ADFHUD::GetCommandMenuSlotAt(const FVector2D& Screen) const {
 }
 
 void ADFHUD::DrawLoadout(ADFCharacter* C, ADFPlayerController* PC) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawLoadout);
 	// MF loadout grid (top left): one row per key, every item of that key in the row.
 	// Bright = carried, dark = fits, grey = doesn't fit. Rows with several items are
 	// opened with their key; then the item's number (shown in yellow) picks it.
@@ -739,6 +750,7 @@ void ADFHUD::DrawLoadout(ADFCharacter* C, ADFPlayerController* PC) {
 }
 
 void ADFHUD::DrawScoreboardMF(ADFGameState* GS) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawScoreboardMF);
 	const float CW = Canvas->ClipX, CH = Canvas->ClipY;
 	const FLinearColor Band(0.f, 0.f, 0.12f, 0.75f);
 	// top band: the result (or the game's goal while playing)
@@ -840,6 +852,7 @@ void ADFHUD::DrawScoreboard(ADFGameState* GS) {
 }
 
 void ADFHUD::DrawDeadScreen(ADFGameState* GS, ADFPlayerController* PC) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawDeadScreen);
 	if (GS->HasMatchEnded() || !PC)
 		return;
 	const ADFPlayerState* PS = PC->GetPlayerState<ADFPlayerState>();
@@ -893,6 +906,7 @@ void ADFHUD::NotifyPain(const FVector& FromDir) {
 }
 
 void ADFHUD::DrawPainMF() {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawPainMF);
 	// RageHUD.DrawPainIndicators: the screen edge facing the attacker glows in the team's
 	// colour for PainFadeTime (1 s); undirected damage lights all four edges
 	const float Intensity = 1.f - (GetWorld()->GetTimeSeconds() - HitTime) / 1.f;
@@ -1070,6 +1084,7 @@ void ADFHUD::DrawEmptyMF(int32 Blocks, float X, float Y) {
 }
 
 void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawInventoryMF);
 	// RageHUD.DrawInventory at (ClipX/2 - 3.5 blocks, bottom): carried items, knife one block
 	TArray<ADFWeapon*> Items;
 	for (ADFWeapon* W : C->GetInventory())
@@ -1097,6 +1112,7 @@ void ADFHUD::DrawInventoryMF(ADFCharacter* C, ADFPlayerController* PC) {
 }
 
 void ADFHUD::DrawHealthMF(ADFCharacter* C) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawHealthMF);
 	const int32 T = TeamSet();
 	const FLinearColor Fill = SetColour(T);
 	// Health: soldier silhouette filled from the bottom (RageHUD.DrawHealth)
@@ -1122,7 +1138,13 @@ void ADFHUD::DrawHealthMF(ADFCharacter* C) {
 		DFText(AS, AX + 32.f * RS - TS.X * 0.75f, AY + 28.f * RS - TS.Y * 0.5f, FLinearColor::White, 1);
 	}
 	// Loadout available here (RageHUD: CanDoLoadout -> Loadout_Back + Loadout_Team)
-	if (!C->IsInLoadout() && UDFLoadoutLibrary::FindLoadoutSourceFor(C)) {
+	// asked five times a second, not every frame: the answer walks every loadout source of the
+	// map (0.14 ms a frame for this corner of the HUD on mf-Sardine_City, as much as the minimap)
+	if (const double Now = FPlatformTime::Seconds(); Now - LoadoutHereAt > 0.2) {
+		LoadoutHereAt = Now;
+		bLoadoutHere = UDFLoadoutLibrary::FindLoadoutSourceFor(C) != nullptr;
+	}
+	if (!C->IsInLoadout() && bLoadoutHere) {
 		const float LX = 64.f * RS, LY = Canvas->ClipY - Block * 2.f;
 		DrawTexRect(TexBacks, LX, LY, 64.f * RS, 32.f * RS, 64.f, 96.f, 64.f, 32.f, Fill, SE_BLEND_Additive);
 		DrawTexRect(TexIcons, LX, LY, 64.f * RS, 32.f * RS, T == 1 ? 0.f : 64.f, 160.f, 64.f, 32.f, FLinearColor::White, SE_BLEND_Translucent);
@@ -1130,6 +1152,7 @@ void ADFHUD::DrawHealthMF(ADFCharacter* C) {
 }
 
 void ADFHUD::DrawLoadoutMF(ADFCharacter* C, ADFPlayerController* PC) {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawLoadoutMF);
 	// Backdrop: the team's emblem in the middle (RageHUD.DrawLoadoutBackdrop, 510 at 800x600)
 	if (UTexture2D* Back = TexLoadoutBack[TeamSet()]) {
 		const float MW = 510.f * Canvas->ClipX / 800.f, MH = 510.f * Canvas->ClipY / 600.f;
