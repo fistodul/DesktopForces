@@ -9,6 +9,7 @@
 #include "Weapons/DFProjectile.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "World/DFEffectActor.h"
 #include "Engine/Canvas.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/Engine.h"
@@ -50,10 +51,8 @@ void UDFVehicleTurret::BeginPlay() {
 		TurretMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
 		TurretMesh->SetRelativeScale3D(FVector(1.2f, 0.15f, 0.15f));
 	}
-	if (GetNetMode() != NM_DedicatedServer) {
+	if (GetNetMode() != NM_DedicatedServer)
 		FireSound = DF::LoadSound(ClassicFireSound);
-		ReloadSound = DF::LoadSound(ClassicReloadSound);
-	}
 }
 
 FVector UDFVehicleTurret::GunPos() const {
@@ -162,8 +161,8 @@ void UDFVehicleTurret::Reload() {
 		return;
 	ClipAmmo = 0;
 	FireDelay = ReloadTime;
-	if (ReloadSound)
-		DF::PlaySoundAtLocation(this, ReloadSound, GetOwner()->GetActorLocation(), 1.f, 1.f, 0.f, DF::GetAttenuation(1600.f));
+	if (!ClassicReloadSound.IsEmpty())
+		ADFEffectActor::SpawnSound(GetWorld(), ClassicReloadSound, GetOwner()->GetActorLocation());
 }
 
 void UDFVehicleTurret::SeatEntered(ADFCharacter* C, int32 Seat) {

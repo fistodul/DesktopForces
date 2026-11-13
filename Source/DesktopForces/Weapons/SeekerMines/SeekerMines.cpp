@@ -22,13 +22,6 @@
 
 #define LOCTEXT_NAMESPACE "SeekerMines"
 
-namespace SeekerLocal {
-	USoundBase* Sound(const TCHAR* Path) {
-		return LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
-	}
-	const TCHAR* ActivatingSound = TEXT("/MobileForcesClassic/Sounds/WeaponSFX_TripBombs/Activating.Activating");
-} // namespace SeekerLocal
-
 UDFDamage_SeekerMine::UDFDamage_SeekerMine() {
 	bExplosive = true;
 	VehicleDamageScale = 1.5f;
@@ -71,6 +64,7 @@ ASeekerMine::ASeekerMine() {
 
 void ASeekerMine::InitPlacer(ADFCharacter* Placer) {
 	SetInstigator(Placer);
+	Shooter = Placer ? Placer->GetController() : nullptr;
 	PlacedTeam = Placer ? Placer->GetTeam() : DF::NoTeam;
 }
 
@@ -85,7 +79,7 @@ void ASeekerMine::BeginPlay() {
 	}
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &ASeekerMine::OnOverlap);
 	if (HasAuthority()) {
-		DF::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
+		ADFEffectActor::SpawnSound(GetWorld(), TEXT("WeaponSFX_TripBombs.Activating"), GetActorLocation());
 		// state Deploying: 0.35 s, then hunt
 		GetWorldTimerManager().SetTimer(ThinkTimer, this, &ASeekerMine::Think, 0.2f, true, 0.35f);
 	}
@@ -170,7 +164,7 @@ void ASeekerMine::StartDetonating() {
 	if (bDetonating || bDetonated)
 		return;
 	bDetonating = true;
-	DF::PlaySoundAtLocation(this, SeekerLocal::Sound(SeekerLocal::ActivatingSound), GetActorLocation());
+	ADFEffectActor::SpawnSound(GetWorld(), TEXT("WeaponSFX_TripBombs.Activating"), GetActorLocation());
 	GetWorldTimerManager().SetTimer(ThinkTimer, this, &ASeekerMine::BlowUp, 0.12f, false);
 }
 
@@ -188,9 +182,7 @@ void ASeekerMine::BlowUp() {
 	if (bDetonated)
 		return;
 	bDetonated = true;
-	// GetDamageInstigator: the placer gets the kills while still on the throwing team
-	const ADFCharacter* Placer = Cast<ADFCharacter>(GetInstigator());
-	AController* Credit = Placer && (PlacedTeam == DF::NoTeam || Placer->GetTeam() == PlacedTeam) ? Placer->GetController() : nullptr;
+	AController* Credit = DF::PlacerCredit(Shooter.Get(), PlacedTeam);
 	const FVector At = GetActorLocation() + FVector(0.f, 0.f, 36.f);
 	TArray<AActor*> Ignore{ this };
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, DamageRadius, 1.f,

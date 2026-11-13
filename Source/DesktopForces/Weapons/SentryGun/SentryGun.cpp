@@ -97,15 +97,10 @@ void ASentryTurret::BeginPlay() {
 	// MF SentryGunTurret draws the HMG carry model (DrawScale 1.25) on the HMG's tripod
 	// (SentryGunTripod: RageWeapons.TripodMeshTemp); team tint on the placeholder only
 	DF::ApplyPropMesh(Tripod, TEXT("RageWeapons/TripodMeshTemp"), 1.f, FVector(0.f, 0.f, SentryLocal::TripodZ));
-	if (DF::ApplyPropMesh(Gun, TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh"), 1.25f, FVector(0.f, 0.f, SentryLocal::GunZ))) {
+	if (DF::ApplyPropMesh(Gun, TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh"), 1.25f, FVector(0.f, 0.f, SentryLocal::GunZ)))
 		Gun->SetWorldRotation(Aim);
-	} else if (GetNetMode() != NM_DedicatedServer) {
-		if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial()) {
-			Gun->SetMaterial(0, M);
-			const FLinearColor C = Team == DF::NoTeam ? FLinearColor(0.9f, 0.7f, 0.15f) : UDFGameSettings::Get().GetTeamColor(Team);
-			Gun->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
-		}
-	}
+	else
+		DF::Tint(Gun, Team == DF::NoTeam ? FLinearColor(0.9f, 0.7f, 0.15f) : UDFGameSettings::Get().GetTeamColor(Team));
 	if (HasAuthority()) {
 		Ammo = MaxAmmo;
 		MulticastSound(uint8(ESound::Activating));
@@ -230,10 +225,7 @@ void ASentryTurret::FireTick() {
 }
 
 AController* ASentryTurret::Credit() const {
-	// GetDamageInstigator: the placer gets the kills while still on the placing team
-	const ADFPlayerState* PS = Cast<ADFPlayerState>(PlacerState.Get());
-	AController* Placer = PS ? PS->GetOwningController() : nullptr;
-	return Placer && (Team == DF::NoTeam || PS->GetTeam() == Team) ? Placer : nullptr;
+	return DF::PlacerCredit(PlacerState.IsValid() ? PlacerState->GetOwningController() : nullptr, Team);
 }
 
 void ASentryTurret::FireShot() {

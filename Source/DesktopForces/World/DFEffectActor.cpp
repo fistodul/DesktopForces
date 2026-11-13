@@ -1,4 +1,5 @@
 #include "World/DFEffectActor.h"
+#include "DesktopForces.h"
 #include "World/DFDecals.h"
 #include "Core/DFContent.h"
 #include "Engine/World.h"
@@ -43,11 +44,17 @@ void ADFEffectActor::Spawn(UWorld* World, FName InEffect, const FVector& At, flo
 	}
 }
 
+void ADFEffectActor::SpawnSound(UWorld* World, const FString& MFName, const FVector& At, float RadiusUU, float Volume) {
+	Spawn(World, NAME_None, At, 1.f, false, TEXT("Sounds/") + MFName.Replace(TEXT("."), TEXT("/")), RadiusUU, Volume);
+}
+
 void ADFEffectActor::BeginPlay() {
 	Super::BeginPlay();
 	if (GetNetMode() == NM_DedicatedServer)
 		return;
 	const FVector At = GetActorLocation();
+	if (!Sound.IsEmpty())
+		UE_LOG(LogDF, Verbose, TEXT("Effect sound %s (%s)"), *Sound, GetNetMode() == NM_Client ? TEXT("client") : TEXT("server")); // net tests: did it reach a client
 	if (!Sound.IsEmpty())
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(Sound), At, SoundVolume, SoundRadiusUU);
 	if (bVehicleExplosion) {

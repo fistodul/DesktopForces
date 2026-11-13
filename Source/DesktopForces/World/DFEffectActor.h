@@ -23,6 +23,11 @@ public:
 	static void Spawn(UWorld* World, FName Effect, const FVector& At, float Scale, bool bVehicleExplosion = false,
 		const FString& Sound = TEXT("Sounds/MiscSFX/Explode"), float SoundRadiusUU = 8000.f, float SoundVolume = 1.f);
 
+	/** Server: just a sound, for everyone near (clients too): MF's Sound'Package.Name' as
+	 *  DF::LoadSound takes it ("CTFSFX.flagtaken"). Game code that only runs on the server
+	 *  can't use DF::PlaySoundAtLocation: that plays on this machine alone. */
+	static void SpawnSound(UWorld* World, const FString& MFName, const FVector& At, float RadiusUU = 1600.f, float Volume = 1.f);
+
 protected:
 	virtual void BeginPlay() override;
 

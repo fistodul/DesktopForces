@@ -1,22 +1,14 @@
 #include "Weapons/Totem/Totem.h"
 #include "Core/DFContent.h"
 #include "Player/DFCharacter.h"
+#include "World/DFEffectActor.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 #define LOCTEXT_NAMESPACE "Totem"
-
-namespace TotemLocal {
-	void PlayAt(const AActor* Where, const TCHAR* Path) {
-		if (Where)
-			DF::PlaySoundAtLocation(Where, LoadObject<USoundBase>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet), Where->GetActorLocation());
-	}
-	const TCHAR* TotemSound = TEXT("/MobileForcesClassic/Sounds/MiscSFX/ArmourWearOut.ArmourWearOut");
-} // namespace TotemLocal
 
 // --- heal over time ---------------------------------------------------------------------
 
@@ -101,11 +93,6 @@ void ATotem::Message(const FString& Text) const {
 		PC->ClientMessage(Text);
 }
 
-void ATotem::UseCharge() {
-	UseAmmo();
-	// Finish() hands the empty item back (bDestroyWhenEmpty -> OnDepleted)
-}
-
 int32 ATotem::AbsorbDamage(int32 Damage, const UDFDamageType* Type) {
 	// Totem.ArmorAbsorbDamage: a blow that would kill leaves you on SurviveHealth instead
 	ADFCharacter* Me = GetOwnerCharacter();
@@ -114,7 +101,7 @@ int32 ATotem::AbsorbDamage(int32 Damage, const UDFDamageType* Type) {
 	const int32 Allowed = FMath::Max(0, Me->GetHealth() - SurviveHealth);
 	UTotemHealComponent::Apply(Me, ReviveHealPerTick, ReviveTicks, HealInterval, ReviveGrace);
 	Message(TEXT("Totem of Undying triggered! Death prevented."));
-	TotemLocal::PlayAt(Me, TotemLocal::TotemSound);
+	ADFEffectActor::SpawnSound(GetWorld(), TEXT("MiscSFX.ArmourWearOut"), Me->GetActorLocation());
 	ClipAmmo = 0;
 	OnDepleted(); // gone at once, it may not be the held item
 	return Allowed;
@@ -147,7 +134,7 @@ bool ATotem::TryFire(bool bAlt) {
 			return false;
 		}
 		Message(FString::Printf(TEXT("AoE Pulse Heal activated! (%d healed)"), Healed));
-		TotemLocal::PlayAt(Me, TotemLocal::TotemSound);
+		ADFEffectActor::SpawnSound(GetWorld(), TEXT("MiscSFX.ArmourWearOut"), Me->GetActorLocation());
 	} else {
 		// TryTargetedHoT: the team-mate in the crosshair, close by
 		FHitResult Hit;
@@ -168,7 +155,7 @@ bool ATotem::TryFire(bool bAlt) {
 		Message(TEXT("Injected ally with Sustained Regeneration!"));
 	}
 	SetState(EDFWeaponState::Firing, FireTime);
-	UseCharge();
+	UseAmmo(); // Finish() hands the empty item back (bDestroyWhenEmpty -> OnDepleted)
 	return true;
 }
 
@@ -188,7 +175,7 @@ void ATotem::StartReload() {
 	UTotemHealComponent::Apply(Me, SelfHealPerTick, HealTicks, HealInterval, 0.f);
 	Message(TEXT("Sustained Regeneration activated."));
 	SetState(EDFWeaponState::Firing, FireTime);
-	UseCharge();
+	UseAmmo(); // Finish() hands the empty item back (bDestroyWhenEmpty -> OnDepleted)
 }
 
 #undef LOCTEXT_NAMESPACE

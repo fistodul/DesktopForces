@@ -79,5 +79,4 @@ protected:
 	virtual bool TryFire(bool bAlt) override;
 	bool IsFriendly(const ADFCharacter* Other) const;
 	void Message(const FString& Text) const;
-	void UseCharge();
 };

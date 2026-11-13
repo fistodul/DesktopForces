@@ -80,10 +80,7 @@ void ATripBomb::UpdateBeam() {
 	if (Len < 1.f)
 		return;
 	// thin stretched cube in the planter's team colour (MF Blue/RedBeamRifle)
-	if (UMaterialInterface* M = UDFGameSettings::Get().GetTeamTintMaterial(); M && Beam->GetMaterial(0) != M)
-		Beam->SetMaterial(0, M);
-	const FLinearColor C = Team == DF::NoTeam ? FLinearColor(1.f, 0.2f, 0.1f) : UDFGameSettings::Get().GetTeamColor(Team);
-	Beam->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+	DF::Tint(Beam, Team == DF::NoTeam ? FLinearColor(1.f, 0.2f, 0.1f) : UDFGameSettings::Get().GetTeamColor(Team));
 	Beam->SetVisibility(true);
 	Beam->SetWorldLocationAndRotation(Start + Delta * 0.5f, Delta.Rotation());
 	Beam->SetWorldScale3D(FVector(Len / 100.f, 0.01f, 0.01f));

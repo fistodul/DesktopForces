@@ -43,6 +43,7 @@ protected:
 	bool bBoosting = false;
 
 	TWeakObjectPtr<APredatorMissile> Controller;
+	TWeakObjectPtr<AController> Shooter; // who gets the kills
 	float BaseSpeed = 630.f;
 	float CurrentSpeed = 315.f;
 	float FlightTime = 0.f;

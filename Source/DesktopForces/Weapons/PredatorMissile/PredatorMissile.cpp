@@ -61,6 +61,7 @@ void APredatorRocket::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 void APredatorRocket::InitializeFlight(APredatorMissile* Weapon, float CeilingHeight) {
 	Controller = Weapon;
+	Shooter = GetInstigatorController(); // he may be dead when it lands
 	// BaseSpeed = clamp(clamp(height, 600, 10000 uu) / TargetFlightTime, Speed 280, MaxSpeed 1600) uu/s
 	BaseSpeed = FMath::Clamp(FMath::Clamp(CeilingHeight, 1350.f, 22500.f) / TargetFlightTime, 630.f, 3600.f);
 	CurrentSpeed = BaseSpeed * InitialSpeedFactor;
@@ -162,7 +163,7 @@ void APredatorRocket::Explode(const FVector& At) {
 	UE_LOG(LogDF, Log, TEXT("Predator: exploded at %s after %.1f s"), *At.ToCompactString(), FlightTime);
 	TArray<AActor*> Ignore;
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, BlastRadius, 1.f, UDFDamage_Explosion::StaticClass(),
-		Ignore, this, GetInstigatorController(), ECC_Visibility);
+		Ignore, this, Shooter.Get(), ECC_Visibility);
 	// AddExplosionServer(Size 6) + AddVehicleExplosionServer(Size 5)
 	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 2.4f, false, TEXT("Sounds/MiscSFX/Explode"), 8000.f, 1.f);
 	ADFEffectActor::Spawn(GetWorld(), NAME_None, At, 2.f, true, TEXT("Sounds/MiscSFX/Explode"), 2000.f, 1.f);
@@ -299,8 +300,7 @@ bool APredatorMissile::TryFire(bool bAlt) {
 		return false;
 	ActiveMissile->InitializeFlight(this, Ceiling);
 	UE_LOG(LogDF, Log, TEXT("Predator: launched from %s (free air %.0f cm)"), *Loc.ToCompactString(), Ceiling);
-	if (USoundBase* Voice = DF::LoadClassic<USoundBase>(TEXT("Sounds/RagePlayerVoice/Nuke_the_whole_area")))
-		DF::PlaySoundAtLocation(this, Voice, C->GetActorLocation());
+	C->MulticastVoice(TEXT("Nuke_the_whole_area"));
 	if (AController* Ctrl = C->GetController()) {
 		Ctrl->SetIgnoreMoveInput(true); // FreezeGuider
 		Ctrl->SetControlRotation(Rot);

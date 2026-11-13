@@ -70,6 +70,7 @@ protected:
 	void BlowUp();
 
 	uint8 PlacedTeam = DF::NoTeam;
+	TWeakObjectPtr<AController> Shooter; // who threw it: he may be dead when it finds someone
 	bool bDetonating = false;
 	bool bDetonated = false;
 	float RoamUntil = 0.f;

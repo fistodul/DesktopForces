@@ -112,8 +112,6 @@ protected:
 	float FireDelay = 0.f;
 	UPROPERTY(Transient)
 	TObjectPtr<USoundBase> FireSound;
-	UPROPERTY(Transient)
-	TObjectPtr<USoundBase> ReloadSound;
 	TWeakObjectPtr<class ADFVehicleTurretWeapon> GunnerWeapon;
 	int32 TracerCount = 0;
 	TWeakObjectPtr<ADFWeapon> GunnerLastWeapon;

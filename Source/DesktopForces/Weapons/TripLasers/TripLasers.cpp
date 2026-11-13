@@ -12,16 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "TripLasers"
 
-namespace TripLasersLocal {
-	/** MF GetDamageInstigator: in team games the planter only gets the kill while still on the planting team. */
-	AController* Credit(const AActor* Device, uint8 PlacedTeam) {
-		const ADFCharacter* Planter = Cast<ADFCharacter>(Device->GetInstigator());
-		if (!Planter || (PlacedTeam != DF::NoTeam && Planter->GetTeam() != PlacedTeam))
-			return nullptr;
-		return Planter->GetController();
-	}
-} // namespace TripLasersLocal
-
 UDFDamage_TripLaser::UDFDamage_TripLaser() {
 	DeathVerb = LOCTEXT("Disintegrated", "disintegrated");
 	VehicleDamageScale = 0.125f; // a burning beam: like any other non-explosive hit (changeDamage)
@@ -82,7 +72,7 @@ void ATripLaser::CheckBeam() {
 	const bool bPawn = Cast<APawn>(A) || A->IsA<ASentryTurret>(); // StationaryPawn in MF
 	if (bPawn && !IsFriendlyTo(A)) {
 		FPointDamageEvent Ev(bAnchored ? 280.f : 185.f, Hit, GetActorForwardVector(), UDFDamage_TripLaser::StaticClass());
-		A->TakeDamage(Ev.Damage, Ev, TripLasersLocal::Credit(this, Team), this);
+		A->TakeDamage(Ev.Damage, Ev, DF::PlacerCredit(Shooter.Get(), Team), this);
 		Destroy();
 	}
 }
@@ -153,7 +143,7 @@ bool ATripLaserMine::ShouldTrigger(const ADFCharacter* Who) const {
 void ATripLaserMine::Trigger(ADFCharacter* Who) {
 	// TripLaserOnGround.Touch: 280 to whoever stepped on it, no blast
 	FDamageEvent Ev(UDFDamage_TripLaser::StaticClass());
-	Who->TakeDamage(280.f, Ev, TripLasersLocal::Credit(this, PlacedTeam), this);
+	Who->TakeDamage(280.f, Ev, DF::PlacerCredit(Shooter.Get(), PlacedTeam), this);
 	Destroy();
 }
 
