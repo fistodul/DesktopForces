@@ -260,6 +260,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	TSharedPtr<class SDFTouchControls> TouchControls;
 	bool bSticksShown = true;
+	/** Tap-to-fire: the touch that holds Fire down, if any. */
+	TOptional<FTouchId> FireTouch;
 	virtual void PlayerTick(float DeltaTime) override;
 	TWeakObjectPtr<class UAudioComponent> AnnouncerAudio;
 	/** Move keys while driving (sent each frame in PlayerTick). */
@@ -313,6 +315,9 @@ protected:
 	// input handlers
 	void OnMove(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
+	/** A stick's look: a turn rate, so by the frame's length (the mouse sends distances). */
+	void OnLookStick(const FInputActionValue& Value);
+	void AddLook(const FVector2D& V, float Scale);
 	void OnJump();
 	void OnJumpReleased();
 	bool bSwimUp = false, bSwimDown = false;
@@ -352,6 +357,12 @@ public:
 	void TouchAction(FName Action, bool bPressed);
 	/** The touch controls are up (touch screens, or bAlwaysShowTouchInterface). */
 	bool UsesTouch() const { return TouchControls.IsValid(); }
+	/** The touch buttons' layout editor (Options > Controls): drag them about, Done saves. */
+	UFUNCTION(Exec)
+	void DFTouchEdit(int32 bOn = 1);
+	/** Developer: put a touch button X, Y Slate units from its place (scripted tests). */
+	UFUNCTION(Exec)
+	void DFTouchMove(FName Button, float X, float Y);
 	/** A carried item tapped in the bottom strip: hold it, or put it back while in the loadout. */
 	void TapCarriedItem(class ADFWeapon* Item);
 	/** Taps on the loadout pick items (ADFHUD::LoadoutItemAt). */

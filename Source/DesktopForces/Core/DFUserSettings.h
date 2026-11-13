@@ -69,6 +69,20 @@ public:
 	UPROPERTY(Config)
 	bool bInvertMouse = false;
 
+	/** Look speed of a stick (gamepad, the touch screen's right one), a multiplier: 1 turns
+	 *  150 degrees a second at full tilt, whatever the frame rate. */
+	UPROPERTY(Config)
+	float StickSensitivity = 1.f;
+
+	/** Touch screens: a touch on the right half that hits no button or stick fires while held. */
+	UPROPERTY(Config)
+	bool bTapToFire = false;
+
+	/** Touch buttons the player moved (SDFTouchControls' layout editor): button -> offset from
+	 *  its place in Slate units. */
+	UPROPERTY(Config)
+	TMap<FName, FVector2D> TouchLayout;
+
 	/** Horizontal field of view in degrees (ADFCharacter::DefaultFOV 100). */
 	UPROPERTY(Config)
 	float FieldOfView = 100.f;

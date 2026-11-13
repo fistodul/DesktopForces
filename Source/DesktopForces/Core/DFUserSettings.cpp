@@ -107,6 +107,9 @@ void UDFUserSettings::SetToDefaults() {
 	Gamma = 2.2f;
 	MouseSensitivity = 1.f;
 	bInvertMouse = false;
+	StickSensitivity = 1.f;
+	bTapToFire = false;
+	TouchLayout.Reset();
 	FieldOfView = 100.f;
 	RenderScale = PLATFORM_ANDROID || PLATFORM_IOS ? 0.75f : 1.f;
 	DecalQuality = 2;

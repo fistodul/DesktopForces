@@ -109,6 +109,8 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFTraceMat` | log what the view looks at: meshes, materials, compile errors, lightmap coefficients |
 | `DFTeleport X Y Z`, `DFHurt N`, `DFFire [Alt] [Seconds]` | move your pawn (a driven vehicle takes its trailer along), take damage, hold fire (scripted tests; default 0.1 s; `DFFire 1` alt fire) |
 | `DFTouch Action 1\|0` | press / release a touch button's action (`DFTouch Fire 1`) |
+| `DFTouchEdit 1\|0` | the touch buttons' layout editor on / off (drag them; off saves, as its Done button) |
+| `DFTouchMove Button X Y` | put a touch button X, Y Slate units from its place (`Fire`, `AltFire`, `Reload`, `Crouch`, `Use`, `Jump`, `PrevWeapon`, `NextWeapon`, `Loadout`, `Scores`, `Menu`) |
 | `DFAimAt X Y Z`, `DFAimAtNearest Class` | turn to a point; to the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
 | `DFBring Class [Dist]` | put the nearest actor of a class 300 cm (or Dist) in front of you (`DFBring MoBall`) |
 | `DFWhere` | say where you stand and look as `DFTeleport X Y Z \| DFCam X Y Z Yaw Pitch`, and put that on the clipboard (to report a spot) |

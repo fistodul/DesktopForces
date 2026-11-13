@@ -319,6 +319,8 @@ private:
 	float Brightness = 1.f;
 	float Gamma = 2.2f;
 	float Sensitivity = 1.f;
+	float StickSensitivity = 1.f;
+	bool bTapToFire = false;
 	float FOV = 100.f;
 	float RenderScale = 1.f;
 	bool bInvert = false;
@@ -912,6 +914,25 @@ private:
 		Mouse->AddSlot(1, 0).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
 		Mouse->AddSlot(0, 1)[Label(LOCTEXT("Invert", "Invert mouse"))];
 		Mouse->AddSlot(1, 1).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
+		Mouse->AddSlot(0, 2)[Label(LOCTEXT("Stick", "Stick look speed"))];
+		Mouse->AddSlot(1, 2).Padding(2.f)[Slider(StickSensitivity, 0.25f, 3.f, TEXT("%.2f"))];
+		if (TouchUI())
+		{
+			Mouse->AddSlot(0, 3)[Label(LOCTEXT("TapFire", "Touch the right side to fire"))];
+			Mouse->AddSlot(1, 3).Padding(2.f).HAlign(HAlign_Left)[Check(bTapToFire)];
+			if (bInGame) // the buttons exist in a match only
+			{
+				Mouse->AddSlot(0, 4)[Label(LOCTEXT("TouchLayout", "Touch buttons"))];
+				Mouse->AddSlot(1, 4).Padding(2.f).HAlign(HAlign_Left)[Button(LOCTEXT("TouchLayoutEdit", "Move them"), [this]()
+				{
+					if (ADFPlayerController* PC = Cast<ADFPlayerController>(Owner.Get()))
+					{
+						DFMenu::Close(PC);
+						PC->DFTouchEdit(1);
+					}
+				})];
+			}
+		}
 		TSharedRef<SVerticalBox> Controls = SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Mouse]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 2.f)
@@ -1048,6 +1069,8 @@ private:
 		Gamma = D->Gamma;
 		Sensitivity = D->MouseSensitivity;
 		bInvert = D->bInvertMouse;
+		StickSensitivity = D->StickSensitivity;
+		bTapToFire = D->bTapToFire;
 		SelectedHand = Hands[int32(D->WeaponHand)];
 		bConsole = D->bConsole;
 		bConsoleEdited = true;
@@ -1346,6 +1369,8 @@ private:
 		Gamma = S.Gamma;
 		Sensitivity = S.MouseSensitivity;
 		bInvert = S.bInvertMouse;
+		StickSensitivity = FMath::Clamp(S.StickSensitivity, 0.25f, 3.f);
+		bTapToFire = S.bTapToFire;
 		Hands = { MakeShared<FString>(TEXT("Right")), MakeShared<FString>(TEXT("Left")), MakeShared<FString>(TEXT("Center")), MakeShared<FString>(TEXT("Hidden")) };
 		SelectedHand = Hands[FMath::Clamp(int32(S.WeaponHand), 0, Hands.Num() - 1)];
 		bConsole = S.IsConsoleEnabled();
@@ -1439,6 +1464,8 @@ private:
 		S.Gamma = Gamma;
 		S.MouseSensitivity = Sensitivity;
 		S.bInvertMouse = bInvert;
+		S.StickSensitivity = StickSensitivity;
+		S.bTapToFire = bTapToFire;
 		S.WeaponHand = EDFWeaponHand(FMath::Max(0, IndexOf(Hands, SelectedHand)));
 		S.bConsole = bConsoleEdited ? bConsole : S.IsConsoleEnabled();
 		S.FieldOfView = FOV;

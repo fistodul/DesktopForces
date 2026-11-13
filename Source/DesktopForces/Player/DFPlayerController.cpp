@@ -1,4 +1,5 @@
 #include "Player/DFPlayerController.h"
+#include "Misc/App.h"
 #include "GameFramework/PlayerState.h"
 #include "Core/DFTypes.h"
 #include "Core/DFGameSettings.h"
@@ -120,7 +121,35 @@ bool ADFPlayerController::InputTouch(const FTouchId TouchId, const ETouchType::T
 			return true;
 		}
 	}
+	// tap to fire: a touch on the right half that got this far hit no button and no stick
+	if (FireTouch.IsSet() && *FireTouch == TouchId && (Type == ETouchType::Ended || IsLoadoutOpen())) {
+		FireTouch.Reset();
+		TouchAction(TEXT("Fire"), false);
+	} else if (Type == ETouchType::Began && !FireTouch.IsSet() && TouchControls && !TouchControls->IsEditing() && !IsLoadoutOpen() && UDFUserSettings::Get().bTapToFire) {
+		FVector2D Size(0.0, 0.0);
+		if (GEngine && GEngine->GameViewport)
+			GEngine->GameViewport->GetViewportSize(Size);
+		if (TouchLocation.X > Size.X * 0.5) {
+			FireTouch = TouchId;
+			TouchAction(TEXT("Fire"), true);
+		}
+	}
 	return Super::InputTouch(TouchId, Type, TouchLocation, Force, Timestamp);
+}
+
+void ADFPlayerController::DFTouchEdit(int32 bOn) {
+	if (!TouchControls)
+		return;
+	if (bOn && FireTouch.IsSet()) {
+		FireTouch.Reset();
+		TouchAction(TEXT("Fire"), false);
+	}
+	TouchControls->SetEditing(bOn != 0);
+}
+
+void ADFPlayerController::DFTouchMove(FName Button, float X, float Y) {
+	if (TouchControls)
+		TouchControls->MoveButton(Button, FVector2D(X, Y));
 }
 
 void ADFPlayerController::TapCarriedItem(ADFWeapon* Item) {
@@ -234,6 +263,7 @@ void ADFPlayerController::BuildInput() {
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_MobileForces"));
 	Make(TEXT("Move"), EInputActionValueType::Axis2D);
 	Make(TEXT("Look"), EInputActionValueType::Axis2D);
+	Make(TEXT("LookStick"), EInputActionValueType::Axis2D);
 	// MF Delete = LookUp, PageDown = LookDown (aLookUp, held)
 	Make(TEXT("LookKey"), EInputActionValueType::Axis1D);
 	for (const TCHAR* Name : { TEXT("Fire"), TEXT("AltFire"), TEXT("Jump"), TEXT("Crouch"), TEXT("CrouchAlt"), TEXT("Walk"),
@@ -297,7 +327,7 @@ void ADFPlayerController::MapKeys() {
 		N->bZ = false;
 		M->Modifiers.Add(N);
 	}
-	MapStick(A(TEXT("Look")), EKeys::Gamepad_RightX, EKeys::Gamepad_RightY);
+	MapStick(A(TEXT("LookStick")), EKeys::Gamepad_RightX, EKeys::Gamepad_RightY);
 
 	// the player's keys (MF default controls, Manual.pdf "Controls"), then the fixed extras
 	for (const TPair<FName, FKey>& K : Keys)
@@ -364,6 +394,7 @@ void ADFPlayerController::SetupInputComponent() {
 	EIC->BindAction(A(TEXT("Move")), ETriggerEvent::Triggered, this, &ADFPlayerController::OnMove);
 	EIC->BindAction(A(TEXT("Move")), ETriggerEvent::Completed, this, &ADFPlayerController::OnMoveStop);
 	EIC->BindAction(A(TEXT("Look")), ETriggerEvent::Triggered, this, &ADFPlayerController::OnLook);
+	EIC->BindAction(A(TEXT("LookStick")), ETriggerEvent::Triggered, this, &ADFPlayerController::OnLookStick);
 	EIC->BindAction(A(TEXT("Jump")), ETriggerEvent::Started, this, &ADFPlayerController::OnJump);
 	EIC->BindAction(A(TEXT("Jump")), ETriggerEvent::Completed, this, &ADFPlayerController::OnJumpReleased);
 	EIC->BindAction(A(TEXT("Crouch")), ETriggerEvent::Started, this, &ADFPlayerController::OnCrouch);
@@ -436,14 +467,24 @@ void ADFPlayerController::OnMoveStop(const FInputActionValue& Value) {
 void ADFPlayerController::OnLook(const FInputActionValue& Value) {
 	if (CommandMenuStage > 0)
 		return; // the orders menu's cursor; the loadout screen leaves the mouse free: look around
-	const FVector2D V = Value.Get<FVector2D>();
+	AddLook(Value.Get<FVector2D>(), MouseSensitivity * UDFUserSettings::Get().MouseSensitivity);
+}
+
+void ADFPlayerController::OnLookStick(const FInputActionValue& Value) {
+	if (CommandMenuStage > 0)
+		return;
+	// a held stick is a rate: one frame's share of it (it used to turn once per frame, twice as
+	// fast at 60 FPS as at 30). x60: full tilt keeps the speed it had at 60 FPS, 150 degrees a
+	// second with the engine's 2.5 input scale. The real frame time: Slomo doesn't slow the hand
+	AddLook(Value.Get<FVector2D>(), MouseSensitivity * UDFUserSettings::Get().StickSensitivity * 60.f * float(FApp::GetDeltaTime()));
+}
+
+void ADFPlayerController::AddLook(const FVector2D& V, float Scale) {
 	// Slower look while zoomed, like MF (FOV-scaled mouse)
-	const UDFUserSettings& User = UDFUserSettings::Get();
-	float Scale = MouseSensitivity * User.MouseSensitivity;
 	if (const ADFCharacter* C = GetMFCharacter())
 		Scale *= C->GetDesiredFOV() / C->DefaultFOV;
 	AddYawInput(V.X * Scale);
-	AddPitchInput(V.Y * Scale * (User.bInvertMouse ? -1.f : 1.f));
+	AddPitchInput(V.Y * Scale * (UDFUserSettings::Get().bInvertMouse ? -1.f : 1.f));
 }
 
 void ADFPlayerController::OnJump() {
