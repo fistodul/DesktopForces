@@ -13,8 +13,8 @@ class FInternetAddr;
  * answering the GameSpy queries \basic\ \info\ \rules\ \players\ \status\ \echo\, and \secure\
  * with \validate\ (gsmsalg with our cipher), and a \heartbeat\ to each master server every few
  * minutes (333networks' MasterServer speaks this; list in DFGameSettings MasterServers).
- * Dedicated and listen servers; -nomaster or ?Public=0 keeps a server off the masters, the query
- * port still answers for LAN browsing. Hosts forward the game and query ports.
+ * Dedicated and listen servers; -nomaster keeps a server off the masters (the whole process, so a
+ * map change can't lose it), the query port still answers for LAN browsing. Hosts forward the game and query ports.
  */
 UCLASS()
 class DESKTOPFORCES_API UDFServerBeacon : public UGameInstanceSubsystem {
@@ -23,7 +23,7 @@ class DESKTOPFORCES_API UDFServerBeacon : public UGameInstanceSubsystem {
 public:
 	virtual void Deinitialize() override;
 	/** The game mode has started a map on a server. */
-	void Start(int32 GamePort, bool bPublic);
+	void Start(int32 GamePort);
 	void Stop();
 	/** The masters to use: -master=host:port alone, or the settings' list. */
 	static TArray<FString> MasterList();

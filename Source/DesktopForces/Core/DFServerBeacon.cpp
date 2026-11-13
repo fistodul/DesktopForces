@@ -73,10 +73,10 @@ void UDFServerBeacon::Deinitialize() {
 	Super::Deinitialize();
 }
 
-void UDFServerBeacon::Start(int32 InGamePort, bool bInPublic) {
+void UDFServerBeacon::Start(int32 InGamePort) {
 	const bool bKeep = Socket && GamePort == InGamePort;
 	GamePort = InGamePort;
-	bPublic = bInPublic && !FParse::Param(FCommandLine::Get(), TEXT("nomaster"));
+	bPublic = !FParse::Param(FCommandLine::Get(), TEXT("nomaster"));
 	NextHeartbeat = FPlatformTime::Seconds() + 1.0; // a map change is news: \statechanged\ on the next tick
 	bAnnounced = false;
 	if (bKeep) {

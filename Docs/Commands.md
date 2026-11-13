@@ -152,6 +152,6 @@ unavailable. `Summon` uses a loaded/cooked actor class, e.g. `/Script/DesktopFor
 ## Server list testing
 
 - `-master=host:port` uses that master alone, for the beacon and the browser (default: `MasterServers`, `DefaultGame.ini`).
-- `-nomaster` or `?Public=0`: no announcing.
+- `-nomaster`: no announcing (the query port still answers on the LAN).
 - `DFServers` refreshes the list and logs it (`Server browser: ...`).
 

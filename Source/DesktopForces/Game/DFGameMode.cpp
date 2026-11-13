@@ -98,7 +98,7 @@ void ADFGameMode::StartPlay() {
 	if (Beacon && Mode == NM_Standalone)
 		Beacon->Stop(); // left a hosted game: no more announcing a server that's gone
 	if (Beacon && (Mode == NM_DedicatedServer || Mode == NM_ListenServer))
-		Beacon->Start(GetWorld()->URL.Port, UGameplayStatics::GetIntOption(OptionsString, TEXT("Public"), 1) != 0);
+		Beacon->Start(GetWorld()->URL.Port);
 }
 
 void ADFGameMode::InitGameState() {

@@ -1,6 +1,5 @@
 #include "Core/DFServerBrowser.h"
 #include "Async/Async.h"
-#include "Async/ParallelFor.h"
 #include "Common/TcpSocketBuilder.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Core/DFGameSettings.h"
@@ -129,15 +128,16 @@ void UDFServerBrowser::Refresh() {
 	++Version;
 	const TArray<FString> Masters = UDFServerBeacon::MasterList();
 	TWeakObjectPtr<UDFServerBrowser> Self(this);
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [Self, Masters]() {
+	// Own threads, not task workers: a master can keep one waiting for seconds, and the frame's
+	// work shares those workers (few on a low-end PC). All at once: one down doesn't delay the backup.
+	Async(EAsyncExecution::Thread, [Self, Masters]() {
+		TArray<TFuture<TArray<FString>>> Asks;
+		for (const FString& Master : Masters)
+			Asks.Add(Async(EAsyncExecution::Thread, [Master]() { return AskMaster(Master); }));
 		TArray<FString> All;
-		FCriticalSection AllLock;
-		ParallelFor(Masters.Num(), [&](int32 I) { // all at once: one down doesn't delay the backup
-			const TArray<FString> Found = AskMaster(Masters[I]);
-			FScopeLock Lock(&AllLock);
-			for (const FString& Address : Found)
+		for (TFuture<TArray<FString>>& Ask : Asks)
+			for (const FString& Address : Ask.Get())
 				All.AddUnique(Address);
-		});
 		AsyncTask(ENamedThreads::GameThread, [Self, All]() {
 			if (UDFServerBrowser* B = Self.Get())
 				B->QueryServers(All);
