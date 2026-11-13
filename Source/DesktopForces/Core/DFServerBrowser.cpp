@@ -17,6 +17,8 @@ namespace {
 	const TCHAR* GameName = UDFServerBeacon::GameName;
 	const TCHAR* Cipher = UDFServerBeacon::Cipher;
 	constexpr int32 ListPort = 28900; // the masters' TCP port
+	// LAN: query ports of game ports 7777 up (a second server on one PC takes the next free pair)
+	constexpr int32 LanFirstPort = 7778, LanPorts = 20;
 
 	/** Everything a socket sends until \final\ or the time is up. */
 	FString ReadUntilFinal(FSocket& S, double Seconds) {
@@ -107,6 +109,11 @@ static FAutoConsoleCommandWithWorld DFServersCmd(TEXT("DFServers"), TEXT("Refres
 		GI->GetSubsystem<UDFServerBrowser>()->Refresh();
 }));
 
+static FAutoConsoleCommandWithWorld DFServersLanCmd(TEXT("DFServersLan"), TEXT("Search the local network for servers and log them"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World) {
+	if (UGameInstance* GI = World ? World->GetGameInstance() : nullptr)
+		GI->GetSubsystem<UDFServerBrowser>()->Refresh(true);
+}));
+
 void UDFServerBrowser::Close() {
 	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	TickHandle.Reset();
@@ -118,14 +125,19 @@ void UDFServerBrowser::Close() {
 	bBusy = false;
 }
 
-void UDFServerBrowser::Refresh() {
+void UDFServerBrowser::Refresh(bool bLan) {
 	if (bBusy)
 		return;
 	bBusy = true;
 	Servers.Reset();
 	Partial.Reset();
 	Asked.Reset();
+	BroadcastAt = 0.0;
 	++Version;
+	if (bLan) {
+		QueryLan();
+		return;
+	}
 	const TArray<FString> Masters = UDFServerBeacon::MasterList();
 	TWeakObjectPtr<UDFServerBrowser> Self(this);
 	// Own threads, not task workers: a master can keep one waiting for seconds, and the frame's
@@ -168,7 +180,28 @@ void UDFServerBrowser::QueryServers(const TArray<FString>& Addresses) {
 			Asked.Add(Address, FPlatformTime::Seconds());
 	}
 	GiveUpAt = FPlatformTime::Seconds() + 3.0;
-	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UDFServerBrowser::Tick), 0.05f);
+	// every frame for these 3 s: a reply waiting for the next poll would add to its ping
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UDFServerBrowser::Tick));
+}
+
+void UDFServerBrowser::QueryLan() {
+	Socket = FUdpSocketBuilder(TEXT("DFBrowserLan")).AsNonBlocking().WithBroadcast().WithReceiveBufferSize(65536);
+	if (!Socket) {
+		Close();
+		++Version;
+		return;
+	}
+	TSharedRef<FInternetAddr> To = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	To->SetBroadcastAddress();
+	const FTCHARToUTF8 Query(TEXT("\\status\\"));
+	for (int32 Port = LanFirstPort; Port < LanFirstPort + LanPorts; ++Port) {
+		To->SetPort(Port);
+		int32 Sent = 0;
+		Socket->SendTo(reinterpret_cast<const uint8*>(Query.Get()), Query.Length(), Sent, *To);
+	}
+	BroadcastAt = FPlatformTime::Seconds();
+	GiveUpAt = BroadcastAt + 1.5; // a LAN answers in milliseconds
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UDFServerBrowser::Tick));
 }
 
 bool UDFServerBrowser::Tick(float DeltaTime) {
@@ -184,7 +217,11 @@ bool UDFServerBrowser::Tick(float DeltaTime) {
 	}
 	if (FPlatformTime::Seconds() >= GiveUpAt) {
 		Close();
-		UE_LOG(LogDF, Display, TEXT("Server browser: %d of %d listed servers answered"), Servers.Num(), Asked.Num());
+		if (BroadcastAt > 0.0) { // braces: UE_LOG is a block of its own
+			UE_LOG(LogDF, Display, TEXT("Server browser: %d servers answered on the LAN"), Servers.Num());
+		} else {
+			UE_LOG(LogDF, Display, TEXT("Server browser: %d of %d listed servers answered"), Servers.Num(), Asked.Num());
+		}
 		for (const FDFServerEntry& E : Servers)
 			UE_LOG(LogDF, Display, TEXT("  %s  %s  %s  %d/%d  %s  %d ms"), *E.Name, *E.Map, *E.Mode, E.Players, E.MaxPlayers, *E.Join, E.PingMs);
 		++Version;
@@ -217,9 +254,13 @@ void UDFServerBrowser::Parse(const FString& Reply, const FString& From) {
 		else if (P.Key == TEXT("hostport"))
 			HostPort = FCString::Atoi(*P.Value);
 	E.Join = FString::Printf(TEXT("%s:%d"), *Ip, HostPort);
-	if (const double* Sent = Asked.Find(From))
-		E.PingMs = FMath::RoundToInt((FPlatformTime::Seconds() - *Sent) * 1000.0);
+	const double* Sent = Asked.Find(From);
+	if (Sent || BroadcastAt > 0.0)
+		E.PingMs = FMath::RoundToInt((FPlatformTime::Seconds() - (Sent ? *Sent : BroadcastAt)) * 1000.0);
+	E.bLan = BroadcastAt > 0.0;
 	if (HostPort > 0) {
+		// one row per server: a PC on two networks hears the broadcast twice
+		Servers.RemoveAll([&From](const FDFServerEntry& Old) { return Old.Address == From; });
 		Servers.Add(E);
 		Servers.Sort([](const FDFServerEntry& A, const FDFServerEntry& B) { return A.PingMs < B.PingMs; });
 		++Version;

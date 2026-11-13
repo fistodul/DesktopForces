@@ -222,8 +222,14 @@ public:
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	/** 0-5 pages; 10-13: the Options tabs. */
+	/** 0-5 pages; 10-13: the Options tabs; 20 / 21: Join with the internet / LAN list asked for. */
 	void ShowPage(int32 Page) {
+		if (Page == 20 || Page == 21) {
+			Switcher->SetActiveWidgetIndex(2);
+			bLanList = Page == 21;
+			RefreshServers();
+			return;
+		}
 		Switcher->SetActiveWidgetIndex(Page >= 10 ? 3 : FMath::Clamp(Page, 0, 5));
 		if (Page >= 10 && OptionTabs.IsValid())
 			OptionTabs->SetActiveWidgetIndex(FMath::Clamp(Page - 10, 0, 3));
@@ -485,12 +491,17 @@ private:
 			return FText::GetEmpty();
 		if (B->IsRefreshing())
 			return LOCTEXT("Searching", "Searching for servers...");
-		return FText::Format(LOCTEXT("ServersFound", "{0} servers"), FText::AsNumber(B->GetServers().Num()));
+		FText Found = FText::Format(LOCTEXT("ServersFound", "{0} servers"), FText::AsNumber(B->GetServers().Num()));
+		if (ServersHidden > 0)
+			Found = FText::Format(LOCTEXT("ServersHidden", "{0}, {1} filtered out"), Found, FText::AsNumber(ServersHidden));
+		if (bServerMapMissing)
+			Found = FText::Format(LOCTEXT("ServersMapMissing", "{0}. * map not installed: see Downloads"), Found);
+		return Found;
 	}
 
 	void RefreshServers() {
 		if (UDFServerBrowser* B = Browser())
-			B->Refresh();
+			B->Refresh(bLanList);
 		if (!ServerTimer.IsValid())
 			ServerTimer = RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float) {
 				UpdateServerRows();
@@ -498,22 +509,135 @@ private:
 			}));
 	}
 
-	void UpdateServerRows() {
+	/** Internet (the masters' list) or LAN (a broadcast): the other list, asked for at once. */
+	void ShowServerList(bool bLan) {
+		if (bLanList == bLan)
+			return;
+		const UDFServerBrowser* B = Browser();
+		if (B && B->IsRefreshing())
+			return; // one search at a time: its answers would land in the wrong list
+		bLanList = bLan;
+		RefreshServers();
+	}
+
+	enum class EServerSort : uint8 { Ping, Players, Name, Map, Mode };
+
+	void SortServersBy(EServerSort By) {
+		bServerSortDown = ServerSort == By ? !bServerSortDown : By == EServerSort::Players; // most players first
+		ServerSort = By;
+		ServerRowsVersion = -1;
+		UpdateServerRows();
+	}
+
+	bool HaveMap(const FString& Map) const {
+		return MapNames.ContainsByPredicate([&Map](const TSharedPtr<FString>& N) { return N->Equals(Map, ESearchCase::IgnoreCase); });
+	}
+
+	/** A server row's cells, or the header's (sorts by its column when pressed). */
+	TSharedRef<SWidget> ServerCells(const FText& Name, const FText& Map, const FText& Mode, const FText& Players, const FText& Ping, const FSlateColor& Color, bool bHeader)
+	{
+		auto Cell = [this, &Color, bHeader](const FText& Text, EServerSort By) -> TSharedRef<SWidget>
+		{
+			TSharedRef<STextBlock> Block = SNew(STextBlock).Text(Text).Font(Font(11, bHeader ? TEXT("Bold") : TEXT("Regular"))).ColorAndOpacity(Color)
+				.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
+			if (!bHeader)
+			{
+				return Block;
+			}
+			return SNew(SButton).ButtonStyle(&ButtonStyle).ContentPadding(FMargin(4.f, 2.f))
+				.OnClicked_Lambda([this, By]() { SortServersBy(By); return FReply::Handled(); })
+				[
+					Block
+				];
+		};
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f).Padding(2.f, 0.f).VAlign(VAlign_Center)[Cell(Name, EServerSort::Name)]
+			+ SHorizontalBox::Slot().FillWidth(0.9f).Padding(2.f, 0.f).VAlign(VAlign_Center)[Cell(Map, EServerSort::Map)]
+			+ SHorizontalBox::Slot().FillWidth(0.7f).Padding(2.f, 0.f).VAlign(VAlign_Center)[Cell(Mode, EServerSort::Mode)]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f).VAlign(VAlign_Center)[SNew(SBox).WidthOverride(62.f)[Cell(Players, EServerSort::Players)]]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f).VAlign(VAlign_Center)[SNew(SBox).WidthOverride(58.f)[Cell(Ping, EServerSort::Ping)]];
+	}
+
+	void UpdateServerRows()
+	{
 		const UDFServerBrowser* B = Browser();
 		if (!B || !ServerRows.IsValid() || B->GetVersion() == ServerRowsVersion)
+		{
 			return;
+		}
 		ServerRowsVersion = B->GetVersion();
 		ServerRows->ClearChildren();
-		for (const FDFServerEntry& E : B->GetServers()) {
+		TArray<FDFServerEntry> Shown;
+		for (const FDFServerEntry& E : B->GetServers())
+		{
+			// the filter's words, each in the name, the map or the mode
+			TArray<FString> Words;
+			ServerFilter.ParseIntoArrayWS(Words);
+			const FString Text = E.Name + TEXT(" ") + E.Map + TEXT(" ") + E.Mode;
+			if (!Words.ContainsByPredicate([&Text](const FString& W) { return !Text.Contains(W); }))
+			{
+				Shown.Add(E);
+			}
+		}
+		const EServerSort By = ServerSort;
+		const bool bDown = bServerSortDown;
+		Shown.StableSort([By, bDown](const FDFServerEntry& A, const FDFServerEntry& C)
+		{
+			const int32 Order = By == EServerSort::Players ? A.Players - C.Players
+				: By == EServerSort::Name ? A.Name.Compare(C.Name, ESearchCase::IgnoreCase)
+				: By == EServerSort::Map ? A.Map.Compare(C.Map, ESearchCase::IgnoreCase)
+				: By == EServerSort::Mode ? A.Mode.Compare(C.Mode, ESearchCase::IgnoreCase)
+				: A.PingMs - C.PingMs;
+			return bDown ? Order > 0 : Order < 0;
+		});
+		ServersHidden = B->GetServers().Num() - Shown.Num();
+		bServerMapMissing = false;
+		for (const FDFServerEntry& E : Shown)
+		{
 			const FString Join = E.Join;
-			const FText Line = FText::FromString(FString::Printf(TEXT("%s   %s   %s   %d/%d   %d ms"), *E.Name, *E.Map, *E.Mode, E.Players, E.MaxPlayers, E.PingMs));
-			ServerRows->AddSlot().AutoHeight().Padding(0.f, 2.f)[Button(Line, [this, Join]() { ConnectTo(Join); })];
+			const bool bHave = HaveMap(E.Map);
+			bServerMapMissing |= !bHave;
+			const FSlateColor Color = bHave ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor(1.f, 0.72f, 0.35f));
+			ServerRows->AddSlot().AutoHeight().Padding(0.f, 1.f)
+			[
+				SNew(SButton).ButtonStyle(&ButtonStyle).ContentPadding(FMargin(4.f, 5.f))
+				.ButtonColorAndOpacity_Lambda([this, Join]() { return FSlateColor(Join == JoinAddress ? FLinearColor(1.6f, 1.6f, 1.6f) : FLinearColor::White); })
+				.OnClicked_Lambda([this, Join]()
+				{
+					// first press picks it (the address box shows it), a second one soon after joins
+					const double Now = FPlatformTime::Seconds();
+					const bool bAgain = Join == JoinAddress && Now - ServerPickedAt < 0.5;
+					ServerPickedAt = Now;
+					JoinAddress = Join;
+					if (JoinBox.IsValid())
+					{
+						JoinBox->SetText(FText::FromString(Join));
+					}
+					if (bAgain)
+					{
+						ConnectTo(Join);
+					}
+					return FReply::Handled();
+				})
+				[
+					ServerCells(FText::FromString(E.Name), FText::FromString(bHave ? E.Map : E.Map + TEXT(" *")), FText::FromString(E.Mode),
+						FText::FromString(FString::Printf(TEXT("%d/%d"), E.Players, E.MaxPlayers)), FText::FromString(FString::Printf(TEXT("%d ms"), E.PingMs)), Color, false)
+				]
+			];
 		}
 	}
 
 	TSharedPtr<SVerticalBox> ServerRows;
+	TSharedPtr<SEditableTextBox> JoinBox;
 	TSharedPtr<FActiveTimerHandle> ServerTimer;
 	int32 ServerRowsVersion = -1;
+	bool bLanList = false;
+	FString ServerFilter;
+	EServerSort ServerSort = EServerSort::Ping;
+	bool bServerSortDown = false;
+	int32 ServersHidden = 0;
+	bool bServerMapMissing = false; // a listed server runs a map this install lacks
+	double ServerPickedAt = 0.0;
 
 	/** To 2 decimals, like stat fps: 25 Hz x 4/3 shows 33.33. */
 	static FString FrameRateLabel(float Limit) {
@@ -557,6 +681,18 @@ private:
 
 	TSharedRef<SWidget> MakeJoin()
 	{
+		auto ListTab = [this](const FText& Text, bool bLan)
+		{
+			return SNew(SBox).Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(12.f, 4.f))
+				.OnClicked_Lambda([this, bLan]() { ShowServerList(bLan); return FReply::Handled(); })
+				[
+					SNew(STextBlock).Text(Text).Font(Font(13, TEXT("Bold")))
+					.ColorAndOpacity_Lambda([this, bLan]() { return bLanList == bLan ? FSlateColor(FLinearColor::White) : FSlateColor(TitleColor); })
+				]
+			];
+		};
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 12.f)[Heading(LOCTEXT("JoinHead", "Join a game"))]
 			+ SVerticalBox::Slot().AutoHeight()
@@ -565,27 +701,45 @@ private:
 				+ SHorizontalBox::Slot().AutoWidth()[Label(LOCTEXT("Address", "Address"))]
 				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
-					SNew(SEditableTextBox).Text(FText::FromString(JoinAddress)).Font(Font(13))
+					SAssignNew(JoinBox, SEditableTextBox).Text(FText::FromString(JoinAddress)).Font(Font(13))
 					.OnTextChanged_Lambda([this](const FText& T) { JoinAddress = T.ToString().TrimStartAndEnd(); })
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
 			[
 				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
-				.Text(LOCTEXT("JoinHint", "IP or host name, optionally with :port (default 7777), or pick a server below."))
+				.Text(LOCTEXT("JoinHint", "IP or host name, optionally with :port (default 7777), or pick a server below (press it twice to join)."))
 			]
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 2.f)
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ListTab(LOCTEXT("ListInternet", "Internet"), false)]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ListTab(LOCTEXT("ListLan", "LAN"), true)]
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center).Padding(4.f, 0.f)
 				[
-					SNew(STextBlock).Font(Font(11)).AutoWrapText(true).Text_Lambda([this]() {
-						return GJoinError.IsEmpty() ? ServerStatus() : FText::FromString(GJoinError);
-					})
+					SNew(SEditableTextBox).Font(Font(12)).HintText(LOCTEXT("ServerFilter", "Filter: name, map or game type"))
+					.OnTextChanged_Lambda([this](const FText& T) { ServerFilter = T.ToString().TrimStartAndEnd(); ServerRowsVersion = -1; UpdateServerRows(); })
 				]
-				+ SHorizontalBox::Slot().AutoWidth()[Button(LOCTEXT("Refresh", "Refresh"), [this]() { RefreshServers(); })]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(12.f, 4.f))
+					.OnClicked_Lambda([this]() { RefreshServers(); return FReply::Handled(); })
+					[
+						SNew(STextBlock).Text(LOCTEXT("Refresh", "Refresh")).Font(Font(13, TEXT("Bold")))
+					]
+				]
 			]
-			+ SVerticalBox::Slot().MaxHeight(300.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ServerRows, SVerticalBox)]]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f)
+			[
+				SNew(STextBlock).Font(Font(11)).AutoWrapText(true).Text_Lambda([this]() {
+					return GJoinError.IsEmpty() ? ServerStatus() : FText::FromString(GJoinError);
+				})
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 0.f)
+			[
+				ServerCells(LOCTEXT("ColName", "Server"), LOCTEXT("ColMap", "Map"), LOCTEXT("ColMode", "Game type"), LOCTEXT("ColPlayers", "Players"), LOCTEXT("ColPing", "Ping"), FSlateColor(TitleColor), true)
+			]
+			+ SVerticalBox::Slot().MaxHeight(260.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ServerRows, SVerticalBox)]]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[
 				SNew(SHorizontalBox)

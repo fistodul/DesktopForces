@@ -14,12 +14,14 @@ struct FDFServerEntry {
 	FString Name, Map, Mode;
 	int32 Players = 0, MaxPlayers = 0;
 	int32 PingMs = 0;
+	bool bLan = false; // answered the LAN broadcast
 };
 
 /**
  * The client half of UDFServerBeacon: asks each master for its list of desktopforces servers over
  * TCP (\basic\\secure\ challenge, \validate\, \list\), then every listed server for its \status\
  * over UDP. A failing master is skipped, so a backup keeps the list alive.
+ * LAN: the same \status\ broadcast to the usual query ports of the local network, no master.
  */
 UCLASS()
 class DESKTOPFORCES_API UDFServerBrowser : public UGameInstanceSubsystem {
@@ -27,7 +29,7 @@ class DESKTOPFORCES_API UDFServerBrowser : public UGameInstanceSubsystem {
 
 public:
 	virtual void Deinitialize() override;
-	void Refresh();
+	void Refresh(bool bLan = false);
 	bool IsRefreshing() const { return bBusy; }
 	const TArray<FDFServerEntry>& GetServers() const { return Servers; }
 	/** Bumped when the list changed (the menu rebuilds its rows). */
@@ -36,6 +38,7 @@ public:
 private:
 	bool Tick(float DeltaTime);
 	void QueryServers(const TArray<FString>& Addresses);
+	void QueryLan();
 	void Parse(const FString& Reply, const FString& From);
 	void Close();
 
@@ -45,6 +48,7 @@ private:
 	TMap<FString, double> Asked;
 	TMap<FString, FString> Partial;
 	double GiveUpAt = 0.0;
+	double BroadcastAt = 0.0; // LAN: when the one question to everybody went out
 	bool bBusy = false;
 	int32 Version = 0;
 };
