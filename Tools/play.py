@@ -16,7 +16,7 @@ Run from any directory; on Windows, use `py -3` instead of `python3` if needed:
     python3 Tools/play.py --engine-root           # engine path used by other tools
 
 Modes: dm, tdm, holdout, sc, ctf, det, cap, trailer, koh, tug, coop, zombie,
-       arena, deball, br; a full game-mode class path also works.
+       arena, moball, br, kf, sw, mr; a full game-mode class path also works.
 Extra arguments go to Unreal. DF_OPTS appends URL options, e.g. ?TimeLimit=5.
 UE_ROOT > MFPORT_UE_ROOT > mfport.toml platform section > shared keys > discovery.
 """

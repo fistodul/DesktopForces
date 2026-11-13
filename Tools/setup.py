@@ -204,7 +204,7 @@ def select_maps():
         print(f'  {i:>2}) {name:<28} {desc}')
 
     print(f'\n   a) All {len(sorted_maps)} maps')
-    print(f'   q) Cancel')
+    print('   q) Cancel')
 
     raw = input('\nEnter map numbers (comma-separated), "a" for all, or "q" to cancel: ').strip().lower()
     if raw == 'q':

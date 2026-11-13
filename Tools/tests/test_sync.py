@@ -1,5 +1,7 @@
 """Exercise real Git indexes and rsync in disposable directories, never a real remote."""
+import os
 import re
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -148,6 +150,39 @@ class FileSyncTests(unittest.TestCase):
             nested = subprocess.run(['bash', str(TOOLS / 'sync_files.sh'), str(source), str(source / 'copy')], capture_output=True)
             self.assertNotEqual(nested.returncode, 0)
 
+
+class UploadDownloadsTests(unittest.TestCase):
+    OLD, NEW = '20261030-003344-d222c87', '20261109-094119-beb543da'
+
+    def test_upload_hardlinks_unchanged_files_to_the_named_build(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / 'Tools').mkdir()
+            shutil.copy(TOOLS / 'upload_downloads.sh', root / 'Tools')
+            downloads, server = root / 'Saved/Packages/Linux-Shipping-downloads', root / 'server'
+            for folder, files in ((server / 'Linux' / self.OLD, {'a.pak': b'same', 'b.pak': b'old'}),
+                                  (downloads / 'Downloads/Linux' / self.NEW, {'a.pak': b'same', 'b.pak': b'new'}),
+                                  (downloads / 'Private/Linux' / self.NEW, {'c.pak': b'classic'})):
+                folder.mkdir(parents=True)
+                for name, data in files.items():
+                    (folder / name).write_bytes(data)
+            old = server / 'Linux' / self.OLD / 'a.pak'
+            old.chmod(0o644)  # as the script's --chmod sets it: a hardlink needs equal attributes
+            os.utime(old, (1, 1))  # a new cook gives unchanged paks new times
+            env = {**os.environ, 'DF_DOWNLOAD_DEST': str(server),
+                   'DF_DOWNLOAD_OWNER': f'{os.getuid()}:{os.getgid()}'}
+
+            def run(*args):
+                return subprocess.run(['bash', str(root / 'Tools/upload_downloads.sh'), *args], env=env, capture_output=True).returncode
+
+            self.assertEqual(run('--dry-run', 'Linux', self.NEW, self.OLD), 0)
+            self.assertFalse((server / 'Linux' / self.NEW).exists())
+            self.assertEqual(run('Linux', self.NEW, self.OLD), 0)
+            uploaded = server / 'Linux' / self.NEW
+            self.assertEqual((uploaded / 'a.pak').stat().st_ino, old.stat().st_ino)
+            self.assertEqual((uploaded / 'b.pak').read_bytes(), b'new')
+            self.assertFalse((uploaded / 'c.pak').exists())
+            self.assertEqual(run('../Private/Linux', self.NEW), 2)
 
 if __name__ == '__main__':
     unittest.main()

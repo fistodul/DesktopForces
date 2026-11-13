@@ -510,7 +510,7 @@ def package(a: argparse.Namespace) -> None:
         print(f'To share, in {release}:', *sorted(p.name for p in release.iterdir() if p.name.startswith(share_name(a.platform, a.config, version))), sep='\n  ')
     print(f'Done: {out}, version {version}' + (f' (content build {build_id})' if build_id else ''))
     if a.downloads:
-        print(f'  upload the contents of {downloads_out}/Downloads/ to the download server (DownloadServer in DefaultGame.ini)')
+        print(f'  upload the contents of {downloads_out}/Downloads/ to the download server: bash Tools/upload_downloads.sh')
         print(f'  {downloads_out}/Sideload/: the classic pack - for your own devices only (Docs/Building.md)')
         if a.team:
             print(f'  {downloads_out}/Private/: every pack, classic too - for a team server only, never a public one')

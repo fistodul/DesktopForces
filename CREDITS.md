@@ -13,7 +13,7 @@ A remake and spiritual successor of Mobile Forces (Rage Software, 2002) by its c
 | Mods (MF-mods, now part of the game) | fistodul: Totem of Undying, Trip Lasers, Seeker Mines, Sentry Gun, Tug of War, King of the Hill, Molotov, Predator Missile (their art AI-generated) |
 | Coop, Zombie modes | Animeman (for AKVARI) |
 | Grenade launcher | Gian, Peto, "Secret Dude" |
-| DeBall (MoBall), TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
+| MoBall, TurboCars, mutPack (changeDamage, vehicle swaps) | the MF community; mutPack edited by Gregaras |
 | Battle Royale, Arena | Edgaras "Gregaras" Ziaugra (design, models: item crate, metal tower, platform, safe zone; metal textures; all CC0) |
 | Parachutes | Edgaras "Gregaras" Ziaugra (code from VehicleFlag; model, `Strings.pcx`: CC0; `Top.pcx` edited from a CC0 photo, pickupimage.com/free-photos/jumping-out-of-a-C130-Hercules/2335355; the sound layered with EugeneEverett's CC0 freesound.org/s/596522: all CC0) |
 | Improved rocket launcher (improvedRL: `?ImprovedRL=1`), minefields (mineGenerator) | Gian |
