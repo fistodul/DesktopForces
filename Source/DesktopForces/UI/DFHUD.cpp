@@ -105,12 +105,25 @@ void ADFHUD::Box(float X, float Y, float W, float H, const FLinearColor& Color) 
 	Canvas->DrawItem(Tile);
 }
 
+UTexture2D* ADFHUD::WeaponIcon(const ADFWeapon* Weapon) {
+	if (const TObjectPtr<UTexture2D>* Found = IconCache.Find(Weapon->GetClass()))
+		return *Found;
+	return IconCache.Add(Weapon->GetClass(), Weapon->HUDIcon.IsEmpty() ? nullptr : DF::LoadClassic<UTexture2D>(Weapon->HUDIcon));
+}
+
+const ADFMapInfo* ADFHUD::GetMapInfo() {
+	if (const double Now = FPlatformTime::Seconds(); !MapInfo && Now >= NextMapInfoLook) {
+		NextMapInfoLook = Now + 1.0;
+		MapInfo = ADFMapInfo::Get(GetWorld());
+		TexMiniMap = MapInfo ? MapInfo->MiniMap.LoadSynchronous() : nullptr;
+	}
+	return MapInfo;
+}
+
 float ADFHUD::DrawWeaponIcon(const ADFWeapon* Weapon, float X, float Y, float Height, const FLinearColor& Tint) {
 	if (!Weapon)
 		return 0.f;
-	TObjectPtr<UTexture2D>& Tex = IconCache.FindOrAdd(Weapon->GetClass());
-	if (!Tex && !Weapon->HUDIcon.IsEmpty())
-		Tex = DF::LoadClassic<UTexture2D>(Weapon->HUDIcon);
+	UTexture2D* Tex = WeaponIcon(Weapon);
 	if (!Tex) {
 		Text(Weapon->DisplayName.ToString(), X, Y + Height * 0.3f, Tint, 0.7f);
 		return 90.f * UIScale;
@@ -213,11 +226,6 @@ void ADFHUD::DrawMOTDMF(const ADFGameState* GS) {
 	const float Fade = 1.f - (Now - MOTDStart) * 55.f / 600.f;
 	if (!GS || Fade <= 0.f)
 		return;
-	if (!bLookedForMapInfo) {
-		bLookedForMapInfo = true;
-		for (TActorIterator<ADFMapInfo> It(GetWorld()); It; ++It)
-			MapInfo = *It;
-	}
 	// centred lines from 3.75 blocks down: server, map, author, a gap, the message (online)
 	const FLinearColor Colour = FLinearColor::White * Fade;
 	const float LineH = DFTextSize(TEXT("TEST"), 1).Y;
@@ -229,9 +237,9 @@ void ADFHUD::DrawMOTDMF(const ADFGameState* GS) {
 	const bool bOnline = GetNetMode() != NM_Standalone;
 	if (bOnline)
 		Line(GS->ServerName, 0);
-	if (MapInfo) {
-		Line(MapInfo->Title.IsEmpty() ? FString() : TEXT("Map: ") + MapInfo->Title, 1);
-		Line(MapInfo->Author.IsEmpty() ? FString() : TEXT("Author: ") + MapInfo->Author, 2);
+	if (const ADFMapInfo* Info = GetMapInfo()) {
+		Line(Info->Title.IsEmpty() ? FString() : TEXT("Map: ") + Info->Title, 1);
+		Line(Info->Author.IsEmpty() ? FString() : TEXT("Author: ") + Info->Author, 2);
 	}
 	if (bOnline && Canvas->ClipY >= 300.f)
 		for (int32 i = 0; i < GS->MessageOfTheDay.Num(); ++i)
@@ -277,7 +285,7 @@ bool ADFHUD::DrawPowerBarMF(const ADFCharacter* C) {
 	const int32 Power = W ? W->GetPowerLevel() : 0;
 	if (Power <= 0)
 		return false;
-	UTexture2D* Tex = DF::LoadClassic<UTexture2D>(TeamSet() == 1 ? TEXT("Textures/RageWeapons/Icons/RedPower") : TEXT("Textures/RageWeapons/Icons/BluePower"));
+	UTexture2D* Tex = TexPower[TeamSet() == 1 ? 1 : 0];
 	if (!Tex)
 		return false;
 	// 128 x 32 box over the item strip's centre; the bar inside 13 px a step, full at 10 (both
@@ -297,8 +305,6 @@ void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 	// none through a scope: it would sit on the crosshair, the barrel being out of sight below
 	if (!W || !W->IsMuzzleFlashing() || C->IsBehindView() || W->IsScopeRaised())
 		return;
-	if (!TexFlare)
-		TexFlare = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
 	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
 	const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
 																						: 0.f;
@@ -542,12 +548,7 @@ void ADFHUD::DrawMessages() {
 
 void ADFHUD::DrawMiniMapMF(ADFCharacter* C) {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_DFHUD_DrawMiniMapMF);
-	if (!bLookedForMapInfo) {
-		bLookedForMapInfo = true;
-		for (TActorIterator<ADFMapInfo> It(GetWorld()); It; ++It)
-			MapInfo = *It;
-	}
-	UTexture2D* Map = MapInfo ? MapInfo->MiniMap.LoadSynchronous() : nullptr;
+	UTexture2D* Map = GetMapInfo() ? TexMiniMap.Get() : nullptr;
 	if (!Map || !TexMiniIcons)
 		return;
 	// 1 texture pixel = 64 uu = 144 cm (MiniMapInfo.PixelsToMapUnits)
@@ -759,7 +760,7 @@ void ADFHUD::DrawScoreboardMF(ADFGameState* GS) {
 	FVector2D TS = DFTextSize(Title, 2);
 	DFText(Title, (CW - TS.X) * 0.5f, CH * 0.088f - TS.Y * 0.5f, FLinearColor::White, 2);
 	// bottom band: "<Game> in <Map>", remaining time (at least the two lines high: bigger text on phones)
-	const FString Where = FString::Printf(TEXT("%s in %s"), *GS->GameName, MapInfo && !MapInfo->Title.IsEmpty() ? *MapInfo->Title : *GetWorld()->GetMapName());
+	const FString Where = FString::Printf(TEXT("%s in %s"), *GS->GameName, GetMapInfo() && !MapInfo->Title.IsEmpty() ? *MapInfo->Title : *GetWorld()->GetMapName());
 	const int32 Left = FMath::Max(0, GS->GetRemainingTime());
 	const FString Time = FString::Printf(TEXT("Remaining Time:  %02d:%02d"), Left / 60, Left % 60);
 	TS = DFTextSize(Where, 0);
@@ -892,6 +893,9 @@ bool ADFHUD::LoadMFArt() {
 		TexScoreBoxes = LoadTex(TEXT("ScoreBoxes"));
 		TexScoreIcons = LoadTex(TEXT("ScoreIcons"));
 		TexMiniIcons = LoadTex(TEXT("MinimapNewIcons"));
+		TexPower[0] = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/BluePower"));
+		TexPower[1] = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Icons/RedPower"));
+		TexFlare = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
 		for (int32 i = 0; i < 24; ++i) {
 			const FString Name = FString::Printf(TEXT("CrossHair%c"), TCHAR('A' + i));
 			TexCrosshair[i] = LoadObject<UTexture2D>(nullptr, *FString::Printf(TEXT("/Game/MF/UI/HUD/%s.%s"), *Name, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
@@ -1043,10 +1047,7 @@ void ADFHUD::DrawWeapIconMF(const ADFWeapon* W, float X, float Y, int32 Set, con
 			FLinearColor::White, SE_BLEND_Translucent);
 	}
 	// weapon picture: native width x RenderScale, block high, centred (grey when no room)
-	TObjectPtr<UTexture2D>& Icon = IconCache.FindOrAdd(W->GetClass());
-	if (!Icon && !W->HUDIcon.IsEmpty())
-		Icon = DF::LoadClassic<UTexture2D>(W->HUDIcon);
-	if (Icon) {
+	if (UTexture2D* Icon = WeaponIcon(W)) {
 		const FIntRect& R = W->HUDIconRect;
 		const float IW = R.Width() * RS * Block / FMath::Max(1.f, R.Height() * RS);
 		DrawTexRect(Icon, X + Count * Block * 0.5f - IW * 0.5f, Y, IW, Block, R.Min.X, R.Min.Y, R.Width(), R.Height(),

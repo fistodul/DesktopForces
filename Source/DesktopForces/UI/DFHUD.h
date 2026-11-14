@@ -142,9 +142,14 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> TexFlare;
 	void DrawMuzzleFlash(class ADFCharacter* C);
+	/** The map's info and its minimap picture. Asked for again (once a second) while there is
+	 *  none: a client can draw before the level's actors are all there. */
+	const class ADFMapInfo* GetMapInfo();
 	UPROPERTY(Transient)
-	TObjectPtr<class ADFMapInfo> MapInfo;
-	bool bLookedForMapInfo = false;
+	TObjectPtr<const class ADFMapInfo> MapInfo;
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> TexMiniMap;
+	double NextMapInfoLook = 0.0;
 	/** DrawHealthMF's "loadout available here" sign: the last answer and when it was asked. */
 	bool bLoadoutHere = false;
 	double LoadoutHereAt = 0.0;
@@ -174,9 +179,13 @@ protected:
 	TObjectPtr<UTexture2D> TexCrosshair[24];
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> TexPain[2];
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> TexPower[2];
 	bool bTriedArt = false;
 	UPROPERTY(Transient)
 	TObjectPtr<UFont> Font;
+	/** A weapon's picture, null without one; asked of the content once per class, found or not. */
+	UTexture2D* WeaponIcon(const ADFWeapon* Weapon);
 	UPROPERTY(Transient)
 	TMap<TObjectPtr<UClass>, TObjectPtr<UTexture2D>> IconCache;
 };
