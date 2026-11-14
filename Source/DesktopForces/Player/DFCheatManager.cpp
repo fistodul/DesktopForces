@@ -494,12 +494,12 @@ void UDFCheatManager::DFAimAt(float X, float Y, float Z) {
 
 namespace {
 	/** The nearest actor whose class (or a parent class) is called ClassName, not Me nor what rides in Me. */
-	const AActor* FindNearest(UWorld* World, const APawn* Me, const FString& ClassName) {
-		const AActor* Best = nullptr;
+	AActor* FindNearest(UWorld* World, const APawn* Me, const FString& ClassName) {
+		AActor* Best = nullptr;
 		for (TActorIterator<AActor> It(World); Me && It; ++It) {
 			bool bMatch = false;
 			for (const UClass* C = It->GetClass(); C && !bMatch; C = C->GetSuperClass())
-				bMatch = C->GetName() == ClassName;
+				bMatch = C->GetName().Equals(ClassName, ESearchCase::IgnoreCase);
 			if (!bMatch || *It == Me || It->GetAttachParentActor() == Me)
 				continue;
 			if (!Best || FVector::DistSquared(It->GetActorLocation(), Me->GetActorLocation()) < FVector::DistSquared(Best->GetActorLocation(), Me->GetActorLocation()))
@@ -507,18 +507,63 @@ namespace {
 		}
 		return Best;
 	}
+
+	/** The soldier a player plays: the driver of the car they drive; none while dead. */
+	ADFCharacter* SoldierOf(const APlayerState* PS) {
+		APawn* P = PS ? PS->GetPawn() : nullptr;
+		const ADFVehicle* V = Cast<ADFVehicle>(P);
+		return V ? V->GetDriver() : Cast<ADFCharacter>(P);
+	}
 } // namespace
 
-void UDFCheatManager::DFAimAtNearest(const FString& ClassName) {
-	if (const AActor* Best = FindNearest(GetWorld(), GetPlayerController()->GetPawn(), ClassName)) {
+APlayerState* UDFCheatManager::FindPlayer(const FString& Name) const {
+	// every player has a player state, playing, dead or behind a wheel: the names are there
+	if (const AGameStateBase* GS = GetWorld()->GetGameState())
+		for (APlayerState* PS : GS->PlayerArray)
+			if (PS && PS->GetPlayerName().Equals(Name, ESearchCase::IgnoreCase))
+				return PS;
+	return nullptr;
+}
+
+FString UDFCheatManager::SplitName(const FString& Line, FString& Rest) const {
+	// the longest player's name the line starts with (players' names may hold spaces: "red baron"), else
+	// one word or several in quotes
+	const FString In = Line.TrimStart();
+	FString Name;
+	if (const AGameStateBase* GS = GetWorld()->GetGameState())
+		for (const APlayerState* PS : GS->PlayerArray) {
+			const FString Player = PS ? PS->GetPlayerName() : FString();
+			if (Player.Len() > Name.Len() && In.StartsWith(Player, ESearchCase::IgnoreCase) && (In.Len() == Player.Len() || FChar::IsWhitespace(In[Player.Len()])))
+				Name = Player;
+		}
+	const TCHAR* Str = *In + Name.Len();
+	if (Name.IsEmpty())
+		FParse::Token(Str, Name, false);
+	Rest = FString(Str).TrimStartAndEnd();
+	return Name;
+}
+
+AActor* UDFCheatManager::FindPlayerOrNearest(const FString& Name, bool* bOutPlayer) const {
+	const APlayerState* PS = FindPlayer(Name);
+	if (bOutPlayer)
+		*bOutPlayer = PS != nullptr;
+	return PS ? PS->GetPawn() : FindNearest(GetWorld(), GetPlayerController()->GetPawn(), Name);
+}
+
+void UDFCheatManager::DFAimAtNearest(const FString& Line) {
+	FString Rest;
+	if (const AActor* Best = FindPlayerOrNearest(SplitName(Line, Rest))) {
 		const FVector At = Best->GetActorLocation();
 		DFAimAt(At.X, At.Y, At.Z);
 	}
 }
 
-void UDFCheatManager::DFBring(const FString& ClassName, float Dist) {
+void UDFCheatManager::DFBring(const FString& NameAndDist) {
+	FString Rest;
+	AActor* Best = FindPlayerOrNearest(SplitName(NameAndDist, Rest));
+	const float Dist = Rest.IsEmpty() ? 300.f : FCString::Atof(*Rest);
 	const APawn* Me = GetPlayerController()->GetPawn();
-	if (AActor* Best = const_cast<AActor*>(FindNearest(GetWorld(), Me, ClassName)))
+	if (Me && Best && Best != Me)
 		Best->SetActorLocation(Me->GetActorLocation() + FRotator(0.f, Me->GetActorRotation().Yaw, 0.f).Vector() * Dist, false, nullptr, ETeleportType::ResetPhysics);
 }
 
@@ -648,30 +693,23 @@ namespace {
 		return true;
 	}
 
-	/** A player's soldier, then their player state, then controller: the first that has it. */
-	TArray<UObject*> PropertyTargets(AActor* A) {
-		TArray<UObject*> Out{ A };
-		if (const APawn* P = Cast<APawn>(A)) {
-			Out.Add(P->GetPlayerState());
-			Out.Add(P->GetController());
-		}
-		return Out;
+	/** A player's soldier, then their player state, then controller: the first that has the property. */
+	TArray<UObject*> PlayerTargets(APlayerState* PS) {
+		return { SoldierOf(PS), PS, PS ? PS->GetOwningController() : nullptr };
+	}
+
+	/** What you look at, then (a soldier, a car) its player state and controller. */
+	TArray<UObject*> LookedTargets(AActor* A) {
+		const APawn* P = Cast<APawn>(A);
+		return { A, P ? P->GetPlayerState() : nullptr, P ? P->GetController() : nullptr };
+	}
+
+	/** A player's name, anything else's actor name. */
+	FString LookedName(const AActor* A) {
+		const APawn* P = Cast<APawn>(A);
+		return P && P->GetPlayerState() ? P->GetPlayerState()->GetPlayerName() : GetNameSafe(A);
 	}
 } // namespace
-
-AActor* UDFCheatManager::FindPlayer(const FString& Name, AController** OutController) const {
-	for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It) {
-		AController* C = It->Get();
-		if (C && C->PlayerState && C->PlayerState->GetPlayerName().Equals(Name, ESearchCase::IgnoreCase)) {
-			if (OutController)
-				*OutController = C;
-			// driving: the soldier, not the car
-			const ADFVehicle* V = Cast<ADFVehicle>(C->GetPawn());
-			return V && V->GetDriver() ? static_cast<AActor*>(V->GetDriver()) : (C->GetPawn() ? static_cast<AActor*>(C->GetPawn()) : C);
-		}
-	}
-	return nullptr;
-}
 
 AActor* UDFCheatManager::LookedAt() const {
 	APlayerController* PC = GetPlayerController();
@@ -694,95 +732,106 @@ bool UDFCheatManager::IsAdmin() const {
 	return GetWorld()->GetNetMode() == NM_Standalone || (GM && GM->IsAdmin(GetPlayerController()));
 }
 
-void UDFCheatManager::RunAs(const FString& PlayerAndCommand) {
+void UDFCheatManager::RunOn(APawn* P, AController* C, const FString& Name, const FString& Command) {
 	// admins only, not everybody on a ?Cheats=1 server: the command runs with the other
 	// player's rights, and through an admin that would be Kick for anyone
 	if (!IsAdmin()) {
 		Say(TEXT("RunAs: admins only"));
 		return;
 	}
-	FString Command;
-	const FString Name = SplitFirst(PlayerAndCommand, Command);
-	AController* C = nullptr;
-	AActor* A = FindPlayer(Name, &C);
-	if (!A || Command.IsEmpty()) {
+	if ((!P && !C) || Command.IsEmpty()) {
 		Say(FString::Printf(TEXT("RunAs: no player %s"), *Name));
 		return;
 	}
 	// MF: P.ConsoleCommand on their pawn (exec functions of the pawn, then the controller)
 	FStringOutputDevice Out;
-	APawn* P = Cast<APawn>(A);
-	const bool bDone = (P && P->ProcessConsoleExec(*Command, Out, P)) || (C && C->ProcessConsoleExec(*Command, Out, P)) || (Cast<APlayerController>(C) && Cast<APlayerController>(C)->CheatManager && Cast<APlayerController>(C)->CheatManager->ProcessConsoleExec(*Command, Out, P));
+	const APlayerController* PC = Cast<APlayerController>(C);
+	const bool bDone = (P && P->ProcessConsoleExec(*Command, Out, P)) || (C && C->ProcessConsoleExec(*Command, Out, P)) || (PC && PC->CheatManager && PC->CheatManager->ProcessConsoleExec(*Command, Out, P));
 	Say(bDone ? FString::Printf(TEXT("%s: %s"), *Name, *Command) : FString::Printf(TEXT("RunAs: %s can't %s"), *Name, *Command));
 }
 
+void UDFCheatManager::SetOn(const TArray<UObject*>& Targets, const FString& Name, const FString& PropertyAndValue) {
+	FString Value;
+	const FString Prop = SplitFirst(PropertyAndValue, Value);
+	if (!Algo::AnyOf(Targets))
+		Say(FString::Printf(TEXT("No player %s"), *Name));
+	else if (Algo::AnyOf(Targets, [&](UObject* O) { return SetPropertyText(O, Prop, Value); }))
+		Say(FString::Printf(TEXT("%s %s = %s"), *Name, *Prop, *Value));
+	else
+		Say(FString::Printf(TEXT("No %s on %s"), *Prop, *Name));
+}
+
+void UDFCheatManager::GetOn(const TArray<UObject*>& Targets, const FString& Name, const FString& Property) {
+	FString Value;
+	if (!Algo::AnyOf(Targets))
+		Say(FString::Printf(TEXT("No player %s"), *Name));
+	else if (Algo::AnyOf(Targets, [&](UObject* O) { return GetPropertyText(O, Property, Value); }))
+		Say(FString::Printf(TEXT("%s %s = %s"), *Name, *Property, *Value));
+	else
+		Say(FString::Printf(TEXT("No %s on %s"), *Property, *Name));
+}
+
+void UDFCheatManager::RunAs(const FString& PlayerAndCommand) {
+	FString Command;
+	const FString Name = SplitName(PlayerAndCommand, Command);
+	APlayerState* PS = FindPlayer(Name);
+	RunOn(SoldierOf(PS), PS ? PS->GetOwningController() : nullptr, Name, Command);
+}
+
 void UDFCheatManager::RunAsLooking(const FString& Command) {
-	if (const APawn* P = Cast<APawn>(LookedAt()); P && P->GetPlayerState())
-		RunAs(P->GetPlayerState()->GetPlayerName() + TEXT(" ") + Command);
+	AActor* A = LookedAt();
+	APawn* P = Cast<APawn>(A);
+	RunOn(P, P ? P->GetController() : nullptr, LookedName(A), Command);
 }
 
 void UDFCheatManager::SetTo(const FString& PlayerPropertyValue) {
-	FString Rest, Value;
-	const FString Name = SplitFirst(PlayerPropertyValue, Rest);
-	const FString Prop = SplitFirst(Rest, Value);
-	AActor* A = FindPlayer(Name);
-	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return SetPropertyText(O, Prop, Value); });
-	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *Name, *Prop, *Value) : FString::Printf(TEXT("SetTo: no %s on %s"), *Prop, *Name));
+	FString Rest;
+	const FString Name = SplitName(PlayerPropertyValue, Rest);
+	SetOn(PlayerTargets(FindPlayer(Name)), Name, Rest);
 }
 
 void UDFCheatManager::GetTo(const FString& PlayerAndProperty) {
-	FString Prop, Value;
-	const FString Name = SplitFirst(PlayerAndProperty, Prop);
-	AActor* A = FindPlayer(Name);
-	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return GetPropertyText(O, Prop, Value); });
-	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *Name, *Prop, *Value) : FString::Printf(TEXT("GetTo: no %s on %s"), *Prop, *Name));
+	FString Rest;
+	const FString Name = SplitName(PlayerAndProperty, Rest);
+	GetOn(PlayerTargets(FindPlayer(Name)), Name, Rest);
 }
 
 void UDFCheatManager::SetToSelf(const FString& PropertyAndValue) {
-	if (const APlayerState* PS = GetPlayerController()->PlayerState)
-		SetTo(PS->GetPlayerName() + TEXT(" ") + PropertyAndValue);
+	APlayerState* PS = GetPlayerController()->PlayerState;
+	SetOn(PlayerTargets(PS), PS ? PS->GetPlayerName() : FString(), PropertyAndValue);
 }
 
 void UDFCheatManager::GetToSelf(const FString& Property) {
-	if (const APlayerState* PS = GetPlayerController()->PlayerState)
-		GetTo(PS->GetPlayerName() + TEXT(" ") + Property);
+	APlayerState* PS = GetPlayerController()->PlayerState;
+	GetOn(PlayerTargets(PS), PS ? PS->GetPlayerName() : FString(), Property);
 }
 
 void UDFCheatManager::SetToLooking(const FString& PropertyAndValue) {
-	FString Value;
-	const FString Prop = SplitFirst(PropertyAndValue, Value);
 	AActor* A = LookedAt();
-	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return SetPropertyText(O, Prop, Value); });
-	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *GetNameSafe(A), *Prop, *Value) : FString::Printf(TEXT("SetToLooking: no %s on %s"), *Prop, *GetNameSafe(A)));
+	SetOn(LookedTargets(A), LookedName(A), PropertyAndValue);
 }
 
 void UDFCheatManager::GetToLooking(const FString& Property) {
-	FString Value;
 	AActor* A = LookedAt();
-	const bool bDone = A && Algo::AnyOf(PropertyTargets(A), [&](UObject* O) { return GetPropertyText(O, Property, Value); });
-	Say(bDone ? FString::Printf(TEXT("%s %s = %s"), *GetNameSafe(A), *Property, *Value) : FString::Printf(TEXT("GetToLooking: no %s on %s"), *Property, *GetNameSafe(A)));
+	GetOn(LookedTargets(A), LookedName(A), Property);
 }
 
-void UDFCheatManager::TeleportTo(const FString& Name, float Dist) {
-	const APawn* Me = GetPlayerController()->GetPawn();
-	const AActor* Them = FindPlayer(Name);
-	const bool bPlayer = Them != nullptr;
-	for (TActorIterator<APawn> It(GetWorld()); It && !Them; ++It)
-		if (It->GetName().Equals(Name, ESearchCase::IgnoreCase))
-			Them = *It;
-	if (!Them)
-		Them = FindNearest(GetWorld(), Me, Name);
+void UDFCheatManager::TeleportTo(const FString& NameAndDist) {
+	FString Rest;
+	const FString Name = SplitName(NameAndDist, Rest);
+	const float Dist = FCString::Atof(*Rest);
+	APawn* Me = GetPlayerController()->GetPawn();
+	bool bPlayer = false;
+	const AActor* Them = FindPlayerOrNearest(Name, &bPlayer);
 	if (!Me || !Them || Them == Me) {
 		Say(FString::Printf(TEXT("TeleportTo: no %s"), *Name));
 		return;
 	}
 	if (bPlayer && Dist <= 0.f) {
 		// ZombiePlayer.Teleport: a few random spots around them (VRand x (100, 100, 10) uu)
-		for (int32 Try = 0; Try < 9; ++Try) {
-			const FVector At = Them->GetActorLocation() + FMath::VRand() * FVector(225.f, 225.f, 22.5f);
-			if (GetPlayerController()->GetPawn()->TeleportTo(At, Me->GetActorRotation()))
+		for (int32 Try = 0; Try < 9; ++Try)
+			if (Me->TeleportTo(Them->GetActorLocation() + FMath::VRand() * FVector(225.f, 225.f, 22.5f), Me->GetActorRotation()))
 				return;
-		}
 		return;
 	}
 	// in front of it, a little up (vehicles settle)
@@ -814,10 +863,11 @@ void UDFCheatManager::BecomeNemesis() {
 		GM->BecomeZombie(C, true);
 }
 
-void UDFCheatManager::Kick(const FString& PlayerName) {
-	AController* C = nullptr;
-	FindPlayer(PlayerName, &C);
-	APlayerController* Target = Cast<APlayerController>(C);
+void UDFCheatManager::Kick(const FString& Line) {
+	FString Rest;
+	const FString PlayerName = SplitName(Line, Rest);
+	const APlayerState* PS = FindPlayer(PlayerName);
+	APlayerController* Target = PS ? Cast<APlayerController>(PS->GetOwningController()) : nullptr;
 	AGameModeBase* GM = GetWorld()->GetAuthGameMode();
 	if (!IsAdmin() || !Target || Target->IsLocalController() || !GM || !GM->GameSession) {
 		Say(FString::Printf(TEXT("Kick: can't kick %s"), *PlayerName));

@@ -17,6 +17,8 @@ public:
 	virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
 
 	// --- admin (ZombiePlayer's, for every mode; admins, or anyone with cheats on) ------------
+	// Every command that names a player reads it the same way (SplitName): a player's name as it
+	// is, spaces and all ("red baron"), or in quotes, or one word.
 	/** Run a console command as another player: RunAs <player> <command>. */
 	UFUNCTION(Exec)
 	void RunAs(const FString& PlayerAndCommand);
@@ -39,13 +41,13 @@ public:
 	UFUNCTION(Exec)
 	void GetToLooking(const FString& Property);
 	/**
-	 * Go (with what you drive) to a player, else a pawn of that name (Buggy_3), else the nearest
-	 * actor of that class: TeleportTo Bob, TeleportTo Buggy 180. Dist cm in front of it; without
+	 * Go (with what you drive) to a player, else the nearest actor of that class: TeleportTo Bob,
+	 * TeleportTo Buggy 180. Dist cm in front of it; without
 	 * one, somewhere around a player (ZombiePlayer.Teleport) and 600 in front of anything else.
-	 * A name with spaces goes in quotes. UE's Teleport goes where you look.
+	 * UE's Teleport goes where you look.
 	 */
 	UFUNCTION(Exec)
-	void TeleportTo(const FString& Name, float Dist = 0.f);
+	void TeleportTo(const FString& NameAndDist);
 	/** Zombie mode: a human's / survivor's / zombie's / nemesis' stats (not a team change). */
 	UFUNCTION(Exec)
 	void BecomeHuman();
@@ -97,12 +99,13 @@ public:
 	void DFOrder(int32 Order);
 	UFUNCTION(Exec)
 	void DFAimAt(float X, float Y, float Z);
-	/** Turn to the nearest actor whose class is called ClassName (or derives from it). */
+	/** Turn to a player, else the nearest actor of that class (TeleportTo's rule). */
 	UFUNCTION(Exec)
-	void DFAimAtNearest(const FString& ClassName);
-	/** Put the nearest actor of that class Dist cm in front of you (a ball into a goal, a car to hand). */
+	void DFAimAtNearest(const FString& Name);
+	/** Put a player (with their car), else the nearest actor of that class, Dist cm in front of you
+	 *  (a ball into a goal, a car to hand). */
 	UFUNCTION(Exec)
-	void DFBring(const FString& ClassName, float Dist = 300.f);
+	void DFBring(const FString& NameAndDist);
 	/** Say where you stand and look, as DFTeleport / DFCam lines; also put on the clipboard. */
 	UFUNCTION(Exec)
 	void DFWhere();
@@ -194,8 +197,17 @@ public:
 	void DFOrbit(float Yaw = 180.f, float Dist = 250.f, int32 Other = 0);
 
 private:
-	/** The player (pawn, else controller) named so, any case. */
-	AActor* FindPlayer(const FString& Name, AController** OutController = nullptr) const;
+	/** The player of that name, any case (playing, dead or driving). */
+	class APlayerState* FindPlayer(const FString& Name) const;
+	/** The name a command's line starts with: a player's name with its spaces ("red baron
+	 *  MaxHealth 300"), else several words in quotes, else one word. Rest is what follows. */
+	FString SplitName(const FString& Line, FString& Rest) const;
+	/** A player's pawn (the car they drive), else the nearest actor of that class. */
+	AActor* FindPlayerOrNearest(const FString& Name, bool* bOutPlayer = nullptr) const;
+	/** RunAs / SetTo / GetTo once the target is known (Name: for the messages). */
+	void RunOn(APawn* P, AController* C, const FString& Name, const FString& Command);
+	void SetOn(const TArray<UObject*>& Targets, const FString& Name, const FString& PropertyAndValue);
+	void GetOn(const TArray<UObject*>& Targets, const FString& Name, const FString& Property);
 	/** What you look at (10000 uu like MF). */
 	AActor* LookedAt() const;
 	void Say(const FString& Line) const;

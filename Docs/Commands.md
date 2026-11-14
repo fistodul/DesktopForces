@@ -63,11 +63,11 @@ Game.ini, or `-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=...` on
 |---|---|
 | `AdminLogin Password` / `AdminLogout` | become / stop being admin. The password stays on your PC: the server sends a one-time challenge, the game answers with a hash of both. Three wrong tries lock your address out for a minute, then two, four ... |
 | `Admin Command` | run a command on the server: any cheat, and for admins any console command (`Admin servertravel mf-warehouse?game=ctf` changes the map: the engine's own command, short map names and mode aliases work) |
-| `Kick Name` | throw a player out (admins) |
-| `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame); admins only, also where `?Cheats=1` is on |
+| `Kick Name` | throw a player out (admins; also while they are dead; people only, not bots) |
+| `RunAs Name Command` / `RunAsLooking Command` | run a command as that player / the one you look at (ZombieGame); admins only, also where `?Cheats=1` is on. `Name`, here and in every command below: a player's name as it is (`red baron`, spaces and all) or in quotes |
 | `SetTo Name Property Value` / `GetTo Name Property` | set / read a property of a player's soldier (then player state, controller), e.g. `SetTo Bob MaxHealth 300` |
 | `SetToSelf` / `GetToSelf`, `SetToLooking` / `GetToLooking` | the same on yourself / what you look at |
-| `TeleportTo Name [Dist]` | to a player, else a pawn of that name (`Buggy_3`), else the nearest actor of that class, taking what you drive along: `TeleportTo Bob`, `TeleportTo Buggy 180`, `TeleportTo DFCharacter` (a bot). Dist cm in front of it; without one, somewhere around a player (ZombieGame's `Teleport`) and 600 in front of anything else. A name with spaces goes in quotes. UE's `Teleport` goes where you aim |
+| `TeleportTo Name [Dist]` | to a player, else the nearest actor of that class, taking what you drive along: `TeleportTo Bob`, `TeleportTo Buggy 180`, `TeleportTo DFCharacter` (a bot). Dist cm in front of it; without one, somewhere around a player (ZombieGame's `Teleport`) and 600 in front of anything else. `TeleportTo red baron 300` works as `TeleportTo "red baron" 300`. UE's `Teleport` goes where you aim |
 | `BecomeHuman` / `BecomeSurvivor` / `BecomeZombie` / `BecomeNemesis` | Zombie mode: that side's stats on you (not a team change) |
 
 ## Cheats
@@ -110,8 +110,8 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFTouch Action 1\|0` | press / release a touch button's action (`DFTouch Fire 1`) |
 | `DFTouchEdit 1\|0` | the touch buttons' layout editor on / off (drag them; off saves, as its Done button) |
 | `DFTouchMove Button X Y` | put a touch button X, Y Slate units from its place (`Fire`, `AltFire`, `Reload`, `Crouch`, `Use`, `Jump`, `PrevWeapon`, `NextWeapon`, `Loadout`, `Scores`, `Menu`) |
-| `DFAimAt X Y Z`, `DFAimAtNearest Class` | turn to a point; to the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
-| `DFBring Class [Dist]` | put the nearest actor of a class 300 cm (or Dist) in front of you (`DFBring MoBall`) |
+| `DFAimAt X Y Z`, `DFAimAtNearest Name` | turn to a point; to a player or the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
+| `DFBring Name [Dist]` | put a player (with their car) or the nearest actor of a class 300 cm (or Dist) in front of you (`DFBring MoBall`) |
 | `DFWhere` | say where you stand and look as `DFTeleport X Y Z \| DFCam X Y Z Yaw Pitch`, and put that on the clipboard (to report a spot) |
 | `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
 | `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
@@ -119,7 +119,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `DFLoadoutPick N`, `DFLoadout [0\|1]` (toggle; 0 leave / 1 enter only if needed), `DFSelect N`, `DFScores`, `DFShot Name` | for scripted runs: `-DFExec="@4:DFLoadoutPick 1\|@6:DFLoadout\|@20:DFShot test"` |
 | `DFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position, yaw + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
-| `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads; 10-13 the options tabs; 20 / 21 join with the internet / LAN server list refreshed) / press Start / screenshot with the menu |
+| `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads; 10-13 the options tabs, 14 Video with Advanced Graphics open; 20 / 21 join with the internet / LAN server list refreshed) / press Start / screenshot with the menu |
 | `DFPacks`, `DFPackDownload N`, `DFPackCancel N`, `DFPackDelete N` | main menu: log the downloadable packs (state, bytes, map count) / the Downloads page's buttons for pack (chunk) N |
 | `DFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
 | `DFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |
