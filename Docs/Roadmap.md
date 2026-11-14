@@ -29,12 +29,12 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ✅ Sky: each map's SkyZone captured into a cubemap for the sky material
 - ✅ Minimap textures (MiniMapInfo): MF tiles them (NumTexturesWide × High, 255 px each, 28 maps), stitched into one by `mflib/minimap.py` (only the first tile used to be stretched over the map); maps without a MiniMapInfo (56, VMF ones too) get one drawn from their floors (lighter higher up, lines at steps)
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
-- ⬜ Mounted gun aim: the crosshair marks where the gun points, which trails the view while the turret turns; make the gun converge on the view's aim point
+- ✅ Mounted gun aim (2026-11-14): the gun aims at what the middle of the gunner's view is on (a trace along the view, 5 m at least) instead of parallel to it, so its crosshair sits on the view's once the turret has caught up; seen on the Armed APC at three ranges
 - ✅ Phone frame rates (2026-11-08, Pixel 9a): the list is the rates that divide one of the panel's refresh rates (60 / 120 Hz: 120, 60, 40, 30, 24), and the cap goes to the frame pacer too (`FPlatformRHIFramePacer::SetFramePace`: Swappy picks the panel mode; `t.MaxFPS` alone left the phone at 60). The cap steps down when the frame rate stays under 90 % of it for 30 s (logged, this session only). Measured 59.9 FPS at 60 in Mental Race with 4 bots. That 9a has Smooth Display off (`peak_refresh_rate` 60), so Android holds 60 Hz whatever the game asks: a 120 cap stepped down to 60 after 30 s
 - ✅ Kill credit left over from the code review: seeker mines, trip lasers and the Predator read their owner's controller when they hit (none once he was dead); they keep it from the placing now, like projectiles, trip bombs, molotovs and the sentry gun (`DF::PlacerCredit`). A gunner's or driver's shots need a living gunner anyway
 - ⬜ Hand-off 2026-11-03, open after the last feedback round:
   - Not tried in game yet: trip laser on vehicles, exiting a rolled vehicle (view level), rocket APC crosshair, rotor start, flags on Armadillo, Jeep and Heli
-  - ✅ (2026-11-13) Review of `DFMenu`, `DFHUD`, `DFCheatManager` and the download code. Fixed: `RunAs` is for admins only (on a `?Cheats=1` server anybody could run `Kick` through a logged-in admin: the command ran with the other player's rights); a pack of which only some paks mounted read Installed and Retry did nothing (what mounted is let go, the pack reads Failed); `LocalManifest.txt` is written to a temporary file and renamed; Esc on the Connecting page cancels the connection instead of hiding it; a rename in game turns spaces into `_` as joining does (admin commands take a name as one word). Left: `SetToSelf` / `RunAsLooking` still pass the name as text; the HUD loads a missing texture again every frame in three places (no "tried" flag); the minimap's map info is looked for once only
+  - ✅ (2026-11-13) Review of `DFMenu`, `DFHUD`, `DFCheatManager` and the download code. Fixed: `RunAs` is for admins only (on a `?Cheats=1` server anybody could run `Kick` through a logged-in admin: the command ran with the other player's rights); a pack of which only some paks mounted read Installed and Retry did nothing (what mounted is let go, the pack reads Failed); `LocalManifest.txt` is written to a temporary file and renamed; Esc on the Connecting page cancels the connection instead of hiding it; a rename in game turns spaces into `_` as joining does (admin commands take a name as one word). ✅ (2026-11-14) the rest: every command that names someone goes through one lookup (`FindTarget`: a player, else a pawn's name, else the nearest of a class), `SetToSelf` / `...Looking` act on the actor itself and a player's name may hold spaces (`SetTo red baron MaxHealth 250`); `Kick` takes players only. The HUD asks the content for each picture once, found or not (weapon icons, power bar, muzzle flare, minimap), and looks for the map's info again while there is none. A download manifest whose file names aren't plain file names is refused (the server chooses them, and they become paths that are written, mounted and deleted; not tried against a server)
   - ✅ (2026-11-13) Beacon kept announcing when a host joined another server directly: it stops itself once the world is a client's (`UDFServerBeacon::Tick`). Read, not played: needs a listen host joining a second server
   - ✅ (2026-11-13) `AdminLogin` no longer sends the password: the server sends a one-time challenge, the client answers HMAC-SHA1 of it keyed with the password; three wrong answers lock an address out for a minute, doubling up to an hour. Checked with a dedicated server and a client (wrong refused and counted, right accepted). A recorded exchange still allows guessing a weak password offline, and nothing after the login is encrypted (UE's packet encryption needs a key exchange). `SwitchMap` is gone: `Admin servertravel map?game=mode` is the engine's own command
   - `mf-warehouse` explosive table: rocket 202 at the centre (135 x 1.5 hardcore), 100 at about 4.5 m, 8 at the 9 m edge (mutPack's x2 for players' rockets on soldiers isn't ported: ImprovedRL buffs rockets)
@@ -507,8 +507,11 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       The converter writes the zones as boxes, the mode reads them and the generator
       ([Gameplay](Gameplay.md)); the four maps were patched without a rebake. Checked on
       MB-Ballpark: a ball brought into each goal scores for the other team, one in the pit
-      comes back without a score (`DFBring MoBall`). Bots on foot still can't reach the ball
-      while it lies on that map's middle mound (no navmesh up its sides): cars knock it down.
+      comes back without a score (`DFBring MoBall`). ✅ (2026-11-14) Bots on foot went for the
+      ball, which often lies where no path leads (that map's middle mound): they fetch the
+      nearest free car now and walk at the ball only from close by, as MF's did. 7 minutes with
+      8 bots on MB-Ballpark: 188 boardings, 78 hits on the ball, a goal, 1 `no full path`
+      (63 before in 4 minutes).
     - ✅ `TeleportTo Name [Dist]` takes over `DFTeleportNear`; `DFWhere` reports a spot
       ([Commands](Commands.md)).
     - ✅ White paving for the town's level ground (Filip liked the white bricks the snow
@@ -533,27 +536,73 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       voice were not triggered. Same day on this round's code: native suites 12 / 12, bot matches
       of all 18 modes without errors (no flag was taken in the 4 minute CTF one).
     - The other modes' objects (safes, locks, flag bases) are plain shapes without the classic pack.
-    - Open, found by listing the map actors no code reads: UE1's event actors are not converted
-      (`SpecialEvent` 400 in 11 maps: sounds, messages, damage; `Dispatcher` 4, `Counter` 1,
-      `MusicEvent` 5, `OmniSound` 37 timed sounds, `BreakingGlass` / `ExplodingWall` 3,
-      mf-BraveDwarfes' 198 `LaserBeam` sprites, `ScaledSprite` 1169 in 7 maps). Bot hints
-      (`RageDefensePoint` 706, `Ambushpoint` 365) are unused too.
+    - ✅ (2026-11-14) UE1's events, found by listing the map actors no code reads: touch and
+      shot `Trigger`s, `SpecialEvent` (message, damage, death, healing, a sound there or for
+      everyone), `Dispatcher` and `Counter` are converted (`World/DFEvents`,
+      [Gameplay](Gameplay.md)); only chains that end in something are kept, which leaves 7
+      maps: kill planes (DM-Warship's three at 50 each, MF-BattleBay's 153 triggers in both
+      its versions, MF-BangBash, mf-Modernity), mf-City_Rush's alarms and
+      mf-Treasure_Finders' school bell (its dispatchers only switch lights). Checked in game on DM-Warship (1000 health: 950, 900, 846
+      falling through the planes), mf-City_Rush (the alarm, again every 2 s while standing in
+      it) and mf-Treasure_Finders (the bell); the seven maps were patched without a rebake.
+      mf-City_Rush's alarm sound is in the `cityrush` package, which is not listed under
+      `[community.packages]` and so sits in the unverified pack: silent without it.
+    - ✅ (2026-11-14) The rest of the events: movers answer events (`TriggerOpenTimed`,
+      `TriggerControl`, `TriggerToggle`), shots (`bDamageTriggered`) and fire their own Event
+      once open; `ExplodingWall` / `BreakingGlass` break with their sound; any actor's
+      `AmbientSound` plays (OmniSounds, fires, MusicEvents as speakers: 72 sounds on 13
+      community and unverified maps, mf-highwayrun 30 of them). Checked in game: DM-Asylum's
+      two glass panes break when shot (GlassSmash), mf-Battlefield's bunker button opens its
+      door, MF-CrazyHouseV2's shot trigger opens its door, mf-highwayrun has its 30 sounds.
+      17 maps reconverted and patched without a rebake (`--steps patch` places ambient sounds
+      now too).
+    - Left as it is (Filip, 2026-11-14): `TriggerLight`. 77 on 5 maps (mf-Treasure_Finders 39,
+      community) are switched by events; 68 of them start off in UE1 (`bInitiallyOn` false) but
+      are baked on here, so those rooms are brighter at the start than in MF and never change.
+      Baking them off would match MF's start but lose the light for good; switchable means
+      dynamic lights (cost, and none on phones).
+    - ✅ (2026-11-14) Sprites: visible `DT_Sprite` actors (ScaledSprite decorations,
+      mf-BraveDwarfes' 198 `LaserBeam` bubbles) as one camera-facing mesh per map, a draw per
+      texture: 1079 on 5 maps (mf-Jungle 838, mf-BraveDwarfes 198, MF-BloodWarzV1 22, mf-nc 14,
+      MB-EndagaDam 7; the other ScaledSprites are hidden or editor icons). Checked in game:
+      mf-Jungle's grass faces the camera from the front and side.
+    - ⬜ **OmniSound timed playback**: port `SoundToPlay`, `ConstantTimeComponent` and
+      `RandomTimeComponent` from the original class: each timer calls `ClientPlaySound` for
+      every player (level-wide). Only retail mf-airport sets it in the converted maps: four flybys,
+      with constant times of 58, 82, 134 and 202 seconds. Keep these one-shots separate from
+      `AmbientSound` loops; reconvert/patch mf-airport and check timing and audibility in
+      game, including a connected client.
+      Bot hints (`RageDefensePoint` 706, `Ambushpoint` 365) are unused too.
 
-24. ⬜ **Graphics options and bake quality: measure, then set the defaults** (Filip,
-    2026-11-12; held back that day: the laptop was on battery, which throttles the GPU).
-    - Options: `python3 Tools/mfport/debug/gfxbench.py <out dir>` walks every scalability group
-      (anti-aliasing, textures, view distance, effects, post-processing, shadows, GI,
-      reflections, shading) one level at a time from Medium, render scale 50 / 75 / 150 %, and
-      the Low / High / Epic presets, at fixed cameras on mf-Sardine_City (roofs, street) and
-      mf-warehouse: median frame and GPU ms, and how far the picture moves from Medium's. Run it
-      on mains power with nothing else busy, twice, and trust only differences well above the
-      gap between its first and last Medium rows. Then: raise at Medium whatever costs nothing
-      (anisotropy, 4x MSAA if the GPU ms stay flat), drop what costs without showing, and write
-      the table into [Performance](Performance.md#player-graphics-controls). A try on battery
-      showed every setting within the run's own +-10 % and under 1 ms of GPU time at 1080p on
-      the RTX PRO 500 (the frame is CPU-bound there), so the numbers that matter need a weak GPU
-      too: the phone, or an integrated one. Effects quality needs a fight on screen (a bot match
-      at a fixed camera, long captures) - a still scene has no particles.
+24. 🟡 **Graphics options and bake quality: measure, then set the defaults** (Filip,
+    2026-11-12).
+    - ✅ Options measured (2026-11-14): `gfxbench.py` three times at 1080p and twice at 2160p,
+      one of each in reverse order, three fixed cameras on community maps, each scene started
+      cooled (GPU 58 C / CPU 65 C) with temperatures, clocks, power and the driver's slowdown
+      flags logged (the method of the UE5 / O3DE comparison). Table, conditions, findings and
+      proposed defaults in [Performance](Performance.md#graphics-options-measured-2026-11-14):
+      the frame is the render thread's on this laptop (4.3 - 8.5 ms whatever the setting, and
+      the CPU package at its 105 C limit when uncapped), MSAA is the one costly option (none to
+      2x: +22 % GPU time at 1080p, +58 % at 2160p), anisotropy is free, Low's mip bias costs
+      the most picture for no time, and view distance, GI, reflections, shading and
+      post-processing change nothing (baked lighting, forward shading). ✅ The same on the
+      laptop's integrated Intel GPU (`--gpu=intel`, three times slower): MSAA none to 2x +18 %,
+      textures 0 to 3 within 2 %; Low's mip bias saves neither GPU time nor memory there either
+      (128.5 MB of textures at every level). ✅ The menu lets a player set anti-aliasing,
+      textures and effects apart from the preset ("Medium*"). ✅ Textures one level up in every
+      preset, as Filip leaned (2026-11-14): full size and 2x filtering on Low, 4x Medium, 8x High
+      and Epic, 16x Cinematic (`UDFUserSettings::PresetQuality`); Advanced Graphics' "Texture
+      filtering" keeps Blurry (half size, its own setting `bHalfSizeTextures`) and Off below 2x;
+      Controls shows keyboard and touch in sections, the one the device doesn't use closed.
+      ✅ The phone (Pixel 9a, 2026-11-14,
+      [Performance](Performance.md#on-a-phone-pixel-9a-2026-11-14)): 120 FPS at every setting,
+      GPU about 4.4 ms, MSAA the only cost, the texture defaults hold; Render scale did nothing
+      there (no upscale pass without mobile HDR) and now sets the content scale. ✅ Phone as a
+      client of a PC dedicated server over the LAN: joins, admin login, suicide counted, chat.
+      ⬜ A weaker phone before raising the phone preset; ✅ the phone's synchronous loads measured:
+      149 at spawn, about 20 first-use ones in play costing a frame or two each
+      ([Performance](Performance.md#on-a-phone-pixel-9a-2026-11-14)); ⬜ the `performance` power profile, and a fight
+      scene for effects quality; ⬜ what the render thread spends its 5 ms on in a Shipping build.
     - First numbers (2026-11-13, mains power, 12 bots, CTF on mf-Sardine_City, `stat dumpframe`, 8
       frames each): the HUD took 0.59 ms of a frame's game thread, 0.42 ms after its "loadout
       available here" sign stopped searching the map's loadout sources every frame
