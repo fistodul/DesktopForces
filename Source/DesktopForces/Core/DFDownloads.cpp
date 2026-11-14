@@ -122,6 +122,16 @@ void UDFDownloads::OnManifest() {
 		TArray<FString> Fields;
 		if (Line.StartsWith(TEXT("$")) || Line.ParseIntoArray(Fields, TEXT("\t"), false) < 5)
 			continue;
+		// The server names the files, and a name becomes a path under the cache folder that is
+		// written to, mounted and deleted: only plain file names, or none of this manifest
+		// (a player can point the game at any server)
+		if (Fields[0].IsEmpty() || FPaths::GetCleanFilename(Fields[0]) != Fields[0] || Fields[0].Contains(TEXT("..")) || Fields[0].Contains(TEXT(":"))) {
+			UE_LOG(LogDF, Error, TEXT("Downloads: manifest of %s refused: file name \"%s\""), *Server, *Fields[0]);
+			Files.Reset();
+			bManifestReady = false;
+			Refresh();
+			return;
+		}
 		FFile& F = Files.AddDefaulted_GetRef();
 		F.Name = Fields[0];
 		F.Size = FCString::Strtoui64(*Fields[1], nullptr, 10);
