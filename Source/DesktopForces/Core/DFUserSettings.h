@@ -26,6 +26,10 @@ class DESKTOPFORCES_API UDFUserSettings : public UGameUserSettings {
 public:
 	/** What SetToDefaults picks on PC. */
 	static float GetDefaultFrameRateLimit() { return 120.f; }
+	/** A graphics preset's levels: every group at its level, but textures one step up (2x
+	 *  filtering already on Low: no measured cost, Docs/Performance.md); level 0, filtering off,
+	 *  stays for Advanced Graphics. The menu and new profiles use this. */
+	static Scalability::FQualityLevels PresetQuality(int32 Level);
 	/** Thirds of the screen's refresh and its half, from twice it down, above 20 FPS
 	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. Phones get the rates
 	 *  that divide one of the panel's (the pacer holds only those): a 60 / 120 Hz one gets 120,
@@ -99,6 +103,12 @@ public:
 	UPROPERTY(Config)
 	int32 DecalQuality = 2;
 
+	/** Draw textures one mip down (r.MipMapLODBias 1): blurrier, for very weak GPUs (the menu's
+	 *  "Blurry" texture filtering, with level 0). No preset
+	 *  sets it; it saves no memory (every mip is loaded, texture streaming is off). */
+	UPROPERTY(Config)
+	bool bHalfSizeTextures = false;
+
 	/** Everything you hear, 0 - 1 (the audio device's primary volume). */
 	UPROPERTY(Config)
 	float MasterVolume = 1.f;
@@ -146,6 +156,8 @@ public:
 	 *  whether the console keys open it. */
 	void ApplyConsole() const;
 	void ApplyGamma() const;
+	/** bHalfSizeTextures over whatever the texture scalability level set. */
+	void ApplyTextureSize() const;
 	bool IsConsoleEnabled() const;
 	virtual void SetToDefaults() override;
 

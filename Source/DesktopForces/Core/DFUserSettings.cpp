@@ -36,6 +36,7 @@ void UDFUserSettings::ApplyNonResolutionSettings() {
 	Super::ApplyNonResolutionSettings();
 	ApplyFramePace(GetFrameRateLimit());
 	UpdateScreenPercentage();
+	ApplyTextureSize();
 	MasterVolume = FMath::Clamp(MasterVolume, 0.f, 1.f);
 	MusicVolume = FMath::Clamp(MusicVolume, 0.f, 1.f);
 	EffectsVolume = FMath::Clamp(EffectsVolume, 0.f, 1.f);
@@ -73,6 +74,12 @@ void UDFUserSettings::ApplyConsole() const {
 	}
 }
 
+void UDFUserSettings::ApplyTextureSize() const {
+	// a game setting outranks the scalability level's 0; the console still outranks both
+	if (IConsoleVariable* Bias = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MipMapLODBias")))
+		Bias->Set(bHalfSizeTextures ? 1.f : 0.f, ECVF_SetByGameSetting);
+}
+
 bool UDFUserSettings::IsConsoleEnabled() const {
 	const UDFConsole* Console = GEngine && GEngine->GameViewport ? Cast<UDFConsole>(GEngine->GameViewport->ViewportConsole) : nullptr;
 	return Console && Console->bDeveloper;
@@ -83,6 +90,24 @@ void UDFUserSettings::UpdateScreenPercentage() {
 	// Keep scalability priority so profiling console/command-line overrides still win.
 	if (IConsoleVariable* ScreenPercentage = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage")))
 		ScreenPercentage->Set(RenderScale * 100.f, ECVF_SetByScalability);
+#if PLATFORM_ANDROID
+	// No upscale pass without mobile HDR (r.MobileHDR=False): r.ScreenPercentage does nothing there
+	// (Pixel 9a: the same GPU time at 50 and 150 %). The surface itself is sized by the content
+	// scale (1 = 720 lines, the device profile's value; the HUD scales with it), which resizes the
+	// window at run time only when set at console priority (FAppEventManager::OnScaleFactorChanged).
+	if (IConsoleVariable* Scale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"))) {
+		static const float Profile = Scale->GetFloat() > 0.f ? Scale->GetFloat() : 1.f;
+		if (!FMath::IsNearlyEqual(Scale->GetFloat(), Profile * RenderScale))
+			Scale->Set(Profile * RenderScale, ECVF_SetByConsole);
+	}
+#endif
+}
+
+Scalability::FQualityLevels UDFUserSettings::PresetQuality(int32 Level) {
+	Scalability::FQualityLevels Q;
+	Q.SetFromSingleQualityLevel(Level);
+	Q.TextureQuality = FMath::Clamp(Level + 1, 1, FMath::Max(3, Level)); // Low 2x, Medium 4x, High / Epic 8x, Cinematic 16x filtering
+	return Q;
 }
 
 void UDFUserSettings::SetToDefaults() {
@@ -96,11 +121,12 @@ void UDFUserSettings::SetToDefaults() {
 	SetVSyncEnabled(false);
 #endif
 #if PLATFORM_ANDROID || PLATFORM_IOS
-	ScalabilityQuality.SetFromSingleQualityLevel(0);
+	ScalabilityQuality = PresetQuality(0);
 #else
-	ScalabilityQuality.SetFromSingleQualityLevel(1); // Medium: low-end PCs can still go down
+	ScalabilityQuality = PresetQuality(1); // Medium: low-end PCs can still go down
 #endif
 	ScalabilityQuality.ResolutionQuality = 100.f;
+	bHalfSizeTextures = false;
 	PreferredModel = -1;
 	PreferredTeam = -1;
 	Brightness = 1.f;
@@ -111,7 +137,7 @@ void UDFUserSettings::SetToDefaults() {
 	bTapToFire = false;
 	TouchLayout.Reset();
 	FieldOfView = 100.f;
-	RenderScale = PLATFORM_ANDROID || PLATFORM_IOS ? 0.75f : 1.f;
+	RenderScale = 1.f; // phones: already 720 lines (Config/Android/AndroidGameUserSettings.ini)
 	DecalQuality = 2;
 	MasterVolume = 1.f;
 	MusicVolume = 1.f;

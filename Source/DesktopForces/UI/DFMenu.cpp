@@ -222,13 +222,18 @@ public:
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	/** 0-5 pages; 10-13: the Options tabs; 20 / 21: Join with the internet / LAN list asked for. */
+	/** 0-5 pages; 10-13: the Options tabs, 14 Video with Advanced Graphics open; 20 / 21: Join with the internet / LAN list asked for. */
 	void ShowPage(int32 Page) {
 		if (Page == 20 || Page == 21) {
 			Switcher->SetActiveWidgetIndex(2);
 			bLanList = Page == 21;
 			RefreshServers();
 			return;
+		}
+		if (Page == 14 && AdvancedArea.IsValid()) {
+			AdvancedArea->SetExpanded(true);
+			bAdvancedExpanded = true;
+			Page = 10;
 		}
 		Switcher->SetActiveWidgetIndex(Page >= 10 ? 3 : FMath::Clamp(Page, 0, 5));
 		if (Page >= 10 && OptionTabs.IsValid())
@@ -312,8 +317,32 @@ private:
 	TArray<TSharedPtr<FString>> WindowModes;
 	TArray<EWindowMode::Type> WindowModeValues;
 	TSharedPtr<FString> SelectedWindowMode;
-	TArray<TSharedPtr<FString>> Qualities;
+	TArray<TSharedPtr<FString>> Qualities; // the presets, then "Medium*" while a group is off its preset
 	TSharedPtr<FString> SelectedQuality;
+	/** The preset the groups started from (sg.ViewDistanceQuality holds it: nothing else sets that group). */
+	int32 BaseQuality = 1;
+	/** Advanced: a scalability group that changes the cost or the picture, set apart from the preset. */
+	struct FGroupChoice {
+		TArray<TSharedPtr<FString>> Labels;
+		TArray<int32> Levels; // the level each label sets
+		TSharedPtr<FString> Selected;
+		TSharedPtr<STextComboBox> Combo;
+		/** The label a level shows as: its own, else the one below it that looks the same (Epic's 4x is High's). */
+		TSharedPtr<FString> LabelFor(int32 Level) const {
+			int32 Best = 0;
+			for (int32 i = 0; i < Levels.Num(); ++i)
+				if (Levels[i] <= Level)
+					Best = i;
+			return Labels[Best];
+		}
+		/** The level to save: the preset's own when the label is the preset's. */
+		int32 Level(int32 PresetLevel) const { return Selected == LabelFor(PresetLevel) ? PresetLevel : Levels[FMath::Max(0, Labels.IndexOfByKey(Selected))]; }
+	};
+	FGroupChoice AA, Textures, Effects;
+	/** A group the menu doesn't show (shadows ...) was set apart from the preset, at the console. */
+	bool bHiddenGroupsMoved = false;
+	TSharedPtr<STextComboBox> QualityCombo;
+	bool bSyncingQuality = false;
 	TArray<TSharedPtr<FString>> FrameRates;
 	TArray<float> FrameRateLimits;
 	TSharedPtr<FString> SelectedFrameRate;
@@ -380,6 +409,30 @@ private:
 		TSharedPtr<FString>* Sel = &Selected;
 		return SNew(STextComboBox).OptionsSource(&Options).InitiallySelectedItem(Selected)
 			.OnSelectionChanged_Lambda([Sel](TSharedPtr<FString> Item, ESelectInfo::Type) { *Sel = Item; });
+	}
+
+	/** The graphics preset: picking one (the one marked with a star too) sets every group to it. */
+	TSharedRef<SWidget> QualityChoice()
+	{
+		return SAssignNew(QualityCombo, STextComboBox).OptionsSource(&Qualities).InitiallySelectedItem(SelectedQuality)
+			.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type) { PickPreset(Item); });
+	}
+
+	/** One group's level (Advanced Graphics): moving it off the preset marks the preset with a star. */
+	TSharedRef<SWidget> GroupChoice(FGroupChoice& Group, const FText& Hint)
+	{
+		FGroupChoice* G = &Group;
+		return SNew(SBox).ToolTipText(Hint)
+		[
+			SAssignNew(Group.Combo, STextComboBox).OptionsSource(&Group.Labels).InitiallySelectedItem(Group.Selected)
+			.OnSelectionChanged_Lambda([this, G](TSharedPtr<FString> Item, ESelectInfo::Type)
+			{
+				if (bSyncingQuality || !Item)
+					return;
+				G->Selected = Item;
+				ShowQuality();
+			})
+		];
 	}
 
 	TSharedRef<SWidget> Slider(float& Value, float Min, float Max, const TCHAR* Format, float Step = 0.f)
@@ -831,7 +884,10 @@ private:
 		Video->AddSlot(1, 1).Padding(2.f)[Combo(WindowModes, SelectedWindowMode)];
 #endif
 		Video->AddSlot(0, 2)[Label(LOCTEXT("Quality", "Graphics"))];
-		Video->AddSlot(1, 2).Padding(2.f)[Combo(Qualities, SelectedQuality)];
+		Video->AddSlot(1, 2).Padding(2.f)
+		[
+			SNew(SBox).ToolTipText(LOCTEXT("QualityHint", "Sets everything under Advanced Graphics too. A star: some of it was changed there."))[QualityChoice()]
+		];
 		Video->AddSlot(0, 3)[Label(LOCTEXT("Bright", "Brightness"))];
 		Video->AddSlot(1, 3).Padding(2.f)[Slider(Brightness, 0.25f, 3.f, TEXT("%.2f"))];
 #if !PLATFORM_ANDROID && !PLATFORM_IOS // no tonemap pass on phones: it would do nothing
@@ -859,15 +915,25 @@ private:
 					+ SGridPanel::Slot(0, 1)[Label(LOCTEXT("VSync", "VSync"))]
 					+ SGridPanel::Slot(1, 1).Padding(2.f).HAlign(HAlign_Left)
 					[
-						SNew(SBox).ToolTipText(LOCTEXT("VSyncHint", "Synchronize to the monitor to prevent tearing. May increase input latency. The FPS limit remains an additional ceiling; changing it does not disable VSync."))[Check(bVSync)]
+						SNew(SBox).ToolTipText(LOCTEXT("VSyncHint", "Waits for the screen: no tearing, a little more input delay."))[Check(bVSync)]
 					]
 					+ SGridPanel::Slot(0, 2)[Label(LOCTEXT("RenderScale", "Render scale"))]
 					+ SGridPanel::Slot(1, 2).Padding(2.f)[Slider(RenderScale, 0.25f, 2.f, TEXT("percent"), 0.25f)]
+					+ SGridPanel::Slot(0, 3)[Label(LOCTEXT("AntiAliasing", "Smooth edges"))]
+					+ SGridPanel::Slot(1, 3).Padding(2.f)[GroupChoice(AA, LOCTEXT("AAHint", "Smooths jagged edges (anti-aliasing). Costs the most: turn it down first on a slow device."))]
+					+ SGridPanel::Slot(0, 4)[Label(LOCTEXT("Textures", "Texture filtering"))]
+					+ SGridPanel::Slot(1, 4).Padding(2.f)[GroupChoice(Textures, LOCTEXT("TexturesHint", "Keeps floors and roads sharp into the distance. Blurry: half-size textures, for very weak graphics chips."))]
+					+ SGridPanel::Slot(0, 5)[Label(LOCTEXT("Effects", "Effects"))]
+					+ SGridPanel::Slot(1, 5).Padding(2.f)[GroupChoice(Effects, LOCTEXT("EffectsHint", "Amount of smoke, fire and sparks."))]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f)
 				[
 					SNew(STextBlock).Font(Font(11)).AutoWrapText(true)
-					.Text(LOCTEXT("ScaleHint", "100% renders at the output resolution. Lower values trade sharpness for speed; 200% renders four times as many pixels. Menus stay sharp."))
+#if PLATFORM_ANDROID // the whole screen's resolution there, HUD included (UDFUserSettings::UpdateScreenPercentage)
+					.Text(LOCTEXT("ScaleHintPhone", "Render scale: below 100% is faster but blurrier."))
+#else
+					.Text(LOCTEXT("ScaleHint", "Render scale: below 100% is faster but blurrier, menus stay sharp."))
+#endif
 				]
 			]
 		];
@@ -912,38 +978,54 @@ private:
 			}
 			++Row;
 		}
+		// keyboard and mouse open on a PC, touch on a phone; the other one closed but there (a
+		// tablet with a keyboard, a touch-screen laptop)
 		TSharedRef<SGridPanel> Mouse = Grid();
 		Mouse->AddSlot(0, 0)[Label(LOCTEXT("Mouse", "Mouse sensitivity"))];
 		Mouse->AddSlot(1, 0).Padding(2.f)[Slider(Sensitivity, 0.1f, 4.f, TEXT("%.2f"))];
 		Mouse->AddSlot(0, 1)[Label(LOCTEXT("Invert", "Invert mouse"))];
 		Mouse->AddSlot(1, 1).Padding(2.f).HAlign(HAlign_Left)[Check(bInvert)];
-		Mouse->AddSlot(0, 2)[Label(LOCTEXT("Stick", "Stick look speed"))];
-		Mouse->AddSlot(1, 2).Padding(2.f)[Slider(StickSensitivity, 0.25f, 3.f, TEXT("%.2f"))];
-		if (TouchUI())
+		TSharedRef<SGridPanel> Touch = Grid();
+		Touch->AddSlot(0, 0)[Label(LOCTEXT("Stick", "Stick look speed"))];
+		Touch->AddSlot(1, 0).Padding(2.f)[Slider(StickSensitivity, 0.25f, 3.f, TEXT("%.2f"))];
+		Touch->AddSlot(0, 1)[Label(LOCTEXT("TapFire", "Touch the right side to fire"))];
+		Touch->AddSlot(1, 1).Padding(2.f).HAlign(HAlign_Left)[Check(bTapToFire)];
+		if (bInGame) // the buttons exist in a match only
 		{
-			Mouse->AddSlot(0, 3)[Label(LOCTEXT("TapFire", "Touch the right side to fire"))];
-			Mouse->AddSlot(1, 3).Padding(2.f).HAlign(HAlign_Left)[Check(bTapToFire)];
-			if (bInGame) // the buttons exist in a match only
+			Touch->AddSlot(0, 2)[Label(LOCTEXT("TouchLayout", "Touch buttons"))];
+			Touch->AddSlot(1, 2).Padding(2.f).HAlign(HAlign_Left)[Button(LOCTEXT("TouchLayoutEdit", "Move them"), [this]()
 			{
-				Mouse->AddSlot(0, 4)[Label(LOCTEXT("TouchLayout", "Touch buttons"))];
-				Mouse->AddSlot(1, 4).Padding(2.f).HAlign(HAlign_Left)[Button(LOCTEXT("TouchLayoutEdit", "Move them"), [this]()
+				if (ADFPlayerController* PC = Cast<ADFPlayerController>(Owner.Get()))
 				{
-					if (ADFPlayerController* PC = Cast<ADFPlayerController>(Owner.Get()))
-					{
-						DFMenu::Close(PC);
-						PC->DFTouchEdit(1);
-					}
-				})];
-			}
+					DFMenu::Close(PC);
+					PC->DFTouchEdit(1);
+				}
+			})];
 		}
+		const bool bTouch = TouchUI();
 		TSharedRef<SVerticalBox> Controls = SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Mouse]
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 2.f)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
 			[
-				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
-				.Text(LOCTEXT("KeysHint", "Click a key, then press the new one (a key in use swaps with it)."))
+				SNew(SExpandableArea).InitiallyCollapsed(bTouch)
+				.HeaderContent()[Label(LOCTEXT("KeyboardMouse", "Keyboard and mouse"))]
+				.BodyContent()
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Mouse]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 2.f)
+					[
+						SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
+						.Text(LOCTEXT("KeysHint", "Click a key, then press the new one (a key in use swaps with it)."))
+					]
+					+ SVerticalBox::Slot().MaxHeight(300.f)[SNew(SScrollBox) + SScrollBox::Slot()[Keys]]
+				]
 			]
-			+ SVerticalBox::Slot().MaxHeight(300.f)[SNew(SScrollBox) + SScrollBox::Slot()[Keys]];
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SExpandableArea).InitiallyCollapsed(!bTouch)
+				.HeaderContent()[Label(LOCTEXT("TouchControls", "Touch"))]
+				.BodyContent()[Touch]
+			];
 
 		TSharedRef<SGridPanel> Game = Grid();
 		Game->AddSlot(0, 0)[Label(LOCTEXT("Name", "Name"))];
@@ -1080,7 +1162,7 @@ private:
 		FOV = D->FieldOfView;
 		RenderScale = D->RenderScale;
 		bVSync = false;
-		SelectedQuality = Qualities[FMath::Clamp(D->ScalabilityQuality.ViewDistanceQuality, 0, Qualities.Num() - 1)];
+		ReadQuality(D->ScalabilityQuality, D->bHalfSizeTextures);
 		SelectedWindowMode = WindowModes[FMath::Max(0, WindowModeValues.IndexOfByKey(EWindowMode::WindowedFullscreen))];
 		const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
 		if (const int32 Found = ResolutionSizes.IndexOfByKey(Desktop); Found != INDEX_NONE)
@@ -1429,21 +1511,94 @@ private:
 		SelectedWindowMode = WindowModes[FMath::Max(0, WindowModeValues.IndexOfByKey(CurrentMode))];
 		// UE's own scalability levels and names (Low .. Cinematic; [ScalabilitySettings] can change
 		// the count); Low is the potato default (no post, small shadow maps)
-		const int32 NumLevels = Scalability::GetQualityLevelCounts().ViewDistanceQuality;
-		Qualities.Reset();
-		for (int32 i = 0; i < NumLevels; ++i)
-			Qualities.Add(MakeShared<FString>(Scalability::GetQualityLevelText(i, NumLevels).ToString()));
-		// Compare the quality groups independently of the advanced render-scale setting.
-		Scalability::FQualityLevels Quality = S.ScalabilityQuality;
-		Scalability::FQualityLevels Preset;
-		Preset.SetFromSingleQualityLevel(Quality.ViewDistanceQuality);
-		Quality.ResolutionQuality = Preset.ResolutionQuality;
-		const int32 Q = Quality.GetSingleQualityLevel();
-		if (!Qualities.IsValidIndex(Q)) {
-			Qualities.Add(MakeShared<FString>(TEXT("Custom")));
+		const Scalability::FQualityLevels Counts = Scalability::GetQualityLevelCounts();
+		auto Names = [](int32 Num, const TArray<const TCHAR*>& Says) {
+			TArray<TSharedPtr<FString>> Out;
+			for (int32 i = 0; i < Num; ++i) {
+				const FString Name = Scalability::GetQualityLevelText(i, Num).ToString();
+				Out.Add(MakeShared<FString>(Says.IsValidIndex(i) ? FString::Printf(TEXT("%s (%s)"), *Name, Says[i]) : Name));
+			}
+			return Out;
+		};
+		Qualities = Names(Counts.ViewDistanceQuality, {});
+		auto Choice = [](FGroupChoice& G, const TArray<FString>& Labels, const TArray<int32>& Levels) {
+			G.Labels.Reset();
+			for (const FString& L : Labels)
+				G.Labels.Add(MakeShared<FString>(L));
+			G.Levels = Levels;
+		};
+		// DefaultScalability.ini: r.MSAACount by AntiAliasingQuality (1 / 2 / 4 / 4 / 8),
+		// r.MaxAnisotropy by TextureQuality (off / 2x / 4x / 8x / 16x); Blurry: off and
+		// half size (UDFUserSettings::bHalfSizeTextures), never a preset's (LabelFor picks Off)
+		Choice(AA, { TEXT("Off"), TEXT("2x"), TEXT("4x"), TEXT("8x") }, { 0, 1, 2, 4 });
+		Choice(Textures, { TEXT("Blurry"), TEXT("Off"), TEXT("2x"), TEXT("4x"), TEXT("8x"), TEXT("16x") }, { 0, 0, 1, 2, 3, 4 });
+		TArray<FString> EffectNames;
+		for (const TSharedPtr<FString>& N : Names(Counts.EffectsQuality, {}))
+			EffectNames.Add(*N);
+		Choice(Effects, EffectNames, { 0, 1, 2, 3, 4 });
+		ReadQuality(S.ScalabilityQuality, S.bHalfSizeTextures);
+	}
+
+	/** The menu's graphics choices from a set of scalability levels. */
+	void ReadQuality(const Scalability::FQualityLevels& Q, bool bHalfSize = false) {
+		BaseQuality = FMath::Clamp(Q.ViewDistanceQuality, 0, Scalability::GetQualityLevelCounts().ViewDistanceQuality - 1);
+		AA.Selected = AA.LabelFor(Q.AntiAliasingQuality);
+		Textures.Selected = bHalfSize ? Textures.Labels[0] : Textures.LabelFor(Q.TextureQuality);
+		Effects.Selected = Effects.LabelFor(Q.EffectsQuality);
+		const Scalability::FQualityLevels Preset = UDFUserSettings::PresetQuality(BaseQuality);
+		bHiddenGroupsMoved = Q.ShadowQuality != Preset.ShadowQuality || Q.GlobalIlluminationQuality != Preset.GlobalIlluminationQuality || Q.ReflectionQuality != Preset.ReflectionQuality || Q.PostProcessQuality != Preset.PostProcessQuality || Q.FoliageQuality != Preset.FoliageQuality || Q.ShadingQuality != Preset.ShadingQuality || Q.LandscapeQuality != Preset.LandscapeQuality;
+		ShowQuality();
+	}
+
+	/** The levels the menu's choices make (render scale apart: UDFUserSettings sets that). */
+	Scalability::FQualityLevels ChosenQuality(const Scalability::FQualityLevels& Current) const {
+		const Scalability::FQualityLevels Preset = UDFUserSettings::PresetQuality(BaseQuality);
+		Scalability::FQualityLevels Q = bHiddenGroupsMoved ? Current : Preset;
+		Q.ViewDistanceQuality = BaseQuality;
+		Q.AntiAliasingQuality = AA.Level(Preset.AntiAliasingQuality);
+		Q.TextureQuality = Textures.Level(Preset.TextureQuality);
+		Q.EffectsQuality = Effects.Level(Preset.EffectsQuality);
+		Q.ResolutionQuality = Current.ResolutionQuality;
+		return Q;
+	}
+
+	bool IsQualityCustom() const {
+		const Scalability::FQualityLevels Preset = UDFUserSettings::PresetQuality(BaseQuality);
+		return bHiddenGroupsMoved || AA.Selected != AA.LabelFor(Preset.AntiAliasingQuality) || Textures.Selected != Textures.LabelFor(Preset.TextureQuality) || Effects.Selected != Effects.LabelFor(Preset.EffectsQuality);
+	}
+
+	/** The preset's name, with a star while a group is off it ("Medium*"). */
+	void ShowQuality() {
+		Qualities.SetNum(Scalability::GetQualityLevelCounts().ViewDistanceQuality); // the star entry goes
+		SelectedQuality = Qualities[BaseQuality];
+		if (IsQualityCustom()) {
+			Qualities.Add(MakeShared<FString>(*Qualities[BaseQuality] + TEXT("*")));
 			SelectedQuality = Qualities.Last();
-		} else
-			SelectedQuality = Qualities[Q];
+		}
+		if (QualityCombo) {
+			TGuardValue<bool> Syncing(bSyncingQuality, true);
+			QualityCombo->RefreshOptions();
+			QualityCombo->SetSelectedItem(SelectedQuality);
+		}
+	}
+
+	/** A preset picked: every group to its level. */
+	void PickPreset(TSharedPtr<FString> Item) {
+		const int32 Level = IndexOf(Qualities, Item);
+		if (bSyncingQuality || Level < 0 || Level >= Scalability::GetQualityLevelCounts().ViewDistanceQuality)
+			return; // the star entry: what is set stays
+		BaseQuality = Level;
+		bHiddenGroupsMoved = false;
+		const Scalability::FQualityLevels Preset = UDFUserSettings::PresetQuality(Level);
+		{
+			TGuardValue<bool> Syncing(bSyncingQuality, true);
+			for (const auto& [G, L] : { TPair<FGroupChoice*, int32>{ &AA, Preset.AntiAliasingQuality }, { &Textures, Preset.TextureQuality }, { &Effects, Preset.EffectsQuality } }) {
+				G->Selected = G->LabelFor(L);
+				if (G->Combo)
+					G->Combo->SetSelectedItem(G->Selected);
+			}
+		}
+		ShowQuality();
 	}
 
 	FString NameOption() const {
@@ -1497,8 +1652,8 @@ private:
 		S.SetFullscreenMode(PendingWindowMode());
 		if (S.GetFullscreenMode() == EWindowMode::WindowedFullscreen)
 			S.SetScreenResolution(S.GetDesktopResolution());
-		if (const int32 Q = IndexOf(Qualities, SelectedQuality); Q >= 0 && Q < Scalability::GetQualityLevelCounts().ViewDistanceQuality)
-			S.SetOverallScalabilityLevel(Q);
+		S.ScalabilityQuality = ChosenQuality(S.ScalabilityQuality);
+		S.bHalfSizeTextures = Textures.Selected == Textures.Labels[0];
 		if (const int32 F = IndexOf(FrameRates, SelectedFrameRate); FrameRateLimits.IsValidIndex(F))
 			S.SetFrameRateLimit(FrameRateLimits[F]);
 		S.SetVSyncEnabled(bVSync);
@@ -1694,6 +1849,37 @@ bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
 	TestTrue(TEXT("Reset keeps Advanced expanded"), Menu->AdvancedArea->IsExpanded());
 	if (FullscreenIsBorderless())
 		TestFalse(TEXT("No unsupported exclusive fullscreen choice"), Menu->WindowModeValues.Contains(EWindowMode::Fullscreen));
+
+	// a group moved off its preset stars the preset; picking a preset sets every group again
+	Menu->PickPreset(Menu->Qualities[1]);
+	TestEqual(TEXT("Medium preset reads Medium"), *Menu->SelectedQuality, *Menu->Qualities[1]);
+	TestFalse(TEXT("A preset is no custom setting"), Menu->IsQualityCustom());
+	Menu->AA.Combo->SetSelectedItem(Menu->AA.Labels[0]);
+	TestTrue(TEXT("Anti-aliasing off on Medium is custom"), Menu->IsQualityCustom());
+	TestEqual(TEXT("A custom Medium reads Medium*"), *Menu->SelectedQuality, *Menu->Qualities[1] + TEXT("*"));
+	const Scalability::FQualityLevels Chosen = Menu->ChosenQuality(Settings.ScalabilityQuality);
+	TestEqual(TEXT("Custom anti-aliasing is applied"), Chosen.AntiAliasingQuality, 0);
+	TestEqual(TEXT("The rest stays Medium"), Chosen.TextureQuality, UDFUserSettings::PresetQuality(1).TextureQuality);
+	TestEqual(TEXT("The preset is kept"), Chosen.ViewDistanceQuality, 1);
+	Menu->ReadQuality(Chosen);
+	TestEqual(TEXT("Saved custom settings read Medium* again"), *Menu->SelectedQuality, *Menu->Qualities[1] + TEXT("*"));
+	Menu->QualityCombo->SetSelectedItem(Menu->Qualities[1]);
+	TestFalse(TEXT("Picking Medium again sets every group to Medium"), Menu->IsQualityCustom());
+	TestEqual(TEXT("Anti-aliasing back to Medium's"), *Menu->AA.Selected, FString(TEXT("2x")));
+	Menu->PickPreset(Menu->Qualities[3]);
+	TestEqual(TEXT("Epic's anti-aliasing reads 4x"), *Menu->AA.Selected, FString(TEXT("4x")));
+	TestFalse(TEXT("Epic is no custom setting"), Menu->IsQualityCustom());
+	TestEqual(TEXT("Epic keeps its own anti-aliasing level"), Menu->ChosenQuality(Settings.ScalabilityQuality).AntiAliasingQuality, 3);
+	// Blurry: filtering off and half size, never a preset's
+	Menu->PickPreset(Menu->Qualities[0]);
+	TestEqual(TEXT("Low filters 2x"), *Menu->Textures.Selected, FString(TEXT("2x")));
+	Menu->Textures.Combo->SetSelectedItem(Menu->Textures.Labels[0]);
+	TestTrue(TEXT("Blurry on Low is custom"), Menu->IsQualityCustom());
+	TestEqual(TEXT("Blurry is texture level 0"), Menu->ChosenQuality(Settings.ScalabilityQuality).TextureQuality, 0);
+	Menu->ReadQuality(Menu->ChosenQuality(Settings.ScalabilityQuality), true);
+	TestEqual(TEXT("Saved half size reads Blurry"), *Menu->Textures.Selected, FString(TEXT("Blurry")));
+	Menu->ReadQuality(Menu->ChosenQuality(Settings.ScalabilityQuality), false);
+	TestEqual(TEXT("Level 0 without half size reads Off"), *Menu->Textures.Selected, FString(TEXT("Off")));
 	for (const FIntPoint& Size : Menu->ResolutionSizes)
 		TestTrue(TEXT("All selectable resolutions are positive"), Size.X > 0 && Size.Y > 0);
 	CDO->CrosshairSize = SavedCDOSize;

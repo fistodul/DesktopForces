@@ -272,8 +272,9 @@ adb shell input tap X Y                 # touch (swipe X1 Y1 X2 Y2 ms holds a st
 adb shell am force-stop com.fistodul.desktopforces   # always, after a test
 ```
 
-Phones default to 30 FPS with VSync and a 75 % render scale
-(`Config/Android/AndroidGameUserSettings.ini`). Uncapped, the game starved the phone until
+Phones default to 30 FPS with VSync and render at 720 lines (render scale 100 % sets
+`r.MobileContentScaleFactor` 1: 1616x720 on a 2424x1080 panel; lower it in Advanced Graphics,
+`Config/Android/AndroidGameUserSettings.ini`). Uncapped, the game starved the phone until
 System UI stopped responding. `adb shell pm clear com.fistodul.desktopforces` resets saved
 settings.
 
