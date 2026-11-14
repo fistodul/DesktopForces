@@ -68,7 +68,12 @@ aborted build (they wait on a dead UBA session); `-NoUBA` disables UBA detours.
 ## Player graphics controls
 
 New profiles use 120 FPS, VSync off, native borderless output and actual Low quality.
-FPS, VSync and render scale are in Advanced Graphics. VSync and the FPS cap are
+FPS, VSync and render scale are in Advanced Graphics, and so are the three groups that change
+the cost or the picture (measured below): anti-aliasing, textures and effects, each on a level
+of its own. Moving one off the preset marks the preset with a star ("Medium*"); picking a
+preset (that one too) sets every group to it again. The groups the menu doesn't show follow the
+preset (`sg.ViewDistanceQuality` holds which one); set apart at the console they make it
+"Medium*" as well. VSync and the FPS cap are
 independent. Render scale uses 25% steps from 25% to 200%; presets leave it alone.
 `RenderScale` mirrors its requested percentage into `sg.ResolutionQuality` when applied.
 The extra screen-percentage assignment permits supersampling above Unreal's standard
@@ -104,6 +109,173 @@ holds at most about 32 smoke sprites; a rocket or Predator holds about 38 trail 
 Other effects still use Unreal's global particle scalability. Smoke parameters update four
 times per second from replicated health, with no smoke emitter on an undamaged vehicle.
 
+
+## Graphics options: measured 2026-11-14
+
+`python3 Tools/mfport/debug/gfxbench.py <out dir>` (`--res=3840x2160`, `--reverse`): every
+scalability group one level at a time from Medium, render scale, and the presets, at three fixed
+cameras (mf-Sardine_City from a roof and in a street, MF-Test_Facility's hall), no bots,
+uncapped, editor binary with `-game`, rendering off screen. Three runs at 1920 x 1080 and two at
+3840 x 2160, one of each with the settings in reverse order; GPU ms is the mean over scenes and
+runs. The picture column is the mean grey-level difference to Medium's screenshot (of 255); two
+Medium shots differ by 0.3.
+
+Conditions, logged every 2 s by the script: RTX PRO 500 laptop GPU (35 W), Core Ultra 7 265H, on
+mains throughout, `balanced` power profile, `powersave` governor. Every scene started cooled to
+GPU 58 C / CPU 65 C and warmed up through its 4.5 minutes: GPU to 68 - 79 C at 1080p and 80 -
+87 C at 2160p, the CPU package to 72 - 89 C at the captures with peaks of 105 C between them
+(its limit: an uncapped frame rate keeps one core flat out). At 1080p the GPU ran 30 - 80 %
+busy at 2500 - 2700 MHz, power-capped in 2 - 5 % of the samples; at 2160p 97 % busy and
+power-capped in about 70 % of them, its clock falling from 2500 to about 2200 MHz as it warmed.
+The two Medium rows of a scene, first and last, differ by 2.4 % in GPU time on average (6 % at
+most) and by up to 16 % in frame time: that is the error bar. The reversed runs cancel the
+warm-up in the means.
+
+| Setting | GPU ms 1080p | | GPU ms 2160p | | Picture |
+|---|---|---|---|---|---|
+| Medium (2x MSAA, 2x anisotropy) | 1.18 | | 3.23 | | |
+| Anti-aliasing 0: none | 0.97 | -18 % | 2.05 | -37 % | 0.4 - 0.6 |
+| Anti-aliasing 2 / 3: 4x | 1.27 | +8 % | 3.71 | +15 % | 0.2 - 0.4 |
+| Textures 0: one mip down, no anisotropy | 1.17 | 0 | 3.18 | -1 % | 2.1 - 3.7 |
+| Textures 2 / 3: 4x / 8x anisotropy | 1.17 / 1.18 | 0 | 3.23 / 3.24 | 0 | 0.4 - 0.6 |
+| View distance 0 / 2 / 3 | 1.16 / 1.17 / 1.17 | 0 | 3.23 / 3.24 / 3.23 | 0 | 0.3 |
+| Effects 0 / 3 | 1.17 / 1.25 | 0 / +7 % | 3.23 / 3.55 | 0 / +10 % | 0.3 / 0.5 |
+| Post-processing 0 / 3 | 1.17 / 1.16 | 0 | 3.24 / 3.23 | 0 | 0.3 |
+| Shadows 0 / 3 | 1.10 / 1.17 | -7 % / 0 | 3.17 / 3.22 | -2 % / 0 | 0.3 |
+| Global illumination, reflections, shading 0 / 3 | 1.17 - 1.19 | 0 | 3.22 - 3.24 | 0 | 0.3 |
+| Render scale 50 % | 0.95 | -19 % | 1.54 | -52 % | 2.3 - 4.3 |
+| Render scale 75 % | 1.00 | -15 % | 2.40 | -26 % | 1.9 - 2.6 |
+| Render scale 150 % | 2.05 | +74 % | 8.55 | +164 % | 1.0 - 1.8 |
+| Low preset | 0.96 | -19 % | 1.96 | -39 % | 2.1 - 3.9 |
+| High preset | 1.29 | +10 % | 3.69 | +14 % | 0.4 - 0.8 |
+| Epic preset | 1.40 | +19 % | 4.09 | +27 % | 0.5 - 1.0 |
+
+What it says:
+- **The frame is not the GPU's here.** 4.3 to 8.5 ms a frame at both resolutions and every
+  setting but 150 % of 2160p; the render thread takes 4.5 - 7 ms of it, the GPU 1 - 4. No
+  setting moves the frame time by more than two captures of the same setting differ (heat:
+  the hotter CPU decides), so only the GPU column tells settings apart, and a weak GPU scales
+  that column.
+- **MSAA is the one costly quality option**, and its first step is the dear one: none to 2x is
+  +22 % at 1080p and +58 % at 2160p, 2x to 4x another +8 % / +15 %.
+- **Anisotropic filtering is free** on this GPU (2x, 4x and 8x within 0.01 ms).
+- **Low's mip bias buys nothing here**: the same GPU time as Medium's textures for by far the
+  largest loss of picture of any option (2.1 - 3.7; it saves no memory either, the mips stay
+  loaded). Low's gain is its MSAA being off.
+- **View distance, global illumination, reflections, shading and post-processing change
+  neither time nor picture**, shadows next to nothing (Shadows 0: -0.07 ms, same picture):
+  lighting is baked, shading forward, post-processing off. The presets differ by MSAA,
+  anisotropy, the mip bias and Epic's bloom and effects.
+- **Render scale is the lever for a weak GPU**: 75 % takes 26 % off at 2160p, 50 % takes 52 %
+  (at 1080p this GPU's fixed costs hide most of it).
+- **An uncapped frame rate cooks the laptop**: the CPU package reaches its 105 C limit within
+  minutes at 120 - 230 FPS. Its panel shows 60; how warm it runs at the default 120 FPS cap or
+  at 60 was not measured.
+
+**The integrated GPU** (Intel Arc of the same Core Ultra 7 265H, Mesa Vulkan driver, chosen
+with `--gpu=intel`; 2026-11-14, one forward and one reversed run at 1080p, same conditions,
+mains): about three times slower than the NVIDIA GPU, and the same pattern.
+
+| Setting | GPU ms, Intel 1080p | |
+|---|---|---|
+| Medium | 4.20 | |
+| Anti-aliasing 0 / 2 | 3.59 / 5.09 | -14 % / +21 % |
+| Textures 0 / 2 / 3 | 4.21 / 4.21 / 4.11 | 0 / 0 / -2 % |
+| Effects 3 | 4.44 | +6 % |
+| View distance, shadows, GI, reflections, shading, post | 4.07 - 4.19 | -3 - 0 % |
+| Render scale 50 / 75 / 150 % | 3.50 / 3.63 / 6.89 | -17 / -14 / +64 % |
+| Low / High / Epic | 3.71 / 5.06 / 5.84 | -12 / +20 / +39 % |
+
+**Textures, the mip bias.** A texture is kept with its mips: copies at half the size, a quarter,
+and so on down to 1 pixel (a third more memory than the picture alone). The GPU picks the copy
+whose texels match the pixels on screen; `r.MipMapLODBias=1` (Low's textures) makes it pick the
+next smaller one: half the sharpness, in the hope of less memory traffic. Here it saves
+nothing: the same GPU time on both GPUs (4.21 against 4.23 ms on the integrated one, which
+shares the CPU's memory and should feel memory traffic first), and the same memory, 128.5 MB of
+textures on MF-Test_Facility at Low, Medium and Epic textures alike (`ListTextures`: with
+streaming off every mip stays loaded whatever is sampled). What does take memory off is loading
+smaller textures: `max_texture_size = 256` at import (everything at 256 px, a quarter of the
+memory and download), or a device profile's texture group sizes (Android and iOS already cook
+world textures down to 256). Anisotropic filtering (sharp surfaces seen at a slant) cost
+nothing measurable either: within 0.1 ms at 8x on both GPUs.
+
+Proposed defaults. The texture column is in the code (`UDFUserSettings::PresetQuality`, the
+presets' textures one level up; Cinematic 16x), to confirm with the phone run; anti-aliasing,
+effects and post stay as they are. Advanced Graphics' "Texture filtering" offers Blurry (half-size
+mips, `bHalfSizeTextures`, no filtering), Off, 2x, 4x, 8x and 16x; no preset picks Blurry or Off,
+and a choice off the preset shows a star ("Medium*"):
+
+| Preset | Anti-aliasing | Textures now | Textures proposed | Effects | Post |
+|---|---|---|---|---|---|
+| Low | off | half-size mips, no filtering | full size, 2x filtering | Low | off |
+| Medium (desktop default) | 2x | 2x filtering | 4x filtering | Medium | off |
+| High | 4x | 4x filtering | 8x filtering | High | off |
+| Epic | 4x | 8x filtering | 8x filtering (same) | Epic | bloom |
+
+| Change | GPU cost (NVIDIA / Intel) | Picture | Memory |
+|---|---|---|---|
+| Low: full-size mips instead of half | 0 / 0 | sharper (Low's picture comes to Medium's minus MSAA) | none |
+| Low: 2x anisotropy instead of none | 0 / 0 | sharper at a slant | none |
+| Medium 4x, High 8x anisotropy (one step up) | 0 / 0 | a little sharper at a slant | none |
+| MSAA left as it is | 2x: +22 % / +18 %, 4x: +8 % / +21 % more | smooth edges | render targets |
+
+Also proposed: a GPU that can't hold the frame rate at Low lowers render scale (75 %, then
+50 %) before anything else; and to try, after measuring the temperatures, new desktop profiles
+capped at the display's refresh rate instead of 120 (this laptop's panel is 60 Hz).
+
+Not measured: effects quality in a fight (a still scene has few particles; the +7 % at
+Effects 3 is the maps' own emitters), Epic's bloom (the game turns it on from the saved
+settings, which the script doesn't touch), a Shipping build's render thread, the `performance`
+power profile (the phone: below). Traps met: the saved window size beats `-ResX` / `-ResY` (a
+first try measured 888 x 500: the script sets `r.SetRes` and checks its screenshots' size);
+nvidia-smi's "Clocks Event Reasons Counters" wrap every 10 s (the script reads the per-reason
+flags instead).
+
+### On a phone (Pixel 9a, 2026-11-14)
+
+`gfxbench.py <out> --android`, Android Development build, the same three cameras, each scene
+started cooled (GPU 33 - 35 C, skin 30.5 - 32 C), off the charger (battery 71 to 63 %), power
+saver off, brightness low (auto), the panel at 120 Hz while the game ran (the owner's Smooth
+Display setting, 60 Hz, put back after), 1616 x 720 (content scale 1). Thermal status stayed
+0 throughout (GPU 45 - 53 C, CPU up to 71 C, skin up to 35.8 C over about 5 minutes a scene).
+
+| Scene | Frame | Game thread | Render thread | GPU Medium | AA off | AA 4x | Textures off - 16x, Blurry |
+|---|---|---|---|---|---|---|---|
+| facility_hall | 8.36 | 5.88 | 6.10 | 4.25 | 4.01 | 4.38 | 4.20 - 4.29 |
+| sardine_roof | 8.33 | 5.81 | 7.78 | 4.41 | 4.13 | 4.56 | 4.39 - 4.43 |
+| sardine_street | 8.36 | 5.58 | 6.52 | 4.54 | 4.32 | 4.87 | 4.51 - 4.59 |
+
+(ms, medians.) The phone holds 120 FPS (8.33 ms: the panel's rate, the most a phone shows) at
+every setting with the GPU half idle; the threads, not the GPU, are closest to the limit. MSAA
+is again the one setting with a cost (2x about 6 % of GPU time); texture filtering and half
+size, view distance, shadows, GI, reflections, shading and post-processing are within 0.1 ms.
+Rows where the picture itself changed (a difference of 60 - 85 against Medium: something moved
+into the view on Sardine City, from Effects 0 on in sardine_street, which then rose to 12 -
+17 ms) are the scene's, not the setting's. Render scale did nothing: without mobile HDR there
+is no upscale pass, `r.ScreenPercentage` is ignored (the same GPU time at 50 and 150 %); it now
+sets the content scale on Android instead (the whole surface, HUD included: 0.5 = 808 x 360,
+1.5 = the panel's 2424 x 1080), which the engine applies at run time. The texture defaults
+(one level up) hold on the phone too; phones keep the Low preset (AA off) until a weaker phone
+is measured. Traps met: on a 60 Hz panel every frame reads 16.67 ms (the script sets 120 Hz for
+the run); `dumpsys thermalservice` lists cached temperatures before the live ones (the script
+reads only "Current temperatures from HAL"); quitting right after the last capture leaves its
+CSV empty (15 s margin now).
+
+Seen in played rounds on the phone (TDM, 6 bots, touch input, `-LogCmds="LogStreaming Verbose"`
+names each load): 169 synchronous loads (`FlushAsyncLoading`), 149 of them in the first 5 s
+(HUD textures, the soldier's and weapon's meshes, animations and sounds, loaded by path as the
+player spawns), then about 20 on first use: a vehicle's flag (mesh, material, texture, four
+animations) and engine sounds as the first vehicle comes near, knife animations on the first
+stab or jump, single sounds. Each sits next to a failed memory map of the small bulk chunk read
+from the OBB (`OpenMappedEx failed ... pakchunk3`: the engine falls back to a read). A whole
+round's CSV (60 Hz panel): median 16.7 ms, p99 33 ms; in play a frame over 25 ms only every
+few seconds (26 - 29 ms, once 61 ms), so a first-use load costs at most a frame or two; the
+spawn second has the worst (66 ms). Preloading the classes' path-loaded assets (vehicle flag,
+weapon animations) at spawn would take the in-play ones out; not worth it yet.
+One engine ensure a session: `!IsComponentPSOPrecachingEnabled() || bPSOPrecacheCalled`
+from the Cascade pool reusing a `UParticleSystemComponent` with a new template
+(`UGameplayStatics::SpawnEmitterAtLocation`, `EPSCPoolMethod::AutoRelease`); ensures are off in
+Shipping, so left as it is.
 
 ## Template and plugin audit (2026-10-29)
 
