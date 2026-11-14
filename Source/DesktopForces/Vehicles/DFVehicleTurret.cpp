@@ -74,9 +74,17 @@ void UDFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	const TArray<TObjectPtr<ADFCharacter>>& Passengers = V->GetPassengers();
 	ADFCharacter* Gunner = Passengers.IsValidIndex(GunnerSeat) ? Passengers[GunnerSeat].Get() : nullptr;
 	if (GetOwnerRole() == ROLE_Authority) {
-		// aim: the gunner's view in the vehicle's frame, pitch limited, turning at TurnRate
+		// aim: at what the middle of the gunner's view is on, in the vehicle's frame, pitch
+		// limited, turning at TurnRate. Not parallel to the view: the gun sits above and beside
+		// the eyes, so its crosshair stood off the view's by that much at every range
 		if (Gunner && Gunner->GetController()) {
-			FRotator Want = V->GetBody()->GetComponentTransform().InverseTransformRotation(Gunner->GetController()->GetControlRotation().Quaternion()).Rotator();
+			const FTransform Hull = V->GetBody()->GetComponentTransform();
+			const FVector Eye = Gunner->GetPawnViewLocation(), Look = Gunner->GetController()->GetControlRotation().Vector();
+			FHitResult Seen;
+			const float Reach = GetWorld()->LineTraceSingleByChannel(Seen, Eye, Eye + Look * MaxRange, ECC_GameTraceChannel2, ShotParams(Gunner))
+				? FMath::Max(Seen.Distance, 500.f) // right in front of the gun: not cross-eyed
+				: MaxRange;
+			FRotator Want = Hull.InverseTransformVectorNoScale(Eye + Look * Reach - Hull.TransformPosition(GunPos() - V->GetBoxCenter())).Rotation();
 			Want.Pitch = FMath::Clamp(FRotator::NormalizeAxis(Want.Pitch), PitchMin, PitchMax);
 			Want.Yaw = BaseYaw + FMath::Clamp(FRotator::NormalizeAxis(Want.Yaw - BaseYaw), -YawLimit, YawLimit);
 			const float Step = TurnRate * DeltaTime;
@@ -113,6 +121,17 @@ void UDFVehicleTurret::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	}
 }
 
+FCollisionQueryParams UDFVehicleTurret::ShotParams(const ADFCharacter* Gunner) const {
+	// through the vehicle itself and its riders
+	const ADFVehicle* V = GetVehicle();
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFVehicleTurret), false, V);
+	Params.AddIgnoredActor(Gunner);
+	Params.AddIgnoredActor(V->GetDriver());
+	for (const ADFCharacter* P : V->GetPassengers())
+		Params.AddIgnoredActor(P);
+	return Params;
+}
+
 void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
 	ADFVehicle* V = GetVehicle();
 	FVector Start, Dir;
@@ -128,14 +147,8 @@ void UDFVehicleTurret::Fire(ADFCharacter* Gunner) {
 		if (ADFProjectile* P = GetWorld()->SpawnActor<ADFProjectile>(ProjectileClass, Start, Dir.Rotation(), SP))
 			P->Launch(Dir, 0.f, V->GetVelocity());
 	} else {
-		// TraceFire: through the vehicle itself and its riders
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(DFVehicleTurret), false, V);
-		Params.AddIgnoredActor(Gunner);
-		Params.AddIgnoredActor(V->GetDriver());
-		for (ADFCharacter* P : V->GetPassengers())
-			Params.AddIgnoredActor(P);
-		FHitResult Hit;
-		const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * MaxRange, ECC_GameTraceChannel2, Params);
+		FHitResult Hit; // TraceFire
+		const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Dir * MaxRange, ECC_GameTraceChannel2, ShotParams(Gunner));
 		End = bHit ? FVector(Hit.ImpactPoint) : Start + Dir * MaxRange;
 		if (bHit && Hit.GetActor()) {
 			FPointDamageEvent Ev(Damage, Hit, Dir, UDFDamage_Bullet::StaticClass());

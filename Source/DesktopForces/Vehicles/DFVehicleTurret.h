@@ -100,6 +100,8 @@ public:
 
 protected:
 	void Fire(ADFCharacter* Gunner);
+	/** A shot's or an aiming line's trace: past the vehicle and everyone in it. */
+	struct FCollisionQueryParams ShotParams(const ADFCharacter* Gunner) const;
 	FVector GunPos() const;
 
 	UPROPERTY(Transient)
