@@ -5,6 +5,8 @@
 #include "Core/DFGameSettings.h"
 #include "Net/UnrealNetwork.h"
 #include "Game/DFGameState.h"
+#include "Vehicles/DFVehicle.h"
+#include "Player/DFCharacter.h"
 #include "World/DFMapActors.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -278,6 +280,25 @@ AActor* AMoBallGame::GetBotDriveTarget(AController* Bot) const {
 }
 
 void AMoBallGame::GetBotGoals(AController* Bot, TArray<AActor*>& OutGoals) const {
-	if (Ball)
-		OutGoals.Add(Ball); // FindSpecialAttractionForX: everyone goes for the ball
+	// FindSpecialAttractionForX: drivers go for the ball (GetBotDriveTarget); on foot only
+	// from close by (Dist < 500 uu) - a soldier just creeps it along, and far off or up on a
+	// mound there is no way to it on foot at all
+	const APawn* P = Bot ? Bot->GetPawn() : nullptr;
+	if (Ball && P && FVector::Dist(P->GetActorLocation(), Ball->GetActorLocation()) < 1125.f)
+		OutGoals.Add(Ball);
+}
+
+ADFVehicle* AMoBallGame::GetBotVehicle(AController* Bot) const {
+	// on foot: the nearest car nobody drives. The game is played from behind a wheel
+	const ADFCharacter* C = Bot ? Cast<ADFCharacter>(Bot->GetPawn()) : nullptr;
+	ADFVehicle* Best = nullptr;
+	float BestDist = 0.f;
+	for (TActorIterator<ADFVehicle> It(GetWorld()); C && IsMatchInProgress() && It; ++It) {
+		const float Dist = FVector::Dist(It->GetActorLocation(), C->GetActorLocation());
+		if (!It->GetDriver() && It->BotDesirability(C) > 0.f && (!Best || Dist < BestDist)) {
+			Best = *It;
+			BestDist = Dist;
+		}
+	}
+	return Best;
 }
