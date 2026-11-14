@@ -50,6 +50,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DF")
 	FLinearColor Ambient = FLinearColor::Black;
 
+	/** The map's info, or null (a map without one). */
+	static ADFMapInfo* Get(const UWorld* World);
 	/** The local view went under water or came up (brightens the ambient floor). */
 	static void SetUnderwater(UWorld* World, bool bUnder);
 	static bool bUnderwater;

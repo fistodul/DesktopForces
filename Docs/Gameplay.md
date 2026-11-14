@@ -126,6 +126,31 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   after their RespawnTime (RageDeathMatch.ShouldRespawn; 30 s by default, mappers' own values and
   MaxClipAmmo / MaxClips kept: Space_station's armour respawns at once). Modes that limit the
   items leave them out; Coop's "weapons on the ground" setting uses them.
+- UE1 events (`World/DFEvents`): a `Trigger` fires its Event when someone walks into its
+  cylinder (soldiers, only humans, any pawn, anything, or a shot at it; once only, a least
+  time between firings, again every so often while you stay inside, a message to whoever set
+  it off; another event can switch it on / off), and every actor Tagged with that name
+  answers. A `SpecialEvent` answers with a message (to you or to everyone), damage or death
+  to whoever set it off (kill floors: mf-BattleBay's 153 triggers), a sound there or for
+  everyone; a `Dispatcher` with a chain of further events after delays; a `Counter` on the
+  n-th time. Negative damage heals. Movers take part (`ADFMover` is an event actor): one
+  Tagged so opens on the event (`TriggerOpenTimed`, closing again; `TriggerControl`, staying
+  open: nothing untriggers it here; `TriggerToggle`, open / shut each time), a
+  `bDamageTriggered` one triggers itself when hit hard enough, `bTriggerOnceOnly` once only,
+  and every mover fires its own Event once fully open (Mover.FinishedOpening: mf-Battlefield's
+  bunker buttons open their doors, DM-Asylum's glass panes break when shot). An
+  `ExplodingWall` / `BreakingGlass` answers with its Event, its BreakingSound and a dust puff,
+  then is gone. Server only: damage, sounds and messages reach clients the usual way.
+- Any actor's `AmbientSound` plays, whatever its class, as in UE1: OmniSounds (as the maps set
+  them: their timed `SoundToPlay` is only used on a retail map), fires, a teleporter's hum,
+  MusicEvents used as speakers.
+- Sprites (`DT_Sprite` actors: ScaledSprite decorations, mf-BraveDwarfes' LaserBeam bubbles)
+  face the camera as in UE1, at texture size x DrawScale, in their Style (masked, translucent =
+  additive, modulated); unlit. Decoration only: no collision. 1079 on 5 maps (mf-Jungle's grass
+  838).
+- Not ported: `TriggerLight` (lights switched by events: 77 on 5 maps, 68 of them off at the
+  start in UE1 but baked on here; lighting is baked, a switchable light would be a dynamic
+  one), `PlayAmbientSoundEffect` (no map uses it), a MusicEvent's song change (none set one).
 - PeriodicSound: ambient loops that play Period s and pause Interval s (birds, wolves, wind).
 - Movers (brushes outside the BSP): mostly solid scenery; PHYS_Rotating ones spin at their
   RotationRate (Prehistoric's circling pterodactyls, Treasure_Finders' windmills); doors with key
@@ -409,7 +434,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   or on its roof. Seated bots fight from the seat (the gunner aims the turret); they get out once
   the driver has gone and it stopped. Bots told to follow get in with you. In MoBall a bot at
   the wheel never gets out: it drives at the ball, straight when it can see it, else along the
-  road graph towards it (MoBallGame.FindSpecialAttractionForX).
+  road graph towards it (MoBallGame.FindSpecialAttractionForX). On foot it goes for the nearest
+  car nobody drives (`GetBotVehicle`), and for the ball only from within 500 uu: a soldier
+  just creeps the ball along, and the ball often lies where no path on foot leads.
 - **Armed APC** (MF-mods ArmedAPC, `?APCs=ArmedAPC`, rockets `?APCs=ArmedAPCRocket`, at the Armadillo generators): the
   gunner seat (the hatch) runs a heavy machine gun aimed with the gunner's view (pitch −11° … 49°,
   165°/s), Fire shoots: 100 a belt, 10/s, 25 damage, 13500 cm, 4 s reload (R swaps early). The
@@ -435,6 +462,10 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   instead of creeping out of its generator's 450 cm, and a hit, a crash or a driver wakes it.
 - Unmanned jeep and helicopter guns point level ahead (MF vehWeapFake); the APC turret keeps
   its last aim.
+- Mounted guns aim at what the middle of the gunner's view is on (a trace along the view, at
+  least 5 m out), not parallel to the view: the gun sits above and beside the eyes, so its
+  crosshair (drawn where the gun points) stood off the view's by that much. It still trails
+  the view while the turret turns at its own rate.
 - Petrol cap (MF PetrolCap at PetrolCapPos, 7 uu - trucks 12): 150 damage of bullets or pellets
   there and the vehicle blows up. A small target: aim at the tank.
 - Damage smoke grows denser and darker as health falls: see-through grey at first (2 puffs a

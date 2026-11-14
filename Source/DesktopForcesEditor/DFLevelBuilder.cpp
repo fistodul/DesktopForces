@@ -5,6 +5,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/BoxComponent.h"
 #include "ActorFactories/ActorFactory.h"
+#include "World/DFEvents.h"
 #include "World/DFLadder.h"
 #include "AI/DFNavigationSystem.h"
 #include "NavigationSystem.h"
@@ -237,9 +238,10 @@ namespace {
 
 	/** Records a built map can take in place, without a rebuild or a new bake (`--steps patch`):
 	 *  actors over a UE1 zone's bounds (loadout_zone, zone_volume, zone_box), the road graph
-	 *  (road_network), teleporters, periodic sounds, pickups, movers, blockers, placed bots,
+	 *  (road_network), teleporters, ambient and periodic sounds, pickups, movers, blockers, placed bots, UE1 events,
 	 *  particle effects. nullptr for any other record. */
 	const FName ParticleEffectTag(TEXT("DFParticleEffect"));
+	const FName SpriteTag(TEXT("DFSprites"));
 
 	AActor* SpawnMapData(UWorld* World, const TSharedPtr<FJsonObject>& R, const FActorSpawnParameters& SP, TFunctionRef<USoundWave*(const FString&)> FindSound,
 		TFunctionRef<UStaticMesh*(const FString&)> LoadMesh, TFunctionRef<UParticleSystem*(const TArray<TSharedPtr<FJsonValue>>&)> MapEffect) {
@@ -295,6 +297,13 @@ namespace {
 			M->MoveTime = R->GetNumberField(TEXT("move_time"));
 			M->StayOpenTime = R->GetNumberField(TEXT("stay_open_time"));
 			M->InitialState = FName(*R->GetStringField(TEXT("initial_state")));
+			M->EventTag = FName(*R->GetStringField(TEXT("tag")));
+			FString MoverEvent;
+			M->Event = R->TryGetStringField(TEXT("event"), MoverEvent) && !MoverEvent.IsEmpty() ? FName(*MoverEvent) : NAME_None;
+			R->TryGetBoolField(TEXT("damage_triggered"), M->bDamageTriggered);
+			R->TryGetBoolField(TEXT("once"), M->bTriggerOnceOnly);
+			double Threshold = 0.0;
+			M->DamageThreshold = R->TryGetNumberField(TEXT("damage_threshold"), Threshold) ? Threshold : 0.0;
 			const FString Cond = R->GetStringField(TEXT("cond_game_type"));
 			M->CondGameType = Cond.IsEmpty() ? NAME_None : FName(*Cond);
 			M->bTeamPlay = R->GetBoolField(TEXT("team_play"));
@@ -330,6 +339,36 @@ namespace {
 			P->MaxClips = int32(R->GetNumberField(TEXT("max_clips")));
 			return P;
 		}
+		if (Type == TEXT("sprites")) {
+			// UE1 sprites: one mesh of quads the sprite materials turn to the camera. Movable and
+			// unlit: no lightmap, so a patch places it without a bake
+			UStaticMesh* SpriteMesh = LoadMesh(R->GetStringField(TEXT("mesh")));
+			if (!SpriteMesh)
+				return nullptr;
+			AStaticMeshActor* A = World->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
+			UStaticMeshComponent* C = A->GetStaticMeshComponent();
+			C->SetMobility(EComponentMobility::Movable);
+			C->SetStaticMesh(SpriteMesh);
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->SetCastShadow(false);
+			C->SetCanEverAffectNavigation(false);
+			A->Tags.Add(SpriteTag);
+			return A;
+		}
+		if (Type == TEXT("ambient_sound")) {
+			USoundWave* Sound = FindSound(R->GetStringField(TEXT("sound")));
+			if (!Sound)
+				return nullptr; // sounds not imported yet
+			AAmbientSound* S = World->SpawnActor<AAmbientSound>(Vec(R, TEXT("location")), Rot(R), SP);
+			UAudioComponent* AC = S->GetAudioComponent();
+			AC->SetSound(Sound);
+			AC->VolumeMultiplier = R->GetNumberField(TEXT("volume"));
+			AC->bOverrideAttenuation = true;
+			AC->AttenuationOverrides.FalloffDistance = R->GetNumberField(TEXT("radius"));
+			AC->AttenuationOverrides.AttenuationShapeExtents = FVector(R->GetNumberField(TEXT("radius")) * 0.25f, 0, 0);
+			Sound->bLooping = true;
+			return S;
+		}
 		if (Type == TEXT("periodic_sound")) {
 			USoundWave* Sound = FindSound(R->GetStringField(TEXT("sound")));
 			if (!Sound)
@@ -347,6 +386,57 @@ namespace {
 			P->Interval = R->GetNumberField(TEXT("interval"));
 			P->PhaseShift = R->GetNumberField(TEXT("phase"));
 			return P;
+		}
+		if (Type == TEXT("trigger")) {
+			// UE1 Trigger: fires its Event at whatever is Tagged so (World/DFEvents.h)
+			ADFTrigger* T = World->SpawnActor<ADFTrigger>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			T->EventTag = FName(*R->GetStringField(TEXT("tag")));
+			T->Event = FName(*R->GetStringField(TEXT("event")));
+			T->SetCylinder(R->GetNumberField(TEXT("radius")), R->GetNumberField(TEXT("height")));
+			const FString Who = R->GetStringField(TEXT("who")), Toggle = R->GetStringField(TEXT("toggle"));
+			T->Who = Who == TEXT("human") ? EDFTriggerBy::Human : Who == TEXT("pawn") ? EDFTriggerBy::Pawn
+				: Who == TEXT("any")                                                  ? EDFTriggerBy::Any
+				: Who == TEXT("shot")                                                 ? EDFTriggerBy::Shot
+																					  : EDFTriggerBy::Player;
+			T->Toggle = Toggle == TEXT("toggles") ? EDFTriggerToggle::Toggles : Toggle == TEXT("on") ? EDFTriggerToggle::TurnsOn
+				: Toggle == TEXT("off")                                                              ? EDFTriggerToggle::TurnsOff
+																									 : EDFTriggerToggle::None;
+			T->bActive = R->GetBoolField(TEXT("active"));
+			T->bOnce = R->GetBoolField(TEXT("once"));
+			T->ReTriggerDelay = R->GetNumberField(TEXT("retrigger_delay"));
+			T->RepeatTime = R->GetNumberField(TEXT("repeat_time"));
+			T->DamageThreshold = R->GetNumberField(TEXT("damage_threshold"));
+			T->Message = R->GetStringField(TEXT("message"));
+			return T;
+		}
+		if (Type == TEXT("event")) {
+			// UE1 SpecialEvent / Dispatcher / Counter
+			static const TMap<FString, EDFEventKind> Kinds = { { TEXT("message"), EDFEventKind::Message }, { TEXT("damage"), EDFEventKind::Damage },
+				{ TEXT("kill"), EDFEventKind::Kill }, { TEXT("sound"), EDFEventKind::Sound }, { TEXT("sound_all"), EDFEventKind::SoundForAll },
+				{ TEXT("dispatcher"), EDFEventKind::Dispatcher }, { TEXT("counter"), EDFEventKind::Counter }, { TEXT("explode"), EDFEventKind::Explode } };
+			const EDFEventKind* Kind = Kinds.Find(R->GetStringField(TEXT("kind")));
+			FString SoundName;
+			USoundWave* Sound = R->TryGetStringField(TEXT("sound"), SoundName) ? FindSound(SoundName) : nullptr;
+			if (!Kind || (!SoundName.IsEmpty() && !Sound))
+				return nullptr; // sounds not imported yet
+			ADFEventRelay* E = World->SpawnActor<ADFEventRelay>(Vec(R, TEXT("location")), FRotator::ZeroRotator, SP);
+			E->EventTag = FName(*R->GetStringField(TEXT("tag")));
+			E->Event = FName(*R->GetStringField(TEXT("event")));
+			E->Kind = *Kind;
+			E->Sound = Sound;
+			E->Message = R->GetStringField(TEXT("message"));
+			E->bBroadcast = R->GetBoolField(TEXT("broadcast"));
+			double Number = 0.0;
+			E->Damage = R->TryGetNumberField(TEXT("damage"), Number) ? Number : 0.0;
+			E->Count = R->TryGetNumberField(TEXT("count"), Number) ? int32(Number) : 0;
+			const TArray<TSharedPtr<FJsonValue>>* Outs = nullptr;
+			if (R->TryGetArrayField(TEXT("out"), Outs))
+				for (const TSharedPtr<FJsonValue>& Out : *Outs) {
+					FDFOutEvent& Next = E->OutEvents.AddDefaulted_GetRef();
+					Next.Event = FName(*Out->AsObject()->GetStringField(TEXT("event")));
+					Next.Delay = Out->AsObject()->GetNumberField(TEXT("delay"));
+				}
+			return E;
 		}
 		if (Type == TEXT("road_network")) {
 			ADFRoadNetwork* Net = World->SpawnActor<ADFRoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
@@ -644,19 +734,6 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			}
 		} else if (AActor* Data = SpawnMapData(World, R, SP, [this](const FString& S) { return FindSound(S); }, [this, &MapDir, &MapName](const FString& M) { return LoadOrBuildMesh(MapDir, M, MapName); }, [this, &MapName](const TArray<TSharedPtr<FJsonValue>>& E) { return GetMapEffect(MapName, E); })) {
 			Actor = Data;
-		} else if (Type == TEXT("ambient_sound")) {
-			USoundWave* Sound = FindSound(R->GetStringField(TEXT("sound")));
-			if (!Sound)
-				continue; // sounds not imported yet
-			AAmbientSound* S = World->SpawnActor<AAmbientSound>(Loc, Rotation, SP);
-			UAudioComponent* AC = S->GetAudioComponent();
-			AC->SetSound(Sound);
-			AC->VolumeMultiplier = R->GetNumberField(TEXT("volume"));
-			AC->bOverrideAttenuation = true;
-			AC->AttenuationOverrides.FalloffDistance = R->GetNumberField(TEXT("radius"));
-			AC->AttenuationOverrides.AttenuationShapeExtents = FVector(R->GetNumberField(TEXT("radius")) * 0.25f, 0, 0);
-			Sound->bLooping = true;
-			Actor = S;
 		} else if (Type == TEXT("map_info")) {
 			ADFMapInfo* Info = World->SpawnActor<ADFMapInfo>(Loc, Rotation, SP);
 			Info->Title = R->GetStringField(TEXT("title"));
@@ -792,7 +869,7 @@ bool FDFImporter::PatchMapData(const FString& MapName, bool bRebuildNav) {
 	int32 Removed = 0, Added = 0;
 	bool bNavChanged = bRebuildNav;
 	for (TActorIterator<AActor> It(World); It; ++It) {
-		if (It->IsA<ADFZoneVolume>() || It->IsA<ALoadoutZone>() || It->IsA<ADFZoneBox>() || It->IsA<ADFRoadNetwork>() || It->IsA<ATeleporter>() || It->IsA<ADFPeriodicSound>() || It->IsA<ADFPickupSpot>() || It->IsA<ADFMover>() || It->IsA<ALoadoutBlocker>() || It->IsA<ADFBotSpot>() || It->ActorHasTag(ParticleEffectTag) || (It->IsA<ADFLegacyActor>() && IsVehicleGenerator(Cast<ADFLegacyActor>(*It)->MFClass.ToString()))) {
+		if (It->IsA<ADFZoneVolume>() || It->IsA<ALoadoutZone>() || It->IsA<ADFZoneBox>() || It->IsA<ADFRoadNetwork>() || It->IsA<ATeleporter>() || It->IsA<ADFPeriodicSound>() || It->IsA<ADFPickupSpot>() || It->IsA<ADFMover>() || It->IsA<ADFEventActor>() || It->IsA<AAmbientSound>() || It->IsA<ALoadoutBlocker>() || It->IsA<ADFBotSpot>() || It->ActorHasTag(ParticleEffectTag) || It->ActorHasTag(SpriteTag) || (It->IsA<ADFLegacyActor>() && IsVehicleGenerator(Cast<ADFLegacyActor>(*It)->MFClass.ToString()))) {
 			World->EditorDestroyActor(*It, true);
 			++Removed;
 		}

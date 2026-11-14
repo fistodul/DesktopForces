@@ -14,6 +14,10 @@ All Mobile Forces knowledge about actors lives here; the C++ builder
   {"type": "blocker", "team" ('255' = everyone), "radius", "height", "vehicles"}
   {"type": "bot_spot", "health", "stationary", "loadout": [class paths], "team"}
   {"type": "particle_effect", "emitters": [mflib/effects.py EMITTER descriptions, UE1 units]}
+  {"type": "trigger", "tag", "event", "who" (player | human | pawn | any | shot), "radius", "height", "active",
+   "once", "retrigger_delay", "repeat_time", "damage_threshold", "message", "toggle" ('' | toggles | on | off)}
+  {"type": "event", "kind" (message | damage | kill | sound | sound_all | dispatcher | counter | explode), "tag", "event",
+   "message", "broadcast", "damage", "sound", "out": [{"event", "delay"}], "count"}
   {"type": "legacy", "mf_class", "mf_name", "team", "props"}   (kept for future game modes)
 
 T3D only lists properties that differ from the class defaults, so the defaults the
@@ -47,6 +51,13 @@ CLASS_LIGHT_EFFECT = {'Sunlight': 'LE_Sunlight', 'Spotlight': 'LE_Spotlight'}
 LIGHT_CLASSES = {'Light', 'Sunlight', 'Spotlight', 'TriggerLight'}
 
 # Navigation / editor-only classes that have no use in UE5 (navmesh replaces paths).
+# Engine.Mover states in which another actor's event moves it (ADFMover::Triggered)
+MOVER_TRIGGER_STATES = ('TriggerOpenTimed', 'TriggerToggle', 'TriggerControl')
+
+# Engine.SpecialEvent states -> what the event record does (ADFEventRelay)
+EVENT_STATES = {'DisplayMessage': 'message', 'DamageInstigator': 'damage', 'KillInstigator': 'kill',
+                'PlaySoundEffect': 'sound', 'PlayersPlaySoundEffect': 'sound_all'}
+
 SKIP_CLASSES = {'Brush', 'PathNode', 'RagePathNode', 'Camera', 'NavigationInclusion', 'NavigationExclusion',
                 'BlockedPath', 'RageAltPath', 'LevelSummary'}
 
@@ -99,6 +110,38 @@ TEAM_DEFAULT_ZERO = {'RageFlagBase', 'RageSafe', 'RageDetonationLock', 'TrailerP
                      'LoadoutBlocker', 'CaptainStart'}
 
 
+def _name(value: str | None) -> str:
+    """A UE1 name property as text: no quotes, '' for None."""
+    value = (value or '').strip('"')
+    return '' if value == 'None' else value
+
+
+def prune_events(spawns: list[dict]) -> list[dict]:
+    """Without the triggers whose Event nothing here answers, the events nothing here fires and
+    the events that only pass on to nothing (their other end is a mover, a light, a class not
+    ported): MF-SpeedPipes has 66 triggers for sound events that have no sound."""
+    def idle(r: dict, answered: set[str], fired: set[str]) -> bool:
+        if r['type'] == 'trigger':
+            return r['event'].lower() not in answered
+        if r['type'] != 'event':
+            return False   # movers stay whatever they are wired to
+        # a dispatcher fires its OutEvents, a counter its Event; a SpecialEvent fires nothing
+        does = {'dispatcher': any(o['event'].lower() in answered for o in r.get('out', [])),
+                'counter': r['event'].lower() in answered or bool(r.get('message')), 'message': bool(r.get('message'))}
+        return r['tag'].lower() not in fired or not does.get(r['kind'], True)
+
+    while True:
+        # movers answer in their Trigger* states and fire their Event once open (ADFMover)
+        answered = {r['tag'].lower() for r in spawns if r['type'] in ('trigger', 'event')
+                    or (r['type'] == 'mover' and r.get('initial_state') in MOVER_TRIGGER_STATES)}
+        fired = {r['event'].lower() for r in spawns if r['type'] in ('trigger', 'event', 'mover') and r.get('event')}
+        fired |= {o['event'].lower() for r in spawns if r['type'] == 'event' for o in r.get('out', [])}
+        kept = [r for r in spawns if not idle(r, answered, fired)]
+        if len(kept) == len(spawns):
+            return kept
+        spawns = kept
+
+
 def rotate(v, rot: dict) -> tuple:
     """Rotate a vector like UE's FRotationMatrix(FRotator(Pitch, Yaw, Roll)) (degrees)."""
     p, y, r = (math.radians(rot.get(k, 0.0)) for k in ('pitch', 'yaw', 'roll'))
@@ -140,6 +183,10 @@ class ClassTree:
     def is_a(self, cls: str, base: str) -> bool:
         return base in self._effective(cls)[0]
 
+    def default(self, cls: str, prop: str, fallback: str | None = None) -> str | None:
+        """A property's value as the class (or a parent) sets it, else fallback."""
+        return self._effective(cls)[1].get(prop, (fallback,))[0]
+
     def is_water(self, actor: dict) -> bool:
         default = self._effective(actor['class'])[1].get('bWaterZone', ('False',))[0]
         return t3d.parse_bool(actor['props'].get('bWaterZone'), t3d.parse_bool(default))
@@ -153,6 +200,18 @@ class ActorMapper:
         self.ambient = []          # (brightness, hue, saturation) per zone info, for the global ambient
 
     def map(self, a: dict) -> list[dict]:
+        records = self._map(a)
+        # UE1 plays any actor's AmbientSound, whatever its class: OmniSounds, fires
+        # (FireyExample), a teleporter's hum, mappers' MusicEvents used as speakers
+        sound = t3d.parse_object_ref(a['props'].get('AmbientSound'))
+        if sound and a['class'] not in ('AmbientSound', 'PeriodicSound') and not any(r['type'] == 'ambient_sound' for r in records):
+            props = a['props']
+            records.append({'name': a['name'] + '_Sound', 'location': a['location'], 'rotation': a['rotation'], 'type': 'ambient_sound', 'sound': sound,
+                            'radius': 25.0 * (_int(props, 'SoundRadius', {'SoundRadius': 32}) + 1) * UU_TO_CM,
+                            'volume': _int(props, 'SoundVolume', {'SoundVolume': 128}) / 255.0})
+        return records
+
+    def _map(self, a: dict) -> list[dict]:
         cls, props = a['class'], a['props']
         base = {'name': a['name'], 'location': a['location'], 'rotation': a['rotation']}
 
@@ -311,6 +370,49 @@ class ActorMapper:
                                           radius=t3d.parse_float(props.get('CollisionRadius'), 40.0) * UU_TO_CM,
                                           height=t3d.parse_float(props.get('CollisionHeight'), 40.0) * UU_TO_CM,
                                           vehicles=t3d.parse_bool(props.get('bBlockActors')))]
+
+        if cls == 'Trigger' and _name(props.get('Event')):
+            # UE1 events: walking into it (or shooting it) fires Event at every actor Tagged so
+            kind, who = props.get('TriggerType', 'TT_PlayerProximity'), 'player'
+            if kind == 'TT_ClassProximity':
+                near = (t3d.parse_object_ref(props.get('ClassProximityType')) or '').split('.')[-1]
+                who = 'human' if self.tree.is_a(near, 'PlayerPawn') else 'pawn' if self.tree.is_a(near, 'Pawn') else None
+            else:
+                who = {'TT_PlayerProximity': 'player', 'TT_PawnProximity': 'pawn', 'TT_AnyProximity': 'any', 'TT_Shoot': 'shot'}.get(kind)
+            if who and t3d.parse_bool(props.get('bCollideActors'), True):
+                toggle = {'OtherTriggerToggles': 'toggles', 'OtherTriggerTurnsOn': 'on', 'OtherTriggerTurnsOff': 'off'}
+                return [self._legacy(a), dict(
+                    base, type='trigger', tag=_name(props.get('Tag')), event=_name(props.get('Event')), who=who,
+                    radius=t3d.parse_float(props.get('CollisionRadius'), 40.0) * UU_TO_CM,
+                    height=t3d.parse_float(props.get('CollisionHeight'), 40.0) * UU_TO_CM,
+                    active=t3d.parse_bool(props.get('bInitiallyActive'), True), once=t3d.parse_bool(props.get('bTriggerOnceOnly')),
+                    retrigger_delay=t3d.parse_float(props.get('ReTriggerDelay')), repeat_time=t3d.parse_float(props.get('RepeatTriggerTime')),
+                    damage_threshold=t3d.parse_float(props.get('DamageThreshold')), message=props.get('Message', '').strip('"'),
+                    toggle=toggle.get(props.get('InitialState', ''), ''))]
+
+        if (cls == 'BreakingGlass' or self.tree.is_a(cls, 'ExplodingWall')) and _name(props.get('Tag')):
+            # RageEffects.ExplodingWall (BreakingGlass the same): Triggered, it fires its Event,
+            # plays BreakingSound and bursts (its chunks were commented out in MF: a dust puff here)
+            sound = t3d.parse_object_ref(props.get('BreakingSound'))
+            return [self._legacy(a), dict(base, type='event', kind='explode', tag=_name(props.get('Tag')), event=_name(props.get('Event')),
+                                          message='', broadcast=False, **({'sound': sound} if sound else {}))]
+
+        if cls in ('SpecialEvent', 'Dispatcher', 'Counter') and _name(props.get('Tag')):
+            # what answers an event: SpecialEvent's states, Dispatcher's chain, Counter
+            event = dict(base, type='event', tag=_name(props.get('Tag')), event=_name(props.get('Event')),
+                         message=props.get('Message', '').strip('"'), broadcast=t3d.parse_bool(props.get('bBroadcast')))
+            if cls == 'Dispatcher':
+                outs = [{'event': _name(props.get(f'OutEvents({i})')), 'delay': t3d.parse_float(props.get(f'OutDelays({i})'))} for i in range(8)]
+                event.update(kind='dispatcher', out=[o for o in outs if o['event']])
+            elif cls == 'Counter':
+                event.update(kind='counter', count=_int(props, 'NumToCount', {'NumToCount': 2}), message=props.get('CompleteMessage', '').strip('"'))
+            else:
+                state = EVENT_STATES.get(props.get('InitialState', 'DisplayMessage'))
+                sound = t3d.parse_object_ref(props.get('Sound'))
+                if not state or (state.startswith('sound') and not sound):
+                    return [self._legacy(a)]   # PlayAmbientSoundEffect, PlayerPath: not ported
+                event.update(kind=state, damage=t3d.parse_float(props.get('Damage')), **({'sound': sound} if sound and state.startswith('sound') else {}))
+            return [self._legacy(a), event]
 
         if cls == 'LoadoutBlocker':
             # a team's spawn room door (RageGame.LoadoutBlocker, team games only)

@@ -43,8 +43,33 @@ void ADFMover::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveC
 	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
 	// BumpOpenTimed: a soldier walking into it; StandOpenTimed: one standing on it
 	const bool bStand = InitialState == TEXT("StandOpenTimed");
-	if (HasAuthority() && KeyPos.Num() > 1 && Cast<ACharacter>(Other) && (InitialState == TEXT("BumpOpenTimed") || bStand) && (!bStand || HitNormal.Z < -0.7f))
+	if (HasAuthority() && KeyPos.Num() > 1 && Cast<ACharacter>(Other) && (InitialState == TEXT("BumpOpenTimed") || bStand) && (!bStand || HitNormal.Z < -0.7f)) {
+		OpenedBy = Cast<APawn>(Other);
 		Open();
+	}
+}
+
+float ADFMover::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	if (HasAuthority() && bDamageTriggered && Damage >= DamageThreshold)
+		Triggered(this, EventInstigator ? EventInstigator->GetPawn() : nullptr);
+	return 0.f;
+}
+
+void ADFMover::Triggered(AActor* Other, APawn* By) {
+	// TriggerOpenTimed: open, close StayOpenTime later; TriggerToggle: open or close;
+	// TriggerControl: open (UE1 closed it on UnTrigger, which nothing sends here)
+	if (KeyPos.Num() < 2 || (bTriggerOnceOnly && bWasTriggered))
+		return;
+	bWasTriggered = true;
+	OpenedBy = By;
+	if (InitialState == TEXT("TriggerOpenTimed") || InitialState == TEXT("TriggerControl"))
+		Open();
+	else if (InitialState == TEXT("TriggerToggle")) {
+		if (Moving > 0 || (Moving == 0 && Alpha > 0.f))
+			Close();
+		else
+			Open();
+	}
 }
 
 void ADFMover::Open() {
@@ -76,7 +101,10 @@ void ADFMover::Tick(float DeltaSeconds) {
 		const bool bOpened = Moving > 0;
 		Moving = 0;
 		SetActorTickEnabled(false);
-		if (bOpened && HasAuthority())
-			GetWorldTimerManager().SetTimer(CloseTimer, this, &ADFMover::Close, StayOpenTime, false);
+		if (bOpened && HasAuthority()) {
+			if (InitialState != TEXT("TriggerToggle") && InitialState != TEXT("TriggerControl")) // those stay
+				GetWorldTimerManager().SetTimer(CloseTimer, this, &ADFMover::Close, StayOpenTime, false);
+			Fire(this, Event, this, OpenedBy.Get()); // Mover.FinishedOpening: chained movers, glass, sounds
+		}
 	}
 }

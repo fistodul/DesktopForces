@@ -1,4 +1,4 @@
-"""Map edits applied at conversion: retextured world faces, textures of ours, MoBall's zones."""
+"""Map edits applied at conversion: retextured world faces, textures of ours, MoBall's zones, UE1 events, sprites."""
 from pathlib import Path
 from types import SimpleNamespace
 import sys
@@ -8,7 +8,8 @@ import unittest
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'mfport'))
-from mflib import actors, mapedits, textures  # noqa: E402
+from mflib import actors, mapedits, mfmesh, textures  # noqa: E402
+from mflib.bsp import PF_MASKED  # noqa: E402
 from mflib.level import LevelConverter  # noqa: E402
 
 
@@ -58,7 +59,8 @@ class OwnTextureTests(unittest.TestCase):
 
 
 class _Tree:
-    PARENTS = {'MoBallWaterGoalZone': 'MoBallGoalZone', 'MoBallGoalZone': 'ZoneInfo', 'MoBallDestructZone': 'ZoneInfo'}
+    PARENTS = {'MoBallWaterGoalZone': 'MoBallGoalZone', 'MoBallGoalZone': 'ZoneInfo', 'MoBallDestructZone': 'ZoneInfo',
+               'PlayerPawn': 'Pawn', 'RagePlayer': 'PlayerPawn'}
 
     def is_a(self, cls, base):
         while cls and cls != base:
@@ -84,6 +86,122 @@ class MoBallZoneTests(unittest.TestCase):
     def test_destruct_zone(self):
         box, = self.zone_boxes('MoBallDestructZone')
         self.assertEqual((box['tag'], box['box_max']), ('MoBallDestruct', (900.0, 2000.0, 500.0)))
+
+
+class EventTests(unittest.TestCase):
+    def records(self, cls, **props):
+        mapper = actors.ActorMapper({}, {}, [], _Tree())
+        actor = {'class': cls, 'name': cls + '0', 'location': [0.0, 0.0, 0.0], 'zone': 0,
+                 'rotation': {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}, 'props': props}
+        return [r for r in mapper.map(actor) if r['type'] != 'legacy']
+
+    def test_touch_trigger(self):
+        rec, = self.records('Trigger', Tag='Trigger', Event='"Pit"', CollisionRadius='5000.000000', CollisionHeight='100.000000',
+                            TriggerType='TT_ClassProximity', ClassProximityType="Class'Engine.PlayerPawn'", bTriggerOnceOnly='True')
+        self.assertEqual((rec['type'], rec['event'], rec['who'], rec['once'], rec['active']), ('trigger', 'Pit', 'human', True, True))
+        self.assertEqual((rec['radius'], rec['height']), (11250.0, 225.0))
+
+    def test_trigger_without_event_or_blocking_stays_as_it_was(self):
+        self.assertEqual(self.records('Trigger', Tag='Trigger'), [])
+        wall, = self.records('Trigger', Tag='Trigger', Event='x', bBlockPlayers='True')
+        self.assertEqual(wall['type'], 'blocker')
+
+    def test_special_event_states(self):
+        hurt, = self.records('SpecialEvent', Tag='Pit', InitialState='DamageInstigator', Damage='4000')
+        self.assertEqual((hurt['type'], hurt['kind'], hurt['tag'], hurt['damage']), ('event', 'damage', 'Pit', 4000.0))
+        bell, = self.records('SpecialEvent', Tag='Bell', InitialState='PlaySoundEffect', Sound="Sound'School.bell'")
+        self.assertEqual((bell['kind'], bell['sound']), ('sound', 'School.bell'))
+        self.assertEqual(self.records('SpecialEvent', Tag='Quiet', InitialState='PlaySoundEffect'), [])        # no sound set
+        self.assertEqual(self.records('SpecialEvent', Tag='Hum', InitialState='PlayAmbientSoundEffect'), [])   # not ported
+        said, = self.records('SpecialEvent', Tag='Hello', Message='"Engine doors open"', bBroadcast='True')
+        self.assertEqual((said['kind'], said['message'], said['broadcast']), ('message', 'Engine doors open', True))
+
+    def test_dispatcher_and_counter(self):
+        chain, = self.records('Dispatcher', Tag='Go', **{'OutEvents(0)': 'A', 'OutEvents(2)': 'C', 'OutDelays(2)': '1.500000'})
+        self.assertEqual((chain['kind'], chain['out']), ('dispatcher', [{'event': 'A', 'delay': 0.0}, {'event': 'C', 'delay': 1.5}]))
+        count, = self.records('Counter', Tag='Lever', Event='Door', NumToCount='3', CompleteMessage='"Open"')
+        self.assertEqual((count['kind'], count['count'], count['event'], count['message']), ('counter', 3, 'Door', 'Open'))
+
+    def test_loose_ends_are_dropped(self):
+        def rec(what, tag, event, **more):
+            return dict({'type': what, 'name': tag, 'tag': tag, 'event': event, 'kind': 'damage'}, **more)
+        spawns = [rec('trigger', 'T1', 'Pit'), rec('event', 'Pit', ''), rec('trigger', 'T2', 'Door'),      # Door: a mover's
+                  rec('event', 'Apple', ''),                                                              # fired by a mover
+                  rec('trigger', 'T3', 'Go'), rec('event', 'Go', '', kind='dispatcher', out=[{'event': 'Bell', 'delay': 1.0}]),
+                  rec('event', 'Bell', ''),
+                  rec('trigger', 'T4', 'Lamps'), rec('event', 'Lamps', 'T4', kind='dispatcher', out=[{'event': 'Lamp1', 'delay': 0.0}]),
+                  {'type': 'legacy', 'name': 'x'}]
+        self.assertEqual([r['name'] for r in actors.prune_events(spawns)], ['T1', 'Pit', 'T3', 'Go', 'Bell', 'x'])
+
+    def test_a_trigger_left_alone_takes_its_event_with_it(self):
+        spawns = [dict(type='trigger', name='T', tag='T', event='Gone'), dict(type='event', kind='damage', name='E', tag='E', event='T')]
+        self.assertEqual(actors.prune_events(spawns), [])   # E toggles T, T fires at nothing
+
+    def test_movers_answer_and_fire(self):
+        spawns = [dict(type='trigger', name='T', tag='T', event='Door'),
+                  dict(type='mover', name='M', tag='Door', event='Glass', initial_state='TriggerOpenTimed'),
+                  dict(type='event', kind='explode', name='G', tag='Glass', event=''),
+                  dict(type='trigger', name='T2', tag='T2', event='Lift'),
+                  dict(type='mover', name='L', tag='Lift', event='', initial_state='BumpOpenTimed')]   # bumped only
+        self.assertEqual([r['name'] for r in actors.prune_events(spawns)], ['T', 'M', 'G', 'L'])
+
+    def test_breaking_glass(self):
+        rec, = self.records('BreakingGlass', Tag='glass1', BreakingSound="Sound'levelSFX.GlassSmash'")
+        self.assertEqual((rec['kind'], rec['tag'], rec['sound']), ('explode', 'glass1', 'levelSFX.GlassSmash'))
+
+    def test_any_actor_plays_its_ambient_sound(self):
+        mapper = actors.ActorMapper({}, {}, [], _Tree())
+        hum = {'class': 'OmniSound', 'name': 'OmniSound0', 'location': [1.0, 2.0, 3.0], 'zone': 0,
+               'rotation': {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}, 'props': {'AmbientSound': "Sound'levelSFX.Carpassby'", 'SoundRadius': '16'}}
+        sound, = [r for r in mapper.map(hum) if r['type'] == 'ambient_sound']
+        self.assertEqual((sound['sound'], sound['radius'], sound['volume']), ('levelSFX.Carpassby', 25.0 * 17 * 2.25, 128 / 255))
+        quiet = dict(hum, props={})
+        self.assertEqual([r for r in mapper.map(quiet) if r['type'] == 'ambient_sound'], [])
+
+
+class _SpriteTree(_Tree):
+    DEFAULTS = {('ScaledSprite', 'DrawType'): 'DT_Sprite', ('ScaledSprite', 'bHidden'): 'False',
+                ('Light', 'DrawType'): 'DT_Sprite', ('Light', 'bHidden'): 'True', ('Light', 'Texture'): "Texture'Engine.S_Light'"}
+
+    def is_a(self, cls, base):
+        return base == 'Decoration' and cls == 'ScaledSprite'
+
+    def default(self, cls, prop, fallback=None):
+        return self.DEFAULTS.get((cls, prop), fallback)
+
+
+class SpriteTests(unittest.TestCase):
+    def convert(self, *placed):
+        conv = LevelConverter.__new__(LevelConverter)
+        conv.usage, conv.texture_sizes = {}, {'patric.grass00': (64, 128)}
+        conv.texture_polyflags = {'patric.grass00': PF_MASKED}
+        found = []
+        with tempfile.TemporaryDirectory() as tmp:
+            conv.out = Path(tmp)
+            rec = conv.convert_sprites([{'class': cls, 'name': cls, 'location': [100.0, 200.0, 300.0], 'props': props}
+                                        for cls, props in placed], _SpriteTree())
+            if rec:
+                found = mfmesh.read(conv.out / (rec['mesh'] + '.mfmesh.json'))
+        return rec, found
+
+    def test_a_scaled_sprite_becomes_a_camera_facing_quad(self):
+        rec, mesh = self.convert(('ScaledSprite', {'Texture': "Texture'patric.Grass00'", 'DrawScale': '0.5'}))
+        self.assertEqual((rec['type'], rec['count']), ('sprites', 1))
+        self.assertTrue(mesh.has_colors)
+        self.assertEqual(len(mesh.materials), 1)
+        self.assertTrue(mesh.materials[0].startswith('patric.Grass00|') and mesh.materials[0].endswith('_sprite'))
+        corners = {tuple(v[3][:2]) for t in mesh.tris[0] for v in t}
+        self.assertEqual(corners, {(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)})
+        w, h = 64 * 0.5 * 2.25, 128 * 0.5 * 2.25
+        for t in mesh.tris[0]:
+            for pos, _, size, corner in t:
+                self.assertEqual(tuple(round(s, 3) for s in size), (round(w, 3), round(h, 3)))   # the material's offset
+                self.assertAlmostEqual(pos[2], 300.0 + (corner[1] - 0.5) * h, places=3)       # baked upright round it
+
+    def test_hidden_actors_and_editor_icons_are_left_out(self):
+        rec, _ = self.convert(('Light', {}), ('ScaledSprite', {'Texture': "Texture'patric.Grass00'", 'bHidden': 'True'}),
+                              ('ScaledSprite', {'Texture': "Texture'patric.Grass00'", 'DrawType': 'DT_Mesh'}))
+        self.assertIsNone(rec)
 
 
 if __name__ == '__main__':

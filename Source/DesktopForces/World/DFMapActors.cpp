@@ -43,13 +43,17 @@ void ADFMapInfo::SetUnderwater(UWorld* World, bool bUnder) {
 	}
 }
 
+ADFMapInfo* ADFMapInfo::Get(const UWorld* World) {
+	TActorIterator<ADFMapInfo> It(World);
+	return It ? *It : nullptr;
+}
+
 void ADFMapInfo::ApplyAmbient(UWorld* World) {
 	UMaterialParameterCollection* MPC = World ? UDFGameSettings::Get().MaterialParameters.LoadSynchronous() : nullptr;
 	if (!MPC || World->GetNetMode() == NM_DedicatedServer)
 		return;
-	FLinearColor Ambient = FLinearColor::Black;
-	for (TActorIterator<ADFMapInfo> It(World); It; ++It)
-		Ambient = It->Ambient;
+	const ADFMapInfo* Info = Get(World);
+	const FLinearColor Ambient = Info ? Info->Ambient : FLinearColor::Black;
 	// under water everything shows, in a lit blue haze: MF's zones have no shadow from the surface
 	const float Scale = UDFGameSettings::Get().AmbientFloor * UDFUserSettings::Get().Brightness * (bUnderwater ? UnderwaterLight : 1.f);
 	// actors and props have no zone ambient to fall back on: never quite black (UE1 AmbientGlow)

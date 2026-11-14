@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import t3d, ucc
 from . import mapedits, minimap, twins
-from .actors import ActorMapper, ClassTree, zone_ambient
+from .actors import ActorMapper, ClassTree, prune_events, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
 from .config import Config, UU_TO_CM
@@ -35,6 +35,9 @@ LIGHTMAP_BUDGET = 6_000_000    # lightmap texels per map (world + every prop ins
 LIGHTMASS_BOUNCES = 2          # baked bounce light (free at runtime; fills what UE1 zone ambient lit)
 
 ROT_TO_DEG = 360.0 / 65536.0
+# UE1 Actor.Style -> the poly flags a sprite is drawn with (STY_None and STY_Normal: none)
+SPRITE_STYLES = {'STY_Masked': PF_MASKED, 'STY_Translucent': PF_TRANSLUCENT, 'STY_Modulated': PF_MODULATED}
+SPRITE_TILT = (math.sqrt(0.5), math.sqrt(0.5), 0.0)   # a quad's width as baked: the material turns it to the camera
 
 
 def material_key(texture: str | None, flags: int) -> str:
@@ -423,6 +426,50 @@ class LevelConverter:
         print(f'  static meshes: {len(meshes)}')
         return meshes
 
+    # --- sprites ------------------------------------------------------------
+    def convert_sprites(self, actors: list[dict], tree: ClassTree) -> dict | None:
+        """UE1 sprites (DrawType DT_Sprite, not hidden): ScaledSprite decorations and mappers'
+        sprite actors - mf-Jungle's grass, mf-BraveDwarfes' bubbles, light coronas. One mesh of
+        quads for the map, which the sprite materials (M_MF_*Sprite) turn to face the camera: a
+        draw per texture, not per sprite. Editor icons (Engine.S_*, ParticleIcon) are left out:
+        UE1 hid them at run time.
+
+        A quad is baked upright at its size, its width along SPRITE_TILT (so the mesh's bounds
+        have depth); corner (0 or 1, 0 or 1) in the vertex colour, width and height in UV 0
+        (UE1: texture size x DrawScale)."""
+        mb = MeshBuilder('DFSprites')
+        mb.collision = 'none'
+        mb.has_colors = True
+        mb.lightmap_resolution = 4
+        count = 0
+        for a in actors:
+            p, cls = a['props'], a['class']
+            if not (tree.is_a(cls, 'Decoration') or p.get('DrawType') == 'DT_Sprite'):
+                continue
+            if p.get('DrawType', tree.default(cls, 'DrawType', 'DT_Sprite')) != 'DT_Sprite' or t3d.parse_bool(p.get('bHidden', tree.default(cls, 'bHidden'))):
+                continue
+            tex = t3d.parse_object_ref(p.get('Texture') or tree.default(cls, 'Texture'))
+            if not tex or tex.lower().startswith('engine.') or tex.lower().endswith('.particleicon'):
+                continue
+            usize, vsize = self.texture_size(tex)
+            scale = t3d.parse_float(p.get('DrawScale'), 1.0) * UU_TO_CM
+            w, h = usize * scale, vsize * scale
+            key = material_key(tex, SPRITE_STYLES.get(p.get('Style', ''), 0) | self.texture_flags(tex) | PF_UNLIT) + '_sprite'
+            self._use(key)
+            c = a['location']
+            corners = [(0, 0), (1, 0), (1, 1), (0, 1)]
+            vs = [(tuple(c[i] + (cx - 0.5) * w * SPRITE_TILT[i] + (cy - 0.5) * h * (i == 2) for i in range(3)), (0.0, 0.0, 1.0), (w, h), (float(cx), float(cy), 0.0))
+                  for cx, cy in corners]
+            mb.add_triangle(key, vs[0], vs[1], vs[2])
+            mb.add_triangle(key, vs[0], vs[2], vs[3])
+            count += 1
+        if not count:
+            return None
+        mb.write(self.out / 'meshes')
+        print(f'  sprites: {count}')
+        return {'type': 'sprites', 'name': 'DFSprites', 'mesh': 'meshes/DFSprites', 'count': count,
+                'location': [0.0, 0.0, 0.0], 'rotation': {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}}
+
     # --- movers -------------------------------------------------------------
     def convert_movers(self, pkg: Package, level: t3d.Block) -> list[dict]:
         """Mover brushes -> a mesh each (its own space, around the pivot) + a 'mover' record.
@@ -493,6 +540,9 @@ class LevelConverter:
                 'stay_open_time': t3d.parse_float(props.get('StayOpenTime'), 4.0),
                 'initial_state': props.get('InitialState', 'BumpOpenTimed'),
                 'collide': collide, 'tag': props.get('Tag', 'Mover').strip('"'),
+                'event': '' if props.get('Event', 'None').strip('"') == 'None' else props['Event'].strip('"'),   # fired once open
+                'damage_triggered': t3d.parse_bool(props.get('bDamageTriggered')), 'damage_threshold': t3d.parse_float(props.get('DamageThreshold')),
+                'once': t3d.parse_bool(props.get('bTriggerOnceOnly')),
                 'cond_game_type': cond.split('.')[-1] if cond else '',
                 'team_play': t3d.parse_bool(props.get('bTeamPlay'), True),
                 'non_team_play': t3d.parse_bool(props.get('bNonTeamPlay'), True),
@@ -561,8 +611,11 @@ class LevelConverter:
         bounds = self.zone_bounds(model)
         mapper = ActorMapper(bounds, meshes, model.zones, tree)
         spawns = [rec for a in actors for rec in mapper.map(a)]
+        if sprites := self.convert_sprites(actors, tree):
+            spawns.append(sprites)
         self.add_minimap(actors, spawns)
         spawns += self.convert_movers(pkg, level)
+        spawns = prune_events(spawns)
         roads = road_network(pkg, actors)
         if roads:
             spawns.append(dict(type='road_network', name='RoadNetwork', location=[0.0, 0.0, 0.0], **roads))

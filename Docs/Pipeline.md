@@ -146,6 +146,23 @@ agreeing). Strongly agreeing normals win, so rooms and tunnels seen from inside 
   `loadout_zone`, `ambient_sound`, `map_info`, `legacy` (original actors kept for future
   game modes: flags, trailer parks, vehicle generators …).
   **All MF→UE actor knowledge lives in `mflib/actors.py`.**
+  `trigger` and `event` are UE1's events (`ADFTrigger`, `ADFEventRelay`:
+  [Gameplay](Gameplay.md)): a `Trigger` with an Event, and the `SpecialEvent` / `Dispatcher` /
+  `Counter` / `ExplodingWall` that answer one; `mover` records carry their Tag, Event and
+  trigger settings too. `prune_events` drops the triggers whose Event no record answers and
+  the events no record fires (their other end is a light or a class not ported), so a map
+  keeps only chains that do something. Any actor with an `AmbientSound` also gets an
+  `ambient_sound` record. An event's sound makes its
+  package one the `sounds` step converts. `import <maps> --steps patch` puts them into a
+  built map without a rebake.
+  `sprites` (`convert_sprites`): every visible `DT_Sprite` actor (ScaledSprite decorations,
+  mappers' sprite actors such as LaserBeam; editor icons `Engine.S_*` left out, UE1 hid them)
+  as one mesh `meshes/DFSprites`. A quad per sprite, baked upright with its width along
+  `SPRITE_TILT`; its corner (0/1, 0/1) is in the vertex colour, its size (texture size x
+  DrawScale) in UV 0. The `M_MF_*Sprite` masters (`AddSpriteFacing`) turn each corner to the
+  camera with a world position offset and read the texture by the corner, so a map draws its
+  sprites in one call per texture. The patch step places it too. In `-game` from the editor,
+  a sprite master's first run draws grey unturned quads until its shaders finish compiling.
 - `actors`: raw converted actor list (debugging), `texture_usage`, `lightmass`.
 
 ### `Effects/effects.json` (`mflib/effects.py`)

@@ -46,10 +46,10 @@ def convert_package(cfg: Config, package: str) -> int:
 
 
 def packages_used(level_json: dict) -> set[str]:
-    """Sound packages referenced by a converted level (ambient and periodic sounds)."""
+    """Sound packages referenced by a converted level (ambient and periodic sounds, sound events)."""
     out = set()
     for r in level_json.get('spawns', []):
-        if r.get('type') in ('ambient_sound', 'periodic_sound') and r.get('sound'):
+        if r.get('type') in ('ambient_sound', 'periodic_sound', 'event') and r.get('sound'):
             out.add(r['sound'].split('.')[0])
     return out
 

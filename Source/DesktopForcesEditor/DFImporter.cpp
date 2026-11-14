@@ -33,6 +33,11 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialExpressionVertexColor.h"
+#include "Materials/MaterialExpressionTransform.h"
+#include "Materials/MaterialExpressionConstant3Vector.h"
+#include "Materials/MaterialExpressionComponentMask.h"
+#include "Materials/MaterialExpressionAppendVector.h"
+#include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
@@ -1378,6 +1383,9 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 		return *Found;
 	bool bCreated = false;
 	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_") + Mode, bCreated);
+	// "...Sprite": the same, on a sprite quad turned to face the camera (AddSpriteFacing)
+	const bool bSprite = Mode.EndsWith(TEXT("Sprite"));
+	const FString Blend = bSprite ? Mode.LeftChop(6) : Mode;
 	if (bCreated) {
 		// UE1 look: base texture, no specular, fully rough. Blend modes follow UE1 poly flags:
 		// Masked = alpha test, Additive = PF_Translucent, Modulated = PF_Modulated (x2), Unlit = PF_Unlit.
@@ -1392,7 +1400,7 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 			M->GetExpressionCollection().AddExpression(C);
 			return C;
 		};
-		const bool bLit = Mode == TEXT("Opaque") || Mode == TEXT("Masked");
+		const bool bLit = Blend == TEXT("Opaque") || Blend == TEXT("Masked");
 		if (bLit) {
 			M->SetShadingModel(MSM_DefaultLit);
 			E->BaseColor.Connect(0, Tex);
@@ -1400,7 +1408,7 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 			E->Roughness.Connect(0, Const(1.f));
 		} else {
 			M->SetShadingModel(MSM_Unlit);
-			if (Mode == TEXT("Modulated")) {
+			if (Blend == TEXT("Modulated")) {
 				UMaterialExpressionMultiply* Mul = NewObject<UMaterialExpressionMultiply>(M);
 				Mul->A.Connect(0, Tex);
 				Mul->ConstB = 2.f;
@@ -1410,14 +1418,16 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 				E->EmissiveColor.Connect(0, Tex);
 			}
 		}
-		if (Mode == TEXT("Masked") || Mode == TEXT("MaskedUnlit")) {
+		if (Blend == TEXT("Masked") || Blend == TEXT("MaskedUnlit")) {
 			M->BlendMode = BLEND_Masked;
 			E->OpacityMask.Connect(4, Tex); // alpha output
-		} else if (Mode == TEXT("Additive")) {
+		} else if (Blend == TEXT("Additive")) {
 			M->BlendMode = BLEND_Additive;
-		} else if (Mode == TEXT("Modulated")) {
+		} else if (Blend == TEXT("Modulated")) {
 			M->BlendMode = BLEND_Modulate;
 		}
+		if (bSprite)
+			AddSpriteFacing(M, Tex);
 		M->SetMaterialUsage(MATUSAGE_StaticLighting); // lightmapped level geometry
 		M->PreEditChange(nullptr);
 		M->PostEditChange();
@@ -1426,7 +1436,7 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 	}
 	// MSAA (forward) smooths a masked material's cut-out edges only through alpha to coverage:
 	// without it thin bars (the warehouse's floor grates) crawl and flash as you move
-	if ((Mode == TEXT("Masked") || Mode == TEXT("MaskedUnlit")) && !M->bUseAlphaToCoverage) {
+	if ((Blend == TEXT("Masked") || Blend == TEXT("MaskedUnlit")) && !M->bUseAlphaToCoverage) {
 		M->PreEditChange(nullptr);
 		M->bUseAlphaToCoverage = true;
 		M->PostEditChange();
@@ -1444,6 +1454,71 @@ UMaterialInterface* FDFImporter::GetMasterMaterial(const FString& Mode) {
 	}
 	MasterCache.Add(Mode, M);
 	return M;
+}
+
+void FDFImporter::AddSpriteFacing(UMaterial* M, UMaterialExpressionTextureSampleParameter2D* Tex) {
+	// A sprite quad is baked upright, its width along (1, 1, 0) / sqrt 2 (level.py SPRITE_TILT);
+	// its corner (0 or 1 each way) is in the vertex colour, its width and height in UV 0. The
+	// vertex shader moves each corner from there to the camera's right and up (world position
+	// offset), the texture is read by the corner. One mesh holds every sprite of a map.
+	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+	auto Add = [M](UMaterialExpression* X) {
+		M->GetExpressionCollection().AddExpression(X);
+		return X;
+	};
+	auto Mask = [&](UMaterialExpression* In, int32 Out, bool R, bool G) {
+		UMaterialExpressionComponentMask* C = NewObject<UMaterialExpressionComponentMask>(M);
+		C->Input.Connect(Out, In);
+		C->R = R;
+		C->G = G;
+		return Cast<UMaterialExpressionComponentMask>(Add(C));
+	};
+	auto Vec = [&](float X, float Y, float Z) {
+		UMaterialExpressionConstant3Vector* C = NewObject<UMaterialExpressionConstant3Vector>(M);
+		C->Constant = FLinearColor(X, Y, Z);
+		return Add(C);
+	};
+	auto Mul = [&](UMaterialExpression* A, UMaterialExpression* B) {
+		UMaterialExpressionMultiply* X = NewObject<UMaterialExpressionMultiply>(M);
+		X->A.Connect(0, A);
+		X->B.Connect(0, B);
+		return Add(X);
+	};
+	auto Sub = [&](UMaterialExpression* A, UMaterialExpression* B, float ConstB = 0.f) {
+		UMaterialExpressionSubtract* X = NewObject<UMaterialExpressionSubtract>(M);
+		X->A.Connect(0, A);
+		if (B)
+			X->B.Connect(0, B);
+		X->ConstB = ConstB;
+		return Add(X);
+	};
+	auto ViewAxis = [&](float X, float Y) { // the camera's right (1, 0) or up (0, 1) in the world
+		UMaterialExpressionTransform* T = NewObject<UMaterialExpressionTransform>(M);
+		T->Input.Connect(0, Vec(X, Y, 0.f));
+		T->TransformSourceType = TRANSFORMSOURCE_View;
+		T->TransformType = TRANSFORM_World;
+		return Add(T);
+	};
+	UMaterialExpression* Corner = Add(NewObject<UMaterialExpressionVertexColor>(M));
+	UMaterialExpressionTextureCoordinate* SizeUV = NewObject<UMaterialExpressionTextureCoordinate>(M);
+	SizeUV->CoordinateIndex = 0;
+	Add(SizeUV);
+	UMaterialExpression* CornerX = Mask(Corner, 0, true, false);
+	UMaterialExpression* CornerY = Mask(Corner, 0, false, true);
+	UMaterialExpression* Wide = Mul(Sub(CornerX, nullptr, 0.5f), Mask(SizeUV, 0, true, false));
+	UMaterialExpression* High = Mul(Sub(CornerY, nullptr, 0.5f), Mask(SizeUV, 0, false, true));
+	UMaterialExpressionAdd* Offset = NewObject<UMaterialExpressionAdd>(M);
+	Offset->A.Connect(0, Mul(Wide, Sub(ViewAxis(1.f, 0.f), Vec(0.70710678f, 0.70710678f, 0.f))));
+	Offset->B.Connect(0, Mul(High, Sub(ViewAxis(0.f, 1.f), Vec(0.f, 0.f, 1.f))));
+	E->WorldPositionOffset.Connect(0, Add(Offset));
+	// texture coordinates from the corner: (0, 0) top left, as UE1 drew a sprite
+	UMaterialExpressionOneMinus* Down = NewObject<UMaterialExpressionOneMinus>(M);
+	Down->Input.Connect(0, CornerY);
+	UMaterialExpressionAppendVector* UV = NewObject<UMaterialExpressionAppendVector>(M);
+	UV->A.Connect(0, CornerX);
+	UV->B.Connect(0, Add(Down));
+	Tex->Coordinates.Connect(0, Add(UV));
+	M->TwoSided = true;
 }
 
 UMaterialParameterCollection* FDFImporter::EnsureAmbientCollection() {
@@ -1626,6 +1701,8 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 		Master = bUnlit ? TEXT("MaskedUnlit") : TEXT("Masked");
 	else if (bUnlit)
 		Master = TEXT("Unlit");
+	if (Mode.EndsWith(TEXT("_sprite"))) // UE1 sprites: camera-facing quads (level.py convert_sprites)
+		Master += TEXT("Sprite");
 
 	FString Dir, Name;
 	SplitKey(TexKey, Dir, Name);

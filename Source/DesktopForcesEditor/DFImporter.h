@@ -93,6 +93,8 @@ public:
 	bool AddAmbientFloor(UMaterial* M);
 	/** Moving meshes have no lightmap: their light comes as a per-mesh value (DF::SetMovingLight). */
 	bool AddActorLight(UMaterial* M);
+	/** A sprite master's camera facing (M_MF_*Sprite): world position offset and corner UVs. */
+	void AddSpriteFacing(class UMaterial* M, class UMaterialExpressionTextureSampleParameter2D* Tex);
 	class UMaterialParameterCollection* EnsureAmbientCollection();
 	/** HUD art / fonts (Rage, RageWeapons, MobileForceFonts packages). */
 	static bool IsUITexture(const FString& Key);
