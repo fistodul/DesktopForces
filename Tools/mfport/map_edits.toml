@@ -45,7 +45,7 @@ drop_faces = { terrain1 = ["rage_warehouse.sky.ware_sky_2"] }
 # heaps, the snow on roofs, cars and benches (static meshes, sloped faces, higher up) stay snow
 retexture = [{ from = "rage_snow.snow", to = "DesktopForces.Paving.snow_bricks", faces = "floor", below = -300.0 }]
 # Baked at High: Medium leaves grey blotches on the snow heaps, and High takes no longer here
-# (debug/bakequality.py, 2026-11-16: Roadmap #24)
+# (debug/bakequality.py, 2026-11-15: Roadmap #24)
 quality = "High"
 
 ["BR-thebigisland"]
@@ -165,14 +165,29 @@ quality = "High"
 quality = "High"
 
 ["mf-Tropics"]
-# Baked at High (Filip, 2026-11-16): leaves and the store room's cans are lit a little more evenly,
+# Baked at High (Filip, 2026-11-15): leaves and the store room's cans are lit a little more evenly,
 # and the map bakes in seven minutes
 quality = "High"
 
 ["MF-Aquarius"]
-# Baked at High (Filip, 2026-11-16: the more exact light, and the map bakes in two minutes).
+# Baked at High (Filip, 2026-11-15: the more exact light, and the map bakes in two minutes).
 # StaticMesh97 is its ten-sided column: from the box projection its shaft was four charts three to
 # five texels wide, and High's finer bounced light showed their borders as steps. Its own texture
 # unwrap goes once around the shaft
 quality = "High"
 lightmap_uvs = { StaticMesh97 = "texture" }
+
+# Baked at High (Filip, 2026-11-15): the light differs from Medium's by more here than on
+# MF-TurpowiaV1 (0.7-0.8 of 255 against 0.44, Roadmap #24), so there are probably places it is
+# better that nobody looked at; mf-Toreford bakes no longer for it, the others in minutes
+["mf-Space_station"]
+quality = "High"
+
+["MF-Test_Facility"]
+quality = "High"
+
+["MF-RandomLand"]
+quality = "High"
+
+["mf-Toreford"]
+quality = "High"
