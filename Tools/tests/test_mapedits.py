@@ -36,6 +36,19 @@ class RetextureTests(unittest.TestCase):
         self.assertEqual(mapedits.retexture('no-such-map'), [])
 
 
+class LightmapChartTests(unittest.TestCase):
+    def test_a_named_mesh_carries_its_chart_source_to_the_importer(self):
+        self.assertEqual(mapedits.lightmap_uvs('mf-aquarius'), {'staticmesh97': 'texture'})
+        self.assertEqual(mapedits.lightmap_uvs('no-such-map'), {})
+        mb = mfmesh.MeshBuilder('Column', lightmap_uvs='texture')
+        mb.add_triangle('a.b|opaque', ((0, 0, 0), (0, 0, 1), (0, 0)), ((1, 0, 0), (0, 0, 1), (1, 0)), ((0, 1, 0), (0, 0, 1), (0, 1)))
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(mfmesh.read(mb.write(Path(tmp))).lightmap_uvs, 'texture')
+            plain = mfmesh.MeshBuilder('Plain')
+            plain.add_triangle('a.b|opaque', ((0, 0, 0), (0, 0, 1), (0, 0)), ((1, 0, 0), (0, 0, 1), (1, 0)), ((0, 1, 0), (0, 0, 1), (0, 1)))
+            self.assertNotIn('lightmap_uvs', plain.write(Path(tmp)).read_text())   # unnamed meshes' files stay as they were
+
+
 class OwnTextureTests(unittest.TestCase):
     def test_a_generated_picture_becomes_a_manifest_entry(self):
         with tempfile.TemporaryDirectory() as tmp:

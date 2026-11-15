@@ -83,6 +83,18 @@ def lightmap_budget(map_name: str, default: int) -> int:
     return int(_edits_for(map_name).get('lightmap_budget', default))
 
 
+def lightmap_uvs(map_name: str) -> dict[str, str]:
+    """Static meshes of the map whose lightmap charts come from `texture` (the mesh's own
+    unwrap) or `box` (the six-sided projection) instead of the importer's pick, by mesh name.
+    A round, smooth mesh the mapper unwrapped once around is one chart from its texture UVs and
+    four narrow ones from the box, whose borders show as steps in the baked light."""
+    uvs = {m.lower(): v for m, v in _edits_for(map_name).get('lightmap_uvs', {}).items()}
+    wrong = {m: v for m, v in uvs.items() if v not in ('texture', 'box')}
+    if wrong:
+        raise ValueError(f'{map_name}: lightmap_uvs is "texture" or "box", not {wrong}')
+    return uvs
+
+
 def bounces(map_name: str, default: int) -> int:
     """Lightmass indirect bounces: more light in rooms the sun doesn't reach, for bake time only."""
     return _edits_for(map_name).get('bounces', default)

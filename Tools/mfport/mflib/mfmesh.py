@@ -32,6 +32,7 @@ class MeshBuilder:
     tris: dict[int, list] = field(default_factory=dict)
     collision: str = 'complex'      # complex | none | simple_box
     lightmap_resolution: int = 64
+    lightmap_uvs: str = ''          # texture | box: the lightmap's charts from this; '' = the importer picks
     render: bool = True             # False = collision-only (invisible blocking geometry)
     has_colors: bool = False        # vertices carry a 4th element (r, g, b)
 
@@ -109,6 +110,7 @@ class MeshBuilder:
             'collision': self.collision,
             'render': self.render,
             'lightmap_resolution': self.lightmap_resolution,
+            **({'lightmap_uvs': self.lightmap_uvs} if self.lightmap_uvs else {}),
             'bounds': {'min': lo, 'max': hi},
         }
         path = out_dir / f'{self.name}.mfmesh.json'
@@ -146,7 +148,8 @@ def read(json_path: Path) -> MeshBuilder:
     verts = [struct.unpack_from(f'<{nf}f', data, i * nf * 4) for i in range(n)]
     idx = struct.unpack_from(f"<{meta['index_count']}I", data, n * nf * 4)
     mb = MeshBuilder(meta['name'], materials=list(meta['materials']), collision=meta.get('collision', 'complex'),
-                     lightmap_resolution=meta.get('lightmap_resolution', 64), render=meta.get('render', True))
+                     lightmap_resolution=meta.get('lightmap_resolution', 64), lightmap_uvs=meta.get('lightmap_uvs', ''),
+                     render=meta.get('render', True))
     for sec in meta['sections']:
         tris = mb.tris.setdefault(sec['material'], [])
         for t in range(sec['num_triangles']):

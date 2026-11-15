@@ -1908,6 +1908,9 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	const bool bRender = J->GetBoolField(TEXT("render"));
 	const FString Collision = J->GetStringField(TEXT("collision"));
 	const int32 LightmapRes = J->GetIntegerField(TEXT("lightmap_resolution"));
+	// "texture" / "box": the map's edits name where the lightmap charts come from (map_edits.toml lightmap_uvs)
+	FString LightmapFrom;
+	J->TryGetStringField(TEXT("lightmap_uvs"), LightmapFrom);
 	// pos3f_nrm3f_uv2f[_col3f]: world geometry carries its UE1 zone ambient as vertex colour
 	const bool bZoneColors = J->GetStringField(TEXT("vertex_layout")).EndsWith(TEXT("col3f"));
 	const int32 Stride = bZoneColors ? 11 : 8;
@@ -2019,17 +2022,24 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 		// A mesh of many small pieces may not pack at its share of the map's texels (every chart
 		// needs its padding): the packer then leaves the source UVs, all on top of each other
 		// (mf-western's buildings: 70 %). Twice the resolution until a layout shares under 2 %.
-		float Shared = 2.f;
+		// A source the map's edits name is there for where its chart borders lie, not for more
+		// texels: it gets the size the importer's own pick would have stopped at (MF-Aquarius's
+		// column packs under 2 % from its texture UVs only at 512, 14 MB of lightmaps for its eight)
+		float Shared = 2.f, OwnShared = 2.f;
 		const TCHAR* From = TEXT("");
 		bool bPacked = false;
-		for (int32 Res = LightmapSize; Res <= FMath::Max(LightmapSize, 1024) && Shared > 0.02f; Res *= 2) {
+		for (int32 Res = LightmapSize; Res <= FMath::Max(LightmapSize, 1024) && OwnShared > 0.02f; Res *= 2) {
 			FMeshDescription Box = BoxSource, Tex = TexSource;
 			const bool bBox = FStaticMeshOperations::CreateLightMapUVLayout(Box, 1, 1, Res, Version, Corners);
 			const bool bTex = FStaticMeshOperations::CreateLightMapUVLayout(Tex, 1, 1, Res, Version, Corners);
 			const float BoxShared = bBox ? LightmapOverlap(Box, Res) : 1.f, TexShared = bTex ? LightmapOverlap(Tex, Res) : 1.f;
 			// texture UVs only by a clear margin: Lightmass found a texel each of mf-western's logs
 			// packed from them shared (95 %), the box projection none, where both measure 1 % here
-			const bool bFromTex = TexShared + 0.01f < BoxShared;
+			const bool bOwnTex = TexShared + 0.01f < BoxShared;
+			const bool bFromTex = LightmapFrom == TEXT("texture") ? bTex : LightmapFrom != TEXT("box") && bOwnTex;
+			OwnShared = FMath::Min(OwnShared, bOwnTex ? TexShared : BoxShared);
+			if (!LightmapFrom.IsEmpty()) // a named source: what it costs at each size, next to the other
+				UE_LOG(LogDFEditor, Log, TEXT("%s: at %d box %.1f %%, texture %.1f %% texels shared"), *Name, Res, 100.f * BoxShared, 100.f * TexShared);
 			if ((bFromTex ? TexShared : BoxShared) < Shared) {
 				Shared = bFromTex ? TexShared : BoxShared;
 				From = bFromTex ? TEXT("texture UVs") : TEXT("box projection");

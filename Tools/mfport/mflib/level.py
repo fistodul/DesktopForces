@@ -394,6 +394,7 @@ class LevelConverter:
         meshes = {}
         out = self.out / 'meshes'
         drop = mapedits.drop_faces(self.map)   # map_edits.toml
+        charts = mapedits.lightmap_uvs(self.map)
         for actor in level.children:
             for blk in actor.find('StaticMesh'):
                 name = blk.name
@@ -420,6 +421,7 @@ class LevelConverter:
                     mb.add_triangle(key, *vs)
                     area += _area(p)
                 mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / LIGHTMAP_TEXEL))))
+                mb.lightmap_uvs = charts.get(name.lower(), '')
                 mb.write(out)
                 meshes[name] = {'mesh': f'meshes/{name}', 'triangles': mb.triangle_count,
                                 'lightmap_resolution': mb.lightmap_resolution, 'lightmap_size_uu': math.sqrt(area)}

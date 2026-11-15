@@ -343,6 +343,16 @@ under `overrides/textures/DesktopForces/`), `mfport.py textures` lists it in the
 (`/Game/MF/Community/Textures/DesktopForces/...`). A retextured map needs `rebake <map>`
 (its world meshes change).
 
+`lightmap_uvs = { <mesh> = "texture" }` (or `"box"`) names where a static mesh's lightmap
+charts come from, instead of the importer's pick (the layout sharing fewer texels:
+`FDFImporter::BuildStaticMesh`). The box projection cuts a round mesh into four narrow side
+charts, and where the light is baked finely their borders show as steps; a mesh the mapper
+unwrapped once around is one chart from its texture UVs. MF-Aquarius's ten-sided column
+(`StaticMesh97`, eight of them) is laid out so. The named source keeps the lightmap size the
+importer's own pick would have had (the import log gives both layouts' shared texels at each
+size: this column's texture unwrap shares 10 % at 64 px where the box shares 2 %, and would
+need 512 px to get under 2 %). Needs `map`, `import <map> --steps maps` and `light`.
+
 `nav_decks` lists static meshes walked across gaps (mf-sawmill's rope bridge: 33 - 45 cm between
 the planks). A soldier's 38 cm capsule steps across, Recast's 19 cm cells don't and left the bridge
 to players only (a plank is also missing at every rope joint, up to 146 cm; running soldiers
