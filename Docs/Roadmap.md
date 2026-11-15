@@ -614,28 +614,49 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       or Production where shots tell them apart), the GPU Lightmass test on the Windows side
       (#16), 4 bounces on the dim indoor maps only, and the meshes Lightmass still reports
       with overlapping lightmap charts (what #15 left: charts smaller than a texel). Same method: fixed cameras, grey-level difference, bake minutes.
-    - ✅ High against Medium, measured (2026-11-15, `Tools/mfport/debug/bakequality.py`: up to 10
-      player starts x 2 views per map, no HUD, no bots; grey-level difference of the median
-      camera, /255, next to what two runs of the same bake differ by, 0.24-0.28 on every map):
+    - ✅ High against Medium on all 22 maps of `Content/Maps`, measured (2026-11-15/16,
+      `Tools/mfport/debug/bakequality.py`: up to 10 player starts x 2 views per map, no HUD, no
+      bots). Change: the same camera with the Medium bake and with the High bake, absolute
+      grey-level difference per pixel (/255) averaged over the picture, median camera. It says how
+      much the picture changed, not whether it got better: that is the last column, by eye on the
+      most-changed views side by side. Two screenshot runs of one bake differ by 0.24-0.28, and
+      so does a second Medium bake of the same map (MF-Aquarius, MF-Stuck: bakes repeat), so
+      anything above about 0.3 is the quality setting. Medium minutes are from the 2026-11-08/09
+      rebake logs (power state then not recorded), High on mains:
 
-      | map | High bake | change | seen in the shots |
-      |---|---|---|---|
-      | ZM-SpaceZombura | 2.7 min | 3.70 | Medium's dark blotches on floors and walls are gone: High |
-      | MF-TurpowiaV1 | 4.2 min | 0.44 | grey smudges on the white walls gone in some rooms: High |
-      | MF-Aquarius | 2.2 min | 0.83 | no gain (one new seam on a red column) |
-      | mf-Space_station | 17.7 min | 0.81 | no gain |
-      | MF-Test_Facility | 8.6 min | 0.77 | no gain |
-      | MF-RandomLand | 0.7 min | 0.71 | no gain |
-      | mf-BraveDwarfes | 7.1 min | 0.59 | no gain |
-      | MF-Stuck | 0.5 min | 0.56 | no gain |
-      | mf-Worlds_Peak | 3.0 min | 0.56 | no gain |
-      | mf-Treasure_Finders | 25.4 min | 0.53 | no gain |
-      | COOP-CoopOneUpdate | 7.1 min | 0.47 | no gain |
-      | MF-Filip | 0.6 min | 0.34 | no gain |
+      | map | Medium | High | change | seen in the shots |
+      |---|---|---|---|---|
+      | ZM-SpaceZombura | 1.4 min | 2.7 min | 3.70 | Medium's dark blotches on floors and walls are gone: High |
+      | mf-Sardine_City | 37.4 min | 38.7 min | 1.10 | grey blotches on the snow heaps gone: High |
+      | MF-TurpowiaV1 | 2.5 min | 4.2 min | 0.44 | grey smudges on the white walls gone in some rooms: High |
+      | mf-Tropics | 4.7 min | 7.2 min | 1.06 | leaves and cans lit a little more evenly: too slight to keep |
+      | MF-Aquarius | 1.5 min | 2.2 min | 0.83 | no gain; a column's facets now differ (below) |
+      | mf-Space_station | 11.4 min | 17.7 min | 0.81 | no gain |
+      | MF-Test_Facility | 5.2 min | 8.6 min | 0.77 | no gain |
+      | MF-RandomLand | 0.5 min | 0.7 min | 0.71 | no gain |
+      | mf-Toreford | 39.5 min | 37.4 min | 0.70 | no gain |
+      | mf-Pobojowisko_VerII | 11.8 min | 13.7 min | 0.60 | no gain |
+      | mf-BraveDwarfes | 5.7 min | 7.1 min | 0.59 | no gain |
+      | mf-Tajga | 19.5 min | 25.5 min | 0.59 | no gain |
+      | mf-City_Rush | 54.8 min | 56.5 min | 0.59 | no gain |
+      | MF-Stuck | 0.4 min | 0.5 min | 0.56 | no gain |
+      | mf-Worlds_Peak | 1.6 min | 3.0 min | 0.56 | no gain |
+      | mf-Treasure_Finders | 21.7 min | 25.4 min | 0.53 | no gain |
+      | mf-Prehistoric | 8.3 min | 9.9 min | 0.53 | no gain |
+      | DM-Warship | 6.5 min | 7.0 min | 0.50 | no gain |
+      | BR-thebigisland | 44.7 min | 60.9 min | 0.48 | no gain |
+      | COOP-CoopOneUpdate | 4.3 min | 7.1 min | 0.47 | no gain |
+      | dm-HolidayTown | 2.9 min | 4.2 min | 0.36 | no gain |
+      | MF-Filip | 0.4 min | 0.6 min | 0.34 | no gain |
 
-      A change under 1 was never visible; the two that gained are dark rooms (zone ambient 0) lit
-      by bounced light alone, with plain walls. Those two carry `quality = "High"` in
-      `map_edits.toml` and are baked so; the other ten are back at their Medium bake. Medium
-      stays the default. Not tested: the bright outdoor maps (the MF-Filip pattern says no gain,
-      and Sardine City alone is about an hour at High), Production, 4 bounces, GPU Lightmass.
+      All 22: 287 min at Medium, 341 min at High (1.2x; the small maps up to 1.9x, the big ones
+      hardly slower). Three gained: bounced light on plain pale or dark surfaces (the two dark
+      maps with zone ambient 0, and Sardine City's snow). They carry `quality = "High"` in
+      `map_edits.toml` and are baked so; the other 19 are back at their Medium bake, and Medium
+      stays the default. MF-Aquarius's red column: a faceted cylinder whose facet groups each have
+      their own lightmap. Medium's coarser bounce samples left both groups the same dim red; High
+      finds more bounced light on one, so the border between the two lightmaps shows as a step
+      (it lies on a facet edge: wireframe and lighting-only views). More exact, not prettier.
+      Not tested: the maps of the Classic and Unverified plugins (the script reads `Content/Maps`
+      only), Production, 4 bounces, GPU Lightmass.
 

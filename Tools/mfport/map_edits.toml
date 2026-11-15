@@ -44,6 +44,9 @@ drop_faces = { terrain1 = ["rage_warehouse.sky.ware_sky_2"] }
 # texture had made of it) - yards and pavements, everything level around the roads. The snow
 # heaps, the snow on roofs, cars and benches (static meshes, sloped faces, higher up) stay snow
 retexture = [{ from = "rage_snow.snow", to = "DesktopForces.Paving.snow_bricks", faces = "floor", below = -300.0 }]
+# Baked at High: Medium leaves grey blotches on the snow heaps, and High takes no longer here
+# (debug/bakequality.py, 2026-11-16: Roadmap #24)
+quality = "High"
 
 ["BR-thebigisland"]
 # its truck was placed for the servers' replaceVehicles to make a heli
@@ -154,7 +157,7 @@ same_as = "mf-Modernity"
 
 # Baked at High: these dark rooms are lit by bounced light alone, and at Medium it lies in blotches
 # on their plain walls and floors (debug/bakequality.py, 2026-11-15: 20 cameras a map against the
-# Medium bake; the ten other maps tried showed no gain and stay Medium: Roadmap #24)
+# Medium bake; of the 22 maps in Content/Maps only these two and mf-Sardine_City gained: Roadmap #24)
 ["ZM-SpaceZombura"]
 quality = "High"
 
