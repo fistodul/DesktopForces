@@ -629,8 +629,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       | ZM-SpaceZombura | 1.4 min | 2.7 min | 3.70 | Medium's dark blotches on floors and walls are gone: High |
       | mf-Sardine_City | 37.4 min | 38.7 min | 1.10 | grey blotches on the snow heaps gone: High |
       | MF-TurpowiaV1 | 2.5 min | 4.2 min | 0.44 | grey smudges on the white walls gone in some rooms: High |
-      | mf-Tropics | 4.7 min | 7.2 min | 1.06 | leaves and cans lit a little more evenly: too slight to keep |
-      | MF-Aquarius | 1.5 min | 2.2 min | 0.83 | no gain; a column's facets now differ (below) |
+      | mf-Tropics | 4.7 min | 7.2 min | 1.06 | leaves and cans lit a little more evenly: High (Filip: slight is what these changes are, and it bakes in under ten minutes) |
+      | MF-Aquarius | 1.5 min | 2.2 min | 0.83 | nothing to point at; a step on its columns (below, fixed): High (Filip: the more exact light) |
       | mf-Space_station | 11.4 min | 17.7 min | 0.81 | no gain |
       | MF-Test_Facility | 5.2 min | 8.6 min | 0.77 | no gain |
       | MF-RandomLand | 0.5 min | 0.7 min | 0.71 | no gain |
@@ -650,13 +650,24 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       | MF-Filip | 0.4 min | 0.6 min | 0.34 | no gain |
 
       All 22: 287 min at Medium, 341 min at High (1.2x; the small maps up to 1.9x, the big ones
-      hardly slower). Three gained: bounced light on plain pale or dark surfaces (the two dark
-      maps with zone ambient 0, and Sardine City's snow). They carry `quality = "High"` in
-      `map_edits.toml` and are baked so; the other 19 are back at their Medium bake, and Medium
-      stays the default. MF-Aquarius's red column: a faceted cylinder whose facet groups each have
-      their own lightmap. Medium's coarser bounce samples left both groups the same dim red; High
-      finds more bounced light on one, so the border between the two lightmaps shows as a step
-      (it lies on a facet edge: wireframe and lighting-only views). More exact, not prettier.
+      hardly slower). Three gained plainly: bounced light on plain pale or dark surfaces (the two
+      dark maps with zone ambient 0, and Sardine City's snow). Five carry `quality = "High"` in
+      `map_edits.toml` and are baked so (those three, mf-Tropics, MF-Aquarius); the other 17 are
+      at their Medium bake, and Medium is still the default. The change figure does not rank the
+      gain (MF-TurpowiaV1 is kept at 0.44, maps at 0.7-0.8 were not): the verdicts are an eye on
+      three most-changed views a map, so a map above about 0.5 probably has places that are
+      better at High which nobody looked at.
+      MF-Aquarius's columns (2026-11-16): High showed a step down the red shaft that Medium did
+      not. The column is a ten-sided static mesh with smooth normals; the importer's box
+      projection made its shaft four lightmap charts three to five texels wide, and High's finer
+      bounced light differed across a chart border where Medium's coarser samples had smeared
+      both sides alike. Fixed for this mesh with a map edit, `lightmap_uvs = { StaticMesh97 =
+      "texture" }`: its charts come from its own texture unwrap, once around the shaft, at the
+      same 64 px ([Pipeline.md](Pipeline.md#map-edits-toolsmfportmap_editstoml)). Every round
+      prop on every map has the box's four borders; they would show the same way at High. ⬜ A
+      general rule (texture charts wherever the unwrap is clean) needs the reason mf-western's
+      logs measured 1 % shared from texture UVs here and 95 % in Lightmass (the comment in
+      `BuildStaticMesh`), and a reimport and rebake of every map.
       Not tested: the maps of the Classic and Unverified plugins (the script reads `Content/Maps`
       only), Production, 4 bounces, GPU Lightmass.
 
