@@ -151,3 +151,12 @@ layout_from = "mf-battlebaynoonv1"
 # without its det locks and domination timer (and DefaultGameType KnifeFight.KnifeFightGame,
 # a server choice). mf-Modernity plays every mode it did
 same_as = "mf-Modernity"
+
+# Baked at High: these dark rooms are lit by bounced light alone, and at Medium it lies in blotches
+# on their plain walls and floors (debug/bakequality.py, 2026-11-15: 20 cameras a map against the
+# Medium bake; the ten other maps tried showed no gain and stay Medium: Roadmap #24)
+["ZM-SpaceZombura"]
+quality = "High"
+
+["MF-TurpowiaV1"]
+quality = "High"

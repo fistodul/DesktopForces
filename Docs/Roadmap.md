@@ -355,7 +355,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       this PC (RTX PRO 500 Blackwell, 6 GB, hardware ray tracing): enable the plugin and
       `r.RayTracing` for the bake only (the game keeps it off), bake mf-OldPrison,
       MF-Test_Facility and mf-ShuttleLaunch, and compare against the CPU Production shots
-      already taken (same cameras, `qualitytest.py`): time, look, VRAM (6 GB may not fit the big
+      already taken (same method as `Tools/mfport/debug/bakequality.py`): time, look, VRAM (6 GB may not fit the big
       maps), and whether the result differs in kind (GPU Lightmass has its own settings and
       denoiser). If it wins, `light` gets a GPU path for Windows.
     - ✅ measured (2026-11-08) on three small maps, 4 player starts x 2 views (no HUD) per quality,
@@ -614,4 +614,28 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       or Production where shots tell them apart), the GPU Lightmass test on the Windows side
       (#16), 4 bounces on the dim indoor maps only, and the meshes Lightmass still reports
       with overlapping lightmap charts (what #15 left: charts smaller than a texel). Same method: fixed cameras, grey-level difference, bake minutes.
+    - ✅ High against Medium, measured (2026-11-15, `Tools/mfport/debug/bakequality.py`: up to 10
+      player starts x 2 views per map, no HUD, no bots; grey-level difference of the median
+      camera, /255, next to what two runs of the same bake differ by, 0.24-0.28 on every map):
+
+      | map | High bake | change | seen in the shots |
+      |---|---|---|---|
+      | ZM-SpaceZombura | 2.7 min | 3.70 | Medium's dark blotches on floors and walls are gone: High |
+      | MF-TurpowiaV1 | 4.2 min | 0.44 | grey smudges on the white walls gone in some rooms: High |
+      | MF-Aquarius | 2.2 min | 0.83 | no gain (one new seam on a red column) |
+      | mf-Space_station | 17.7 min | 0.81 | no gain |
+      | MF-Test_Facility | 8.6 min | 0.77 | no gain |
+      | MF-RandomLand | 0.7 min | 0.71 | no gain |
+      | mf-BraveDwarfes | 7.1 min | 0.59 | no gain |
+      | MF-Stuck | 0.5 min | 0.56 | no gain |
+      | mf-Worlds_Peak | 3.0 min | 0.56 | no gain |
+      | mf-Treasure_Finders | 25.4 min | 0.53 | no gain |
+      | COOP-CoopOneUpdate | 7.1 min | 0.47 | no gain |
+      | MF-Filip | 0.6 min | 0.34 | no gain |
+
+      A change under 1 was never visible; the two that gained are dark rooms (zone ambient 0) lit
+      by bounced light alone, with plain walls. Those two carry `quality = "High"` in
+      `map_edits.toml` and are baked so; the other ten are back at their Medium bake. Medium
+      stays the default. Not tested: the bright outdoor maps (the MF-Filip pattern says no gain,
+      and Sardine City alone is about an hour at High), Production, 4 bounces, GPU Lightmass.
 
