@@ -2,6 +2,37 @@
 
 Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 
+## Open now (2026-11-15)
+
+What is left, in one place; the sections and numbered threads below hold the history and the
+detail. Checked against the code and the commits on 2026-11-15: a mark further down that
+disagrees with this list is the stale one.
+
+- **Lighting and bake** (thread 24): GPU Lightmass test on Windows (thread 16); High as the
+  default bake quality, yes or no; High against Medium on the Classic and Unverified maps; 4
+  bounces on the dark maps; lighting variants of one map (`?Lighting=night`, thread 17);
+  lighting per map against the videos (waterfront reads too bright).
+- **Graphics and performance** (thread 24): a weaker phone, the `performance` power profile and
+  a fight scene, what the render thread does in a Shipping build; optional Lumen for strong PCs
+  (thread 12, nothing measured); grate shimmer (thread 10).
+- **Phone** (thread 5): the touch layout editor, tap to fire and look speed under a finger; the
+  server browser on the phone.
+- **Network and servers**: the Join freeze on Filip's PC (thread 22); a second PC on the LAN
+  tab and sorting with several servers, Windows clients (threads 13, 14); played checks of the
+  beacon fix, the manifest refusal, five effect sounds and the Predator voice (hand-off
+  2026-11-03, thread 23); the console in a packaged Windows Shipping build (thread 4); Windows
+  fullscreen and VSync.
+- **Gameplay**: bots on ladders and in boats, bot hints (thread 23); the AIRating audit (thread
+  3); OmniSound timed playback; shotgun barrel-state animations; ragdolls; new modes; player
+  skins; the play-test leftovers (trip laser on vehicles, rotor start, flags on Armadillo, Jeep
+  and Heli, the stairs snag, the white text, M1887 alt shot, three sentry guns, HMG and jeep gun
+  animations, MAC-10 hand speed, steering).
+- **Maps and conversion**: Rage `CollisionMesh` and LodMesh animation; the Source maps' 312 HL2
+  model stand-ins (thread 20); replacement art shared between packs; music stand-ins and sounds
+  not listened to (thread 9); mod paks in a `Mods/` folder (thread 1).
+- **Tooling**: the CI workflow has never run and has no import test; old build folders on the
+  download server (thread 7).
+
 ## Foundation
 - ✅ UE 5.8 project: forward/mobile rendering, no post, static lighting, ~80 plugins off, Low scalability defaults
 - ✅ Git repo, open-source layout (code/tools/docs tracked, original assets generated locally)
@@ -25,7 +56,7 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes
 - ✅ Our own art: `SourceArt/` (menu pictures, start-up theme, mod icons) + procedural textures → `Tools/artgen` → `/Game/MF/...`
 - ✅ Content packs: classic (plugin) / core / replaced roots from `packs.toml`; core maps own their material instances (replacement art needs no re-bake)
-- 🟡 Replacement art for the textures core maps borrow: generated stand-ins for ~850 (`Tools/artgen/lookalike.py --auto`); see-through ones (foliage, decals) still original
+- ✅ Replacement art for the textures core maps borrow: generated stand-ins for ~850 (`Tools/artgen/lookalike.py --auto`), the see-through ones (lattices, trees, palms, splats) too since thread 9: every community map runs without the classic pack
 - ✅ Sky: each map's SkyZone captured into a cubemap for the sky material
 - ✅ Minimap textures (MiniMapInfo): MF tiles them (NumTexturesWide × High, 255 px each, 28 maps), stitched into one by `mflib/minimap.py` (only the first tile used to be stretched over the map); maps without a MiniMapInfo (56, VMF ones too) get one drawn from their floors (lighter higher up, lines at steps)
 - ✅ Textures straight from the packages: S3TC copies (MF's D3D look), palette alpha for HUD art
@@ -63,15 +94,15 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ✅ Chat (T/Y, Say/TeamSay), team orders menu (V, keys or mouse) with bot orders, MF message list
 - ✅ N teams (`UDFGameSettings::Teams`, `?Teams=`), UE match states, `ULocalMessage` announcements
 - 🟡 Bots: travel the whole map now (the warehouse navmesh is fine; a 30 s travel budget made them give up halfway), unstick by jumping, direct approach to goals off the navmesh edge. Ladder links still unverified. Roster (32 named bots in config, numbered extras beyond), loadouts, aim/strafe/fire, objective goals (`?Bots=N?BotSkill=0.7`). `DFNavTest` / `DFNavPath X Y Z` print reachability and routes. Never rebuild the navmesh in the light bake (it came out empty).
-- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret, wheel blow-outs, petrol caps, bots driving (MF road graph) / riding; ⬜ bots in boats, MoBall bot drivers
+- 🟡 Vehicles: Buggy, Humvee, Truck, Armadillo APC as physics boxes with raycast wheels tuned from `handling.hnd2` / `.COL` (springs scaled to MF gravity), MF meshes, generators, enter/exit (E), run-over, explosives-only damage. ✅ passenger seats (shooting from them), Armed APC turret, wheel blow-outs, petrol caps, bots driving (MF road graph) / riding, MoBall bot drivers (thread 23); ⬜ bots in boats (`bBotsDrive = false`, helis and pipers too)
 - ✅ Ladders: grab when close / falling in, climb down from the top, floor walks again; ✅ swimming / drowning, water / pain zones
-- ✅ Map actors: teleporters, placed items (respawning), periodic sounds, movers (scenery, spinners, bump doors), invisible walls, spawn room doors, coop maps' placed RageBots, particle effects (ParticleEffect / FireyExample: fires, smoke, sparks, rain); ⬜ trigger / special event chains (Treasure_Finders lighthouse, bells), LaserBeam
+- ✅ Map actors: teleporters, placed items (respawning), periodic sounds, movers (scenery, spinners, bump doors), invisible walls, spawn room doors, coop maps' placed RageBots, particle effects (ParticleEffect / FireyExample: fires, smoke, sparks, rain); ✅ trigger / special event chains, bells, LaserBeam (thread 23, `World/DFEvents.cpp`; Treasure_Finders' lighthouse only switches lights and is left as it is: Filip, 2026-11-14)
 - ✅ MF-mods, part of the game (`Game/`, `Weapons/`, `Vehicles/` subfolders, [Modding.md](Modding.md)): Molotov, KOH, Totem, TripLasers, SeekerMines, SentryGun, TugGame, CoopMode, ZombieGame, deagle, grenLaunch, PredatorMissile, ArmedAPC, arenaMode, MoBall, battleRoyale, TurboCars, boat, jeep, mutPack changeDamage
 - ⬜ New modes to consider (reminders, nothing designed yet):
   - Bomb defuse: attackers carry one bomb to a site and plant it, defenders defuse it, in rounds without respawning. Mostly built from what we have: sites = the maps' `AHoldoutPoint`s (KOH / Holdout / Arena placement; maps with fewer than two get spots added like other mode spots), round flow and "stand on it for N s" = Arena (`Game/Arena`), the bomb = Detonation's carried key (`AFlag`, drop on death, return when untouched) and its countdown / blast; new: plant and defuse as interrupted timed actions, which side attacks swapping each half
   - Sky surfing: MFS `cfg/gamemode/surf.cfg` (`sv_airaccelerate 200`): Source-style air strafing on slanted surfaces; needs air control in `UDFCharacterMovement` and surf maps
   - Injustice (MFS `mp_injustice`, `cfg/gamemode/injustice.cfg`): meant as blue players helping the map's NPCs fight a few red ones (one red per nine blue in `hl2mp_gamerules.cpp`; blue support kit: medkit, physcannon, bugbait; red attack kit, 1 hp/s regeneration, own `info_player_god` spawns; NPC sides in `InitInjusticeAIRelationships`). DF has no NPCs, so a simpler take: the red are Zombie mode's NEMESIS in all but name (lone side scaled by the ratio, regeneration, harder hits), so build it as a ZombieGame preset rather than a new mode: `?Infect=0`, red nemesis-boosted from the start at a set ratio (MFS 1 : 9) instead of only when alone against 5+, red keep ranged weapons (`?ZombieWeapons`), human bodies, blue topped up with bots in place of the NPCs. Unlike a nemesis round (dead humans wait for the next round, the nemesis respawns) blue respawn, so the round needs a cost: lives on both sides (blue a shared pool, about 2 x their count, or waves every 15 s; red about 3 each; out of lives loses, at the clock blue win or the larger share of lives left), or an objective (blue hold a Holdout point red must break). Balance to be tried in play
-- ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu
+- ⬜ Mods for the packaged game: a `Mods/` folder of paks scanned at start, mod maps in the menu (one item with thread 1's open part)
 - ✅ More MF-mods: heli + heliHmg, piper / piperTs (plane), vote, mutPack replaceVehicles / addVehicles; jeep gun model (UE1 vertex Mesh reader)
 - ✅ server weapon mods (AK-74, M4A1, FAMAS, G36, SC-20K, Ultimax, MAC-10, Glock, Desert Eagle, M24, WA 2000, M1887, M18 smoke; community pack since 2026-10-29), parachutes; improvedRL (Gian: `?ImprovedRL=1`), OPWeapons (`?OPWeapons=1`), BoxPhysics (`WoodenBox`), Desert Eagle moved to core (2026-10-22); FNG's server mutators as options (map rotation, server messages, NoWeapons, AllVehicles, LowGrav; [Hosting.md](Hosting.md)); ⬜ player skins (Serious, SwatSkin: unverified)
 - ✅ Mine generator runtime and map-marker hookup (`World/MineGenerator.cpp`, `DFGameMode::HandleMatchHasStarted`): proximity mines, five-second rearm, vehicle triggers and splash-only river generators. Converted mf-Pobojowisko_VerII contains the markers. Runtime/marker conversion is regression-tested; full map playtesting remains separate.
@@ -83,15 +114,15 @@ Legend: ✅ done · 🟡 partial · ⬜ todo · ⏸ measured, held back
 - ✅ MF console commands and cheats ([Commands.md](Commands.md)), KillZ under every map
 - ✅ Generated art of our own (`Tools/artgen`): loadout crates with team stencil
 - ✅ Graphics options above potato via scalability levels (MSAA, anisotropy, Epic bloom); texture quality Low samples 256 px
-- ✅ First-person weapons: MF's arms models (PlayerViewMesh) with their select / fire / reload / zoom animations, MF PlayerViewScale / PlayerViewOffset; ⬜ per-weapon extras (shotgun barrel-state animations, grenade pin pull wind-up, knife catch; HMG deploy done), weapon bob
+- ✅ First-person weapons: MF's arms models (PlayerViewMesh) with their select / fire / reload / zoom animations, MF PlayerViewScale / PlayerViewOffset; ✅ grenade pin pull wind-up, knife catch, HMG deploy, view bob; ⬜ shotgun barrel-state animations (only the `*Full` ones play), a bob of the weapon itself
 - ✅ Third-person soldiers: MF helmet / balaclava models, team and captain skins, MF's animation choice (Pawn.uc Get*Anim: weapon sets, zoomed poses, strafes, crouch, swim, jump / land, throws, deaths), carry meshes in hand, drivers and seated passengers; ✅ saved player model and preferred team choice; ⬜ ragdolls
-- 🟡 Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, damage smoke, rocket/Predator fire trails, wall hits, blood, map emitters; ✅ tracers, shell cases, bullet holes and scorch marks (decals), smoke grenades; ⬜ muzzle flashes, water rings, bubbles
-- 🟡 Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ⬜ server browser (333networks master server protocol)
-- ⬜ Touch controls (mobile): plan under "Open threads"
+- ✅ Effects (MF RageSprite particles → Cascade, `mfport.py effects`): explosions (grenades, rockets, trip bombs, mods), vehicle explosions with burning debris and ground fires, tyre smoke, damage smoke, rocket/Predator fire trails, wall hits, blood, map emitters; ✅ tracers, shell cases, bullet holes and scorch marks (decals), smoke grenades, muzzle flashes, bubbles, water impact rings (the rings' look not compared with MF's)
+- ✅ Menus: title screen over the MFS pictures with the start-up theme, play / join / options (render scale, brightness, mouse, FOV …) / credits / quit, Esc menu in game; ✅ server browser (333networks master server protocol and LAN: thread 13)
+- 🟡 Touch controls (mobile): built (thread 5: drawn signs, layout editor, look speed, tap to fire); ⬜ dragging, tap to fire and look speed under a finger on the phone
 
 ## Maps
 - ✅ mf-warehouse converts and builds
-- 🟡 More maps convert and bake: Carpark, Toreford, MF-Filip, mf-Microwarehouse, Mf-MicroBunker, mf-MicroTower. ⬜ the rest (airport, dockyard, ghetto, hydroworks, polar, prehistoric, rail quarry, sawmill, space station, tropics, waterfront, western …)
+- ✅ More maps convert and bake: Carpark, Toreford, MF-Filip, mf-Microwarehouse, Mf-MicroBunker, mf-MicroTower. ✅ the rest, all converted and lit since 2026-11-05 (airport, dockyard, ghetto, hydroworks, polar, prehistoric, rail quarry, sawmill, space station, tropics, waterfront, western …)
 - ✅ mf-warehouse (original) is the map to play and build on
 - ⬜ Add Mobile Forces Source features onto it by hand (secrets, `func_breakable` doors and passages, props) — the automatic geometry merge was tried and dropped: seams, holes and misaligned pieces ([WarehouseMerge.md](WarehouseMerge.md); the alignment and prop converter stay useful for placing MFS pieces)
 
@@ -160,19 +191,18 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    Still open:
    - DLC-style mod paks made after release (`-DLCName`, a `Mods/` folder;
      [Modding](Modding.md#content-after-release)).
-   - Android: game data now in an OBB beside the APK (2026-10-29), every pack still inside;
-     downloads per pack are thread 7.
+   - ✅ Android: one APK, packs downloaded in game (thread 7; the OBB of 2026-10-29 is gone).
 2. ✅ **First-person rig accuracy** (2026-10-28): RotOrigin applied as UE1 does after the .psk Y
    flip (the pitch cants the gun about its barrel instead of raising it), MF's weapon roll ×
    Hand (`ArmsRoll`), and CalcDrawOffset's 0.9 / FOV offset scale.
-3. **Audit ported defaults for inherited values**: `mfport.py defaults <Class> [Prop...]` prints the
+3. ⬜ **Audit ported defaults for inherited values**: `mfport.py defaults <Class> [Prop...]` prints the
    effective values down the parent chain (2026-10-28). Weapon audit: view offset, scale and roll
    all match. AIRating differs (ours / MF): knife 0.5 / 0.1, Deagle 0.5 / 0.45, grenade launcher
    0.55 / 0.45, Molotov, seeker mines and trip lasers 0.5 / 0.4. Check bot weapon choice before
    adopting MF's values; other properties are unaudited.
-4. **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
+4. 🟡 **Developer console in Shipping**: the option is built and compiles in Shipping. Opening it
    in a packaged Windows build is still unchecked.
-5. **Android: first runs on a Pixel 9a** (2026-10-28, wireless adb).
+5. 🟡 **Android: first runs on a Pixel 9a** (2026-10-28, wireless adb).
    Works:
    - Menu (moved clear of the camera hole and enlarged on touch screens), and starting a match.
    - Tapping loadout items and the LOADOUT button.
@@ -193,10 +223,10 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
      screenshot with `bAlwaysShowTouchInterface`): dragging with a finger, tap to fire and the look speed
      need the phone.
    - ✅ Options by touch (2026-11-08): Video page, Advanced Graphics, the FPS combo and Apply all work by tapping; the game type list shows the new modes.
-   - Since 2026-10-29 the data is in an OBB: a 103 MB APK and a 1.39 GB OBB for two maps
+   - (Superseded by thread 7: one APK and in-game pack downloads.) From 2026-10-29 the data was in an OBB: a 103 MB APK and a 1.39 GB OBB for two maps
      (classic 1.22 GB of it). It runs from the OBB on the 9a. Install with the generated
      `Install_DesktopForces-arm64.sh` ([Building](Building.md#android)).
-6. **Bots and vehicles** (2026-10-29):
+6. 🟡 **Bots and vehicles** (2026-10-29):
    - Fixed: covering bots no longer pick their own vehicles, drop a vehicle they were walking to
      when given an order, and drive to the leader if already driving (1cbb8ac).
    - Untested: a full ride-along. On mf-Tropics the bots headed for the player's Humvee, but
@@ -232,7 +262,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    launcher art and the community maps' own sound packages moved to community; the 51 custom maps
    by authors not asked yet and their packages to unverified (a public download now). Done in
    place by `mfport.py import --steps repack` (no re-bake).
-9. **Replacement art for borrowed classic assets** (user idea, 2026-10-29): start with the
+9. 🟡 **Replacement art for borrowed classic assets** (user idea, 2026-10-29): start with the
    [replacement art handoff](ReplacementArtHandoff.md) for candidates, rejected mappings and next steps. Community maps still
    use ~300 classic packages (textures in `aq`, `Mio`, `rage_*`, `car_park`, `Dam` ...; sounds in
    `levelSFX`, `TropicsSFX`, `Aquarius` ...), so without the classic pack they show missing
@@ -262,7 +292,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     (the bars draw from the top mip there). Candidates: a softer mip / LOD bias for that
     texture, or AA.
 
-11. **Systems performance follow-up** (2026-10-30): StateTree dependencies removed after
+11. ✅ **Systems performance follow-up** (2026-10-30): StateTree dependencies removed after
     an asset-reference audit; editor build and six gameplay suites pass. Bot decisions remain
     at 5 Hz, with staggered initial timers reducing measured 48-bot timing spikes. Animation
     budgeting was tried and removed (no frame-time gain). MF_TestRange was regenerated and
@@ -270,9 +300,9 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     neutral starts, two per team, team selection and navigation coverage. VehicleProject builds
     and runs at 30/60/120 FPS; DF recovery/turbo checks pass at all three caps. No matched test
     establishes a reason to migrate vehicle physics. Comparison and replacement-art results are in
-    [Performance](Performance.md#systems-follow-up-2026-10-29). Spatial prop instancing remains
-    a candidate, pending a measured prototype and rebake.
-12. **Optional dynamic lighting for strong PCs: Lumen / "Lumen Lite"** (Filip, 2026-10-29). Today
+    [Performance](Performance.md#systems-follow-up-2026-10-29). ✅ Spatial prop instancing is in:
+    measured, and on by default since 2026-11-04 (`instance_props`, 8 placements a cell).
+12. ⬜ **Optional dynamic lighting for strong PCs: Lumen / "Lumen Lite"** (Filip, 2026-10-29). Today
     every map is baked (Lightmass) and Lumen is off at project level
     (`r.DynamicGlobalIlluminationMethod=0`, `r.ReflectionMethod=0` in `DefaultEngine.ini`).
     With it on, the scalability groups gate Lumen per player setting (5.8.4
@@ -287,7 +317,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       turns Lumen off (GI Low), else Low loses its bake; maps would need Stationary/Movable
       lights for Lumen;
     - measure mf-warehouse low end / high end against the baked look.
-13. **Server list: LAN and internet through the 333networks master** (Filip, 2026-10-30). Filip
+13. 🟡 **Server list: LAN and internet through the 333networks master** (Filip, 2026-10-30). Filip
     runs a 333networks master at `master.nofisto.com` (TCP 28900 answers `\basic\\secure\<challenge>`,
     web list and `/json/` on https). Use its GameSpy-v1 protocol rather than an online subsystem:
     plain UDP/TCP through UE's `Sockets` module, next to the game's NetDriver, nothing in UE
@@ -316,8 +346,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     glibc 2.28+, no Docker or engine there ([Hosting](Hosting.md#ways-to-run-one)). Tested: unpacked
     in a fresh folder, run natively, an editor client of the same version joined it. 2026-11-08:
     the full-map build after the rebake (`20261108`, every mode incl. Knife Fight / Mental Race),
-    the Pixel 9a joined it (Knife Fight, bots) and an editor client (Mental Race). Still open: a
-    VPS run and Windows clients against it.
+    the Pixel 9a joined it (Knife Fight, bots) and an editor client (Mental Race). ✅ The VPS run is thread 22
+    (`mf.nofisto.com:7787`). ⬜ Windows clients against it.
 15. ✅ **Prop lightmap UV overlap** (2026-11-06). Lightmass warned "Lightmap UV are overlapping by
     N %" for 259 static meshes at 20 % or more in the 45 lighting logs kept from the 2026-11-05
     rebake, while the importer measured 0 %: at 32 px thin parts (planks, rails, sleepers, chair
@@ -327,7 +357,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     ([Pipeline](Pipeline.md#lights)); mf-western: 11 warnings to 4, 5.6 to 7.1 M texels, bake
     8 min as before. `-steps=lightmapcheck` found 55 other maps with a prop at 10 % or more:
     those are rebaked, the rest keep their bake.
-16. 🟡 **Polish: Production-quality bake** (Filip, 2026-11-07). Every map was baked at
+16. ✅ **Polish: Production-quality bake** (Filip, 2026-11-07; decided: Medium by default, High
+    per map where it shows, thread 24. The GPU Lightmass test below is the one part left). Every map was baked at
     `-quality=Preview` (`mflib/ue.py build_lighting`), the base sample counts of
     `BaseLightmass.ini`. Production multiplies them: 32x penumbra rays and 8x shadow rays (our
     UE1-wide soft light radii make penumbras wide, so Preview edges can look grainy), 6x shadow
@@ -367,7 +398,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       | MF-Test_Facility | 3.7 min | 5.3 min | 8.3 min | 13.5 min | 0.88, 6.4 / 0.62, 2.3 / 0.25, 1.4 |
       | mf-ShuttleLaunch | 2.9 min | 3.7 min | 5.9 min | 10.8 min | 0.75, 2.0 / 0.12, 1.0 / 0.00, 1.0 |
 
-      Medium is within noise of Production and looks the same in the shots; Preview differs
+      Medium is within noise of Production and looks the same in the shots of these three (thread
+      24 later found maps where High shows over Medium: dark rooms, snow); Preview differs
       visibly in places (Test_Facility's 90th percentile). BuiltData size is the same at every
       quality. So `quality` defaults to Medium now (`mapedits.quality`); the three maps are baked
       at Medium; ✅ every map rebaked at Medium on 2026-11-08/09 (86 maps, ~16 h on this laptop).
@@ -437,7 +469,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     mf-waterfront is converted and rebaked with it. A sweep of the converted meshes: 276 meshes on
     41 maps change; on the 40 most changed, sampled inward faces drop from 4834 to 1656 and none
     gets worse (Express_Delivery's `trailer1` 323 -> 42 of 400, the trains, trash bins, MFS
-    warehouse pipes). ⬜ The other 40 maps need `rebake` (convert, import, light) to get it:
+    warehouse pipes). ✅ (done, below) The other 40 maps need `rebake` (convert, import, light) to get it:
     mf-Express_Delivery, mfs-warehouse, mf-Space_station, mf-nc, mf-The_Bank, mf-City_Rush,
     mf-Battlefield, MF-Test_Facility, mf-highwayrun, mf-sawmill, mf-Jungle and 29 with a few
     triangles each (`python3 debug/winding_sweep.py [--check 40]` lists them). ✅ All rebaked
@@ -610,11 +642,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       in every mode), inventory, identify and game info about 0.05 ms each. Every part has a named
       counter now (`STAT_DFHUD_*` in `stat dumpframe -ms=0.002`). A phone's CPU is several times
       slower: measure there before more caching.
-    - Bake quality, with it: the per-map `quality` choice of #16 (Medium everywhere so far; High
-      or Production where shots tell them apart), the GPU Lightmass test on the Windows side
-      (#16), 4 bounces on the dim indoor maps only, and the meshes Lightmass still reports
-      with overlapping lightmap charts (what #15 left: charts smaller than a texel). Same method: fixed cameras, grey-level difference, bake minutes.
-    - ✅ High against Medium on all 22 maps of `Content/Maps`, measured (2026-11-15/16,
+    - Bake quality, with it. ✅ The per-map `quality` choice of #16 (below). ⬜ The GPU Lightmass
+      test on the Windows side (#16). 4 bounces: measured on 2026-11-01 on mf-waterfront and
+      mf-warehouse ([Performance](Performance.md#dark-surfaces-what-worked-2026-11-01): under
+      1.2 % brighter, 15 % more bake time, not used); never tried on the dark maps with zone
+      ambient 0, where bounced light is all there is. ⬜ The meshes Lightmass still reports with
+      overlapping lightmap charts (what #15 left: charts smaller than a texel).
+    - ✅ High against Medium on all 22 maps of `Content/Maps`, measured (2026-11-15,
       `Tools/mfport/debug/bakequality.py`: up to 10 player starts x 2 views per map, no HUD, no
       bots). Change: the same camera with the Medium bake and with the High bake, absolute
       grey-level difference per pixel (/255) averaged over the picture, median camera. It says how
@@ -631,10 +665,10 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       | MF-TurpowiaV1 | 2.5 min | 4.2 min | 0.44 | grey smudges on the white walls gone in some rooms: High |
       | mf-Tropics | 4.7 min | 7.2 min | 1.06 | leaves and cans lit a little more evenly: High (Filip: slight is what these changes are, and it bakes in under ten minutes) |
       | MF-Aquarius | 1.5 min | 2.2 min | 0.83 | nothing to point at; a step on its columns (below, fixed): High (Filip: the more exact light) |
-      | mf-Space_station | 11.4 min | 17.7 min | 0.81 | no gain |
-      | MF-Test_Facility | 5.2 min | 8.6 min | 0.77 | no gain |
-      | MF-RandomLand | 0.5 min | 0.7 min | 0.71 | no gain |
-      | mf-Toreford | 39.5 min | 37.4 min | 0.70 | no gain |
+      | mf-Space_station | 11.4 min | 17.7 min | 0.81 | nothing to point at: High (0.7 and over) |
+      | MF-Test_Facility | 5.2 min | 8.6 min | 0.77 | nothing to point at: High (0.7 and over) |
+      | MF-RandomLand | 0.5 min | 0.7 min | 0.71 | nothing to point at: High (0.7 and over) |
+      | mf-Toreford | 39.5 min | 37.4 min | 0.70 | nothing to point at: High (0.7 and over) |
       | mf-Pobojowisko_VerII | 11.8 min | 13.7 min | 0.60 | no gain |
       | mf-BraveDwarfes | 5.7 min | 7.1 min | 0.59 | no gain |
       | mf-Tajga | 19.5 min | 25.5 min | 0.59 | no gain |
@@ -651,23 +685,42 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
 
       All 22: 287 min at Medium, 341 min at High (1.2x; the small maps up to 1.9x, the big ones
       hardly slower). Three gained plainly: bounced light on plain pale or dark surfaces (the two
-      dark maps with zone ambient 0, and Sardine City's snow). Five carry `quality = "High"` in
-      `map_edits.toml` and are baked so (those three, mf-Tropics, MF-Aquarius); the other 17 are
-      at their Medium bake, and Medium is still the default. The change figure does not rank the
-      gain (MF-TurpowiaV1 is kept at 0.44, maps at 0.7-0.8 were not): the verdicts are an eye on
-      three most-changed views a map, so a map above about 0.5 probably has places that are
-      better at High which nobody looked at.
-      MF-Aquarius's columns (2026-11-16): High showed a step down the red shaft that Medium did
-      not. The column is a ten-sided static mesh with smooth normals; the importer's box
-      projection made its shaft four lightmap charts three to five texels wide, and High's finer
-      bounced light differed across a chart border where Medium's coarser samples had smeared
-      both sides alike. Fixed for this mesh with a map edit, `lightmap_uvs = { StaticMesh97 =
-      "texture" }`: its charts come from its own texture unwrap, once around the shaft, at the
-      same 64 px ([Pipeline.md](Pipeline.md#map-edits-toolsmfportmap_editstoml)). Every round
-      prop on every map has the box's four borders; they would show the same way at High. ⬜ A
-      general rule (texture charts wherever the unwrap is clean) needs the reason mf-western's
-      logs measured 1 % shared from texture UVs here and 95 % in Lightmass (the comment in
-      `BuildStaticMesh`), and a reimport and rebake of every map.
-      Not tested: the maps of the Classic and Unverified plugins (the script reads `Content/Maps`
-      only), Production, 4 bounces, GPU Lightmass.
+      dark maps with zone ambient 0, and Sardine City's snow). The change figure does not rank
+      the gain (MF-TurpowiaV1 was kept at 0.44 while maps at 0.7-0.8 were not): the verdicts are
+      an eye on three most-changed views a map, so a map above about 0.5 probably has places
+      that are better at High which nobody looked at. Filip, 2026-11-15: the gains are slight by
+      nature, slight counts. Nine maps carry `quality = "High"` in `map_edits.toml` and are baked
+      so: the three, mf-Tropics, MF-Aquarius, and the four at 0.7 and over (mf-Space_station,
+      MF-Test_Facility, MF-RandomLand, mf-Toreford). The other 13 are at their Medium bake, and
+      Medium is still the default. ⬜ Decide whether High becomes the default for every map
+      (54 min more for these 22; nothing got worse at High that was looked at).
+    - ✅ Lightmap charts of round props (2026-11-15/16). MF-Aquarius's ten-sided column showed a
+      step down its shaft in the High bake, mf-Sardine_City's snow heaps hard-edged patches at
+      any quality: the importer's box projection cuts a smooth round prop into side charts, and
+      the light is baked chart by chart. What was tried on the column, all at High: box at 64 px
+      a step, at 128 px bright blotches, at 256 px clean; its texture unwrap at 64 px clean
+      (at 512 px, what it needs to share under 2 %, 14 MB more built data).
+      - The column takes its unwrap by a map edit, `lightmap_uvs = { StaticMesh97 = "texture" }`
+        (its many rings measure worse than the box, so no rule picks it).
+      - The importer now takes the texture unwrap of a smooth round prop by itself, under
+        limits ([Pipeline.md](Pipeline.md#lights), "Smooth round props"). The first limits
+        were too loose: mf-Treasure_Finders' terrain went in and baked sand with the light of
+        the cave under it, leaves went in sharing a tenth of their texels, and 28 world chunks
+        of Sardine City changed for nothing. Now: props only, lightmaps up to 128 px, folds
+        under 0.1 %, half a point more shared texels at most.
+      - `-steps=layoutcheck` lists what a rule change touches before anything is imported: 12
+        of the 75 community and unverified maps. Those were imported and baked again and their
+        20 cameras compared with the shots from before (`~/.cache/df-bakequality/rule/`):
+        mf-Sardine_City (snow heaps smoother), mf-Prehistoric and mf-Treasure_Finders (rocks
+        lose their hard light patches), MF-Test_Facility, mf-Space_station, mf-Tropics,
+        mf-Worlds_Peak, dm-HolidayTown, and of the Unverified pack mf-castles, MF-SpeedPipes and
+        MF-StuntArena (nothing to see at the cameras). mf-City_Rush is left as it was: its one
+        mesh, the tower block facade, baked a flat olive from its unwrap and is named `box`.
+      - Not done: the Classic pack's maps (they get the rule at their next `rebake`); mf-western's
+        logs, which the old comment in `BuildStaticMesh` warns about, were not looked at. The
+        shots of 2026-11-16 are 0.2 of 255 brighter all over than the evening before, on maps
+        nothing touched too: something in the render, not in the bakes; not found.
+      Not tested: High against Medium on the maps of the Classic and Unverified plugins
+      (`bakequality.py` reads `Content/Maps` only), GPU Lightmass. Production was measured on
+      three maps (thread 16); 4 bounces on two (below).
 
