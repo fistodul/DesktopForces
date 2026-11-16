@@ -191,3 +191,9 @@ quality = "High"
 
 ["mf-Toreford"]
 quality = "High"
+
+["mf-City_Rush"]
+# L1fad is its tower block facade (36 of them). The importer's rule for smooth round props would
+# take its texture unwrap, and baked so the blocks behind the streets came out a flat olive where
+# they were pale with their windows showing (2026-11-16): it keeps the box projection
+lightmap_uvs = { L1fad = "box" }

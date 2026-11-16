@@ -68,6 +68,10 @@ public:
 	/** Measures each built map's lit meshes as BuildStaticMesh would lay them out now and lists the
 	 *  maps a "maps" import would change (step "lightmapcheck"; saves nothing). */
 	void CheckLightmaps(const TArray<FString>& Maps);
+	/** Logs how BuildStaticMesh would lay out the lightmap of each static mesh the maps were
+	 *  converted with, from the converted files (step "layoutcheck"; builds and saves nothing):
+	 *  which maps a change to the layout rules touches, before any is imported and baked again. */
+	void CheckCharts(const TArray<FString>& Maps);
 	/** Bring the lit masters up to date (their graph is patched when loaded). */
 	void UpdateMasters();
 	/** Flipbooks of Tools/artgen/flipbooks.py into /Game/MF/Replacements/Effects. */
@@ -157,6 +161,8 @@ public:
 
 	/** Build (or rebuild) a static mesh asset from a .mfmesh.json file. */
 	UStaticMesh* BuildStaticMesh(const FString& JsonFile, const FString& AssetPath);
+	/** CheckCharts: BuildStaticMesh stops once the lightmap layout is chosen and logged. */
+	bool bChartsOnly = false;
 
 	USoundWave* FindSound(const FString& DFPath) const;
 	/** The original texture (its replacement if the original is missing). */

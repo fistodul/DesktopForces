@@ -228,6 +228,29 @@ Lambert divides by π, so a full-brightness light shows the texture at its own b
   almost everywhere. A layout whose packer ran short of room shrinks every chart to a speck
   (mf-VortexTrainV1's chairs: 370 charts in 32 px, each face one texel; Lightmass 58 %), so
   surface in charts under 1.5 texels across counts as shared once it is a quarter of the mesh.
+  Smooth round props are the exception (2026-11-15). The box projection cuts a rock, a trunk
+  or a snow heap into side charts that meet along the curve, and light is baked chart by chart:
+  a border can show as a step or a hard-edged patch where the surface has none
+  (mf-Sardine_City's snow heaps at any quality, MF-Aquarius's column in a High bake).
+  `SmoothCut` adds up the chart borders that run over smoothly shaded, turning surface (the
+  same normal on both sides, the faces 5° or more apart, slivers ignored). A prop whose texture
+  unwrap cuts under half of what the box cuts there (and the box at least 50 cm) takes the
+  unwrap, if it is a clean one and the lightmap a small one:
+  - no face with under a quarter of its share of texels;
+  - nothing folded onto itself: packed at 1024 it shares under 0.1 % (clean unwraps measure
+    0.00-0.06 %, leaves and palms 0.2-0.5 %);
+  - at the size chosen, at most half a point more shared texels than the box;
+  - up to 128 px. The steps showed on charts a few texels wide. A terrain's flat mapping
+    measures clean and still folds where it overhangs: with looser limits (2 % folds, a tenth
+    more shared texels, any size) mf-Treasure_Finders' terrain baked sand with the light of
+    the cave below it, and leaves went in sharing 6-11 % of their texels.
+  The size stays the one the fewest-shared pick stops at. World geometry is left out: its faces
+  are flat, and the slivers between them measured as curves. `-steps=layoutcheck -maps=...`
+  logs the layout every mesh of the converted maps would get, with these figures, without
+  building or saving anything (`for its curves` marks the ones this rule takes): run it before
+  a rule change to see which maps need `import --steps maps` and `light`. The commandlet finds
+  its steps by substring, so a step's name must not hold another's (`chartcheck` also ran
+  `art`).
   Sky windows, effect meshes (additive smoke, glass) and unlit ones get no lightmap
   (`ForceVolumetric`; instance groups, which ignore that, lightmap resolution 0 when
   translucent). Faces stored twice in the MF meshes (turb15: 4,860 of 9,850 triangles, half

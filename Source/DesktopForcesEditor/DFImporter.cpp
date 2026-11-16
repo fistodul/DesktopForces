@@ -1863,6 +1863,85 @@ namespace {
 		const float Fraction = Used ? float(Overlapped) / Used : 0.f;
 		return Speck > 0.25f ? FMath::Max(Fraction, Speck) : Fraction;
 	}
+
+	/** Length (cm) of the lightmap chart borders running over smoothly shaded, curved surface:
+	 *  edges two triangles share whose normals agree at both ends (no crease) while the faces
+	 *  turn, and whose lightmap UVs differ on the two sides. Light is baked chart by chart, so
+	 *  such a border can show as a step where the surface has none (MF-Aquarius's column: a
+	 *  ten-sided shaft in four box charts, a step down it in a High bake). */
+	float SmoothCut(const FMeshDescription& MD) {
+		const FStaticMeshConstAttributes Attr(MD);
+		const TVertexInstanceAttributesConstRef<FVector2f> UVs = Attr.GetVertexInstanceUVs();
+		const TVertexInstanceAttributesConstRef<FVector3f> Normals = Attr.GetVertexInstanceNormals();
+		const TVertexAttributesConstRef<FVector3f> Positions = Attr.GetVertexPositions();
+		struct FSide {
+			FVector3f Face, NormalA, NormalB;
+			FVector2f UVA, UVB;
+		};
+		TMap<FIntPoint, TArray<FSide, TInlineAllocator<2>>> Edges; // by its two vertices, the lower id first
+		for (const FTriangleID T : MD.Triangles().GetElementIDs()) {
+			const TArrayView<const FVertexInstanceID> VI = MD.GetTriangleVertexInstances(T);
+			auto At = [&](int32 k) { return Positions[MD.GetVertexInstanceVertex(VI[k])]; };
+			const FVector3f Cross = (At(1) - At(0)) ^ (At(2) - At(0));
+			const float Longest = FMath::Max3(FVector3f::DistSquared(At(0), At(1)), FVector3f::DistSquared(At(1), At(2)), FVector3f::DistSquared(At(2), At(0)));
+			if (Cross.Size() < 0.02f * Longest) // a sliver: which way it faces is noise
+				continue;
+			const FVector3f Face = Cross.GetSafeNormal();
+			for (int32 k = 0; k < 3; ++k) {
+				FVertexInstanceID A = VI[k], B = VI[(k + 1) % 3];
+				int32 VA = MD.GetVertexInstanceVertex(A).GetValue(), VB = MD.GetVertexInstanceVertex(B).GetValue();
+				if (VA == VB)
+					continue;
+				if (VA > VB) {
+					Swap(A, B);
+					Swap(VA, VB);
+				}
+				Edges.FindOrAdd(FIntPoint(VA, VB)).Add({ Face, Normals[A].GetSafeNormal(), Normals[B].GetSafeNormal(), UVs.Get(A, 1), UVs.Get(B, 1) });
+			}
+		}
+		float Cut = 0.f;
+		for (const TPair<FIntPoint, TArray<FSide, TInlineAllocator<2>>>& E : Edges) {
+			if (E.Value.Num() != 2)
+				continue;
+			const FSide& S = E.Value[0];
+			const FSide& O = E.Value[1];
+			if ((S.Face | O.Face) > 0.996f) // flat here (5 degrees)
+				continue;
+			// shaded as one surface: the same normal on both sides (1 degree). World geometry's
+			// facets carry their own, so a pipe of BSP faces 6 degrees apart is all creases
+			if ((S.NormalA | O.NormalA) < 0.9998f || (S.NormalB | O.NormalB) < 0.9998f)
+				continue;
+			if (!S.UVA.Equals(O.UVA, 1e-5f) || !S.UVB.Equals(O.UVB, 1e-5f))
+				Cut += FVector3f::Dist(Positions[FVertexID(E.Key.X)], Positions[FVertexID(E.Key.Y)]);
+		}
+		return Cut;
+	}
+
+	/** Share of the surface that gets under a quarter of the mesh's average lightmap texels per
+	 *  area: a texture laid flat over a terrain leaves its cliffs a sliver of the chart, a face
+	 *  mapped to one texture point none at all. */
+	float LightmapStarved(const FMeshDescription& MD) {
+		const TVertexInstanceAttributesConstRef<FVector2f> UVs = FStaticMeshConstAttributes(MD).GetVertexInstanceUVs();
+		const TVertexAttributesConstRef<FVector3f> Positions = FStaticMeshConstAttributes(MD).GetVertexPositions();
+		TArray<TPair<float, float>> Faces; // surface, lightmap area
+		float Surface = 0.f, Mapped = 0.f;
+		for (const FTriangleID T : MD.Triangles().GetElementIDs()) {
+			const TArrayView<const FVertexInstanceID> VI = MD.GetTriangleVertexInstances(T);
+			auto At = [&](int32 k) { return Positions[MD.GetVertexInstanceVertex(VI[k])]; };
+			const float Area = ((At(1) - At(0)) ^ (At(2) - At(0))).Size();
+			const float Map = FMath::Abs((UVs.Get(VI[1], 1) - UVs.Get(VI[0], 1)) ^ (UVs.Get(VI[2], 1) - UVs.Get(VI[0], 1)));
+			Faces.Emplace(Area, Map);
+			Surface += Area;
+			Mapped += Map;
+		}
+		if (Surface <= 0.f || Mapped <= 0.f)
+			return 1.f;
+		float Starved = 0.f;
+		for (const TPair<float, float>& F : Faces)
+			if (F.Value * Surface < 0.25f * Mapped * F.Key)
+				Starved += F.Key;
+		return Starved / Surface;
+	}
 } // namespace
 
 void FDFImporter::CheckLightmaps(const TArray<FString>& Maps) {
@@ -1892,6 +1971,20 @@ void FDFImporter::CheckLightmaps(const TArray<FString>& Maps) {
 			Changed.Add(Map);
 	}
 	UE_LOG(LogDFEditor, Display, TEXT("LightmapCheck: %d of %d maps to rebuild: %s"), Changed.Num(), Maps.Num(), *FString::Join(Changed, TEXT(" ")));
+}
+
+void FDFImporter::CheckCharts(const TArray<FString>& Maps) {
+	TGuardValue<bool> Guard(bChartsOnly, true);
+	for (const FString& Map : Maps) {
+		for (const TCHAR* Folder : { TEXT("meshes"), TEXT("geo") }) {
+			const FString Dir = WorkDir / TEXT("Maps") / Map / Folder;
+			TArray<FString> Files;
+			IFileManager::Get().FindFiles(Files, *(Dir / TEXT("*.mfmesh.json")), true, false);
+			UE_LOG(LogDFEditor, Display, TEXT("ChartCheck %s: %d %s"), *Map, Files.Num(), Folder);
+			for (const FString& File : Files)
+				BuildStaticMesh(Dir / File, TEXT("/ChartCheck") / File.LeftChop(12)); // ".mfmesh.json"
+		}
+	}
 }
 
 UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString& AssetPath) {
@@ -2002,18 +2095,22 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 	FString PackagePath, Name;
 	AssetPath.Split(TEXT("/"), &PackagePath, &Name, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 	bool bCreated = false;
-	UStaticMesh* SM = FindOrCreateAsset<UStaticMesh>(PackagePath, Name, bCreated);
-	SM->PreEditChange(nullptr);
+	UStaticMesh* SM = bChartsOnly ? nullptr : FindOrCreateAsset<UStaticMesh>(PackagePath, Name, bCreated);
+	if (SM)
+		SM->PreEditChange(nullptr);
 
 	// Lightmap UVs: the packer lays out charts found in a source channel and keeps overlaps within
 	// them. Texture UVs suit BSP (one planar mapping per face) but fold and tile on meshes (60-98 %
 	// of a prop's texels shared, baking blotchy); the box projection suits meshes but can fold
-	// where thin parts stack. Both are packed, the one sharing fewer texels stays.
+	// where thin parts stack. Both are packed, the one sharing fewer texels stays - except on
+	// smooth round things (columns, barrels, trunks), where the box projection's side charts
+	// meet along the curve and the bake can step there: those take a texture unwrap that cuts
+	// the curve less, if it is a clean one.
 	int32 LightmapSize = FMath::Max(16, LightmapRes);
 	if (bRender) {
 		FOverlappingCorners Corners;
 		FStaticMeshOperations::FindOverlappingCorners(Corners, MD, THRESH_POINTS_ARE_SAME);
-		const ELightmapUVVersion Version = static_cast<ELightmapUVVersion>(SM->GetLightmapUVVersion());
+		const ELightmapUVVersion Version = SM ? static_cast<ELightmapUVVersion>(SM->GetLightmapUVVersion()) : ELightmapUVVersion::Latest;
 		FMeshDescription TexSource = MD;
 		TVertexInstanceAttributesRef<FVector2f> TexUVs = FStaticMeshAttributes(TexSource).GetVertexInstanceUVs();
 		for (const FVertexInstanceID VI : TexSource.VertexInstances().GetElementIDs())
@@ -2025,31 +2122,67 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 		// A source the map's edits name is there for where its chart borders lie, not for more
 		// texels: it gets the size the importer's own pick would have stopped at (MF-Aquarius's
 		// column packs under 2 % from its texture UVs only at 512, 14 MB of lightmaps for its eight)
+		// The same goes for the texture unwrap of a smooth round mesh (bSmoothTex): the size is the
+		// one the fewest-shared pick stops at, where the unwrap may share half a point more texels
+		// than the box (with a tenth allowed, leaves went in sharing 6-11 % against the box's 1 %).
 		float Shared = 2.f, OwnShared = 2.f;
 		const TCHAR* From = TEXT("");
-		bool bPacked = false;
+		bool bPacked = false, bSmoothTex = false, bFirst = true;
+		float BoxCut = 0.f, TexCut = 0.f, Folds = -1.f, BoxThere = 0.f, TexThere = 0.f;
 		for (int32 Res = LightmapSize; Res <= FMath::Max(LightmapSize, 1024) && OwnShared > 0.02f; Res *= 2) {
 			FMeshDescription Box = BoxSource, Tex = TexSource;
 			const bool bBox = FStaticMeshOperations::CreateLightMapUVLayout(Box, 1, 1, Res, Version, Corners);
 			const bool bTex = FStaticMeshOperations::CreateLightMapUVLayout(Tex, 1, 1, Res, Version, Corners);
 			const float BoxShared = bBox ? LightmapOverlap(Box, Res) : 1.f, TexShared = bTex ? LightmapOverlap(Tex, Res) : 1.f;
+			if (bFirst && bBox && bTex) {
+				// Where the charts lie is the same at every size. The unwrap has to cut under half
+				// of what the box cuts, give no face under a quarter of its share of texels (a
+				// texture laid flat over a terrain: its cliffs), and not lie on itself: packed at
+				// 1024 only real folds still share texels (a trunk mapped front and back onto the
+				// same bark), crowded small charts don't. Under 0.1 % there: at 2 % the flat
+				// mapping of mf-Treasure_Finders' terrain passed, whose overhangs then baked
+				// the sand above with the light of the cave below (clean unwraps measure
+				// 0.00-0.06 %, leaves and terrains 0.2 % and up)
+				BoxCut = SmoothCut(Box);
+				TexCut = SmoothCut(Tex);
+				// props only: world geometry (a map's geo folder) is flat faces, each with its own
+				// flat mapping, and what measures as a curve there is the slivers between them
+				// (28 of mf-Sardine_City's chunks changed layout for no reason)
+				const bool bWorld = bZoneColors || FPaths::GetPathLeaf(FPaths::GetPath(JsonFile)) == TEXT("geo");
+				if (LightmapFrom.IsEmpty() && !bWorld && BoxCut >= 50.f && TexCut < 0.5f * BoxCut && LightmapStarved(Tex) <= 0.05f) {
+					FMeshDescription Fine = TexSource;
+					Folds = FStaticMeshOperations::CreateLightMapUVLayout(Fine, 1, 1, 1024, Version, Corners) ? LightmapOverlap(Fine, 1024) : 1.f;
+					bSmoothTex = Folds <= 0.001f;
+				}
+			}
+			bFirst = false;
 			// texture UVs only by a clear margin: Lightmass found a texel each of mf-western's logs
 			// packed from them shared (95 %), the box projection none, where both measure 1 % here
 			const bool bOwnTex = TexShared + 0.01f < BoxShared;
-			const bool bFromTex = LightmapFrom == TEXT("texture") ? bTex : LightmapFrom != TEXT("box") && bOwnTex;
-			OwnShared = FMath::Min(OwnShared, bOwnTex ? TexShared : BoxShared);
+			const float Own = bOwnTex ? TexShared : BoxShared;
+			// up to 128 px only: the steps showed on charts a few texels wide, and a terrain's
+			// flat mapping measures clean (0.00 % folds) where its overhangs still fold
+			const bool bCurve = bSmoothTex && bTex && Res <= 128 && TexShared <= BoxShared + 0.005f;
+			const bool bFromTex = LightmapFrom == TEXT("texture") ? bTex : LightmapFrom != TEXT("box") && (bOwnTex || bCurve);
 			if (!LightmapFrom.IsEmpty()) // a named source: what it costs at each size, next to the other
 				UE_LOG(LogDFEditor, Log, TEXT("%s: at %d box %.1f %%, texture %.1f %% texels shared"), *Name, Res, 100.f * BoxShared, 100.f * TexShared);
-			if ((bFromTex ? TexShared : BoxShared) < Shared) {
+			if (Own < OwnShared) { // a size the fewest-shared pick gains by: the layout wanted, at that size
+				OwnShared = Own;
+				BoxThere = BoxShared;
+				TexThere = TexShared;
 				Shared = bFromTex ? TexShared : BoxShared;
-				From = bFromTex ? TEXT("texture UVs") : TEXT("box projection");
+				From = !bFromTex ? TEXT("box projection") : bOwnTex || !LightmapFrom.IsEmpty() ? TEXT("texture UVs")
+																							   : TEXT("texture UVs for its curves");
 				bPacked = bFromTex ? bTex : bBox;
 				MD = MoveTemp(bFromTex ? Tex : Box);
 				LightmapSize = Res;
 			}
 		}
-		UE_LOG(LogDFEditor, Log, TEXT("%s: lightmap UVs from %s at %d (%.0f %% texels shared%s)"), *Name, From, LightmapSize, 100.f * Shared, bPacked ? TEXT("") : TEXT(", not packed"));
+		UE_LOG(LogDFEditor, Log, TEXT("%s: lightmap UVs from %s at %d (%.0f %% texels shared%s; chart borders over smooth curves: box %.0f cm, texture %.0f cm; shared there: box %.2f %%, texture %.2f %%; texture folds %.2f %%)"), *Name, From,
+			LightmapSize, 100.f * Shared, bPacked ? TEXT("") : TEXT(", not packed"), BoxCut, TexCut, 100.f * BoxThere, 100.f * TexThere, 100.f * Folds);
 	}
+	if (!SM) // CheckCharts: the layout is all it asked for
+		return nullptr;
 	SM->GetStaticMaterials() = StaticMaterials;
 	SM->SetNumSourceModels(1);
 	FStaticMeshSourceModel& Src = SM->GetSourceModel(0);
