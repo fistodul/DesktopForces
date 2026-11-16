@@ -581,7 +581,7 @@ Measured on mf-waterfront and mf-warehouse, no rebake unless noted:
 
 | Change | Result |
 |---|---|
-| 4 Lightmass bounces instead of 2 (rebake) | under 1.2 % brighter at four cameras, 15 % more bake time: not used |
+| 4 Lightmass bounces instead of 2 (rebake) | under 1.2 % brighter at four cameras, 15 % more bake time: not used. On ZM-SpaceZombura (dark, zone ambient 0, 2026-11-16): 5.4 % brighter at 20 cameras for the same bake time; not decided ([Roadmap](Roadmap.md) thread 24) |
 | `AmbientFloor` 0.35 to 0.7 | pixels under 30 of 255 in warehouse views: 20.6 % to 2.8 %, 10.4 % to 3.8 %; none blown out |
 | `ShadeFloor` 0.1 (MPC, one add) | world polygons in zones with no ambient |
 | `MovingActorLight` 0.4 (custom primitive data 0, one add) | vehicles, pickups, flags: they get no baked light at all |

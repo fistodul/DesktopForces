@@ -9,8 +9,8 @@ detail. Checked against the code and the commits on 2026-11-15: a mark further d
 disagrees with this list is the stale one.
 
 - **Lighting and bake** (thread 24): GPU Lightmass test on Windows (thread 16); High as the
-  default bake quality, yes or no; High against Medium on the Classic and Unverified maps; 4
-  bounces on the dark maps; lighting variants of one map (`?Lighting=night`, thread 17);
+  default bake quality, yes or no; 4 bounces on the dark maps, yes or no (5 % brighter on
+  ZM-SpaceZombura); High against Medium on the Classic and Unverified maps; lighting variants of one map (`?Lighting=night`, thread 17);
   lighting per map against the videos (waterfront reads too bright).
 - **Graphics and performance** (thread 24): a weaker phone, the `performance` power profile and
   a fight scene, what the render thread does in a Shipping build; optional Lumen for strong PCs
@@ -645,8 +645,13 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     - Bake quality, with it. ✅ The per-map `quality` choice of #16 (below). ⬜ The GPU Lightmass
       test on the Windows side (#16). 4 bounces: measured on 2026-11-01 on mf-waterfront and
       mf-warehouse ([Performance](Performance.md#dark-surfaces-what-worked-2026-11-01): under
-      1.2 % brighter, 15 % more bake time, not used); never tried on the dark maps with zone
-      ambient 0, where bounced light is all there is. ⬜ The meshes Lightmass still reports with
+      1.2 % brighter, 15 % more bake time, not used). On ZM-SpaceZombura, a dark map with zone
+      ambient 0 where bounced light is all there is, it does show (2026-11-16, High, 20 cameras
+      against the 2-bounce bake): the views are 5.4 % brighter (2 to 8 grey levels of 255 a
+      view), the same look otherwise, for the same bake time (2.8 min). Not kept: a brighter map
+      is a look to decide, not a quality (`bounces = 4` in its `map_edits.toml` section, then
+      `map`, `import --steps maps`, `light`). ⬜ Filip: 4 bounces on the dark maps
+      (ZM-SpaceZombura, MF-TurpowiaV1), yes or no. ⬜ The meshes Lightmass still reports with
       overlapping lightmap charts (what #15 left: charts smaller than a texel).
     - ✅ High against Medium on all 22 maps of `Content/Maps`, measured (2026-11-15,
       `Tools/mfport/debug/bakequality.py`: up to 10 player starts x 2 views per map, no HUD, no
@@ -722,5 +727,5 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
         nothing touched too: something in the render, not in the bakes; not found.
       Not tested: High against Medium on the maps of the Classic and Unverified plugins
       (`bakequality.py` reads `Content/Maps` only), GPU Lightmass. Production was measured on
-      three maps (thread 16); 4 bounces on two (below).
+      three maps (thread 16); 4 bounces on three (above).
 
