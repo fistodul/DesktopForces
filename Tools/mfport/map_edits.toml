@@ -158,11 +158,16 @@ same_as = "mf-Modernity"
 # Baked at High: these dark rooms are lit by bounced light alone, and at Medium it lies in blotches
 # on their plain walls and floors (debug/bakequality.py, 2026-11-15: 20 cameras a map against the
 # Medium bake; of the 22 maps in Content/Maps only these two and mf-Sardine_City gained: Roadmap #24)
+# 4 bounces (Filip, 2026-11-16): baked indirect light, no extra runtime bounce computation.
+# 2026-11-17, 20 views vs the old High bake: ZM +5.1 % mean brightness; Turpowia +0.3 %,
+# not a measured 5 % on both maps. See Roadmap #24 for BuiltData sizes and comparison limits.
 ["ZM-SpaceZombura"]
 quality = "High"
+bounces = 4
 
 ["MF-TurpowiaV1"]
 quality = "High"
+bounces = 4
 
 ["mf-Tropics"]
 # Baked at High (Filip, 2026-11-15): leaves and the store room's cans are lit a little more evenly,

@@ -8,9 +8,10 @@ What is left, in one place; the sections and numbered threads below hold the his
 detail. Checked against the code and the commits on 2026-11-15: a mark further down that
 disagrees with this list is the stale one.
 
-- **Lighting and bake** (thread 24): GPU Lightmass test on Windows (thread 16); High as the
-  default bake quality, yes or no; 4 bounces on the dark maps, yes or no (5 % brighter on
-  ZM-SpaceZombura); High against Medium on the Classic and Unverified maps; lighting variants of one map (`?Lighting=night`, thread 17);
+- **Lighting and bake** (thread 24): the 4-bounce dark-map bakes and all 11 Classic maps'
+  prop-chart rebakes are complete and reviewed (2026-11-17). Medium stays the default until a
+  visible gain is confirmed (Filip, 2026-11-16). GPU Lightmass test on Windows (thread 16); High against Medium
+  on the Classic and Unverified maps; lighting variants of one map (`?Lighting=night`, thread 17);
   lighting per map against the videos (waterfront reads too bright).
 - **Graphics and performance** (thread 24): a weaker phone, the `performance` power profile and
   a fight scene, what the render thread does in a Shipping build; optional Lumen for strong PCs
@@ -648,10 +649,15 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       1.2 % brighter, 15 % more bake time, not used). On ZM-SpaceZombura, a dark map with zone
       ambient 0 where bounced light is all there is, it does show (2026-11-16, High, 20 cameras
       against the 2-bounce bake): the views are 5.4 % brighter (2 to 8 grey levels of 255 a
-      view), the same look otherwise, for the same bake time (2.8 min). Not kept: a brighter map
-      is a look to decide, not a quality (`bounces = 4` in its `map_edits.toml` section, then
-      `map`, `import --steps maps`, `light`). ⬜ Filip: 4 bounces on the dark maps
-      (ZM-SpaceZombura, MF-TurpowiaV1), yes or no. ⬜ The meshes Lightmass still reports with
+      view), the same look otherwise, for the same bake time (2.8 min). Approved by Filip,
+      2026-11-16: 4 bounces on ZM-SpaceZombura and MF-TurpowiaV1, with no runtime cost.
+      ✅ Both now have `bounces = 4` and completed bakes (2026-11-17: Turpowia resumed after
+      stopping before its BuiltData save; 0 errors). Twenty views per map against the earlier
+      High/2-bounce captures: ZM mean brightness +5.1 %, Turpowia +0.3 %; the earlier 5 % result
+      was ZM's, not evidence for both maps. ZM BuiltData 25,051,029 -> 25,981,271 bytes;
+      Turpowia 54,831,252 -> 54,857,122 bytes. Most-changed views checked: modest ZM brightening,
+      little overall change on Turpowia; its camera 01 also sees animated player geometry, so these
+      cross-session pixel differences are not all bake changes. ⬜ The meshes Lightmass still reports with
       overlapping lightmap charts (what #15 left: charts smaller than a texel).
     - ✅ High against Medium on all 22 maps of `Content/Maps`, measured (2026-11-15,
       `Tools/mfport/debug/bakequality.py`: up to 10 player starts x 2 views per map, no HUD, no
@@ -697,8 +703,8 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       nature, slight counts. Nine maps carry `quality = "High"` in `map_edits.toml` and are baked
       so: the three, mf-Tropics, MF-Aquarius, and the four at 0.7 and over (mf-Space_station,
       MF-Test_Facility, MF-RandomLand, mf-Toreford). The other 13 are at their Medium bake, and
-      Medium is still the default. ⬜ Decide whether High becomes the default for every map
-      (54 min more for these 22; nothing got worse at High that was looked at).
+      Medium remains the default (Filip, 2026-11-16); a change to High for every map waits
+      for a confirmed visible improvement. The existing nine High overrides stay.
     - ✅ Lightmap charts of round props (2026-11-15/16). MF-Aquarius's ten-sided column showed a
       step down its shaft in the High bake, mf-Sardine_City's snow heaps hard-edged patches at
       any quality: the importer's box projection cuts a smooth round prop into side charts, and
@@ -721,9 +727,20 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
         mf-Worlds_Peak, dm-HolidayTown, and of the Unverified pack mf-castles, MF-SpeedPipes and
         MF-StuntArena (nothing to see at the cameras). mf-City_Rush is left as it was: its one
         mesh, the tower block facade, baked a flat olive from its unwrap and is named `box`.
-      - Not done: the Classic pack's maps (they get the rule at their next `rebake`); mf-western's
-        logs, which the old comment in `BuildStaticMesh` warns about, were not looked at. The
-        shots of 2026-11-16 are 0.2 of 255 brighter all over than the evening before, on maps
+      - ✅ (2026-11-17) All 11 Classic maps reconverted, imported and rebaked: zero import/bake
+        errors. The curve rule selects 25 meshes on four maps: western 10, sawmill 7,
+        waterfront 4, dockyard 4. Western's `mexlog1` / `mexlogs2` retain box charts at 128;
+        `domlog2` takes texture charts at 32 by the existing overlap rule, not this curve rule.
+        Twenty before/after cameras per map; most-changed static views visually checked, no
+        obvious new defect. Median pixel differences 0.27–0.39 grey levels / 255; the largest
+        frame differences include animated player geometry and randomized vehicle skins.
+        All 386 player starts were imported, 385 on navmesh (Ghetto 37/38); runtime vehicle
+        generator counts match before/after on every map. Remaining overlap warnings:
+        western `mexbuild14`, airport `StaticMesh12` / `Dc-9`, dockyard `dockwoodfence5`,
+        Rail_Quarry `World_4_4`. This pass does not resolve those UVs or Ghetto's off-nav start.
+        Classic assets remain local and uncommitted. Logs, comparison JSON and review sheets:
+        `tests/20261117-lighting` beside the project in the Linux workspace.
+      - The shots of 2026-11-16 are 0.2 of 255 brighter all over than the evening before, on maps
         nothing touched too: something in the render, not in the bakes; not found.
       Not tested: High against Medium on the maps of the Classic and Unverified plugins
       (`bakequality.py` reads `Content/Maps` only), GPU Lightmass. Production was measured on
