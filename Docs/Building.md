@@ -163,10 +163,13 @@ Each build has its own content build id (`<UTC time>-<git commit>`, in
 so keep the folders of builds players still have. A player can also take a build's paks from there
 by hand and drop them into `Saved/Paks/`.
 
-Cooking is deterministic: a pack whose content didn't change comes out byte for byte the same in
-the next build, so players keep it across updates (ChunkDownloader keeps a file whose SHA1 is
-unchanged) and the server can hardlink it between build folders. Platforms can't share paks:
-each carries its platform's cooked data and shaders (Android: ASTC textures, mobile shaders).
+ChunkDownloader reuses cached files whose names and SHA1s match the new build's manifest;
+a new content build id alone does not force another download. Preserve the cache and its local
+manifest across core updates. Identical container output can also be hardlinked between server
+build folders, but source assets staying unchanged is not a guarantee of identical cooked bytes:
+engine, shader and container-layout changes can affect them. Platforms have their own cooked
+data and shaders (Android: ASTC textures, mobile shaders). See [Updating](Updating.md) for the
+verified code path, core-updater proposal and its relationship to `Mods/`.
 
 `Tools/upload_downloads.sh` uploads one build with rsync (Linux or WSL). Without arguments it
 lists the local builds and the server's (`<Platform> <id>`); then name the build to upload and,

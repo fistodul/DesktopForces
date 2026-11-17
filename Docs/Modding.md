@@ -60,6 +60,17 @@ Their art (icons) is in `SourceArt/Mods/Icons/`, imported to `/Game/MF/Mods/Icon
 | `ADFCharacter::SetBodyScale` | replicated speed / jump / accel / step / fall multipliers (zombies, buffs) |
 | `ADFWeapon::IsMeleeWeapon` | bots run at the target instead of shooting from range |
 
+## Contributing to the core game
+
+The current priority (Filip, 2026-11-17) is keeping contributions to the core game simple;
+separate mod packaging and a `Mods/` loader come later. Work in this project using the existing
+folders and editor tools. Add a map under `Content/Maps`, reuse the game's actor classes,
+and test it with `Tools/play.py`; code and asset contributions go through the same repository
+review and normal package build. New maps should not require an updater adapter or mod framework.
+See [Building](Building.md) for the build and [Updating](Updating.md) for the later distribution
+research. Cooked assets can be distributed independently; editable source remains the convenient
+form for contributors to work on.
+
 ## Adding things
 
 | Need | Use |
@@ -121,16 +132,21 @@ converted MF actors), `DFMapInfo` (title, author, music, minimap). Save it under
 
 ## Content after release
 
-A packaged UE game can take new content without rebuilding the game, as long as it was cooked
-with the same engine version:
+A packaged UE game can take new cooked content without rebuilding the game, provided the
+platform, engine/cook settings and referenced game classes/assets are compatible. Matching the
+engine version alone does not establish that. Cooked player files are not editable source
+assets; [Updating](Updating.md#editable-assets-and-a-mods-folder) describes an authoring-kit
+workflow and the missing `Mods/` loader work.
 
 - **Maps, Blueprints, assets**: cook them in this project (editor or `RunUAT BuildCookRun` with
   the DLC options) into a `.pak` and drop it into the game's `Content/Paks/` folder; UE mounts
   every pak there at start (the game itself ships one pak per content pack: [Building](Building.md#package);
   a `--downloads` build fetches the packs in game and mounts them without a restart:
   [Building](Building.md#downloadable-packs)). Blueprint mods can add weapons and modes this way, no compiler
-  needed. (Planned: a `Mods/` folder the game scans and a menu list of mod maps -
-  [Roadmap](Roadmap.md).)
+  needed once the mod's classes and assets are loaded/registered. Mounting files alone is not
+  sufficient for new post-release map discovery: the current menu searches only the built-in
+  roots. (Planned: a `Mods/` loader with mount points, registry/map metadata, compatibility and
+  dependencies; [Roadmap](Roadmap.md), [investigation](Updating.md).)
 - **C++ code**: needs a build of the game itself (open source: fork, add code, build) - the same
   as UnrealScript `.u` packages needed UCC in MF, but compiled native code instead of bytecode.
 

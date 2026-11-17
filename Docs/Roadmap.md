@@ -252,8 +252,15 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
    - Stock ChunkDownloader quirks worked around: it would mount `.utoc`/`.ucas` as paks (we mount
      the `.pak`), holds a whole file in memory (64 MB container parts on Android), and records
      finished files only when a chunk download starts (we write its `LocalManifest.txt`).
-   - Cooking is deterministic: unchanged packs keep their SHA1 between builds (players don't
-     download them again; the server can hardlink them).
+   - Cached files with the same name and SHA1 are reused across build IDs; identical server
+     files can be hardlinked. Source changes and cook/container layout determine how much
+     actually matches. Verified against UE 5.8.4 code on 2026-11-17; [Updating](Updating.md).
+   - 🟡 Shared updater research (2026-11-17): keep MF-updater's simple SHA512 workflow. An
+     editable Python configuration computes the URL and supplies installation rules; a small
+     game-agnostic core is bundled into it for a single-file release. No required `latest.json`
+     or hardcoded MF/DF branches. A local reusable base passed seven tests; Filip will adapt it.
+     Core-game contributions come first; standalone mod support and production binary-update
+     activation remain later work ([findings](Updating.md)).
    - Still open: upload a build to `https://mf.nofisto.com/download/` and test over HTTPS;
      the Windows packaging path only dry-run on Linux so far; old build folders on the server need
      keeping while those builds are around.
