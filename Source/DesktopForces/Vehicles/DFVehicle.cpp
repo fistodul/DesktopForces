@@ -32,11 +32,14 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "Core/DFContent.h"
 #include "Components/AudioComponent.h"
 #include "Components/SphereComponent.h"
 #include "Weapons/DFProjectile.h"
 #include "Game/DFGameMode.h"
+#include "Weapons/DFDevices.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Sound/SoundBase.h"
@@ -114,11 +117,21 @@ void ADFVehicle::BeginPlay() {
 	if (!FlagPosition.IsZero() && GetNetMode() != NM_DedicatedServer)
 		GetWorldTimerManager().SetTimer(FlagTimer, this, &ADFVehicle::UpdateFlag, 0.5f, true, 0.1f);
 	Body->SetBoxExtent(BoxExtent);
-	// a body wider than its physics box: soldiers shouldn't walk their eyes into it
+	// A box stands in only without converted content. Using it over a real body made
+	// sloped bonnets into invisible platforms and blocked jumps onto the lower nose.
 	PawnCollider->SetBoxExtent(FVector(BoxExtent.X, FMath::Max(BoxExtent.Y, PawnHalfWidth), BoxExtent.Z));
 	CameraArm->TargetArmLength = CameraDistance;
 	// everything is laid out in MF body space (origin at the MF actor); the box is the root
-	if (!DF::ApplyPropMesh(BodyMesh, *BodyMeshName, 1.f, -BoxCenter))
+	if (DF::ApplyPropMesh(BodyMesh, *BodyMeshName, 1.f, -BoxCenter)) {
+		// DeviceMesh imports have complex-as-simple collision, so character capsule
+		// sweeps follow the same hull as weapon traces. Keep this query-only and unwelded:
+		// a standing soldier must still not push or stop the simulated chassis.
+		const UBodySetup* Setup = BodyMesh->GetBodySetup();
+		if (Setup && (Setup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple || Setup->AggGeom.GetElementCount() > 0)) {
+			BodyMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+			PawnCollider->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	} else
 		BodyMesh->SetRelativeScale3D(BoxExtent / 50.f);
 	for (const FDFWheelSetup& W : Wheels) {
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
@@ -168,7 +181,7 @@ void ADFVehicle::BeginPlay() {
 		WheelColliders.Add(S);
 		// MF's COLT_WHEEL spheres collide as well: a tyre-wide capsule along the resting tyre keeps
 		// it out of walls and rides up kerbs. It reaches flat ground only at full bump, so the
-		// suspension rays carry the car, and a hard landing ends on the tyres, not in the floor
+		// suspension queries carry the car, and a hard landing ends on the tyres, not in the floor
 		const float RestDrop = SuspensionTravel * (0.5f - 1.f / FMath::Max(SuspensionStiffness, 1.f));
 		const float MaxRadius = W.Radius - SuspensionTravel * 0.5f - RestDrop;
 		if (HasAuthority() && C->GetStaticMesh() && MaxRadius >= 10.f) {
@@ -329,8 +342,13 @@ void ADFVehicle::ServerSetNitro_Implementation(bool bOn) {
 
 void ADFVehicle::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
-	if (HasAuthority() && !bBlownUp && Body->IsSimulatingPhysics())
-		SimulateWheels(FMath::Min(DeltaSeconds, 0.05f));
+	if (HasAuthority() && !bBlownUp && Body->IsSimulatingPhysics()) {
+		// Match Chaos's admitted frame time (FChaosScene::SetUpForFrame). A separate 50 ms
+		// cap made suspension/brakes use less time than the body at 15 FPS or slomo 2.
+		const UPhysicsSettings* Physics = UPhysicsSettings::Get();
+		const float MaxFrameTime = Physics->bSubstepping ? Physics->MaxSubstepDeltaTime * Physics->MaxSubsteps : Physics->MaxPhysicsDeltaTime;
+		SimulateWheels(MaxFrameTime > 0.f ? FMath::Min(DeltaSeconds, MaxFrameTime) : DeltaSeconds);
+	}
 	if (!HasAuthority())
 		FollowServer(DeltaSeconds);
 	if (GetNetMode() != NM_DedicatedServer) {
@@ -382,16 +400,33 @@ bool ADFVehicle::TraceWheel(int32 Index, FHitResult& Hit, float& OutCompression)
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFWheel), false, this);
 	if (Driver)
 		Params.AddIgnoredActor(Driver);
-	// from a wheel radius above the travel's top: inside the body, so a car that bottomed
-	// out (box on the ground, wheel tops below it) still finds the ground and lifts again.
-	// A flat tyre (MF BlowOutWheel) runs on the rim: lower
+	// Sweep the tyre's volume through its suspension travel. A centre-line ray sees a
+	// curb only after the axle has crossed it, so the chassis hits the riser first.
 	const FTransform& T = Body->GetComponentTransform();
-	const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f + W.Radius));
-	const float RayLen = SuspensionTravel + W.Radius * (IsWheelBlown(Index) ? 1.75f : 2.f);
-	if (!GetWorld()->LineTraceSingleByChannel(Hit, Top, Top - T.GetUnitAxis(EAxis::Z) * RayLen, ECC_Visibility, Params))
-		return false;
-	OutCompression = FMath::Clamp(RayLen - Hit.Distance, 0.f, SuspensionTravel);
+	const float Radius = W.Radius * (IsWheelBlown(Index) ? 0.75f : 1.f);
+	const FVector Top = T.TransformPosition(W.Position - BoxCenter + FVector(0.f, 0.f, SuspensionTravel * 0.5f));
+	const FVector Bottom = Top - T.GetUnitAxis(EAxis::Z) * SuspensionTravel;
+	const FVector Up = T.GetUnitAxis(EAxis::Z);
+	const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Top, Bottom, FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(Radius), Params);
+	if (!bHit || FVector::DotProduct(Hit.Normal, Up) <= 0.1f) {
+		// A tyre already beside a vertical wall must not turn that wall into suspension
+		// support or lose the road below it. Keep a centre ray for this overlap case.
+		const float Length = SuspensionTravel + 2.f * Radius;
+		const FVector Start = Top + Up * Radius;
+		if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, Start - Up * Length, ECC_Visibility, Params) || FVector::DotProduct(Hit.Normal, Up) <= 0.1f)
+			return false;
+		OutCompression = FMath::Clamp(Length - Hit.Distance, 0.f, SuspensionTravel);
+	} else
+		OutCompression = FMath::Clamp(SuspensionTravel - Hit.Distance, 0.f, SuspensionTravel);
 	return true;
+}
+
+float ADFVehicle::WheelCompressionRate(const FVector& RelativeVelocity, const FVector& Normal, const FVector& Up) {
+	// The tyre centre travels along Up as the spring compresses. Its velocity relative
+	// to the ground must have no component through the contact plane. This includes
+	// horizontal motion into a ramp/curb, which a vertical-only damper misses.
+	const float Support = FVector::DotProduct(Up, Normal);
+	return Support > 0.1f ? FVector::DotProduct(RelativeVelocity, Normal) / Support : 0.f;
 }
 
 void ADFVehicle::SimulateWheels(float Dt) {
@@ -449,7 +484,12 @@ void ADFVehicle::SimulateWheels(float Dt) {
 			}
 		}
 		++Grounded;
-		const float CompVel = (Compression - LastCompression[i]) / FMath::Max(Dt, 1e-3f);
+		// Damping follows relative wheel/ground velocity, not a discontinuous change
+		// from zero compression on spawn or first contact (which launched parked cars).
+		const UPrimitiveComponent* Ground = Hit.GetComponent();
+		const FVector GroundVelocity = Ground ? (Ground->IsSimulatingPhysics() ? Ground->GetPhysicsLinearVelocityAtPoint(Hit.ImpactPoint) : Ground->GetComponentVelocity()) : FVector::ZeroVector;
+		const FVector GroundNormal = Hit.Normal.GetSafeNormal();
+		const float CompVel = WheelCompressionRate(GroundVelocity - Body->GetPhysicsLinearVelocityAtPoint(Hit.ImpactPoint), GroundNormal, Up);
 		LastCompression[i] = Compression;
 		const float Fz = FMath::Max(0.f, K * Compression + C * CompVel);
 		const FVector Contact = Hit.ImpactPoint;
@@ -457,7 +497,8 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		const float SteerAngle = W.bSteer ? Steer * SteerLock * FMath::GetMappedRangeValueClamped(FVector2D(0.f, TopSpeed), FVector2D(1.f, SteerAtTopSpeed), FMath::Abs(Speed)) : 0.f;
 		// A flat tyre leans the body. Ground support must not lean with it and push the
 		// parked car sideways. Tyre friction also acts in the contact plane.
-		const FVector GroundNormal = Hit.ImpactNormal;
+		// A sphere touching a curb edge has a radial contact normal; the triangle
+		// face normal alone would push the tyre sideways instead of supporting it.
 		const FVector WFwd = FVector::VectorPlaneProject(Fwd.RotateAngleAxis(SteerAngle, Up), GroundNormal).GetSafeNormal();
 		const FVector WRight = FVector::CrossProduct(GroundNormal, WFwd);
 		const FVector V = Body->GetPhysicsLinearVelocityAtPoint(Contact);
@@ -1060,6 +1101,17 @@ void ADFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 void ADFVehicle::OnPawnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep) {
 	// MF Vehicle.CheckKill (Bump): run down soldiers at KillSpeed, without making their
 	// kinematic capsules stop the rigid body. Riders and soldiers on the roof are excluded.
+	uint8 DeviceTeam;
+	if (!Cast<ADFCharacter>(Other) && DF::GetPlacedTeam(Other, DeviceTeam)) {
+		// SentryGunTurret.CheckVehicleRunOver: a sentry turret or a seeker mine in the way of a
+		// vehicle at KillSpeed is gone (unless a friend of it drives: the device decides)
+		const FVector Before = Body->GetPhysicsLinearVelocity();
+		if (HasAuthority() && Before.Size() >= KillSpeed && FVector::DotProduct(Before, (Other->GetActorLocation() - GetActorLocation()).GetSafeNormal2D()) >= 50.f) {
+			FDamageEvent Ev(UDFDamage_RunOver::StaticClass());
+			Other->TakeDamage(1000.f, Ev, GetController(), this);
+		}
+		return;
+	}
 	ADFCharacter* C = Cast<ADFCharacter>(Other);
 	const UActorComponent* MovementBase = C ? Cast<UActorComponent>(C->GetMovementBaseObject()) : nullptr;
 	if (const float* Until = ExitProtection.Find(C); Until && GetWorld()->GetTimeSeconds() < *Until)

@@ -17,6 +17,10 @@ AArmadillo::AArmadillo() {
 	TopSpeedKmh = 30.f * DF::Mph;
 	AccelTime = 8.f;
 	SteerLock = 40.f;
+	// Filip, 2026-11-19: too hard to turn on the move. Its top speed is low (30 mph), so the
+	// fade to 45 % of the lock at top speed cut in at walking-car speeds; 13 m/s turned it
+	// 50 deg/s where the Humvee did 80
+	SteerAtTopSpeed = 0.8f;
 	WheelTurnShown = 0.15f; // the skirts
 	FlagPosition = FVector(-168.75f, 85.5f, 180.f); // FlagPos x 2.25
 	Armour = 0.84f;

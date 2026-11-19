@@ -68,10 +68,10 @@ namespace DF {
 } // namespace DF
 
 /**
- * Mobile Forces vehicle (MF Vehicle / Car): a physics box with raycast wheels - suspension
+ * Mobile Forces vehicle (MF Vehicle / Car): a physics box with swept tyres - suspension
  * springs, engine force on the driven wheels, brakes, sideways grip - tuned from MF's own
  * handling file (Physics/handling.hnd2: mass, top speed, steering lock, brakes, ride height)
- * and wheel spheres (Physics/<Vehicle>.COL). Cheap: a handful of line traces per frame
+ * and wheel spheres (Physics/<Vehicle>.COL). Cheap: a handful of sphere sweeps per frame
  * while something moves, asleep when parked.
  *
  * Seats: E (TryEnterExit) near the vehicle gets in; the first free seat drives (the player's
@@ -82,6 +82,7 @@ namespace DF {
 UCLASS(Abstract, Config = Game)
 class DESKTOPFORCES_API ADFVehicle : public APawn {
 	GENERATED_BODY()
+	friend class FDFWheelContactCheck;
 
 public:
 	ADFVehicle();
@@ -305,7 +306,7 @@ protected:
 	/** How far the steered wheels turn on screen (armoured skirts don't leave them room). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float WheelTurnShown = 1.f;
-	/** Half the width soldiers keep from the body, if more than the physics box (mirrors). */
+	/** Fallback pawn box half-width without a converted body mesh (mirrors). */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float PawnHalfWidth = 0.f;
 
@@ -506,6 +507,7 @@ protected:
 	void SimulateWheels(float DeltaSeconds);
 	/** Wheel Index's suspension ray: what it stands on and how far that pushes it up its travel. */
 	bool TraceWheel(int32 Index, FHitResult& Hit, float& OutCompression) const;
+	static float WheelCompressionRate(const FVector& RelativeVelocity, const FVector& Normal, const FVector& Up);
 	/** Clients: the server's last word on the body and its age (below 0: none yet); FollowServer
 	 *  moves the body there, see OnRep_ReplicatedMovement. */
 	FVector NetLocation = FVector::ZeroVector, NetVelocity = FVector::ZeroVector;

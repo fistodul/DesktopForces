@@ -4,6 +4,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Core/DFContent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -53,6 +54,27 @@ namespace {
 				return false;
 			switch (Stage++) {
 			case 1: {
+				// The Humvee's bonnet descends towards the nose. A pawn box used to put
+				// an invisible flat platform 68-87 cm above these converted mesh points.
+				// Wait until this stage so all query bodies have entered the physics scene.
+				const FTransform VehicleTransform = Car->GetActorTransform();
+				for (float X : { 150.f, 200.f, 250.f }) {
+					const FVector Start = VehicleTransform.TransformPosition(FVector(X, 0.f, 400.f) - Car->GetBoxCenter());
+					const FVector End = VehicleTransform.TransformPosition(FVector(X, 0.f, -100.f) - Car->GetBoxCenter());
+					FHitResult Weapon, Pawn;
+					World->LineTraceSingleByChannel(Weapon, Start, End, ECC_GameTraceChannel2);
+					World->LineTraceSingleByChannel(Pawn, Start, End, ECC_Pawn);
+					Test->TestTrue(TEXT("Bonnet is queryable for weapons and pawns"), Weapon.GetActor() == Car.Get() && Pawn.GetActor() == Car.Get());
+					Test->TestEqual(TEXT("Pawn stands on the visible bonnet"), Pawn.GetComponent(), Weapon.GetComponent());
+					Test->TestTrue(TEXT("Pawn bonnet height matches the model"), FVector::Dist(Pawn.ImpactPoint, Weapon.ImpactPoint) < 1.f);
+					// Character movement uses capsule sweeps, not line traces. Check both:
+					// the tyres can be the first contact near the sides of the bonnet.
+					const FCollisionShape Capsule = FCollisionShape::MakeCapsule(38.25f, 87.75f);
+					World->SweepSingleByChannel(Weapon, Start, End, FQuat::Identity, ECC_GameTraceChannel2, Capsule);
+					World->SweepSingleByChannel(Pawn, Start, End, FQuat::Identity, ECC_Pawn, Capsule);
+					Test->TestTrue(TEXT("Character capsule reaches the visible vehicle"), Weapon.GetActor() == Car.Get() && Pawn.GetActor() == Car.Get());
+					Test->TestTrue(TEXT("Pawn capsule has no invisible platform above the bonnet"), FVector::Dist(Pawn.Location, Weapon.Location) < 1.f);
+				}
 				UParticleSystemComponent* Smoke = nullptr;
 				// Pooled emitters belong to the world, not to the actor they attach to.
 				for (USceneComponent* Child : Car->GetRootComponent()->GetAttachChildren())
