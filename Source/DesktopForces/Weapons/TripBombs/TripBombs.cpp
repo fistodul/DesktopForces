@@ -14,6 +14,8 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ATripBombs::ATripBombs() {
+	ThrowChargeRate = 5.f; // AltFiring.Tick: ThrowPower += Delta * 5
+	ThrowReleaseFloor = 3.f; // if (ThrowPower < 3) ThrowPower += 3 on release
 	DeathMessage = NSLOCTEXT("DFKills", "TripBombs", "%k Blew Up %o.");
 	ViewMesh = TEXT("RageWeapons/TripBombsPickupCarryMesh");
 	ArmsMesh = TEXT("TripBombsPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
@@ -37,12 +39,6 @@ ATripBombs::ATripBombs() {
 	RecoilPower = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_TripBombs.Plant");
 	ClassicSelectSound = TEXT("WeaponSFX_TripBombs.Idle01");
-}
-
-float ATripBombs::GetThrowPower() const {
-	// MF: ThrowPower += Delta * 5 (max 10) from the end of SlideBack; +3 if released under 3
-	float P = FMath::Clamp(5.f * float(GetWorld()->GetTimeSeconds() - WindUpStart), 0.f, 10.f);
-	return P < 3.f ? P + 3.f : P;
 }
 
 void ATripBombs::PlayArms(FName Name, float Duration) {
@@ -116,9 +112,8 @@ void ATripBombs::EndPlace() {
 void ATripBombs::BeginWindUp() {
 	// AltFire -> AltFiring: PlayAltFiringAnim SlideBack + the Powering hum; the throw charges
 	// once the hand is back (FinishAnim, then Tick)
-	bWinding = true;
+	StartWindUp(SlideBackTime); // MF: ThrowPower += Delta * 5 once SlideBack has finished
 	bReleased = false;
-	WindUpStart = GetWorld()->GetTimeSeconds() + SlideBackTime;
 	SetAmbientMFSound(TEXT("WeaponSFX_TripBombs.Powering"));
 	PlayArms(TEXT("SlideBack"), SlideBackTime);
 	BusyFor(SlideBackTime, &ATripBombs::WindUpReady);
@@ -134,20 +129,21 @@ void ATripBombs::Throw() {
 		return;
 	bWinding = false;
 	SetAmbientMFSound(nullptr);
-	const float Power = GetThrowPower();
+	const float Power = GetReleasePower();
 	if (GetLocalRole() < ROLE_Authority)
 		ServerThrow(Power);
 	if (HasAuthority() ? ThrowNow(Power) : true)
 		UseAmmo(); // the server's count wins if the throw was refused there
-	// ClientThrowTripBomb: SlideForward + FireSound
+	// ClientThrowTripBomb: SlideForward and a sound - the throw's own (Filip: not the plant's,
+	// MF's FireSound)
 	PlayArms(TEXT("SlideForward"), SlideForwardTime);
 	if (IsLocallyControlled())
-		PlaySoundLocal(FireSound);
+		PlayMFSound(TEXT("WeaponSFX_TripBombs.Throw"));
 	BusyFor(SlideForwardTime, &ATripBombs::Done);
 }
 
 void ATripBombs::ServerThrow_Implementation(float Power) {
-	if (HasAmmoInClip() && ThrowNow(FMath::Clamp(Power, 3.f, 10.f))) {
+	if (HasAmmoInClip() && ThrowNow(FMath::Clamp(Power, ThrowReleaseFloor, 10.f))) {
 		UseAmmo(); // a remote thrower's: the server's copy of the weapon goes the same way
 		BusyFor(SlideForwardTime, &ATripBombs::Done);
 	}
@@ -205,10 +201,6 @@ bool ATripBombs::TryPlant() {
 		return true;
 	}
 	return false;
-}
-
-int32 ATripBombs::GetPowerLevel() const {
-	return bWinding ? FMath::FloorToInt(GetThrowPower()) : 0;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -293,6 +293,7 @@ void ASeekerMineThrown::Explode(const FVector& Location, const FVector& Normal) 
 ASeekerMines::ASeekerMines() {
 	DisplayName = LOCTEXT("SeekerMines", "Seeker Mine");
 	MaxClipAmmo = 1;
+	ThrowReleaseFloor = 2.f; // AltFiring.Tick: if (ThrowPower < 2) ThrowPower += 2
 	AltProjectileClass = ASeekerMineThrown::StaticClass();
 	bAddToLoadout = true;
 	// Icon converted from the mod's own art (SourceArt/Mods/Icons/SeekerMineIcon.bmp)

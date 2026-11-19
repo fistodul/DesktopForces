@@ -198,6 +198,20 @@ bool ADFWeapon::IsScopeRaised() const {
 	return ZoomLevel > 0 ? T >= ZoomTime : T < ZoomOutTime;
 }
 
+void ADFWeapon::StartWindUp(float Delay) {
+	bWinding = true;
+	WindUpStart = GetWorld()->GetTimeSeconds() + Delay;
+}
+
+float ADFWeapon::GetThrowPower() const {
+	return bWinding ? FMath::Clamp(ThrowChargeRate * float(GetWorld()->GetTimeSeconds() - WindUpStart), 0.f, 10.f) : 0.f;
+}
+
+float ADFWeapon::GetReleasePower() const {
+	const float P = GetThrowPower();
+	return FMath::Max(P < ThrowReleaseFloor ? P + ThrowReleaseFloor : P, ThrowReleaseMin);
+}
+
 float ADFWeapon::GetZoomScaleAlpha() const {
 	// UpdateSubLevelZoom: ZoomScaleAlpha moves Delta a tick towards ZoomSubLevel / Increments
 	const float Want = float(ZoomSubLevel) / float(FMath::Max(ZoomScaleIncrements, 1));

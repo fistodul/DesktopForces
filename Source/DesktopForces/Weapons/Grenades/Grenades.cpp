@@ -16,6 +16,7 @@ AGrenades::AGrenades() {
 	DeathMessage = NSLOCTEXT("DFKills", "Grenades", "%k Blew Up %o.");
 	ViewMesh = TEXT("RageWeapons/GrenadesPickupCarryMesh");
 	ArmsMesh = TEXT("GrenadesPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	ThrowReleaseMin = 1.5f; // ThrowPower += Delta * 8 (the default rate), at least 1.5 on release
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(1.6f, -1.f, -4.f);
 	HUDIconRect = FIntRect(48, 0, 96, 64); // WeaponIcon X=48 Y=0 W=48 H=64
@@ -38,19 +39,11 @@ AGrenades::AGrenades() {
 	ClassicSelectSound = TEXT("WeaponSFX_Grenades.Select");
 }
 
-float AGrenades::GetThrowPower() const {
-	if (!bWinding)
-		return 0.f;
-	// MF: ThrowPower += Delta * 8, max 10, min 1.5 on release
-	return FMath::Clamp(8.f * float(GetWorld()->GetTimeSeconds() - WindUpStart), 1.5f, 10.f);
-}
-
 void AGrenades::StartFire(bool bAlt) {
 	if (State != EDFWeaponState::Idle || !HasAmmoInClip() || bWinding)
 		return;
-	bWinding = true;
+	StartWindUp();
 	bWindingAlt = bAlt;
-	WindUpStart = GetWorld()->GetTimeSeconds();
 	// PlayFiringAnim: the pin comes out with the teeth or by hand, then Powering while winding up
 	const bool bTeeth = FMath::RandBool();
 	PlayMFSound(bTeeth ? TEXT("WeaponSFX_Grenades.PullPinTeeth") : TEXT("WeaponSFX_Grenades.PullPinHand"));
@@ -64,7 +57,7 @@ void AGrenades::StartFire(bool bAlt) {
 void AGrenades::StopFire(bool bAlt) {
 	if (!bWinding || bAlt != bWindingAlt)
 		return;
-	const float Power = GetThrowPower();
+	const float Power = GetReleasePower();
 	bWinding = false;
 	SetAmbientMFSound(nullptr);
 	if (GetLocalRole() < ROLE_Authority)
@@ -87,10 +80,6 @@ void AGrenades::Throw(bool bAlt, float Power) {
 	}
 	if (IsLocallyControlled())
 		PlayFireEffects(bAlt);
-}
-
-int32 AGrenades::GetPowerLevel() const {
-	return bWinding ? FMath::FloorToInt(GetThrowPower()) : 0;
 }
 
 #undef LOCTEXT_NAMESPACE

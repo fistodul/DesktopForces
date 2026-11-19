@@ -17,7 +17,6 @@ public:
 	ATripBombs();
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
-	virtual int32 GetPowerLevel() const override;
 
 	virtual void ForceInactive() override;
 
@@ -55,11 +54,8 @@ protected:
 	float PlaceBackTime = 0.444f; // PlaceBack / PlaceBombDown 0.4 s at 0.9
 	float SlideBackTime = 0.367f; // SlideBack 12 @30
 	float SlideForwardTime = 0.6f; // SlideForward 19 @30
-	double WindUpStart = 0.0; // when the charge starts (SlideBack's end)
-	bool bWinding = false;
 	bool bReleased = false;
 	FTimerHandle StepTimer;
-	float GetThrowPower() const;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float MaxLaserDistance = 2304.f; // MF 1024
 	UPROPERTY(EditDefaultsOnly, Category = "DF")

@@ -44,12 +44,13 @@ class DESKTOPFORCES_API ATripLaserMine : public ATripMine {
 public:
 	ATripLaserMine();
 	uint8 GetPlacedTeam() const { return PlacedTeam; }
-	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 	virtual void BeginPlay() override;
 	virtual bool ShouldTrigger(const ADFCharacter* Who) const override;
 	virtual void Trigger(ADFCharacter* Who) override;
+	/** It has no blast: a hit or a mine landing on it just breaks it. */
+	virtual void SetOff() override;
 	uint8 PlacedTeam = DF::NoTeam;
 };
 

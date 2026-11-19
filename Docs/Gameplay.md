@@ -349,7 +349,7 @@ Timing = animation length: (frames − 1) / (seq rate × play rate) + tween.
 | HMG | 6 | 4 | 900 × 1 | 45 | 0.6 / 1.2 | — | — | must deploy (alt, standing on the ground): then no walking, jumping or loadout until packed up (MF PHYS_Gunnery) |
 | Rocket launcher | 7 | 4 | 1 × 11 | 135, radius 400 | — | 0.79 s | 3.38 s | rocket 1200 uu/s; alt: scope 4×; scoped, the same enemy (soldier or manned vehicle) within ~22° on two 1.25 s checks locks on (beep; another beep when it's lost) and the next rocket steers at it while it's ahead (SmartRocket) |
 | Grenades | 8 | 1 (max 3) | 3 | 160 r400 (timed 3 s) / 120 impact | — | 0.333 s | — | throw power 1.5–10 (+8/s), speed power × 150 uu/s, +210 up |
-| Trip bombs | 9 | 1 (max 3) | 2 | — | — | 1.04 + 0.44 s | — | laser 1024 uu; planted at the end of the reach (PlaceForward), which is the test for a wall: PlaceBack or PlaceBombDown after; alt: hand back (SlideBack), charge while held (+5/s, 3-10), slide it out on release, a proximity mine |
+| Trip bombs | 9 | 1 (max 3) | 2 | — | — | 1.04 + 0.44 s | — | laser 1024 uu; planted at the end of the reach (PlaceForward), which is the test for a wall: PlaceBack or PlaceBombDown after; alt: hand back (SlideBack), charge while held (+5/s from 0; under 3 on release it gets 3 more), slide it out on release with its own throw sound, a proximity mine lying on its base; a blast, a shot or another mine thrown onto it sets it off a moment later, so a heap goes up one after another |
 | Adrenaline | 10 | 1 | 1 | full heal | — | 0.5 s | — | alt: inject team mate (range 90); Zombie mode: an enemy at ≤ 100 health changes sides |
 | Armour | 11 | 1 | — | absorbs 75% | — | — | — | 100 charge; falling/drowning bypass |
 

@@ -62,15 +62,27 @@ protected:
 	bool bExploded = false;
 };
 
-/** Thrown trip bomb (MF TripBombThrown): flies, then becomes a proximity mine where it lands. */
+/**
+ * Thrown trip bomb (MF TripBombThrown): flies, then becomes a proximity mine where it lands,
+ * lying on its base. An explosion near it, a shot or another thrown one landing on it sets it
+ * off (a moment later: a heap of them goes up one after another).
+ */
 UCLASS()
 class DESKTOPFORCES_API ATripMine : public ADFProjectile {
 	GENERATED_BODY()
 public:
 	ATripMine();
+	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnStop(const FHitResult& Hit) override;
+	virtual void OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) override;
+	/** Thrown onto another mine: both go. */
+	void HitOtherMine(AActor* Other);
+	/** Set off by a blast or a hit: Explode a moment later (chains spread). */
+	virtual void SetOff();
+	FTimerHandle SetOffTimer;
 	void CheckProximity();
 	/** A live pawn came close: does it set the mine off? */
 	virtual bool ShouldTrigger(const ADFCharacter* Who) const { return true; }

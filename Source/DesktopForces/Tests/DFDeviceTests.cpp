@@ -6,6 +6,9 @@
 #include "Engine/World.h"
 #include "Vehicles/Buggy/Buggy.h"
 #include "Weapons/SentryGun/SentryGun.h"
+#include "Weapons/TripBombs/TripBombs.h"
+#include "Player/DFCharacter.h"
+#include "GameFramework/PlayerController.h"
 
 namespace {
 	/** SentryGunTurret.CheckVehicleRunOver: a vehicle at KillSpeed runs a sentry turret down;
@@ -96,6 +99,52 @@ bool FDFSentryRunOverTest::RunTest(const FString& Parameters) {
 		}
 	AddError(TEXT("No game world."));
 	return false;
+}
+
+// The throw gauge: 0 while the arm goes back, then rising steadily (5 a second for trip bombs)
+// to 10; never starting at 3 and dropping back (the release bonus belongs to the release only).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFThrowGaugeTest, "DesktopForces.Gameplay.ThrowGauge", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+bool FDFThrowGaugeTest::RunTest(const FString& Parameters) {
+	UWorld* World = nullptr;
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (Context.World() && Context.World()->IsGameWorld() && Context.World()->GetFirstPlayerController())
+			World = Context.World();
+	ADFCharacter* Soldier = World ? Cast<ADFCharacter>(World->GetFirstPlayerController()->GetPawn()) : nullptr;
+	if (!Soldier) {
+		AddError(TEXT("Needs a soldier."));
+		return false;
+	}
+	ATripBombs* Bombs = World->SpawnActor<ATripBombs>();
+	Bombs->OnGiven(Soldier);
+	Bombs->OnEquip();
+	struct FState {
+		TArray<int32> Levels;
+		double Start = 0.0;
+	};
+	TSharedRef<FState> S = MakeShared<FState>();
+	FAutomationTestFramework::Get().EnqueueLatentCommand(MakeShared<FFunctionLatentCommand>([this, World, Bombs, S]() {
+		const double Now = World->GetTimeSeconds();
+		if (S->Start == 0.0) {
+			if (Bombs->GetState() == EDFWeaponState::Idle) {
+				S->Start = Now;
+				Bombs->StartFire(true);
+			}
+			return false;
+		}
+		S->Levels.Add(Bombs->GetPowerLevel());
+		if (Now - S->Start < 3.0)
+			return false;
+		Bombs->StopFire(true);
+		bool bRising = true;
+		for (int32 i = 1; i < S->Levels.Num(); ++i)
+			bRising &= S->Levels[i] >= S->Levels[i - 1];
+		TestEqual(TEXT("Gauge empty as the throw begins"), S->Levels[0], 0);
+		TestTrue(TEXT("Gauge only rises"), bRising);
+		TestEqual(TEXT("Gauge full after 3 s"), S->Levels.Last(), 10);
+		Bombs->Destroy();
+		return true;
+	}));
+	return true;
 }
 
 #endif

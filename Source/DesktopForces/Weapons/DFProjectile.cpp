@@ -77,7 +77,7 @@ void ADFProjectile::BeginPlay() {
 		DF::PlayLoop(RootComponent, ClassicAmbientSound);
 		if (!TrailEffect.IsEmpty())
 			Trail = DF::SpawnEffectAttached(*TrailEffect, RootComponent, 1.f, true);
-		if (bTicking) {
+		if (bTicking && !bExplodeOnImpact) { // one that goes off where it lands has no fuse to hear
 			FTimerHandle Tick;
 			GetWorldTimerManager().SetTimer(Tick, FTimerDelegate::CreateWeakLambda(this, [this]() {
 				if (GetGameTimeSinceCreation() < 3.5f)
@@ -195,7 +195,6 @@ AGrenade::AGrenade() {
 
 AImpactGrenade::AImpactGrenade() {
 	FuseTime = 8.f; // MF Grenade2.FuseTime
-	bTicking = false; // only Grenade1 ticks
 	bExplodeOnImpact = true;
 	Damage = 120.f;
 	Momentum = 90000.f;

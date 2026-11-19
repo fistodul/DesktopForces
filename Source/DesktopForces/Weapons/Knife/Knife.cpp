@@ -66,10 +66,6 @@ void AKnife::FireShot(bool bAlt) {
 	// alt: thrown on release (StopFire)
 }
 
-float AKnife::GetThrowPower() const {
-	return bWinding ? FMath::Clamp(8.f * float(GetWorld()->GetTimeSeconds() - WindUpStart), 0.f, 10.f) : 0.f;
-}
-
 void AKnife::StartFire(bool bAlt) {
 	if (!bAlt) {
 		Super::StartFire(false);
@@ -78,9 +74,8 @@ void AKnife::StartFire(bool bAlt) {
 	// AltFire: ThrowPower 0, the arm pulls back (AltFireSound), then a release throws
 	if (State != EDFWeaponState::Idle || !HasAmmoInClip() || bWinding)
 		return;
-	bWinding = true;
+	StartWindUp(); // ThrowPower += Delta * 8 (the default rate)
 	bThrowQueued = false;
-	WindUpStart = GetWorld()->GetTimeSeconds();
 	PlayMFSound(TEXT("WeaponSFX_Knife.Throw"));
 	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr) {
 		Anim->SetIdle(NAME_None); // PlayAltFiringAnim: toss it up, catch it, hold it ready

@@ -486,11 +486,29 @@ public:
 	virtual FString GetHUDStatus() const;
 	/** MF RageWeapon.PowerBarLevel (DrawPowerGuage): the shot or throw power being wound up, whole
 	 *  steps, 0 for none. The HUD fills its power bar 13 px a step (RageHUD.DrawPowerBar). */
-	virtual int32 GetPowerLevel() const { return 0; }
+	virtual int32 GetPowerLevel() const { return bWinding ? FMath::FloorToInt(GetThrowPower()) : 0; }
 	/** What the power is, for the text HUD without the bar: "POWER 4" or "THROW 4". */
 	virtual bool IsPowerAThrow() const { return true; }
 
 protected:
+	// --- throwing (grenades, trip bombs, seeker mines, the knife's alt): hold to wind up, let go
+	// to throw. MF's ThrowPower: += Delta x ThrowChargeRate from the start, up to 10.
+	bool bWinding = false;
+	/** When the power starts to build: later than the press while the arm goes back. */
+	double WindUpStart = 0.0;
+	float ThrowChargeRate = 8.f;
+	/** On release: under ThrowReleaseFloor the power gets ThrowReleaseFloor more (TripBombs 3,
+	 *  SeekerMines 2), and it is at least ThrowReleaseMin (Grenades 1.5). The gauge shows the
+	 *  power without either. */
+	float ThrowReleaseFloor = 0.f;
+	float ThrowReleaseMin = 0.f;
+	/** Begin winding up; the power builds from Delay seconds on. */
+	void StartWindUp(float Delay = 0.f);
+	/** The power wound up so far (the gauge), 0 when not winding. */
+	float GetThrowPower() const;
+	/** The power a release now throws with (ThrowReleaseFloor / ThrowReleaseMin applied). */
+	float GetReleasePower() const;
+
 	UPROPERTY(Transient, Replicated)
 	int32 ClipAmmo = 0;
 

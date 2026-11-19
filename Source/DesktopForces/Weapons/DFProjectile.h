@@ -110,9 +110,9 @@ protected:
 	TObjectPtr<UProjectileMovementComponent> Movement;
 
 	UFUNCTION()
-	void OnStop(const FHitResult& Hit);
+	virtual void OnStop(const FHitResult& Hit);
 	UFUNCTION()
-	void OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity);
+	virtual void OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity);
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep);
 

@@ -38,6 +38,10 @@ AShotgun::AShotgun() {
 	DamageType = UDFDamage_Shotgun::StaticClass();
 	RecoilPower = 0.42f;
 	TracerEvery = 2;
+	// Filip, 2026-11-20: the canvas flash sat off the barrels; at their ends now (DFMuzzleProbe:
+	// the middle of both muzzles)
+	MuzzleBone = TEXT("Dummy02");
+	MuzzleOffset = FVector(-97.58f, -23.31f, 0.65f);
 	MuzzleFlashSize = 50.f; // RageWeapons TracerEvery
 	FlashY = 0.04f;
 	FlashO = -0.11f;

@@ -38,9 +38,6 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerThrow(float Power);
 	void Throw(float Power);
-	float GetThrowPower() const;
-	double WindUpStart = 0.0;
-	bool bWinding = false;
 	bool bThrowQueued = false;
 	FTimerHandle WindUpTimer;
 	/** AltFiring: the arm goes back first (PlayAltFiringAnim) before a release can throw. */

@@ -155,6 +155,45 @@ void ATripMine::BeginPlay() {
 	}
 }
 
+void ATripMine::OnStop(const FHitResult& Hit) {
+	HitOtherMine(Hit.GetActor());
+	if (bExploded)
+		return;
+	// lie on its base: TripBombsThrowMesh's thin side (its local Y, base at +Y, the body
+	// towards -Y) along the ground's normal, keeping where it points; flush with the ground
+	const FVector Normal = Hit.ImpactNormal.IsNearlyZero() ? FVector::UpVector : Hit.ImpactNormal.GetSafeNormal();
+	const FQuat Now = GetActorQuat();
+	SetActorRotation(FQuat::FindBetweenNormals(Now.RotateVector(-FVector::YAxisVector), Normal) * Now);
+	SetActorLocation(Hit.ImpactPoint + Normal * 2.25f);
+	Super::OnStop(Hit);
+}
+
+void ATripMine::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
+	HitOtherMine(Hit.GetActor());
+	Super::OnBounce(Hit, ImpactVelocity);
+}
+
+void ATripMine::HitOtherMine(AActor* Other) {
+	ATripMine* Mine = Cast<ATripMine>(Other);
+	if (!HasAuthority() || !Mine || Mine == this)
+		return;
+	Mine->SetOff();
+	SetOff();
+}
+
+void ATripMine::SetOff() {
+	if (bExploded || GetWorldTimerManager().IsTimerActive(SetOffTimer))
+		return;
+	GetWorldTimerManager().ClearTimer(ProximityTimer);
+	GetWorldTimerManager().SetTimer(SetOffTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { Explode(GetActorLocation(), FVector::UpVector); }), 0.15f, false);
+}
+
+float ATripMine::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	if (HasAuthority() && DamageAmount > 0.f && DamageCauser != this)
+		SetOff();
+	return DamageAmount;
+}
+
 void ATripMine::CheckProximity() {
 	TArray<FOverlapResult> Hits;
 	GetWorld()->OverlapMultiByChannel(Hits, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(TriggerRadius));
