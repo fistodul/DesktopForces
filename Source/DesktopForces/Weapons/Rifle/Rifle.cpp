@@ -39,6 +39,7 @@ ARifle::ARifle() {
 	MaxTraceDistance = 45000.f; // MF 20000
 	MaxZoomLevel = 1;
 	ZoomScale = 3.f;
+	ZoomScaleIncrements = 6; // MinZoomScale 3, MaxZoomScale 30: the mouse wheel zooms
 	ZoomedViewOffset = FVector(0.f, 0.f, -1000.f); // MF ZoomedInViewOffset
 	bInstantZoom = true;
 	ZoomedMoveScale = 0.f; // can't walk while scoped (MF: "no use to players on the move")
@@ -54,11 +55,6 @@ ARifle::ARifle() {
 	ClassicFireSound = TEXT("WeaponSFX_SniperRifle.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_SniperRifle.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");
-}
-
-void ARifle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION(ARifle, ZoomScaleAlpha, COND_OwnerOnly);
 }
 
 float ARifle::GetShotPower() const {
@@ -146,17 +142,6 @@ void ARifle::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool
 	Super::ProcessTraceHit(Hit, ShotDir, bAlt);
 	HitDamage = SavedDamage;
 	HitMomentum = SavedMomentum;
-}
-
-float ARifle::GetZoomScale() const {
-	// MF: ZoomScale = Min + (Max - Min) * alpha^2
-	return MinZoomScale + (MaxZoomScale - MinZoomScale) * ZoomScaleAlpha * ZoomScaleAlpha;
-}
-
-void ARifle::AdjustZoom(int32 Steps) {
-	if (ZoomLevel == 0)
-		return;
-	ZoomScaleAlpha = FMath::Clamp(ZoomScaleAlpha + float(Steps) / float(ZoomScaleIncrements), 0.f, 1.f);
 }
 
 int32 ARifle::GetPowerLevel() const {

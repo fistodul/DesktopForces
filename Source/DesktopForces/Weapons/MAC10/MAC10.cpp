@@ -9,6 +9,9 @@ AMAC10::AMAC10() {
 	// Fire01-04 3 @55 + 0.05; Reload 10 @8 + 0.25
 	ViewMesh = TEXT("MAC10/MAC10PickupCarryMesh");
 	ArmsMesh = TEXT("MAC10PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
+	MuzzleBone = TEXT("Body");
+	MuzzleOffset = FVector(-2.04f, -76.46f, -9.40f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-3.f, 0.5f, -5.5f);
 	RequiredContent = TEXT("Props/MAC10/MAC10PickupCarryMesh");

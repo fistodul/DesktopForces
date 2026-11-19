@@ -6,7 +6,9 @@
 #include "Game/DFPlayerState.h"
 #include "Player/DFCharacter.h"
 #include "Player/DFSoldierAnimInstance.h"
+#include "Weapons/DFDevices.h"
 #include "Weapons/DFTracer.h"
+#include "Vehicles/DFVehicle.h"
 #include "World/DFDecals.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -58,7 +60,21 @@ ASentryTurret::ASentryTurret() {
 	Collision = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
 	Collision->InitBoxExtent(FVector(45.f, 45.f, 50.f));
 	Collision->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+	// vehicles go through it (CheckVehicleRunOver only ever destroys it: one a friend drives
+	// passes, as one under kill speed does); loose props too
+	Collision->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);
+	Collision->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Ignore);
 	RootComponent = Collision;
+	// MF CheckVehicleRunOver: within the vehicle's CollisionRadius / 1.5 + 20 uu of it
+	RunOverShell = CreateDefaultSubobject<UBoxComponent>(TEXT("RunOverShell"));
+	RunOverShell->SetupAttachment(Collision);
+	RunOverShell->InitBoxExtent(FVector(105.f, 105.f, 60.f));
+	RunOverShell->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	RunOverShell->SetCollisionObjectType(ECC_Pawn);
+	RunOverShell->SetCollisionResponseToAllChannels(ECR_Ignore);
+	RunOverShell->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
+	RunOverShell->SetGenerateOverlapEvents(true);
+	RunOverShell->SetCanEverAffectNavigation(false);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -134,45 +150,28 @@ void ASentryTurret::OnRep_Aim() {
 }
 
 bool ASentryTurret::IsFriendly(const AActor* Other) const {
-	if (const ASentryTurret* S = Cast<ASentryTurret>(Other))
-		return S == this || (Team != DF::NoTeam ? S->Team == Team : S->GetInstigator() == GetInstigator());
-	const ADFCharacter* C = Cast<ADFCharacter>(Other);
-	if (!C || !C->IsAlive())
-		return true;
-	// IsPawnFriendly: the team in team games, else only the placer
-	if (Team != DF::NoTeam)
-		return C->GetTeam() == Team;
-	return C == GetInstigator() || (PlacerState.IsValid() && C->GetPlayerState() == PlacerState.Get());
+	return DF::IsDeviceFriendly(Other, this, Team, PlacerState.Get());
 }
 
 FVector ASentryTurret::Muzzle() const {
 	return GetActorLocation() + FVector(0.f, 0.f, SentryLocal::MuzzleZ);
 }
 
+FVector ASentryTurret::AimPointOf(const AActor* A) {
+	// GetTargetAimPoint: half eye height up a soldier, 15 uu over anything else
+	return A->GetActorLocation() + FVector(0.f, 0.f, A->IsA<ADFCharacter>() ? 30.f : 34.f);
+}
+
 bool ASentryTurret::CanSee(const AActor* A) const {
-	// GetTargetAimPoint: middle of a player, low on a turret
-	const FVector To = A->IsA<ADFCharacter>() ? A->GetActorLocation() + FVector(0.f, 0.f, 30.f) : A->GetActorLocation() + FVector(0.f, 0.f, 34.f);
+	const FVector To = AimPointOf(A);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFSentrySight), false, this);
 	Params.AddIgnoredActor(A);
 	return !GetWorld()->LineTraceTestByChannel(Muzzle(), To, ECC_Visibility, Params);
 }
 
 AActor* ASentryTurret::FindBestTarget() const {
-	AActor* Best = nullptr;
-	float BestDist = ScanRange;
-	auto Consider = [&](AActor* A) {
-		const float D = FVector::Dist(A->GetActorLocation(), GetActorLocation());
-		if (D < BestDist && !IsFriendly(A) && CanSee(A)) {
-			BestDist = D;
-			Best = A;
-		}
-	};
-	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It)
-		Consider(*It);
-	for (TActorIterator<ASentryTurret> It(GetWorld()); It; ++It)
-		if (!It->bDead)
-			Consider(*It);
-	return Best;
+	// occupied enemy vehicles, enemy soldiers, turrets and seeker mines, in sight
+	return DF::FindDeviceTarget(this, Team, PlacerState.Get(), ScanRange, [this](const AActor* A) { return CanSee(A); });
 }
 
 void ASentryTurret::Scan() {
@@ -193,7 +192,7 @@ void ASentryTurret::Scan() {
 
 void ASentryTurret::FireTick() {
 	AActor* T = Target.Get();
-	if (!T || IsFriendly(T) || FVector::Dist(T->GetActorLocation(), GetActorLocation()) > ScanRange || !CanSee(T)) {
+	if (!T || !DF::IsDeviceTargetAlive(T) || IsFriendly(T) || FVector::Dist(T->GetActorLocation(), GetActorLocation()) > ScanRange || !CanSee(T)) {
 		T = FindBestTarget();
 		Target = T;
 		if (!T) {
@@ -205,8 +204,7 @@ void ASentryTurret::FireTick() {
 		}
 	}
 	// UpdateTurretRotation: TurnRate deg/s towards the target, fire when within 15 degrees
-	const FVector AimPoint = T->IsA<ADFCharacter>() ? T->GetActorLocation() + FVector(0.f, 0.f, 30.f) : T->GetActorLocation() + FVector(0.f, 0.f, 34.f);
-	const FRotator Want = (AimPoint - Muzzle()).Rotation();
+	const FRotator Want = (AimPointOf(T) - Muzzle()).Rotation();
 	const float Step = TurnRate * 0.05f;
 	const FRotator Delta = (Want - Aim).GetNormalized();
 	Aim.Yaw += FMath::Clamp(Delta.Yaw, -Step, Step);
@@ -241,8 +239,12 @@ void ASentryTurret::FireShot() {
 	MulticastShot(Start, bHit ? FVector(Hit.ImpactPoint) : Start + Dir * ScanRange, Hit.ImpactNormal, bHit && (!Other || !Other->IsA<APawn>()));
 	if (!bHit)
 		return;
-	if (!Other || (IsFriendly(Other) && (Other->IsA<ADFCharacter>() || Other->IsA<ASentryTurret>())))
-		return; // ProcessTraceHit: friends take nothing
+	// ProcessTraceHit: friends take nothing - soldiers, devices, and vehicles with only friends
+	// in them (an empty one is not a friend of the sentry's: it takes the rounds)
+	uint8 OtherTeam;
+	const bool bFriendThing = Other && (Other->IsA<ADFCharacter>() || DF::GetPlacedTeam(Other, OtherTeam) || (Other->IsA<ADFVehicle>() && DF::VehicleStatus(Cast<ADFVehicle>(Other), Team, PlacerState.Get()) == 1));
+	if (!Other || (bFriendThing && IsFriendly(Other)))
+		return;
 	FPointDamageEvent Ev(ShotDamage, Hit, Dir, UDFDamage_Sentry::StaticClass());
 	Other->TakeDamage(ShotDamage, Ev, Credit(), this);
 }
@@ -255,6 +257,8 @@ void ASentryTurret::OutOfAmmo() {
 }
 
 float ASentryTurret::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	if (DF::IsRunOverByFriend(DamageEvent, EventInstigator, this, Team, PlacerState.Get()))
+		return 0.f;
 	DamageAmount *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), 0.f);
 	if (HasAuthority() && !bDead && DamageAmount > 0.f) {
 		Health -= FMath::CeilToInt(DamageAmount);

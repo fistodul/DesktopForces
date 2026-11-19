@@ -42,6 +42,7 @@ enum class EDFWeaponState : uint8 {
 UCLASS(Abstract, Config = Game)
 class DESKTOPFORCES_API ADFWeapon : public AActor {
 	GENERATED_BODY()
+	friend class FDFMuzzleFlashTest;
 
 public:
 	ADFWeapon();
@@ -213,6 +214,14 @@ public:
 	/** Muzzle flash size (RageWeapon bDrawMuzzleFlash, drawn by the HUD), 0: none. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float MuzzleFlashSize = 0.f;
+	/** Optional first-person muzzle in bone space (imported mesh centimetres, before ArmsScale).
+	 *  A depth-tested flash follows the animated barrel, including FOV and weapon hand. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FName MuzzleBone;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FVector MuzzleOffset = FVector::ZeroVector;
+	bool GetMuzzleFlashLocation(FVector& Location) const;
+	bool UsesWorldMuzzleFlash() const { return MuzzleSprite != nullptr; }
 	/** RageWeapon.RenderMuzzleFlash: MF draws the flash on the canvas, not at the model. Shares of
 	 *  the screen below the centre (FlashY) and sideways per unit of FireOffset.Y (FlashO), a pixel
 	 *  shift (FlashS), and the same while zoomed, where FireOffset.Y usually is 0: mid-screen. */
@@ -289,8 +298,19 @@ public:
 	bool IsScopeRaised() const;
 	/** FOV multiplier for the owner's camera (1 = not zoomed). */
 	float GetFOVScale() const;
-	/** Zoomed FOV divisor (the rifle's changes with the mouse wheel). */
-	virtual float GetZoomScale() const { return ZoomScale; }
+	/** Zoomed FOV divisor: ZoomScale, or with ZoomScaleIncrements the mouse wheel's choice. */
+	virtual float GetZoomScale() const;
+	/** MF ZoomedIn HandleNextWeapon / HandlePrevWeapon: while zoomed, the mouse wheel moves the
+	 *  zoom Steps of ZoomScaleIncrements (prev weapon +1 in, next -1 out). False: no such zoom. */
+	bool AdjustZoom(int32 Steps);
+	/** Sub-level zoom (RageRifle, wa2000, OPRageRifle): ZoomScaleIncrements steps from
+	 *  MinZoomScale to MaxZoomScale (Min + (Max - Min) x alpha^2), the alpha easing 1 a second. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
+	int32 ZoomScaleIncrements = 0;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
+	float MinZoomScale = 3.f;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
+	float MaxZoomScale = 30.f;
 	/** Movement multiplier for the owner. */
 	virtual float GetMoveSpeedScale() const;
 
@@ -380,6 +400,10 @@ public:
 
 	UPROPERTY(Transient)
 	float MuzzleFlashUntil = 0.f;
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialBillboardComponent> MuzzleSprite;
+	void UpdateMuzzleFlash();
+	FTimerHandle MuzzleFlashTimer;
 
 	/** First-person model (placeholder until the MF weapon meshes are converted). */
 	UPROPERTY(VisibleAnywhere, Category = "DF|FX")
@@ -416,7 +440,7 @@ public:
 	/** Server: leave the owner and come to rest on the floor near From (MF Pawn.DropItem). */
 	virtual void DropFrom(const FVector& From, const FRotator& Facing);
 	/** Server: lie at Spot (falling onto the floor below) for anyone to pick up. */
-	void PlaceAsPickup(const FVector& Spot, const FRotator& Facing);
+	void PlaceAsPickup(const FVector& Spot, const FRotator& Facing, bool bFallToFloor = true);
 	/** Placed by the map (ADFPickupSpot): not one of the MaxDroppedWeapons. */
 	bool bMapPickup = false;
 	/** Server: taken from the ground by NewOwner (before ADFCharacter adds it to the inventory). */
@@ -475,6 +499,12 @@ protected:
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_ZoomLevel)
 	uint8 ZoomLevel = 0;
+	/** Sub-level zoom, the owner's own (only their view zooms): ZoomSubLevel, and the alpha
+	 *  it eases from since ZoomSubLevelTime. */
+	int32 ZoomSubLevel = 0;
+	float ZoomAlphaFrom = 0.f;
+	double ZoomSubLevelTime = 0.0;
+	float GetZoomScaleAlpha() const;
 	/** World time ZoomLevel last changed here (the zoom animates from it). */
 	float ZoomChangeTime = -1000.f;
 	/** Unzoom at once (reload, put down): no zoom-out. */

@@ -201,8 +201,8 @@ void ADFHUD::DrawHUD() {
 		// voteHUDrender: top left under the minimap
 		const float X = 8.f * UIScale, Y0 = Block * 3.4f, LineH = DFTextSize(TEXT("TEST"), 0).Y * 1.2f;
 		const int32 Left = FMath::Max(0, FMath::CeilToInt(GS->VoteEndTime - GS->GetServerWorldTimeSeconds()));
-		const FString Lines[] = { TEXT("Voting in progress"), GS->VoteText, FString::Printf(TEXT("Upvotes: %d (vote yes)"), GS->VoteYes),
-			FString::Printf(TEXT("Downvotes: %d (vote no)"), GS->VoteNo), FString::Printf(TEXT("%d s left"), Left) };
+		const FString Lines[] = { TEXT("Voting in progress"), GS->VoteText, FString::Printf(TEXT("Yes: %d    No: %d"), GS->VoteYes, GS->VoteNo),
+			FString::Printf(TEXT("%d s left"), Left), TEXT("Esc / Menu > Voting: choose Yes or No") };
 		for (int32 I = 0; I < UE_ARRAY_COUNT(Lines); ++I)
 			DFText(Lines[I], X, Y0 + I * LineH, I == 0 ? Yellow : White, 0);
 	}
@@ -303,7 +303,7 @@ void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 	// off to the weapon hand, zoomed under the sights. Its pixels were for a 640 x 480 screen.
 	const ADFWeapon* W = C->GetCurrentWeapon();
 	// none through a scope: it would sit on the crosshair, the barrel being out of sight below
-	if (!W || !W->IsMuzzleFlashing() || C->IsBehindView() || W->IsScopeRaised())
+	if (!W || W->UsesWorldMuzzleFlash() || !W->IsMuzzleFlashing() || C->IsBehindView() || W->IsScopeRaised())
 		return;
 	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
 	const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
@@ -311,8 +311,16 @@ void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 	const bool bZoomed = W->IsZoomed();
 	const float PixelScale = Canvas->ClipX / 640.f;
 	const float Size = W->MuzzleFlashSize * 2.2f * PixelScale * FMath::FRandRange(0.8f, 1.2f);
-	const float X = Canvas->ClipX * 0.5f - (bZoomed ? W->FlashSZoom : W->FlashS) * PixelScale - Size * 0.5f + Canvas->ClipX * Side * (bZoomed ? 0.f : -W->FireSide * W->FlashO) + FMath::FRandRange(-4.f, 4.f);
-	const float Y = Canvas->ClipY * (0.5f + (bZoomed ? W->FlashYZoom : W->FlashY)) - (bZoomed ? W->FlashSZoom : W->FlashS) * Canvas->ClipY / 480.f - Size * 0.5f + FMath::FRandRange(-4.f, 4.f);
+	float X = Canvas->ClipX * 0.5f - (bZoomed ? W->FlashSZoom : W->FlashS) * PixelScale + Canvas->ClipX * Side * (bZoomed ? 0.f : -W->FireSide * W->FlashO);
+	float Y = Canvas->ClipY * (0.5f + (bZoomed ? W->FlashYZoom : W->FlashY)) - (bZoomed ? W->FlashSZoom : W->FlashS) * Canvas->ClipY / 480.f;
+	FVector Muzzle;
+	if (W->GetMuzzleFlashLocation(Muzzle)) {
+		const FVector Screen = Project(Muzzle);
+		X = Screen.X;
+		Y = Screen.Y;
+	}
+	X += FMath::FRandRange(-4.f, 4.f) - Size * 0.5f;
+	Y += FMath::FRandRange(-4.f, 4.f) - Size * 0.5f;
 	const float Bright = FMath::FRandRange(0.5f, 1.f);
 	DrawTexRect(TexFlare, X, Y, Size, Size, 0.f, 0.f, 128.f, 128.f, FLinearColor(Bright, Bright, Bright), SE_BLEND_Additive);
 }

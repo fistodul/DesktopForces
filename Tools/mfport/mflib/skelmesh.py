@@ -430,6 +430,12 @@ FLAGS = (('RageGame', 'CTFFlagMesh', 'CTFFlagAnim', {'0': 'RageGame.Skins.CTFFla
          ('Rage', 'VehicleFlagMesh', 'VehicleFlagAnim', {'0': 'Rage.Skins.VehicleFlagTex0|masked_unlit_2s'}))
 
 
+# First-person models built as open shells: a face seen from behind is culled here, which MF's
+# renderer showed (wa2000's stock: a hollow outline here, solid in the game - Filip's video,
+# 2026-11-19). Their gun materials (not the arms, slot 0) are two-sided.
+TWO_SIDED_VIEW = {'wa2000PlayerMesh'}
+
+
 def _view_meshes(cfg):
     """First-person weapons: every '<X>PlayerMesh' skeletal mesh in the weapon packages, with
     the package's '<X>PlayerAnim' (or its only animation)."""
@@ -450,7 +456,7 @@ def _view_meshes(cfg):
 
 
 def convert(cfg) -> Path:
-    """Soldiers, flags and first-person weapons -> Skeletal/<package>/<mesh>.glb + skeletal.json."""
+    """Soldiers, flags, first-person weapons and animated projectiles -> skeletal.json."""
     from .level import material_key
     from .textures import _package_path
     out = cfg.out_dir / 'Skeletal'
@@ -475,10 +481,18 @@ def convert(cfg) -> Path:
         entries[-1]['extra_materials'] = [f'{skin}{i:02d}|opaque' for i in range(10)]
     for pkg_name, mesh, anim, materials in FLAGS:
         add(pkg_name, Package(str(_package_path(cfg, pkg_name))), mesh, anim, 'Flags', materials)
-    for pkg_name, pkg, mesh, anim in _view_meshes(cfg):
+    # Knife_Thrown uses its own spin/still mesh, not KnifePickupCarryMesh.
+    meshes = [*_view_meshes(cfg), ('RageWeapons', Package(str(_package_path(cfg, 'RageWeapons'))),
+                                  'KnifeThrownMesh', 'KnifeThrownAnim')]
+    for pkg_name, pkg, mesh, anim in meshes:
         m = read(pkg, mesh)
         flags = {tex: f for f, tex in m.materials}
         materials = {str(i): material_key(t, flags.get(i, 0)) for i, t in enumerate(m.textures) if t}
+        if mesh in TWO_SIDED_VIEW:
+            materials = {slot: key if key.endswith('_2s') or slot == '0' else key + '_2s' for slot, key in materials.items()}
+        if mesh == 'KnifeThrownMesh':  # Knife_Thrown.bUnlit=True
+            materials = {slot: key + '_unlit' if '_unlit' not in key else key
+                         for slot, key in materials.items()}
         add(pkg_name, pkg, mesh, anim, 'Weapons', materials)
     path = out / 'skeletal.json'
     path.write_text(json.dumps({'meshes': entries, 'texture_usage': {k: sorted(v) for k, v in usage.items()}}, indent=1))

@@ -1,4 +1,10 @@
 #include "Weapons/DFProjectile.h"
+#include "Weapons/DFDevices.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Core/DFMeshScaleData.h"
+#include "Player/DFSoldierAnimInstance.h"
+#include "Net/UnrealNetwork.h"
 #include "Sound/SoundWave.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "DesktopForces.h"
@@ -206,16 +212,66 @@ AThrownKnife::AThrownKnife() {
 	bExplodeOnImpact = false;
 	DamageType = UDFDamage_Knife::StaticClass();
 	InitialLifeSpan = 0.f; // goes when it's back with its owner
-	PropMesh = TEXT("RageWeapons/KnifePickupCarryMesh");
+	PropMesh = TEXT("RageWeapons/KnifePickupCarryMesh"); // fallback if the animated asset is absent
+	Blade = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ThrownBlade"));
+	Blade->SetupAttachment(Collision);
+	Blade->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Blade->SetGenerateOverlapEvents(false);
+	Blade->CastShadow = false;
+	Blade->bReceivesDecals = false;
+	Blade->SetVisibility(false);
 }
 
 void AThrownKnife::BeginPlay() {
 	Super::BeginPlay();
+	if (GetNetMode() != NM_DedicatedServer) {
+		USkeletalMesh* Shape = DF::LoadClassic<USkeletalMesh>(TEXT("Weapons/KnifeThrownMesh/KnifeThrownMesh/SkeletalMeshes/KnifeThrownMesh"));
+		if (Shape) {
+			Blade->SetAnimInstanceClass(UDFTweenAnimInstance::StaticClass());
+			Blade->SetSkeletalMesh(Shape);
+			const UDFMeshScaleData* Scale = Shape->GetAssetUserData<UDFMeshScaleData>();
+			Blade->SetRelativeScale3D(Scale ? Scale->ComponentScale : FVector::OneVector);
+			Blade->SetVisibility(true);
+			Mesh->SetVisibility(false);
+			if (UDFTweenAnimInstance* Anim = Cast<UDFTweenAnimInstance>(Blade->GetAnimInstance())) {
+				Anim->SetSequencePrefix(Shape->GetOutermost()->GetName());
+				Anim->SetIdle(NAME_None);
+				Anim->Play(bSafe ? TEXT("KnifeStill") : TEXT("KnifeSpin"), 1.f, 0.f, !bSafe);
+			}
+		}
+	}
 	Movement->OnProjectileBounce.AddDynamic(this, &AThrownKnife::OnKnifeBounce);
 	Movement->OnProjectileStop.AddDynamic(this, &AThrownKnife::OnKnifeStop);
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AThrownKnife::OnKnifeOverlap);
 	if (HasAuthority())
 		SetLifeSpan(60.f); // lost in the void: back after a minute anyway (Destroyed returns it)
+}
+
+void AThrownKnife::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AThrownKnife, bSafe);
+}
+
+void AThrownKnife::OnRep_Safe() {
+	if (!bSafe)
+		return;
+	// Knife_Thrown.Stick switches from the spinning flight animation to its tip-first
+	// still pose. Replicate this transition so clients stop the spin as well.
+	Movement->StopMovementImmediately();
+	Movement->Deactivate();
+	// Only the authority collects a safe knife. Do not leave its old blocking
+	// projectile shape in a client's movement queries after the server sticks it.
+	if (!HasAuthority())
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (UDFTweenAnimInstance* Anim = Cast<UDFTweenAnimInstance>(Blade->GetAnimInstance()))
+		Anim->Play(TEXT("KnifeStill"), 1.f, 0.05f, false);
+}
+
+// a soldier, a vehicle, or a device left behind (sentry turret, seeker mine, trip laser): MF's
+// knife hurts anything that isn't level geometry (Dangerous.ProcessTouch -> TakeDamage)
+static bool IsKnifeVictim(const AActor* A) {
+	uint8 Team;
+	return Cast<APawn>(A) || DF::GetPlacedTeam(A, Team);
 }
 
 void AThrownKnife::HitVictim(AActor* Other, const FHitResult& Hit) {
@@ -242,7 +298,7 @@ void AThrownKnife::OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 			Return(); // Safe.ProcessTouch: the owner takes it back
 		return;
 	}
-	if (Cast<APawn>(Other) && Other != GetInstigator()) {
+	if (IsKnifeVictim(Other) && Other != GetInstigator()) {
 		HitVictim(Other, Sweep);
 		DropOff(Other);
 	}
@@ -250,7 +306,7 @@ void AThrownKnife::OnKnifeOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 
 bool AThrownKnife::MovesAway(const FHitResult& Hit) {
 	// a soldier, a vehicle or a loose prop: nothing to stay stuck in
-	return Cast<APawn>(Hit.GetActor()) || (Hit.GetComponent() && Hit.GetComponent()->IsSimulatingPhysics());
+	return IsKnifeVictim(Hit.GetActor()) || (Hit.GetComponent() && Hit.GetComponent()->IsSimulatingPhysics());
 }
 
 void AThrownKnife::DropOff(AActor* From) {
@@ -266,7 +322,7 @@ void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVel
 		return;
 	if (MovesAway(Hit)) {
 		// Dangerous.ProcessTouch: hurt them (vehicles: a clang and a push), stop dead, drop
-		if (Cast<APawn>(Hit.GetActor()))
+		if (IsKnifeVictim(Hit.GetActor()))
 			HitVictim(Hit.GetActor(), Hit);
 		DropOff(Hit.GetActor()); // lands on the floor, then Safe (OnKnifeStop)
 		return;
@@ -296,6 +352,8 @@ void AThrownKnife::OnKnifeStop(const FHitResult& Hit) {
 void AThrownKnife::BecomeSafe(USceneComponent* StickTo) {
 	// state Safe: 8 x 16 uu to touch, back to the owner after TimeBeforeReturn
 	bSafe = true;
+	OnRep_Safe();
+	ForceNetUpdate();
 	UE_LOG(LogDF, Verbose, TEXT("%s lies at %s%s"), *GetName(), *GetActorLocation().ToCompactString(), StickTo ? TEXT(" (stuck)") : TEXT(""));
 	Movement->StopMovementImmediately();
 	Movement->ProjectileGravityScale = 0.f;

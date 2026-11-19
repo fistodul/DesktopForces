@@ -11,6 +11,9 @@ AWA2000::AWA2000() {
 	// head 10000000 (one shot); scope 3x - 30x in 6 steps in MF: a fixed 6x here
 	ViewMesh = TEXT("wa2000/wa2000PickupCarryMesh");
 	ArmsMesh = TEXT("wa2000PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
+	MuzzleBone = TEXT("Body");
+	MuzzleOffset = FVector(-1.85f, -108.17f, 8.65f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(1.f, 0.5f, -3.5f);
 	RequiredContent = TEXT("Props/wa2000/wa2000PickupCarryMesh");
@@ -34,6 +37,11 @@ AWA2000::AWA2000() {
 	AltAccuracy = 0.f;
 	MaxZoomLevel = 1;
 	ZoomScale = 6.f;
+	// wa2000: ZoomScaleIncrements 6, MinZoomScale 3, MaxZoomScale 30 - the mouse wheel zooms
+	// the scope x3 to x30 as the rifle's (Filip's video, 2026-11-19: x1.7 ... x18 shown)
+	ZoomScaleIncrements = 6;
+	MinZoomScale = 3.f;
+	MaxZoomScale = 30.f;
 	ZoomedViewOffset = FVector(140.f, -50.f, 80.f); // MF ZoomedInViewOffset
 	bInstantZoom = true;
 	RecoilPower = 3.5f;

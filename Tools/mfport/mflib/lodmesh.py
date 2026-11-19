@@ -38,6 +38,17 @@ class LodMesh:
     scale: tuple = (1.0, 1.0, 1.0)
     origin: tuple = (0.0, 0.0, 0.0)
     rot_origin: tuple = (0, 0, 0)
+    # vertex animation: AnimSeqs (name, first frame, frame count, rate in frames a second) over
+    # anim_frames frames of frame_verts vertices each; frame_positions(i) reads one
+    sequences: list[tuple[str, int, int, float]] = field(default_factory=list)
+    anim_frames: int = 1
+    # (corner -> vertex index) for each triangle, to rebuild a frame's triangles (frame_triangle)
+    corner_verts: list[tuple[int, int, int]] = field(default_factory=list)
+    _frames: object = None
+
+    def frame_positions(self, frame: int) -> list:
+        """Vertex positions (uu, MESH ORIGIN applied) of one animation frame."""
+        return self._frames(frame) if self._frames else []
 
 
 def _lazy_array(r: Reader, version: int, elem: int) -> tuple[int, int]:
@@ -110,6 +121,7 @@ def _plain_mesh(pkg: Package, name: str, textures, verts_pos, nverts, tris_pos, 
         mesh.triangles.append((tex_index, flags, [(positions[a], (u0 / 256.0, v0 / 256.0)),
                                                   (positions[b], (u1 / 256.0, v1 / 256.0)),
                                                   (positions[c], (u2 / 256.0, v2 / 256.0))]))
+        mesh.corner_verts.append((a, b, c))
     return mesh
 
 
@@ -126,11 +138,14 @@ def read(pkg: Package, name: str, frame: int = 0) -> LodMesh | None:
     r.p += 25 + 16                                   # UPrimitive bounds
     verts_pos, nverts = _lazy_array(r, v, 4)
     tris_pos, ntris = _lazy_array(r, v, 20)          # Tris (a plain Mesh's faces)
-    for _ in range(r.index()):                       # AnimSeqs
-        r.index(); r.index(); r.i32(); r.i32()
+    sequences = []
+    for _ in range(r.index()):                       # AnimSeqs: Name, Group, StartFrame, NumFrames,
+        seq_name = pkg.names[r.index()]              # Notifys (Time, Function), Rate
+        r.index()
+        start, count = r.i32(), r.i32()
         for _ in range(r.index()):
             r.f32(); r.index()
-        r.f32()
+        sequences.append((seq_name, start, count, r.f32()))
     _lazy_array(r, v, 8)                             # Connects
     r.p += 25 + 16
     _lazy_array(r, v, 4)                             # VertLinks
@@ -143,8 +158,12 @@ def read(pkg: Package, name: str, frame: int = 0) -> LodMesh | None:
     origin = r.vec()
     rot = (r.i32(), r.i32(), r.i32())
     r.i32(); r.i32()                                 # CurPoly, CurVertex
+    frames = lambda f: _frame_positions(pkg, verts_pos, frame_verts, anim_frames, scale, origin, rot, f)
     if plain:
-        return _plain_mesh(pkg, name, textures, verts_pos, nverts, tris_pos, ntris, frame_verts, anim_frames, scale, origin, rot, frame)
+        mesh = _plain_mesh(pkg, name, textures, verts_pos, nverts, tris_pos, ntris, frame_verts, anim_frames, scale, origin, rot, frame)
+        if mesh:
+            mesh.sequences, mesh.anim_frames, mesh._frames = sequences, anim_frames, frames
+        return mesh
     _array(r, 4)                                     # TextureLOD
     # ULodMesh
     _array(r, 2)                                     # CollapsePointThus
@@ -158,7 +177,7 @@ def read(pkg: Package, name: str, frame: int = 0) -> LodMesh | None:
     positions = _frame_positions(pkg, verts_pos, frame_verts, anim_frames, scale, origin, rot, frame)
     wedges = [struct.unpack_from('<HBB', pkg.data, wedges_pos + 4 * i) for i in range(nwedges)]
     mats = [struct.unpack_from('<Ii', pkg.data, mats_pos + 8 * i) for i in range(nmats)]
-    mesh = LodMesh(name, textures, [], scale, origin, rot)
+    mesh = LodMesh(name, textures, [], scale, origin, rot, sequences, anim_frames, [], frames)
     for i in range(nfaces):
         w0, w1, w2, m = struct.unpack_from('<4H', pkg.data, faces_pos + 8 * i)
         if max(w0, w1, w2) >= nwedges or m >= max(1, nmats):
@@ -171,4 +190,5 @@ def read(pkg: Package, name: str, frame: int = 0) -> LodMesh | None:
                 return None
             corners.append((positions[vi], (u / 256.0, vv / 256.0)))
         mesh.triangles.append((tex_index, flags, corners))
+        mesh.corner_verts.append(tuple(wedges[w][0] for w in (w0, w1, w2)))
     return mesh

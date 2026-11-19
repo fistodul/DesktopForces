@@ -30,6 +30,7 @@ class DESKTOPFORCES_API ASentryTurret : public AActor {
 
 public:
 	uint8 GetTeam() const { return Team; }
+	bool IsDead() const { return bDead; }
 	ASentryTurret();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
@@ -60,6 +61,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Sentry")
 	TObjectPtr<UBoxComponent> Collision;
+	/** What a vehicle meets (a pawn to it, as soldiers are): at KillSpeed it runs the turret
+	 *  down (ADFVehicle::OnPawnOverlap); the turret's own box lets vehicles through. */
+	UPROPERTY(VisibleAnywhere, Category = "Sentry")
+	TObjectPtr<UBoxComponent> RunOverShell;
 	UPROPERTY(VisibleAnywhere, Category = "Sentry")
 	TObjectPtr<UStaticMeshComponent> Tripod;
 	UPROPERTY(VisibleAnywhere, Category = "Sentry")
@@ -88,6 +93,7 @@ protected:
 
 	bool IsFriendly(const AActor* Other) const;
 	bool CanSee(const AActor* Target) const;
+	static FVector AimPointOf(const AActor* A);
 	FVector Muzzle() const;
 	AActor* FindBestTarget() const;
 	void Scan();

@@ -9,12 +9,18 @@ ASC20K::ASC20K() {
 	// F2000.u; Fire01-04 3 @38 + 0.05; Reload 16 @5 + 0.25
 	ViewMesh = TEXT("F2000/SC20KPickupCarryMesh");
 	ArmsMesh = TEXT("SC20KPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe Body 45,
+	// 2026-11-19: its laser sight's beam is the model's furthest point)
+	MuzzleBone = TEXT("Body");
+	MuzzleOffset = FVector(3.08f, -131.18f, -7.44f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-6.6f, -2.f, -3.3f);
 	RequiredContent = TEXT("Props/F2000/SC20KPickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/F2000/Skins/SC20Kimage");
-	MuzzleFlashSize = 0.f; // the mod moves it off screen: FlashS -1890
+	// the mod moved its flash off screen (FlashS -1890): Filip, 2026-11-19, give it one (at
+	// MuzzleBone, MachineGun's size)
+	MuzzleFlashSize = 40.f;
 	HUDIconRect = FIntRect(0, 3, 128, 72); // WeaponIcon X=0 Y=3 W=128 H=69
 	DisplayName = LOCTEXT("SC20K", "SC-20K");
 	InventoryGroup = 6;

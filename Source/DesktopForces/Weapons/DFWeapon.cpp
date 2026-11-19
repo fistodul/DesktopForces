@@ -9,7 +9,9 @@
 #include "Core/DFMeshScaleData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/MaterialBillboardComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Weapons/DFTracer.h"
 #include "Weapons/DFShellCase.h"
 #include "World/DFDecals.h"
@@ -115,6 +117,7 @@ void ADFWeapon::PostInitializeComponents() {
 
 void ADFWeapon::Destroyed() {
 	ClearStateTimer();
+	GetWorldTimerManager().ClearTimer(MuzzleFlashTimer);
 	SetAmbientMFSound(nullptr);
 	Super::Destroyed();
 }
@@ -193,6 +196,29 @@ bool ADFWeapon::IsScopeRaised() const {
 		return false;
 	const float T = GetWorld()->GetTimeSeconds() - ZoomChangeTime;
 	return ZoomLevel > 0 ? T >= ZoomTime : T < ZoomOutTime;
+}
+
+float ADFWeapon::GetZoomScaleAlpha() const {
+	// UpdateSubLevelZoom: ZoomScaleAlpha moves Delta a tick towards ZoomSubLevel / Increments
+	const float Want = float(ZoomSubLevel) / float(FMath::Max(ZoomScaleIncrements, 1));
+	const float Moved = float(GetWorld()->GetTimeSeconds() - ZoomSubLevelTime);
+	return ZoomAlphaFrom < Want ? FMath::Min(Want, ZoomAlphaFrom + Moved) : FMath::Max(Want, ZoomAlphaFrom - Moved);
+}
+
+float ADFWeapon::GetZoomScale() const {
+	if (ZoomScaleIncrements <= 0)
+		return ZoomScale;
+	const float A = GetZoomScaleAlpha();
+	return MinZoomScale + (MaxZoomScale - MinZoomScale) * A * A;
+}
+
+bool ADFWeapon::AdjustZoom(int32 Steps) {
+	if (ZoomScaleIncrements <= 0 || ZoomLevel == 0)
+		return false;
+	ZoomAlphaFrom = GetZoomScaleAlpha();
+	ZoomSubLevelTime = GetWorld()->GetTimeSeconds();
+	ZoomSubLevel = FMath::Clamp(ZoomSubLevel + Steps, 0, ZoomScaleIncrements);
+	return true;
 }
 
 float ADFWeapon::GetFOVScale() const {
@@ -549,8 +575,12 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (C && C->IsLocallyControlled())
 		C->AddRecoil(RecoilPower * 6.f);
-	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f)
+	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f) {
 		MuzzleFlashUntil = GetWorld()->GetTimeSeconds() + 0.05f;
+		UpdateMuzzleFlash();
+		if (MuzzleSprite)
+			GetWorldTimerManager().SetTimer(MuzzleFlashTimer, this, &ADFWeapon::UpdateMuzzleFlash, 0.05f, false);
+	}
 	if (Arms && C && C->IsLocallyControlled()) {
 		const float Left = State == EDFWeaponState::Firing ? GetWorldTimerManager().GetTimerRemaining(StateTimer) : 0.f;
 		PlayArmsAnim(EDFWeaponState::Firing, Left > 0.f ? Left : (IsZoomed() ? ZoomedFireTime : FireTime), bAlt);
@@ -571,8 +601,28 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 	}
 }
 
+bool ADFWeapon::GetMuzzleFlashLocation(FVector& Location) const {
+	if (!Arms || !Arms->IsVisible() || MuzzleBone.IsNone() || Arms->GetBoneIndex(MuzzleBone) == INDEX_NONE)
+		return false;
+	// Keep the component's non-uniform MF depth scale outside the rotated bone transform,
+	// as skinning does; composing both into one FTransform would lose the resulting shear.
+	Location = Arms->GetComponentTransform().TransformPosition(Arms->GetSocketTransform(MuzzleBone, RTS_Component).TransformPosition(MuzzleOffset));
+	return true;
+}
+
 bool ADFWeapon::IsMuzzleFlashing() const {
 	return GetWorld()->GetTimeSeconds() < MuzzleFlashUntil;
+}
+
+void ADFWeapon::UpdateMuzzleFlash() {
+	if (!MuzzleSprite)
+		return;
+	const ADFCharacter* C = GetOwnerCharacter();
+	FVector Location;
+	const bool bShow = IsMuzzleFlashing() && !bDropped && State != EDFWeaponState::Inactive && C && C->IsLocallyControlled() && C->IsAlive() && !C->IsBehindView() && !IsScopeRaised() && GetMuzzleFlashLocation(Location);
+	if (bShow)
+		MuzzleSprite->SetWorldLocation(Location);
+	MuzzleSprite->SetVisibility(bShow);
 }
 
 void ADFWeapon::OnRep_BurstCounter() {
@@ -649,7 +699,7 @@ void ADFWeapon::DropFrom(const FVector& From, const FRotator& Facing) {
 		Oldest->Destroy();
 }
 
-void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing) {
+void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing, bool bFallToFloor) {
 	// lands with the model's underside on the floor; falls there from Spot
 	FCollisionQueryParams Params(TEXT("DFDrop"), false, this);
 	const FCollisionObjectQueryParams World(ECC_TO_BITFIELD(ECC_WorldStatic) | ECC_TO_BITFIELD(ECC_WorldDynamic) | ECC_TO_BITFIELD(ECC_PhysicsBody));
@@ -658,6 +708,8 @@ void ADFWeapon::PlaceAsPickup(const FVector& Spot, const FRotator& Facing) {
 	LandZ = Spot.Z - 5000.f;
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, Spot, Spot - FVector(0, 0, 5000.f), World, Params))
 		LandZ = Hit.Location.Z - Bottom + 1.f;
+	if (!bFallToFloor)
+		LandZ = Spot.Z;
 	FallSpeed = 0.f;
 	SetActorLocationAndRotation(FVector(Spot.X, Spot.Y, FMath::Max(Spot.Z, LandZ)), Facing);
 	SetActorTickEnabled(GetActorLocation().Z > LandZ);
@@ -713,9 +765,9 @@ void ADFWeapon::UpdateDroppedLook() {
 	}
 	if (Arms) {
 		Arms->SetVisibility(!bDropped);
-		Mesh1P->SetVisibility(bDropped); // the carry model is only the pickup now
+		Mesh1P->SetVisibility(bDropped && !ViewMesh.IsEmpty()); // no invented mesh for naturally invisible items
 	} else if (!bHasViewMesh)
-		Mesh1P->SetVisibility(bDropped); // no model in hand (MF's adrenaline shot had none): the placeholder only marks a dropped one
+		Mesh1P->SetVisibility(bDropped && !ViewMesh.IsEmpty()); // armour/adrenaline have no original mesh; do not draw a black placeholder
 	// model on the floor for everyone (full size); in hand only the owner sees it
 	Mesh1P->SetOnlyOwnerSee(!bDropped);
 	if (bDropped && bHasViewMesh)
@@ -730,6 +782,10 @@ void ADFWeapon::UpdateDroppedLook() {
 
 void ADFWeapon::ForceInactive() {
 	ClearStateTimer();
+	GetWorldTimerManager().ClearTimer(MuzzleFlashTimer);
+	MuzzleFlashUntil = 0.f;
+	if (MuzzleSprite)
+		MuzzleSprite->SetVisibility(false);
 	State = EDFWeaponState::Inactive;
 	bFireHeld = bAltFireHeld = false;
 	bPendingReload = false;
@@ -779,6 +835,30 @@ void ADFWeapon::SetupArms() {
 	ArmsScale3D = (Rest ? Rest->ComponentScale : FVector::OneVector) * ArmsScale;
 	Arms->RegisterComponent();
 	ApplyHand();
+	if (!MuzzleBone.IsNone() && Arms->GetBoneIndex(MuzzleBone) != INDEX_NONE) {
+		// UE1 Weapon.RenderOverlays draws the flash BEFORE DrawActor(self, false), so the gun
+		// covers it. A HUD tile drawn after the scene paints it across the barrel instead.
+		UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_MuzzleFlash.M_MF_MuzzleFlash"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		UTexture2D* Texture = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
+		if (Material && Texture) {
+			UMaterialInstanceDynamic* Flash = UMaterialInstanceDynamic::Create(Material, this);
+			Flash->SetTextureParameterValue(TEXT("Texture"), Texture);
+			MuzzleSprite = NewObject<UMaterialBillboardComponent>(this, TEXT("MuzzleFlash"));
+			MuzzleSprite->SetupAttachment(RootComponent);
+			MuzzleSprite->SetOnlyOwnerSee(true);
+			MuzzleSprite->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			MuzzleSprite->SetGenerateOverlapEvents(false);
+			MuzzleSprite->CastShadow = false;
+			// Provisional world-space radius for capture review; this scale is not an
+			// exported MF property. Placement follows the opening as the view/FOV changes.
+			const float Radius = MuzzleFlashSize * 0.2f;
+			MuzzleSprite->AddElement(Flash, nullptr, false, Radius, Radius, nullptr);
+			MuzzleSprite->SetVisibility(false);
+			MuzzleSprite->RegisterComponent();
+			// Use the completed pose, not last frame's barrel transform. No weapon actor tick.
+			Arms->RegisterOnBoneTransformsFinalizedDelegate(FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateUObject(this, &ADFWeapon::UpdateMuzzleFlash));
+		}
+	}
 	if (UDFTweenAnimInstance* Anim = GetArmsAnim()) {
 		Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
 		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));
@@ -899,6 +979,7 @@ void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 			PlaceArms();
 	} else if (Mesh1P && bHasViewMesh)
 		Mesh1P->SetVisibility(!bBehindView && !bHandHidden);
+	UpdateMuzzleFlash();
 }
 
 void ADFWeapon::MulticastReload_Implementation() {

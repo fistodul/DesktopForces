@@ -15,12 +15,10 @@ public:
 	ARifle();
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
-	virtual float GetZoomScale() const override;
 	virtual int32 GetPowerLevel() const override;
 	virtual bool IsPowerAThrow() const override { return false; }
 	/** RageRifle.PostRender: the sniper scope in the team's colour with the zoom readout. */
 	virtual bool DrawHUD(UCanvas* Canvas) override;
-	void AdjustZoom(int32 Steps);
 	float GetShotPower() const;
 
 protected:
@@ -38,15 +36,4 @@ protected:
 	/** Full power reached: the Powering loop stops, PoweredUp plays. */
 	FTimerHandle PoweredUpTimer;
 	float ReleasedPower = 1.f;
-	UPROPERTY(Replicated)
-	float ZoomScaleAlpha = 0.f;
-	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float MinZoomScale = 3.f;
-	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	float MaxZoomScale = 30.f;
-	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	int32 ZoomScaleIncrements = 6;
-
-public:
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };

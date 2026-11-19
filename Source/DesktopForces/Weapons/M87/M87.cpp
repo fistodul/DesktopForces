@@ -10,6 +10,9 @@ AM87::AM87() {
 	// lever action (extends Pistol in MF: 8 shells); Fire 9 @35 x0.5..; Reload 2.25 s empty
 	ViewMesh = TEXT("m87/M87PickupCarryMesh");
 	ArmsMesh = TEXT("M87PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
+	MuzzleBone = TEXT("Body");
+	MuzzleOffset = FVector(3.86f, -193.72f, -10.56f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-5.3f, -2.f, -4.2f);
 	RequiredContent = TEXT("Props/m87/M87PickupCarryMesh");

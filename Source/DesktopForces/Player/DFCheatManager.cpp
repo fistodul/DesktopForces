@@ -23,6 +23,10 @@
 #include "Weapons/DFWeapon.h"
 #include "World/DFLadder.h"
 #include "Camera/CameraActor.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -576,6 +580,81 @@ void UDFCheatManager::DFWhere() {
 	const FString Line = FString::Printf(TEXT("DFTeleport %.0f %.0f %.0f | DFCam %.0f %.0f %.0f %.0f %.0f"), At.X, At.Y, At.Z, Eye.X, Eye.Y, Eye.Z, View.Yaw, View.Pitch);
 	FPlatformApplicationMisc::ClipboardCopy(*Line);
 	Say(Line);
+}
+
+void UDFCheatManager::DFMuzzleProbe(const FString& Bone, float MaxAhead) {
+	const APlayerController* PC = GetPlayerController();
+	const ADFCharacter* C = PC ? Cast<ADFCharacter>(PC->GetPawn()) : nullptr;
+	const ADFWeapon* W = C ? C->GetCurrentWeapon() : nullptr;
+	USkeletalMeshComponent* Arms = W ? W->Arms.Get() : nullptr;
+	const FSkeletalMeshRenderData* Render = Arms && Arms->GetSkeletalMeshAsset() ? Arms->GetSkeletalMeshAsset()->GetResourceForRendering() : nullptr;
+	if (!Render || Render->LODRenderData.IsEmpty() || !Arms->GetSkinWeightBuffer(0)) {
+		Say(TEXT("DFMuzzleProbe: no first-person model"));
+		return;
+	}
+	const FSkeletalMeshLODRenderData& LOD = Render->LODRenderData[0];
+	TArray<FMatrix44f> RefToLocal;
+	Arms->CacheRefToLocalMatrices(RefToLocal);
+	TArray<FVector3f> Positions;
+	USkinnedMeshComponent::ComputeSkinnedPositions(Arms, Positions, RefToLocal, LOD, *Arms->GetSkinWeightBuffer(0));
+	FVector Eye;
+	FRotator View;
+	PC->GetPlayerViewPoint(Eye, View);
+	const FVector Ahead = View.Vector();
+	const FTransform& ToWorld = Arms->GetComponentTransform();
+	const int32 Only = Bone.IsEmpty() ? INDEX_NONE : Arms->GetBoneIndex(FName(*Bone));
+	// each vertex's strongest bone, through its section's bone map
+	TArray<int32> VertexBone;
+	VertexBone.Init(INDEX_NONE, Positions.Num());
+	const FSkinWeightVertexBuffer& Weights = *Arms->GetSkinWeightBuffer(0);
+	for (const FSkelMeshRenderSection& Section : LOD.RenderSections)
+		for (uint32 V = Section.BaseVertexIndex; V < Section.BaseVertexIndex + Section.NumVertices && int32(V) < Positions.Num(); ++V) {
+			uint16 Best = 0;
+			for (uint32 i = 0; i < Weights.GetMaxBoneInfluences(); ++i)
+				if (Weights.GetBoneWeight(V, i) > Best) {
+					Best = Weights.GetBoneWeight(V, i);
+					const uint32 Local = Weights.GetBoneIndex(V, i);
+					VertexBone[V] = Section.BoneMap.IsValidIndex(Local) ? Section.BoneMap[Local] : INDEX_NONE;
+				}
+		}
+	float Front = -UE_BIG_NUMBER;
+	int32 Tip = INDEX_NONE;
+	// on screen only: a model can carry parts never drawn far off (SC-20K: a flash mesh 1200 uu ahead)
+	int32 SizeX = 0, SizeY = 0;
+	PC->GetViewportSize(SizeX, SizeY);
+	TArray<bool> Seen;
+	Seen.Init(false, Positions.Num());
+	for (int32 V = 0; V < Positions.Num(); ++V) {
+		FVector2D Screen;
+		const FVector At = ToWorld.TransformPosition(FVector(Positions[V]));
+		Seen[V] = PC->ProjectWorldLocationToScreen(At, Screen, true) && Screen.X >= 0 && Screen.Y >= 0 && Screen.X < SizeX && Screen.Y < SizeY &&
+			(MaxAhead <= 0.f || FVector::DotProduct(At - Eye, Ahead) <= MaxAhead);
+	}
+	for (int32 V = 0; V < Positions.Num(); ++V)
+		if (Seen[V] && (Only == INDEX_NONE || VertexBone[V] == Only)) {
+			const float D = FVector::DotProduct(ToWorld.TransformPosition(FVector(Positions[V])), Ahead);
+			if (D > Front) {
+				Front = D;
+				Tip = V;
+			}
+		}
+	if (Tip == INDEX_NONE || VertexBone[Tip] == INDEX_NONE) {
+		Say(TEXT("DFMuzzleProbe: no vertex of that bone"));
+		return;
+	}
+	FVector Sum = FVector::ZeroVector;
+	int32 N = 0;
+	for (int32 V = 0; V < Positions.Num(); ++V)
+		if (Seen[V] && VertexBone[V] == VertexBone[Tip] && FVector::DotProduct(ToWorld.TransformPosition(FVector(Positions[V])), Ahead) > Front - 0.5f) {
+			Sum += FVector(Positions[V]);
+			++N;
+		}
+	FVector2D TipOnScreen;
+	PC->ProjectWorldLocationToScreen(ToWorld.TransformPosition(Sum / N), TipOnScreen, true);
+	const FName Name = Arms->GetBoneName(VertexBone[Tip]);
+	const FVector Offset = Arms->GetSocketTransform(Name, RTS_Component).InverseTransformPosition(Sum / N);
+	Say(FString::Printf(TEXT("DFMuzzleProbe %s: MuzzleBone = TEXT(\"%s\"); MuzzleOffset = FVector(%.2ff, %.2ff, %.2ff); (%d vertices at the tip, on screen at %.0f %.0f, %.1f cm ahead)"), *GetNameSafe(W->GetClass()), *Name.ToString(), Offset.X, Offset.Y, Offset.Z, N, TipOnScreen.X, TipOnScreen.Y,
+		FVector::DotProduct(ToWorld.TransformPosition(Sum / N) - Eye, Ahead)));
 }
 
 void UDFCheatManager::DFOrder(int32 Order) {

@@ -109,6 +109,13 @@ public:
 	/** Say where you stand and look, as DFTeleport / DFCam lines; also put on the clipboard. */
 	UFUNCTION(Exec)
 	void DFWhere();
+	/** Logs where the held weapon's muzzle is: the arms model's vertex furthest along the view
+	 *  (the middle of the ones within half a centimetre of it), as the bone it moves with and the
+	 *  offset in that bone's space - MuzzleBone / MuzzleOffset for the weapon's defaults.
+	 *  Bone: only vertices that bone moves (the gun's, when a hand reaches further); MaxAhead:
+	 *  only vertices up to that far (cm) in front of the eye (a laser sight's beam goes further). */
+	UFUNCTION(Exec)
+	void DFMuzzleProbe(const FString& Bone = TEXT(""), float MaxAhead = 0.f);
 
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)

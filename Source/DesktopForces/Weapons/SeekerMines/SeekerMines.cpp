@@ -1,9 +1,15 @@
 #include "Weapons/SeekerMines/SeekerMines.h"
+#include "DesktopForces.h"
 #include "Core/DFProps.h"
 #include "Core/DFContent.h"
 #include "World/DFEffectActor.h"
 #include "Core/DFGameSettings.h"
 #include "Player/DFCharacter.h"
+#include "Weapons/DFDevices.h"
+#include "Components/AudioComponent.h"
+#include "Components/PointLightComponent.h"
+#include "GameFramework/PlayerState.h"
+#include "Net/UnrealNetwork.h"
 #include "AIController.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -55,6 +61,18 @@ ASeekerMine::ASeekerMine() {
 		Mesh->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.3f));
 	}
 
+	// LightType LT_Pulse, LightRadius 12 (25 x 13 = 325 uu), LightBrightness 255
+	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
+	Glow->SetupAttachment(Collision);
+	Glow->SetMobility(EComponentMobility::Movable);
+	Glow->SetCastShadows(false);
+	Glow->bUseInverseSquaredFalloff = false;
+	Glow->LightFalloffExponent = 2.f;
+	Glow->SetIntensityUnits(ELightUnits::Unitless);
+	Glow->SetIntensity(3.f);
+	Glow->SetAttenuationRadius(731.25f);
+	Glow->SetLightColor(FLinearColor(1.f, 0.6f, 0.1f)); // hue 40: nobody's yet
+
 	Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("Movement"));
 	Movement->MaxSpeed = 1395.f; // MF AirSpeed 620 uu/s
 	Movement->Acceleration = 5400.f; // MF AccelRate 2400
@@ -62,10 +80,29 @@ ASeekerMine::ASeekerMine() {
 	Movement->UpdatedComponent = Collision;
 }
 
+void ASeekerMine::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ASeekerMine, PlacedTeam);
+}
+
 void ASeekerMine::InitPlacer(ADFCharacter* Placer) {
 	SetInstigator(Placer);
 	Shooter = Placer ? Placer->GetController() : nullptr;
+	PlacerState = Placer ? Placer->GetPlayerState() : nullptr;
 	PlacedTeam = Placer ? Placer->GetTeam() : DF::NoTeam;
+	OnRep_PlacedTeam();
+}
+
+void ASeekerMine::OnRep_PlacedTeam() {
+	// InitPlacer: LightHue 170 for blue, 0 for red
+	if (PlacedTeam != DF::NoTeam)
+		Glow->SetLightColor(UDFGameSettings::Get().GetTeamColor(PlacedTeam));
+}
+
+void ASeekerMine::Pulse() {
+	// LT_Pulse: the brightness swings with the light's period (LightPeriod 32: about a second)
+	const float Phase = FMath::Sin(float(GetWorld()->GetTimeSeconds()) * UE_TWO_PI);
+	Glow->SetIntensity(3.f * (0.6f + 0.4f * Phase));
 }
 
 void ASeekerMine::BeginPlay() {
@@ -78,6 +115,14 @@ void ASeekerMine::BeginPlay() {
 			Mesh->SetMaterial(0, M);
 	}
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &ASeekerMine::OnOverlap);
+	if (GetNetMode() != NM_DedicatedServer) {
+		// AmbientSound at a Pawn's defaults (Engine.u: SoundRadius 9, SoundVolume 240, SoundPitch
+		// 64): heard only within 225 uu, at full pitch
+		if (UAudioComponent* Hum = DF::PlayLoop(Collision, TEXT("WeaponSFX_TripBombs.Active"), 225.f))
+			Hum->SetVolumeMultiplier(240.f / 255.f);
+		GetWorldTimerManager().SetTimer(PulseTimer, this, &ASeekerMine::Pulse, 0.1f, true);
+	} else
+		Glow->SetVisibility(false);
 	if (HasAuthority()) {
 		ADFEffectActor::SpawnSound(GetWorld(), TEXT("WeaponSFX_TripBombs.Activating"), GetActorLocation());
 		// state Deploying: 0.35 s, then hunt
@@ -86,23 +131,12 @@ void ASeekerMine::BeginPlay() {
 }
 
 bool ASeekerMine::IsFriendly(const AActor* Other) const {
-	const ADFCharacter* C = Cast<ADFCharacter>(Other);
-	if (!C || !C->IsAlive())
-		return true; // only living players are worth chasing
-	return C == GetInstigator() || (PlacedTeam != DF::NoTeam && C->GetTeam() == PlacedTeam);
+	return DF::IsDeviceFriendly(Other, this, PlacedTeam, PlacerState.Get());
 }
 
-ADFCharacter* ASeekerMine::FindBestTarget() const {
-	ADFCharacter* Best = nullptr;
-	float BestDist = SeekRadius;
-	for (TActorIterator<ADFCharacter> It(GetWorld()); It; ++It) {
-		const float D = FVector::Dist(It->GetActorLocation(), GetActorLocation());
-		if (D < BestDist && !IsFriendly(*It)) {
-			BestDist = D;
-			Best = *It;
-		}
-	}
-	return Best;
+AActor* ASeekerMine::FindBestTarget() const {
+	// occupied enemy vehicles, then enemy soldiers, sentry turrets and seeker mines
+	return DF::FindDeviceTarget(this, PlacedTeam, PlacerState.Get(), SeekRadius, [](const AActor*) { return true; });
 }
 
 void ASeekerMine::MoveTo(AActor* Goal, float Acceptance, float SpeedScale) {
@@ -123,7 +157,13 @@ void ASeekerMine::Think() {
 		return;
 	AAIController* AI = Cast<AAIController>(GetController());
 	// state Hunting
-	if (ADFCharacter* Target = FindBestTarget()) {
+	if (AActor* Target = FindBestTarget()) {
+		if (!Hunted.IsValid() || !DF::IsDeviceTargetAlive(Hunted.Get()) || IsFriendly(Hunted.Get())) {
+			// Hunting.Scan: a beep when it starts a hunt or its prey is gone, not per change of
+			// the nearest (PlaySound(Activating, 1.5): a pawn's TransientSoundVolume 2 x 1.5)
+			ADFEffectActor::SpawnSound(GetWorld(), TEXT("WeaponSFX_TripBombs.Activating"), GetActorLocation(), 1600.f, 1.f);
+		}
+		Hunted = Target;
 		if (FVector::Dist(Target->GetActorLocation(), GetActorLocation()) <= DetonateRange) {
 			StartDetonating();
 			return;
@@ -131,14 +171,12 @@ void ASeekerMine::Think() {
 		MoveTo(Target, 50.f, 1.f);
 		return;
 	}
-	// state Escorting: stay 250-450 uu from the owner while they're near
+	Hunted = nullptr;
+	// state Escorting: stay 250-450 uu from the owner while they're near (2500 uu)
 	const ADFCharacter* Placer = Cast<ADFCharacter>(GetInstigator());
 	const float PlacerDist = Placer ? FVector::Dist(Placer->GetActorLocation(), GetActorLocation()) : 1e9f;
 	if (Placer && Placer->IsAlive() && PlacerDist < 5625.f) {
-		if (PlacerDist > 1012.f)
-			MoveTo(const_cast<ADFCharacter*>(Placer), 600.f, 0.85f);
-		else if (AI)
-			AI->StopMovement();
+		Escort(Placer, PlacerDist);
 		return;
 	}
 	// state Roaming: wander between random reachable spots at half speed
@@ -154,8 +192,39 @@ void ASeekerMine::Think() {
 	}
 }
 
+void ASeekerMine::Escort(const ADFCharacter* Placer, float Dist) {
+	AAIController* AI = Cast<AAIController>(GetController());
+	if (!AI)
+		return;
+	// state Escorting, as the mod has it. Over 450 uu off it flies at the placer at 0.85 speed -
+	// MoveToward, which only ends where it reaches them - then backs away 160 uu while within
+	// 250, and in between drifts, its speed halving (Velocity * 0.5), facing them. Its swings
+	// round the placer come from that: it overshoots and backs off as they move.
+	if (Dist > 1012.5f)
+		bEscortClosing = true;
+	UE_LOG(LogDF, VeryVerbose, TEXT("%s escorting %s at %.0f cm%s"), *GetName(), *Placer->GetName(), Dist, bEscortClosing ? TEXT(", closing in") : TEXT(""));
+	// "reaches them": in UE1 the cylinders touch; a hovering drone above or below the placer's
+	// capsule never gets that close here, so it counts once inside the 250 uu it backs off from
+	if (bEscortClosing && Dist > 562.5f) {
+		MoveTo(const_cast<ADFCharacter*>(Placer), 300.f, 0.85f);
+		return;
+	}
+	bEscortClosing = false;
+	if (Dist < 562.5f) {
+		Movement->Velocity *= 0.3f;
+		Movement->MaxSpeed = BaseSpeed * 0.5f;
+		const FVector Away = (GetActorLocation() - Placer->GetActorLocation()).GetSafeNormal2D();
+		AI->MoveToLocation(GetActorLocation() + Away * 360.f, 30.f, false, false, false, false);
+		return;
+	}
+	AI->StopMovement();
+	Movement->Velocity *= 0.5f;
+	SetActorRotation(FRotator(0.f, (Placer->GetActorLocation() - GetActorLocation()).Rotation().Yaw, 0.f)); // TurnToward
+}
+
 void ASeekerMine::OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body, bool bSweep, const FHitResult& Hit) {
-	if (HasAuthority() && !IsFriendly(Other))
+	// Touch: an enemy soldier, vehicle or device bumping into it (walls and props are "friendly")
+	if (HasAuthority() && !IsFriendly(Other) && DF::IsDeviceTargetAlive(Other))
 		StartDetonating();
 }
 
@@ -169,6 +238,8 @@ void ASeekerMine::StartDetonating() {
 }
 
 float ASeekerMine::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
+	if (DF::IsRunOverByFriend(DamageEvent, EventInstigator, this, PlacedTeam, PlacerState.Get()))
+		return 0.f;
 	DamageAmount *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), 0.f);
 	if (HasAuthority() && !bDetonating && DamageAmount > 0.f) {
 		Health -= FMath::CeilToInt(DamageAmount);
@@ -188,6 +259,8 @@ void ASeekerMine::BlowUp() {
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, DamageRadius, 1.f,
 		UDFDamage_SeekerMine::StaticClass(), Ignore, this, Credit, ECC_Visibility);
 	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.4f); // AddExplosionServer(Size 3.5)
+	ADFEffectActor::SpawnSound(GetWorld(), TEXT("WeaponSFX_TripBombs.Bounce"), At, 1600.f, 1.f); // PlaySound(Bounce, 2.0)
+	MakeNoise(1.f, GetInstigator());
 	Destroy();
 }
 

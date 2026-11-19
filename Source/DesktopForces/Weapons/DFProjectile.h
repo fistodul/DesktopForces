@@ -8,6 +8,7 @@
 class UProjectileMovementComponent;
 class USphereComponent;
 class UStaticMeshComponent;
+class USkeletalMeshComponent;
 class USoundBase;
 
 /**
@@ -159,6 +160,7 @@ class DESKTOPFORCES_API AThrownKnife : public ADFProjectile {
 public:
 	AThrownKnife();
 	virtual void Destroyed() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	TWeakObjectPtr<class AKnife> OwnerKnife;
 	float ReturnTime = 6.f;
@@ -182,6 +184,11 @@ protected:
 	void BecomeSafe(USceneComponent* StickTo);
 	void Return();
 
+	UPROPERTY(VisibleAnywhere, Category = "DF|Knife")
+	TObjectPtr<USkeletalMeshComponent> Blade;
+	UFUNCTION()
+	void OnRep_Safe();
+	UPROPERTY(ReplicatedUsing = OnRep_Safe)
 	bool bSafe = false;
 	FTimerHandle ReturnTimer;
 };

@@ -20,7 +20,7 @@ AM18::AM18() {
 	HUDIconRect = FIntRect(0, 168, 126, 232); // WeaponIcon X=0 Y=168 W=126 H=64
 	DisplayName = LOCTEXT("M18", "M18 Smoke");
 	ProjectileClass = ASmokeGrenade::StaticClass();
-	AltProjectileClass = ASmokeGrenade::StaticClass();
+	AltProjectileClass = ASmokeGrenadeImpact::StaticClass(); // M18 AltProjectileClass smokeGrenProj2
 	ClassicSelectSound = TEXT("WeaponSFX_HeavyMachineGun.Select");
 }
 
@@ -39,6 +39,10 @@ void ASmokeGrenade::Explode(const FVector& Location, const FVector& Normal) {
 	MulticastSmoke();
 	// lies there smoking; gone once the last puff has faded (8 s lifetime)
 	SetLifeSpan(SmokeDuration + 9.f);
+}
+
+ASmokeGrenadeImpact::ASmokeGrenadeImpact() {
+	bExplodeOnImpact = true; // the "explosion" is the smoke: it keeps bouncing along with it
 }
 
 void ASmokeGrenade::MulticastSmoke_Implementation() {

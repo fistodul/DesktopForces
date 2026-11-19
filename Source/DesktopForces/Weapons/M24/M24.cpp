@@ -9,6 +9,9 @@ AM24::AM24() {
 	// bolt action: Fire 17 @10 + 0.05; Reload 45 @15 + 0.25
 	ViewMesh = TEXT("M24/M24PickupCarryMesh");
 	ArmsMesh = TEXT("M24PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
+	MuzzleBone = TEXT("Body");
+	MuzzleOffset = FVector(1.26f, -51.18f, -3.53f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(-7.3f, -0.9f, -2.3f);
 	RequiredContent = TEXT("Props/M24/M24PickupCarryMesh");

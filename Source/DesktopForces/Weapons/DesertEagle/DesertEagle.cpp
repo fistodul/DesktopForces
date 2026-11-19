@@ -8,11 +8,16 @@ ADesertEagle::ADesertEagle() {
 	// desert.u; Fire 5 @16 + 0.05; Reload 35 @14 + 0.25
 	ViewMesh = TEXT("desert/DesertPickupCarryMesh");
 	ArmsMesh = TEXT("DesertPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
+	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
+	MuzzleBone = TEXT("Body");
+	MuzzleOffset = FVector(1.12f, -84.38f, -0.95f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(1.f, -1.4f, -2.4f);
 	RequiredContent = TEXT("Props/desert/DesertPickupCarryMesh");
 	bAddToLoadout = true;
-	MuzzleFlashSize = 0.f; // the mod moves it off screen: FlashY 900000
+	// the mod moved its flash off screen (FlashY 900000): the only gun without one. Filip,
+	// 2026-11-19: give it one (at MuzzleBone, the Pistol's size)
+	MuzzleFlashSize = 30.f;
 	HUDIcon = TEXT("Textures/desert/Skins/Desertimage");
 	HUDIconRect = FIntRect(0, 178, 120, 256); // WeaponIcon X=0 Y=178 W=120 H=78
 	DisplayName = LOCTEXT("DesertEagle", "Desert Eagle");

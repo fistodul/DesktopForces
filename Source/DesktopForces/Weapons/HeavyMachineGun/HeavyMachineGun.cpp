@@ -41,6 +41,10 @@ AHeavyMachineGun::AHeavyMachineGun() {
 	RecoilPower = 0.3f;
 	TracerEvery = 5; // RageWeapons defaults
 	MuzzleFlashSize = 40.f;
+	MuzzleBone = TEXT("GunBarrel");
+	// Centre of the front octagon in HeavyMachineGunPlayerMesh, relative to GunBarrel.
+	// The rig's terminal Dummy stops 33.7 cm short of the barrel opening.
+	MuzzleOffset = FVector(-0.5967f, 221.7417f, 0.0935f);
 	FlashY = 0.045f;
 	FlashO = 0.f;
 	FlashS = 0.f;

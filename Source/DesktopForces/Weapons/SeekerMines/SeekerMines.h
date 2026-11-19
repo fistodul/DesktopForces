@@ -22,9 +22,12 @@ public:
 
 /**
  * Seeker mine drone (SeekerMines.SeekerMine): hovers after the nearest enemy within 1900 uu
- * (navmesh paths, so it goes around walls) and blows up next to them (320, radius 440).
- * With nobody to hunt it escorts its owner, or roams. 15 health; 8 minutes. Thinks at 5 Hz
- * on a timer, never ticks; movement is UFloatingPawnMovement driven by an AIController.
+ * (navmesh paths, so it goes around walls) and blows up next to them (320, radius 440). Enemies
+ * are soldiers, vehicles with an enemy inside, sentry turrets and other seeker mines (DF device
+ * sides, DFDevices.h). With nobody to hunt it escorts its owner (up to them when over 450 uu
+ * off, back to 250) or roams. Hums (TripBombs' Active) and pulses in its team's colour. 15 health;
+ * 8 minutes. Thinks at 5 Hz on a timer, never ticks; movement is UFloatingPawnMovement driven
+ * by an AIController.
  */
 UCLASS()
 class DESKTOPFORCES_API ASeekerMine : public APawn {
@@ -32,7 +35,9 @@ class DESKTOPFORCES_API ASeekerMine : public APawn {
 
 public:
 	uint8 GetPlacedTeam() const { return PlacedTeam; }
+	bool IsDetonated() const { return bDetonating || bDetonated; }
 	ASeekerMine();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 	/** Owner and team at the moment it was thrown (InitPlacer). */
@@ -58,19 +63,32 @@ protected:
 	TObjectPtr<UStaticMeshComponent> Mesh;
 	UPROPERTY(VisibleAnywhere, Category = "SeekerMine")
 	TObjectPtr<UFloatingPawnMovement> Movement;
+	/** LightType LT_Pulse, LightRadius 12, hue 170 blue / 0 red / 40 nobody's (no shadows). */
+	UPROPERTY(VisibleAnywhere, Category = "SeekerMine")
+	TObjectPtr<class UPointLightComponent> Glow;
+	UFUNCTION()
+	void OnRep_PlacedTeam();
+	void Pulse();
+	FTimerHandle PulseTimer;
 
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body, bool bSweep, const FHitResult& Hit);
 
 	bool IsFriendly(const AActor* Other) const;
-	ADFCharacter* FindBestTarget() const;
+	AActor* FindBestTarget() const;
+	/** state Escorting: up to the placer when over 450 uu off, back from them within 250. */
+	void Escort(const ADFCharacter* Placer, float Dist);
 	void Think();
 	void MoveTo(AActor* Goal, float Acceptance, float SpeedScale);
 	void StartDetonating();
 	void BlowUp();
 
+	UPROPERTY(ReplicatedUsing = OnRep_PlacedTeam)
 	uint8 PlacedTeam = DF::NoTeam;
 	TWeakObjectPtr<AController> Shooter; // who threw it: he may be dead when it finds someone
+	TWeakObjectPtr<class APlayerState> PlacerState; // friendly to them after they respawn
+	TWeakObjectPtr<AActor> Hunted; // a new hunt: the scan beep (Hunting.Scan PlaySound)
+	bool bEscortClosing = false; // MoveToward the placer runs until it reaches them
 	bool bDetonating = false;
 	bool bDetonated = false;
 	float RoamUntil = 0.f;
