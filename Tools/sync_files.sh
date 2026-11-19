@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copy project files between local directories; requires Bash, rsync and realpath.
-#   bash Tools/sync_files.sh SOURCE DESTINATION [--dry-run] [--delete]
+#   bash sync_files.sh SOURCE DESTINATION [--dry-run] [--delete]
 # Use the mounted-drive path when running from Linux, WSL or Git Bash.
 # Build outputs, Git data and machine-local settings are excluded on both sides.
 set -euo pipefail

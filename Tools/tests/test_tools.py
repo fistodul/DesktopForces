@@ -61,6 +61,12 @@ class ToolsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r'\[linux\] override'):
             self.load("ue_root = 'C:\\Program Files\\UE'\n")
 
+    def test_linux_importer_custom_directory_with_spaces(self):
+        self.cfg.work_dir = self.root / 'focused import'
+        with patch.object(ue.os, 'name', 'posix'), patch.object(ue, 'run_commandlet', return_value=0) as run:
+            self.assertEqual(ue.run_importer(self.cfg, 'skeletal'), 0)
+        run.assert_called_once_with(self.cfg, 'DFImport', '-steps=skeletal', f'-work={self.cfg.out_dir}')
+
     def test_relative_paths_are_relative_to_config_not_cwd(self):
         self.assertEqual(self.load('ue_root="engine"\nwork_dir="out"').work_dir, self.root / 'out')
 

@@ -2,18 +2,18 @@
 """Package Desktop Forces (UAT BuildCookRun) on Linux or Windows (Python 3.11+): a build that
 starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
 
-    python3 Tools/package.py                          this machine's platform, Shipping
-    python3 Tools/package.py Linux Development        with the console and logs
-    python3 Tools/package.py Windows --zip            (on Windows) and one file to hand around
-    python3 Tools/package.py --public                 without the Classic and Unverified plugins
-    python3 Tools/package.py Android Development --maps MF_TestRange,mf-warehouse
-                                                      an arm64 APK (ASTC textures) with two maps
-    python3 Tools/package.py Android --downloads      core pack in the build; the other packs for
-                                                      the download server (Docs/Building.md)
-    python3 Tools/package.py --compile-only           build the editor and game code, no cook (CI)
-    python3 Tools/package.py Linux --server           a dedicated server (Linux, Development): built in
-                                                      Epic's engine image, runs anywhere without it
-    python3 Tools/package.py --dry-run Windows        print the commands instead of running them
+    python3 package.py                          this machine's platform, Shipping
+    python3 package.py Linux Development        with the console and logs
+    python3 package.py Windows --zip            (on Windows) and one file to hand around
+    python3 package.py --public                 without the Classic and Unverified plugins
+    python3 package.py Android Development --maps MF_TestRange,mf-warehouse
+                                                an arm64 APK (ASTC textures) with two maps
+    python3 package.py Android --downloads      core pack in the build; the other packs for
+                                                the download server (Docs/Building.md)
+    python3 package.py --compile-only           build the editor and game code, no cook (CI)
+    python3 package.py Linux --server           a dedicated server (Linux, Development): built in
+                                                Epic's engine image, runs anywhere without it
+    python3 package.py --dry-run Windows        print the commands instead of running them
 
 Output: Saved/Packages/<Platform>-<Config>[-public]/ (every platform);
 --downloads also writes <output>-downloads/Downloads/<Platform>/<content build id>/ (upload it)

@@ -3,17 +3,17 @@
 
 Run from any directory; on Windows, use `py -3` instead of `python3` if needed:
 
-    python3 Tools/play.py                         # warehouse, deathmatch, no bots
-    python3 Tools/play.py mf-warehouse tdm 8       # team deathmatch with 8 bots
-    python3 Tools/play.py mf-warehouse koh 8       # King of the Hill
-    python3 Tools/play.py MF_TestRange            # built-in test range
-    python3 Tools/play.py editor                  # Unreal Editor
-    python3 Tools/play.py build                   # compile editor/game modules
-    python3 Tools/play.py build -MaxParallelActions=4
-    python3 Tools/play.py mf-warehouse dm 0 -windowed -ResX=1600 -ResY=900
-    python3 Tools/play.py /Engine/Maps/Entry /Script/DesktopForces.DFMenuGameMode 0
-    python3 Tools/play.py --dry-run mf-warehouse dm 0 -RenderOffscreen -nosound
-    python3 Tools/play.py --engine-root           # engine path used by other tools
+    python3 play.py                         # warehouse, deathmatch, no bots
+    python3 play.py mf-warehouse tdm 8       # team deathmatch with 8 bots
+    python3 play.py mf-warehouse koh 8       # King of the Hill
+    python3 play.py MF_TestRange            # built-in test range
+    python3 play.py editor                  # Unreal Editor
+    python3 play.py build                   # compile editor/game modules
+    python3 play.py build -MaxParallelActions=4
+    python3 play.py mf-warehouse dm 0 -windowed -ResX=1600 -ResY=900
+    python3 play.py /Engine/Maps/Entry /Script/DesktopForces.DFMenuGameMode 0
+    python3 play.py --dry-run mf-warehouse dm 0 -RenderOffscreen -nosound
+    python3 play.py --engine-root           # engine path used by other tools
 
 Modes: dm, tdm, holdout, sc, ctf, det, cap, trailer, koh, tug, coop, zombie,
        arena, moball, br, kf, sw, mr; a full game-mode class path also works.

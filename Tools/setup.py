@@ -5,10 +5,10 @@ Run this after cloning the repo to set up the project and import game content.
 Without arguments it walks you through everything interactively.
 
 Quick usage:
-  python3 Tools/setup.py                  # interactive setup
-  python3 Tools/setup.py --check          # just check prerequisites
-  python3 Tools/setup.py --import-all     # import all core maps non-interactively
-  python3 Tools/setup.py --list-maps      # show available maps
+  python3 setup.py                  # interactive setup
+  python3 setup.py --check          # just check prerequisites
+  python3 setup.py --import-all     # import all core maps non-interactively
+  python3 setup.py --list-maps      # show available maps
 """
 import json
 import platform

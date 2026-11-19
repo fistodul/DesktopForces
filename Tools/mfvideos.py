@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Mobile Forces gameplay videos from the community channel, as reference for lighting and look.
 
-  python3 Tools/mfvideos.py scan            # list the channel, read titles and opening frames
-  python3 Tools/mfvideos.py report          # what was found, per map
-  python3 Tools/mfvideos.py download        # whole videos: the newest of each map (--all: every one)
-  python3 Tools/mfvideos.py frames --map mf-warehouse --every 30
-                                            # stills, from a download or straight from the stream
+  python3 mfvideos.py scan            # list the channel, read titles and opening frames
+  python3 mfvideos.py report          # what was found, per map
+  python3 mfvideos.py download        # whole videos: the newest of each map (--all: every one)
+  python3 mfvideos.py frames --map mf-warehouse --every 30 # stills, from a download or straight from the stream
 
 Most titles name the map and mode. Where one doesn't, scan keeps the video's first seconds (the
 channel's title card and the server's welcome text name them) and runs OCR on them; it only fetches what isn't in the manifest yet,

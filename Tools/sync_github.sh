@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Export individual source commits without switching the working checkout.
 #
-#   bash Tools/sync_github.sh                 # preview committed changes
-#   bash Tools/sync_github.sh --push          # fetch, prepare, then push
-#   bash Tools/sync_github.sh --source refs/heads/azure
+#   bash sync_github.sh                 # preview committed changes
+#   bash sync_github.sh --push          # fetch, prepare, then push
+#   bash sync_github.sh --source refs/heads/azure
 #
 # Requires Bash 4+ and Git. Authors and messages are preserved. Exclusions come
 # from the committed .gitignore.github. Conflicts/merges stop before any push.

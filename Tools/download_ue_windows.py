@@ -2,8 +2,8 @@
 """Download the project's Windows engine using Legendary from PATH.
 
 Install Legendary in your preferred environment and run `legendary auth` once.
-    python3 Tools/download_ue_windows.py --target-dir '/mounted/drive/Epic Games/UE_5.8'
-    python3 Tools/download_ue_windows.py --target-dir 'D:/Epic Games/UE_5.8' --dry-run
+    python3 download_ue_windows.py --target-dir '/mounted/drive/Epic Games/UE_5.8'
+    python3 download_ue_windows.py --target-dir 'D:/Epic Games/UE_5.8' --dry-run
 
 No LauncherInstalled.dat edits: use UE_ROOT for a nonstandard install location.
 """
