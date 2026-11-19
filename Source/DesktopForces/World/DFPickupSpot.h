@@ -15,6 +15,7 @@ class ADFWeapon;
 UCLASS()
 class DESKTOPFORCES_API ADFPickupSpot : public AActor {
 	GENERATED_BODY()
+	friend class FDFMapPickupTest;
 
 public:
 	ADFPickupSpot();
@@ -24,6 +25,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "DF")
 	float RespawnTime = 30.f;
+
+	/** One-shot authored pickups may collect on player touch; normal drops stay manual. */
+	UPROPERTY(EditAnywhere, Category = "DF")
+	bool bAutoPickup = false;
+	UPROPERTY(EditAnywhere, Category = "DF")
+	float TouchRadius = 50.f;
+	UPROPERTY(EditAnywhere, Category = "DF")
+	float TouchHalfHeight = 50.f;
 
 	/** 0: the item's own. */
 	UPROPERTY(EditAnywhere, Category = "DF")
@@ -35,6 +44,12 @@ protected:
 	virtual void BeginPlay() override;
 	void SpawnItem();
 	void Check();
+	void CheckTouching();
+	void TryPickup(class ADFCharacter* Soldier);
+	UFUNCTION()
+	void OnTouch(class UPrimitiveComponent* Component, AActor* Other, UPrimitiveComponent* OtherComponent, int32 BodyIndex, bool bFromSweep, const FHitResult& Hit);
+	UPROPERTY()
+	TObjectPtr<class UCapsuleComponent> PickupTouch;
 
 	TWeakObjectPtr<ADFWeapon> Item;
 	FTimerHandle CheckTimer;

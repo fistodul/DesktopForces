@@ -78,13 +78,13 @@ void ADFLadderVolume::PlaceNavLinks() {
 #endif
 
 void ADFLadderVolume::OnBegin(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body, bool bSweep, const FHitResult& Hit) {
-	if (ADFCharacter* C = Cast<ADFCharacter>(Other)) {
+	if (ADFCharacter* C = Cast<ADFCharacter>(Other); C && OtherComp == C->GetCapsuleComponent()) {
 		// grabbed by the movement component once close enough (UDFCharacterMovement::WantsLadder)
 		C->GetMFMovement()->SetLadder(this);
 	}
 }
 
 void ADFLadderVolume::OnEnd(UPrimitiveComponent* Comp, AActor* Other, UPrimitiveComponent* OtherComp, int32 Body) {
-	if (ADFCharacter* C = Cast<ADFCharacter>(Other))
+	if (ADFCharacter* C = Cast<ADFCharacter>(Other); C && OtherComp == C->GetCapsuleComponent())
 		C->GetMFMovement()->ClearLadder(this);
 }

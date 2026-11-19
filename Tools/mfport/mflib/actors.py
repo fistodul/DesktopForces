@@ -116,6 +116,24 @@ def _name(value: str | None) -> str:
     return '' if value == 'None' else value
 
 
+def apply_weapon_replacers(spawns: list[dict]) -> list[dict]:
+    """WeapTools.WeapReplacer: replace these stock items with one-shot touch pickups.
+
+    The original destroys the placed weapon and creates its class default, so placed
+    ammo overrides/respawn settings are deliberately not copied to the replacement.
+    Ordinary maps and player-dropped weapons retain their manual pickup behavior.
+    """
+    if not any(s.get('mf_class', '').lower() == 'weapreplacer' for s in spawns):
+        return spawns
+    replaced = {PICKUP_CLASSES[c] for c in ('Pistol', 'MachineGun', 'shotgun', 'RageRifle',
+                'HeavyMachineGun', 'RocketLauncher', 'Grenades', 'TripBombs', 'AdrenalineShot', 'RageArmour')}
+    for s in spawns:
+        if s.get('type') == 'pickup' and s.get('weapon') in replaced:
+            s.update(auto_pickup=True, respawn_time=0.0, max_clip_ammo=0, max_clips=0,
+                     radius=22 * UU_TO_CM, height=22 * UU_TO_CM)
+    return spawns
+
+
 def prune_events(spawns: list[dict]) -> list[dict]:
     """Without the triggers whose Event nothing here answers, the events nothing here fires and
     the events that only pass on to nothing (their other end is a mover, a light, a class not
@@ -250,11 +268,15 @@ class ActorMapper:
             return out
 
         if cls == 'LadderClimber':
-            r = t3d.parse_float(props.get('CollisionRadius'), 22.0) * UU_TO_CM
-            h = t3d.parse_float(props.get('CollisionHeight'), 22.0) * UU_TO_CM
+            # Exported maps omit inherited values: LadderClimber overrides Actor's 22-unit
+            # cylinder with 40 x 100, and its default ClimbSpeed is 1 (retail often sets .5).
+            def ladder_prop(key, fallback):
+                return props.get(key, self.tree.default(cls, key, fallback))
+            r = t3d.parse_float(ladder_prop('CollisionRadius', '40')) * UU_TO_CM
+            h = t3d.parse_float(ladder_prop('CollisionHeight', '100')) * UU_TO_CM
             return [dict(base, type='actor', **{'class': '/Script/DesktopForces.DFLadderVolume'},
                          props={'Radius': f'{r:.2f}', 'HalfHeight': f'{h:.2f}',
-                                'ClimbSpeed': props.get('ClimbSpeed', '0.5')})]
+                                'ClimbSpeed': ladder_prop('ClimbSpeed', '1')})]
 
         if cls in CRATES:
             team, team_play, non_team = CRATES[cls]
@@ -353,6 +375,16 @@ class ActorMapper:
             if not emitters:
                 return [self._legacy(a)]
             return [self._legacy(a), dict(base, type='particle_effect', emitters=emitters)]
+
+        if cls == 'WeapPickup':
+            weapon = (t3d.parse_object_ref(props.get('WeaponClass')) or '').rsplit('.', 1)[-1]
+            path = next((v for k, v in PICKUP_CLASSES.items() if k.lower() == weapon.lower()), None)
+            if path:
+                return [self._legacy(a), dict(base, type='pickup', weapon=path, auto_pickup=True,
+                    respawn_time=0.0, max_clip_ammo=0, max_clips=0,
+                    radius=t3d.parse_float(props.get('CollisionRadius'), 22.0) * UU_TO_CM,
+                    height=t3d.parse_float(props.get('CollisionHeight'), 22.0) * UU_TO_CM)]
+            return [self._legacy(a)]
 
         if cls in PICKUP_CLASSES:
             # an item lying in the map: RageDeathMatch.ShouldRespawn brings it back after its

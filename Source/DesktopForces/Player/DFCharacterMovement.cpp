@@ -125,12 +125,18 @@ void UDFCharacterMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds
 	if (!IsOnLadder() && WantsLadder()) {
 		const ADFLadderVolume* L = TouchedLadder.Get();
 		EnterLadder(-L->GetActorForwardVector(), L->ClimbSpeed);
-		// straight onto the ladder's line (swept: walls still stop it)
+		// Sweep towards the ladder's centre, then keep a small clearance from its solid
+		// rungs. Keeping the entire approach distance made ascent float far in front;
+		// forcing the capsule into the rungs made climbing wedge beneath their edges.
 		FVector Offset = L->GetActorLocation() - UpdatedComponent->GetComponentLocation();
 		Offset.Z = 0.f;
 		if (!Offset.IsNearlyZero()) {
 			FHitResult Hit;
 			SafeMoveUpdatedComponent(Offset, UpdatedComponent->GetComponentQuat(), true, Hit);
+			if (Hit.bBlockingHit) {
+				FHitResult ClearanceHit;
+				SafeMoveUpdatedComponent(Hit.Normal.GetSafeNormal2D() * 2.f, UpdatedComponent->GetComponentQuat(), true, ClearanceHit);
+			}
 		}
 		Velocity = FVector::ZeroVector;
 	}
@@ -186,19 +192,17 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations) {
 	const FVector Side = FVector::CrossProduct(FVector::UpVector, LadderWallNormal);
 	const float Strafe = FVector::DotProduct(Accel.GetSafeNormal(), Side);
 
-	// climbing up also presses against the rungs: the wall stops it, past the top it carries
-	// the climber onto the ledge
-	// ... but below the top only up to the ladder's line: rungs with nothing behind them (Source
-	// maps' ladders: an invisible brush) let the press carry the climber off sideways into whatever
-	// is beyond (mfs-warehouse's crate shelves)
-	float Press = FMath::Max(Climb, 0.f) * 0.5f;
+	// Only approach the ledge at the top. Keep that sweep separate from the vertical climb:
+	// sliding a diagonal up/in move along a rung's underside can turn it into downward motion.
+	float Press = 0.f;
 	if (const ADFLadderVolume* L = TouchedLadder.Get()) {
 		const FVector Rel = UpdatedComponent->GetComponentLocation() - L->GetActorLocation();
 		const float Height = CharacterOwner ? CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
-		if (FVector::DotProduct(Rel, Into) > 0.f && Rel.Z < L->HalfHeight - Height)
-			Press = 0.f;
+		if (Rel.Z >= L->HalfHeight - Height)
+			Press = FMath::Max(Climb, 0.f) * 0.5f;
 	}
-	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f + Into * Press) * GetMaxSpeed();
+	const float Speed = GetMaxSpeed();
+	Velocity = (FVector::UpVector * Climb + Side * Strafe * 0.5f) * Speed;
 	if (Accel.IsNearlyZero())
 		Velocity = FVector::ZeroVector;
 
@@ -218,6 +222,10 @@ void UDFCharacterMovement::PhysCustom(float DeltaTime, int32 Iterations) {
 			return;
 		}
 		SlideAlongSurface(Velocity * DeltaTime, 1.f - Hit.Time, Hit.Normal, Hit, true);
+	}
+	if (Press > 0.f) {
+		FHitResult ForwardHit;
+		SafeMoveUpdatedComponent(Into * Press * Speed * DeltaTime, UpdatedComponent->GetComponentQuat(), true, ForwardHit);
 	}
 }
 

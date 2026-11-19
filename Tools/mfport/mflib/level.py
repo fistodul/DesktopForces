@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import t3d, ucc
 from . import mapedits, minimap, twins
-from .actors import ActorMapper, ClassTree, prune_events, zone_ambient
+from .actors import ActorMapper, ClassTree, apply_weapon_replacers, prune_events, zone_ambient
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
 from .config import Config, UU_TO_CM
@@ -612,7 +612,7 @@ class LevelConverter:
         meshes = self.convert_static_meshes(level)
         bounds = self.zone_bounds(model)
         mapper = ActorMapper(bounds, meshes, model.zones, tree)
-        spawns = [rec for a in actors for rec in mapper.map(a)]
+        spawns = apply_weapon_replacers([rec for a in actors for rec in mapper.map(a)])
         if sprites := self.convert_sprites(actors, tree):
             spawns.append(sprites)
         self.add_minimap(actors, spawns)
