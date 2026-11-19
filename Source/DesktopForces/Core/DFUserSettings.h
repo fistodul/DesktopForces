@@ -30,6 +30,8 @@ public:
 	 *  filtering already on Low: no measured cost, Docs/Performance.md); level 0, filtering off,
 	 *  stays for Advanced Graphics. The menu and new profiles use this. */
 	static Scalability::FQualityLevels PresetQuality(int32 Level);
+	/** Low uses simple marks; Medium and above use full marks. */
+	static int32 PresetDecalQuality(int32 Level) { return Level <= 0 ? 1 : 2; }
 	/** Thirds of the screen's refresh and its half, from twice it down, above 20 FPS
 	 *  then Unlimited (0): a 60 Hz screen gets 120, 100, 80, 60, 40, 30. Phones get the rates
 	 *  that divide one of the panel's (the pacer holds only those): a 60 / 120 Hz one gets 120,

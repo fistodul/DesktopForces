@@ -608,10 +608,8 @@ void ADFPlayerController::OnNextWeapon() {
 		LoadoutNext();
 		return;
 	}
-	if (ARifle* Rifle = Cast<ARifle>(C->GetCurrentWeapon()); Rifle && Rifle->IsZoomed()) {
-		Rifle->AdjustZoom(-1); // MF NextWeapon alias: ZoomOutScope
-		return;
-	}
+	if (ADFWeapon* W = C->GetCurrentWeapon(); W && W->AdjustZoom(-1))
+		return; // MF ZoomedIn.HandleNextWeapon: the scope zooms out
 	C->CycleWeapon(+1);
 }
 
@@ -623,10 +621,8 @@ void ADFPlayerController::OnPrevWeapon() {
 		LoadoutPrev();
 		return;
 	}
-	if (ARifle* Rifle = Cast<ARifle>(C->GetCurrentWeapon()); Rifle && Rifle->IsZoomed()) {
-		Rifle->AdjustZoom(+1); // MF PrevWeapon alias: ZoomInScope
-		return;
-	}
+	if (ADFWeapon* W = C->GetCurrentWeapon(); W && W->AdjustZoom(+1))
+		return; // MF ZoomedIn.HandlePrevWeapon: the scope zooms in
 	C->CycleWeapon(-1);
 }
 
@@ -1474,7 +1470,13 @@ void ADFPlayerController::DFSelect(int32 Group) {
 }
 
 void ADFPlayerController::DFShot(const FString& Name) {
-	FScreenshotRequest::RequestScreenshot(Name.IsEmpty() ? TEXT("mf_shot") : Name, false, false);
+	FScreenshotRequest::RequestScreenshot(Name.IsEmpty() ? TEXT("mf_shot") : Name, FParse::Param(FCommandLine::Get(), TEXT("DFShotUI")), false);
+}
+
+void ADFPlayerController::DFMenuPage(int32 Page) {
+	if (!DFMenu::IsOpen())
+		DFMenu::Open(this, true);
+	DFMenu::DebugPage(Page);
 }
 
 void ADFPlayerController::DFScores() {

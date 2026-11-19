@@ -253,6 +253,9 @@ public:
 	/** Screenshot to Saved/Screenshots/<platform>/<Name>.png */
 	UFUNCTION(Exec)
 	void DFShot(const FString& Name);
+	/** Open an in-game menu page for scripted UI checks. */
+	UFUNCTION(Exec)
+	void DFMenuPage(int32 Page);
 	/** Toggle the scoreboard. */
 	UFUNCTION(Exec)
 	void DFScores();

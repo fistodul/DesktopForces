@@ -138,7 +138,7 @@ void UDFUserSettings::SetToDefaults() {
 	TouchLayout.Reset();
 	FieldOfView = 100.f;
 	RenderScale = 1.f; // phones: already 720 lines (Config/Android/AndroidGameUserSettings.ini)
-	DecalQuality = 2;
+	DecalQuality = PresetDecalQuality(ScalabilityQuality.ViewDistanceQuality);
 	MasterVolume = 1.f;
 	MusicVolume = 1.f;
 	EffectsVolume = 1.f;

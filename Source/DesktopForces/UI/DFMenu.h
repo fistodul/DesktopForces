@@ -9,7 +9,7 @@
 /**
  * Main menu and in-game (Esc) menu, plain Slate built in code: start a game (map, mode,
  * bots, skill, time limit, LAN host), join an address, options (name, resolution, window
- * mode, quality, render scale, brightness, mouse, field of view), credits, quit.
+ * mode, quality, render scale, brightness, mouse, field of view), voting, credits, quit.
  */
 namespace DFMenu {
 	/** Show the menu for a local player (bInGame: Resume / Leave instead of the title screen). */
@@ -18,7 +18,7 @@ namespace DFMenu {
 	DESKTOPFORCES_API bool IsOpen();
 	/** Back to the title screen (the default map with the menu game mode). */
 	DESKTOPFORCES_API void ReturnToMainMenu(APlayerController* PC);
-	/** Scripted tests: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads) / press Start. */
+	/** Scripted tests: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads, 7 in-game voting) / press Start. */
 	DESKTOPFORCES_API void DebugPage(int32 Page);
 	DESKTOPFORCES_API void DebugStart();
 } // namespace DFMenu

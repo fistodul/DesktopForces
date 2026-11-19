@@ -13,6 +13,7 @@
 #include "Algo/IndexOf.h"
 #include "Player/DFPlayerController.h"
 #include "Game/DFGameMode.h"
+#include "Game/DFGameState.h"
 #include "Game/DFPlayerStart.h"
 #include "Misc/CommandLine.h"
 #include "Engine/Engine.h"
@@ -113,6 +114,18 @@ public:
 		}
 		FindMaps();
 		FindModes();
+		VoteMap = SelectedMap;
+		VoteMode = SelectedMode;
+		if (const ADFGameState* GS = VoteState())
+		{
+			const FString Here = UWorld::RemovePIEPrefix(Owner->GetWorld()->GetMapName());
+			for (const TSharedPtr<FString>& Map : MapNames)
+				if (Map->Equals(Here, ESearchCase::IgnoreCase))
+					VoteMap = Map;
+			for (const TSharedPtr<FString>& Mode : ModeNames)
+				if (*Mode == GS->GameName)
+					VoteMode = Mode;
+		}
 		LoadOptions();
 		MakeStyles();
 		// title screen: one of the team's pictures, scaled to fill; in game the match shows through
@@ -185,6 +198,7 @@ public:
 								+ SWidgetSwitcher::Slot()[MakeCredits()]
 								+ SWidgetSwitcher::Slot()[MakeDownloads()]
 								+ SWidgetSwitcher::Slot()[MakeConnecting()]
+								+ SWidgetSwitcher::Slot()[MakeVoting()]
 							]
 						]
 					]
@@ -195,6 +209,13 @@ public:
 						.Text(LOCTEXT("Footer", "for the world's gamers - a fan project, not affiliated with Mobile Forces"))
 					]
 				]
+			]
+			// Modal hit-test layer: wheel input must reach our capture handler before any
+			// options scroll box. It also prevents binding clicks from activating controls.
+			+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)
+			[
+				SAssignNew(KeyCaptureShield, SBorder).BorderImage(FCoreStyle::Get().GetBrush("NoBrush"))
+				.Visibility(EVisibility::Collapsed)
 			]
 		];
 	}
@@ -222,8 +243,12 @@ public:
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	/** 0-5 pages; 10-13: the Options tabs, 14 Video with Advanced Graphics open; 20 / 21: Join with the internet / LAN list asked for. */
+	/** 0-5 pages, 7 in-game voting; 10-13: Options tabs, 14 Advanced Graphics; 20 / 21: internet / LAN list. */
 	void ShowPage(int32 Page) {
+		if (Page == 7) {
+			Switcher->SetActiveWidgetIndex(bInGame ? 7 : 0);
+			return;
+		}
 		if (Page == 20 || Page == 21) {
 			Switcher->SetActiveWidgetIndex(2);
 			bLanList = Page == 21;
@@ -245,7 +270,7 @@ public:
 		if (!Capturing.IsNone()) {
 			if (Key.GetKey() != EKeys::Escape)
 				SetKey(Capturing, Key.GetKey());
-			Capturing = NAME_None;
+			SetCapturing(NAME_None);
 			return FReply::Handled();
 		}
 		if (Key.GetKey() == EKeys::Escape) {
@@ -263,7 +288,7 @@ public:
 	virtual FReply OnMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& Mouse) override {
 		if (!Capturing.IsNone()) {
 			SetKey(Capturing, Mouse.GetEffectingButton());
-			Capturing = NAME_None;
+			SetCapturing(NAME_None);
 			return FReply::Handled();
 		}
 		return FReply::Unhandled();
@@ -272,7 +297,7 @@ public:
 	virtual FReply OnMouseWheel(const FGeometry& Geometry, const FPointerEvent& Mouse) override {
 		if (!Capturing.IsNone() && Mouse.GetWheelDelta() != 0.f) {
 			SetKey(Capturing, Mouse.GetWheelDelta() > 0.f ? EKeys::MouseScrollUp : EKeys::MouseScrollDown);
-			Capturing = NAME_None;
+			SetCapturing(NAME_None);
 			return FReply::Handled();
 		}
 		return FReply::Unhandled();
@@ -280,6 +305,7 @@ public:
 
 private:
 	friend class FDFMenuOptionsTest;
+	friend class FDFVotingMenuTest;
 	bool bInGame = false;
 	TWeakObjectPtr<APlayerController> Owner;
 	TSharedPtr<SWidgetSwitcher> Switcher;
@@ -299,12 +325,38 @@ private:
 	TArray<TSharedPtr<FString>> ModeNames;
 	TArray<FString> ModePaths;
 	TSharedPtr<FString> SelectedMode;
+	TSharedPtr<FString> VoteMap, VoteMode;
+	int32 VoteBots = 1;
 	int32 Bots = 0;
 	float Skill = 0.5f;
 	int32 TimeLimit = 0;
 	bool bListen = false;
 	FString JoinAddress; // empty: Connect waits for an address (127.0.0.1 tried a server nobody ran)
 	FString ConnectingTo;
+
+	const ADFGameState* VoteState() const {
+		const APlayerController* PC = Owner.Get();
+		return bInGame && PC && PC->GetWorld() ? PC->GetWorld()->GetGameState<ADFGameState>() : nullptr;
+	}
+
+	bool VoteActive() const {
+		const ADFGameState* GS = VoteState();
+		return GS && !GS->VoteText.IsEmpty();
+	}
+
+	bool CanProposeVote() const {
+		return VoteState() && Cast<ADFPlayerController>(Owner.Get()) && !VoteActive();
+	}
+
+	void ProposeVote(const FString& Command) {
+		if (CanProposeVote())
+			Cast<ADFPlayerController>(Owner.Get())->CallVote(Command);
+	}
+
+	void CastBallot(bool bYes) {
+		if (ADFPlayerController* PC = Cast<ADFPlayerController>(Owner.Get()); PC && VoteActive())
+			PC->Vote(bYes ? TEXT("yes") : TEXT("no"));
+	}
 
 	// options
 	FString PlayerName;
@@ -362,6 +414,7 @@ private:
 	TSharedPtr<FString> SelectedHand;
 	TArray<TSharedPtr<FString>> DecalModes;
 	TSharedPtr<FString> SelectedDecals;
+	TSharedPtr<STextComboBox> DecalCombo;
 	float MasterVolume = 1.f;
 	float MusicVolume = 1.f;
 	float EffectsVolume = 1.f;
@@ -372,6 +425,14 @@ private:
 	/** Options > Controls: the keys as they'll be saved (action -> key), the one waiting for a press. */
 	TMap<FName, FKey> PendingKeys;
 	FName Capturing;
+	TSharedPtr<SBorder> KeyCaptureShield;
+	void SetCapturing(FName Action) {
+		Capturing = Action;
+		// Hit testing must change on the input event, without waiting for Slate's
+		// next attribute update (which may otherwise let a wheel event scroll).
+		if (KeyCaptureShield)
+			KeyCaptureShield->SetVisibility(Action.IsNone() ? EVisibility::Collapsed : EVisibility::Visible);
+	}
 	TSharedPtr<SBox> OptionsHost;
 	TSharedPtr<SWidgetSwitcher> OptionTabs;
 	TSharedPtr<SCheckBox> ConsoleCheck;
@@ -472,6 +533,7 @@ private:
 		if (bInGame)
 		{
 			Box->AddSlot().AutoHeight()[Button(LOCTEXT("Resume", "Resume"), [this]() { DFMenu::Close(Owner.Get()); })];
+			Box->AddSlot().AutoHeight()[Button(LOCTEXT("Voting", "Voting"), [this]() { ShowPage(7); })];
 		}
 		Box->AddSlot().AutoHeight()[Button(bInGame ? LOCTEXT("NewGame", "New Game") : LOCTEXT("Play", "Play"), [this]() { Switcher->SetActiveWidgetIndex(1); })];
 		Box->AddSlot().AutoHeight()[Button(LOCTEXT("Join", "Join Game"), [this]() { Switcher->SetActiveWidgetIndex(2); RefreshServers(); })];
@@ -492,6 +554,104 @@ private:
 			UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
 		})];
 		return Box;
+	}
+
+	TSharedRef<SWidget> MakeVoting()
+	{
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)[Heading(LOCTEXT("Voting", "Voting"))]
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SBox).MaxDesiredHeight(400.f)
+				[
+					SNew(SScrollBox)
+					+ SScrollBox::Slot()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
+						[
+							SNew(STextBlock).Font(Font(13)).AutoWrapText(true)
+							.Text_Lambda([this]() {
+								const ADFGameState* GS = VoteState();
+								return !GS ? LOCTEXT("VoteUnavailable", "Voting is available during a match.")
+									: VoteActive() ? FText::FromString(GS->VoteText)
+									: LOCTEXT("NoVote", "No vote in progress. Choose a proposal below; starting a vote also votes Yes.");
+							})
+						]
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							SNew(SVerticalBox).Visibility_Lambda([this]() { return VoteActive() ? EVisibility::Visible : EVisibility::Collapsed; })
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(STextBlock).Font(Font(14, TEXT("Bold"))).ColorAndOpacity(TitleColor)
+								.Text_Lambda([this]() {
+									const ADFGameState* GS = VoteState();
+									return GS ? FText::Format(LOCTEXT("VoteCounts", "Yes: {0}    No: {1}    {2} seconds left"),
+										FText::AsNumber(GS->VoteYes), FText::AsNumber(GS->VoteNo),
+										FText::AsNumber(FMath::Max(0, FMath::CeilToInt(GS->VoteEndTime - GS->GetServerWorldTimeSeconds())))) : FText::GetEmpty();
+								})
+							]
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("VoteYes", "Yes"), [this]() { CastBallot(true); })]
+								+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("VoteNo", "No"), [this]() { CastBallot(false); })]
+							]
+						]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
+						[
+							SNew(SVerticalBox).IsEnabled_Lambda([this]() { return CanProposeVote(); })
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SGridPanel).FillColumn(1, 1.f)
+								+ SGridPanel::Slot(0, 0)[Label(LOCTEXT("Map", "Map"))]
+								+ SGridPanel::Slot(1, 0).Padding(2.f)[Combo(MapNames, VoteMap)]
+								+ SGridPanel::Slot(0, 1)[Label(LOCTEXT("Mode", "Game type"))]
+								+ SGridPanel::Slot(1, 1).Padding(2.f)[Combo(ModeNames, VoteMode)]
+							]
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SBox).IsEnabled_Lambda([this]() { return VoteMap.IsValid() && ModePaths.IsValidIndex(IndexOf(ModeNames, VoteMode)); })
+								[Button(LOCTEXT("VoteTravel", "Vote for map / game type"), [this]() {
+									const int32 Mode = IndexOf(ModeNames, VoteMode);
+									if (VoteMap.IsValid() && ModePaths.IsValidIndex(Mode))
+										ProposeVote(FString::Printf(TEXT("travel %s %s"), **VoteMap, *ModePaths[Mode]));
+								})]
+							]
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("VoteNext", "Next map"), [this]() { ProposeVote(TEXT("nextmap")); })]
+								+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("VoteRestart", "Restart map"), [this]() { ProposeVote(TEXT("restart")); })]
+							]
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 8.f, 0.f)
+								[
+									SNew(SBox).WidthOverride(65.f).ToolTipText(LOCTEXT("VoteBotCount", "Number of bots to add (1–32)"))
+									[SNew(SSpinBox<int32>).MinValue(1).MaxValue(32).Value(VoteBots).Font(Font(13))
+									.OnValueChanged_Lambda([this](int32 Value) { VoteBots = FMath::Clamp(Value, 1, 32); })]
+								]
+								+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("VoteAddBots", "Add bots"), [this]() { ProposeVote(FString::Printf(TEXT("addbots %d"), VoteBots)); })]
+								+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("VoteKickBots", "Remove bots"), [this]() { ProposeVote(TEXT("kickbots")); })]
+							]
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SHorizontalBox).Visibility_Lambda([this]() { const ADFGameState* GS = VoteState(); return GS && GS->NumTeams > 0 ? EVisibility::Visible : EVisibility::Collapsed; })
+								+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("VoteShuffle", "Shuffle teams"), [this]() { ProposeVote(TEXT("shuffle")); })]
+								+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("VoteBalance", "Balance teams"), [this]() { ProposeVote(TEXT("balance")); })]
+							]
+						]
+					]
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("Back", "Back"), [this]() { ShowPage(0); })]
+				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Resume", "Resume"), [this]() { DFMenu::Close(Owner.Get()); })]
+			];
 	}
 
 	TSharedRef<SWidget> MakePlay()
@@ -766,7 +926,7 @@ private:
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f)
 			[
 				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(FLinearColor(0.75f, 0.8f, 0.95f)).AutoWrapText(true)
-				.Text(LOCTEXT("JoinHint", "IP or host name, optionally with :port (default 7777), or pick a server below (press it twice to join)."))
+				.Text(LOCTEXT("JoinHint", "IP or host name, optionally with :port (default 7777), or pick a server below."))
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 2.f)
 			[
@@ -897,7 +1057,11 @@ private:
 		Video->AddSlot(0, 5)[Label(LOCTEXT("FOV", "Field of view"))];
 		Video->AddSlot(1, 5).Padding(2.f)[Slider(FOV, 70.f, 130.f, TEXT("int"))];
 		Video->AddSlot(0, 6)[Label(LOCTEXT("Decals", "Bullet holes, scorch marks"))];
-		Video->AddSlot(1, 6).Padding(2.f)[Combo(DecalModes, SelectedDecals)];
+		Video->AddSlot(1, 6).Padding(2.f)
+		[
+			SAssignNew(DecalCombo, STextComboBox).OptionsSource(&DecalModes).InitiallySelectedItem(SelectedDecals)
+			.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type) { if (Item) { SelectedDecals = Item; ShowQuality(); } })
+		];
 
 		Video->AddSlot(0, 7).ColumnSpan(2).Padding(0.f, 8.f)
 		[
@@ -961,7 +1125,7 @@ private:
 				Keys->AddSlot(1 + Col, Row).Padding(2.f, 1.f)
 				[
 					SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Center).ContentPadding(FMargin(8.f, 3.f))
-					.OnClicked_Lambda([this, Slot]() { Capturing = Slot; FSlateApplication::Get().SetKeyboardFocus(SharedThis(this)); return FReply::Handled(); })
+					.OnClicked_Lambda([this, Slot]() { SetCapturing(Slot); FSlateApplication::Get().SetKeyboardFocus(SharedThis(this)); return FReply::Handled(); })
 					[
 						SNew(STextBlock).Font(Font(12)).Text_Lambda([this, Slot, Default]()
 						{
@@ -1115,7 +1279,7 @@ private:
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("Back3", "Back"), [this]() { Capturing = NAME_None; Switcher->SetActiveWidgetIndex(0); })]
+				+ SHorizontalBox::Slot().FillWidth(1.f)[Button(LOCTEXT("Back3", "Back"), [this]() { SetCapturing(NAME_None); Switcher->SetActiveWidgetIndex(0); })]
 				+ SHorizontalBox::Slot().FillWidth(1.2f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Defaults", "Defaults"), [this]() { ResetOptions(); })]
 				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(8.f, 0.f, 0.f, 0.f)[Button(LOCTEXT("Apply", "Apply"), [this]() { ApplyOptions(); })]
 			];
@@ -1162,6 +1326,7 @@ private:
 		FOV = D->FieldOfView;
 		RenderScale = D->RenderScale;
 		bVSync = false;
+		SelectedDecals = DecalModes[FMath::Clamp(D->DecalQuality, 0, 2)];
 		ReadQuality(D->ScalabilityQuality, D->bHalfSizeTextures);
 		SelectedWindowMode = WindowModes[FMath::Max(0, WindowModeValues.IndexOfByKey(EWindowMode::WindowedFullscreen))];
 		const FIntPoint Desktop = UDFUserSettings::Get().GetDesktopResolution();
@@ -1179,7 +1344,7 @@ private:
 		HUDSize = D->HUDSize;
 		DownloadServer = D->DownloadServer;
 		PendingKeys.Reset();
-		Capturing = NAME_None;
+		SetCapturing(NAME_None);
 		const int32 Tab = OptionTabs.IsValid() ? OptionTabs->GetActiveWidgetIndex() : 0;
 		UpdateCrosshairBrush();
 		OptionsHost->SetContent(MakeOptions()); // the widgets show the values they were made with
@@ -1564,7 +1729,7 @@ private:
 
 	bool IsQualityCustom() const {
 		const Scalability::FQualityLevels Preset = UDFUserSettings::PresetQuality(BaseQuality);
-		return bHiddenGroupsMoved || AA.Selected != AA.LabelFor(Preset.AntiAliasingQuality) || Textures.Selected != Textures.LabelFor(Preset.TextureQuality) || Effects.Selected != Effects.LabelFor(Preset.EffectsQuality);
+		return IndexOf(DecalModes, SelectedDecals) != UDFUserSettings::PresetDecalQuality(BaseQuality) || bHiddenGroupsMoved || AA.Selected != AA.LabelFor(Preset.AntiAliasingQuality) || Textures.Selected != Textures.LabelFor(Preset.TextureQuality) || Effects.Selected != Effects.LabelFor(Preset.EffectsQuality);
 	}
 
 	/** The preset's name, with a star while a group is off it ("Medium*"). */
@@ -1589,6 +1754,9 @@ private:
 			return; // the star entry: what is set stays
 		BaseQuality = Level;
 		bHiddenGroupsMoved = false;
+		SelectedDecals = DecalModes[UDFUserSettings::PresetDecalQuality(Level)];
+		if (DecalCombo)
+			DecalCombo->SetSelectedItem(SelectedDecals);
 		const Scalability::FQualityLevels Preset = UDFUserSettings::PresetQuality(Level);
 		{
 			TGuardValue<bool> Syncing(bSyncingQuality, true);
@@ -1646,7 +1814,7 @@ private:
 		for (const TPair<FName, FKey>& Slot : KeySlots())
 			if (const FKey* K = PendingKeys.Find(Slot.Key); K && *K != Slot.Value)
 				S.KeyBindings.Add(Slot.Key, *K);
-		Capturing = NAME_None;
+		SetCapturing(NAME_None);
 		if (const int32 R = IndexOf(Resolutions, SelectedResolution); ResolutionSizes.IsValidIndex(R))
 			S.SetScreenResolution(ResolutionSizes[R]);
 		S.SetFullscreenMode(PendingWindowMode());
@@ -1853,6 +2021,7 @@ bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
 	// a group moved off its preset stars the preset; picking a preset sets every group again
 	Menu->PickPreset(Menu->Qualities[1]);
 	TestEqual(TEXT("Medium preset reads Medium"), *Menu->SelectedQuality, *Menu->Qualities[1]);
+	TestEqual(TEXT("Medium uses full decals"), *Menu->SelectedDecals, FString(TEXT("Full")));
 	TestFalse(TEXT("A preset is no custom setting"), Menu->IsQualityCustom());
 	Menu->AA.Combo->SetSelectedItem(Menu->AA.Labels[0]);
 	TestTrue(TEXT("Anti-aliasing off on Medium is custom"), Menu->IsQualityCustom());
@@ -1873,6 +2042,8 @@ bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
 	// Blurry: filtering off and half size, never a preset's
 	Menu->PickPreset(Menu->Qualities[0]);
 	TestEqual(TEXT("Low filters 2x"), *Menu->Textures.Selected, FString(TEXT("2x")));
+	TestEqual(TEXT("Low uses simple decals"), *Menu->SelectedDecals, FString(TEXT("Simple")));
+	TestTrue(TEXT("Displayed decal selection follows preset"), Menu->DecalCombo->GetSelectedItem() == Menu->SelectedDecals);
 	Menu->Textures.Combo->SetSelectedItem(Menu->Textures.Labels[0]);
 	TestTrue(TEXT("Blurry on Low is custom"), Menu->IsQualityCustom());
 	TestEqual(TEXT("Blurry is texture level 0"), Menu->ChosenQuality(Settings.ScalabilityQuality).TextureQuality, 0);
@@ -1885,6 +2056,15 @@ bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
 	CDO->CrosshairSize = SavedCDOSize;
 	Settings.bConsole = OldConsole;
 	Settings.ApplyConsole();
+
+	TestTrue(TEXT("Idle key capture does not block options"), Menu->KeyCaptureShield->GetVisibility() == EVisibility::Collapsed);
+	Menu->SetCapturing(TEXT("Crouch"));
+	TestTrue(TEXT("Key capture shields scrollable controls"), Menu->KeyCaptureShield->GetVisibility() == EVisibility::Visible);
+	const FPointerEvent Wheel(0, FVector2D::ZeroVector, FVector2D::ZeroVector, TSet<FKey>(), EKeys::Invalid, -1.f, FModifierKeysState());
+	TestTrue(TEXT("Wheel binding consumes input"), Menu->OnMouseWheel(FGeometry(), Wheel).IsEventHandled());
+	TestTrue(TEXT("Wheel down binds immediately"), Menu->PendingKeys.FindRef(TEXT("Crouch")) == EKeys::MouseScrollDown);
+	TestTrue(TEXT("Capture releases after wheel binding"), Menu->Capturing.IsNone());
+	TestTrue(TEXT("Finished capture immediately releases scrollable controls"), Menu->KeyCaptureShield->GetVisibility() == EVisibility::Collapsed);
 
 	const FIntPoint OldResolution = Settings.GetScreenResolution();
 	const EWindowMode::Type OldMode = Settings.GetFullscreenMode();
@@ -1904,4 +2084,54 @@ bool FDFMenuOptionsTest::RunTest(const FString& Parameters) {
 	}));
 	return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFVotingMenuTest, "DesktopForces.Gameplay.VotingMenu", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FDFVotingMenuTest::RunTest(const FString& Parameters) {
+	UWorld* World = nullptr;
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (Context.World() && Context.World()->IsGameWorld() && Context.World()->GetAuthGameMode<ADFGameMode>())
+			World = Context.World();
+	ADFPlayerController* PC = World ? Cast<ADFPlayerController>(World->GetFirstPlayerController()) : nullptr;
+	ADFGameState* State = World ? World->GetGameState<ADFGameState>() : nullptr;
+	if (!PC || !State || !State->VoteText.IsEmpty()) {
+		AddError(TEXT("Run voting test in a standalone/listen match with no active vote."));
+		return false;
+	}
+	ADFGameMode* Rules = World->GetAuthGameMode<ADFGameMode>();
+	if (!TestTrue(TEXT("World and authority share the live voting state"), Rules->GetGameState<ADFGameState>() == State))
+		return false;
+	TGuardValue<int32> PlayerCount(Rules->NumPlayers, 3);
+	APlayerController* Other = World->SpawnActor<APlayerController>();
+	APlayerController* Third = World->SpawnActor<APlayerController>();
+	TSharedRef<SMFMenu> Menu = SNew(SMFMenu).bInGame(true).Owner(PC);
+	Menu->ShowPage(7);
+	TestEqual(TEXT("Voting is a reachable menu page"), Menu->Switcher->GetActiveWidgetIndex(), 7);
+	TestTrue(TEXT("Idle match permits proposals"), Menu->CanProposeVote());
+	TestTrue(TEXT("Vote map selector has a map"), Menu->VoteMap.IsValid());
+	Menu->ProposeVote(TEXT("not-a-vote"));
+	TestTrue(TEXT("Server rejects unsupported proposals"), State->VoteText.IsEmpty());
+	Menu->ProposeVote(TEXT("restart"));
+	const FString Proposal = State->VoteText;
+	TestTrue(TEXT("Menu submits a server-owned vote"), Menu->VoteActive());
+	TestEqual(TEXT("Caller contributes one yes"), State->VoteYes, 1);
+	TestFalse(TEXT("New proposals are disabled during a vote"), Menu->CanProposeVote());
+	Menu->ProposeVote(TEXT("nextmap"));
+	TestEqual(TEXT("Active proposal is preserved"), State->VoteText, Proposal);
+	Rules->CastVote(Other, false);
+	Rules->CastVote(Other, false);
+	TestEqual(TEXT("Repeated ballots do not count twice"), State->VoteNo, 1);
+	Menu->CastBallot(false);
+	TestEqual(TEXT("Menu No replaces caller Yes"), State->VoteYes, 0);
+	TestEqual(TEXT("Both no ballots are counted"), State->VoteNo, 2);
+	Menu->CastBallot(true);
+	TestEqual(TEXT("Menu Yes replaces previous ballot"), State->VoteYes, 1);
+	Menu->CastBallot(false);
+	Rules->CastVote(Third, false); // reject; never execute restart or travel during the test
+	TestFalse(TEXT("Finished vote leaves the active panel"), Menu->VoteActive());
+	TestTrue(TEXT("New proposals become available again"), Menu->CanProposeVote());
+	Other->Destroy();
+	Third->Destroy();
+	return true;
+}
+
 #endif

@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Game/DFGameMode.h"
 #include "Game/DFGameState.h"
+#include "GameFramework/GameSession.h"
 #include "Player/DFCharacter.h"
 #include "Player/DFCharacterMovement.h"
 #include "UI/DFCrosshairs.h"
@@ -65,15 +66,22 @@ bool FDFOptionsTest::RunTest(const FString& Parameters) {
 	TestFalse(TEXT("Small duplicate is absent"), Shapes.Contains(3));
 	TestEqual(TEXT("Backwards cycling wraps"), DF::NextCrosshair(0, -1), 23);
 
-	ADFGameMode* Rules = World->SpawnActor<ADFGameMode>();
+	// InitGame normally runs before component initialization. Finishing a second
+	// GameMode here would replace the live world's GameState and NetworkManager,
+	// breaking later tests (and leaving the original mode updating a stale state).
+	ADFGameState* OriginalState = World->GetGameState<ADFGameState>();
+	ADFGameMode* Rules = World->SpawnActorDeferred<ADFGameMode>(ADFGameMode::StaticClass(), FTransform::Identity);
 	FString Error;
 	Rules->InitGame(World->GetMapName(), TEXT("?ScoreLimit=7?Parachutes=0"), Error);
 	TestEqual(TEXT("Canonical score option"), Rules->ScoreLimit, 7);
 	TestFalse(TEXT("Server parachute option"), Rules->bParachutes);
+	Rules->GameSession->Destroy();
 	Rules->InitGame(World->GetMapName(), TEXT("?ScoreLimit=0?Parachutes=1"), Error);
 	TestEqual(TEXT("Unlimited score option"), Rules->ScoreLimit, 0);
 	TestTrue(TEXT("Server parachutes can be enabled"), Rules->bParachutes);
+	Rules->GameSession->Destroy();
 	Rules->Destroy();
+	TestTrue(TEXT("Option parsing preserves the live GameState"), World->GetGameState<ADFGameState>() == OriginalState);
 
 	ADFGameState* State = World->GetGameState<ADFGameState>();
 	if (!State) {
