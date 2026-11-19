@@ -658,3 +658,110 @@ gain = 0.6
 gen = "checker"
 n = 2
 colors = [[255, 0, 0], [253, 253, 253]]
+
+# Shuttle surfaces used by Turpowia and SpaceZombura. The old automatic recipes
+# sampled incorrect group palettes: gray sheet metal became ochre gravel, pale
+# panels became dark brick, and the colored paired lamps became white discs.
+# These dimensions/colors are retained so generation does not need game files.
+
+["rage_shuttle.Wall.Lp_Base"]
+size = [256, 256]
+gen = "panel"
+border = 0.005
+rivets = { cols = [0.5], rows = 8 }
+dark = [181, 180, 177]
+mid = [190, 189, 187]
+light = [197, 197, 196]
+
+["rage_shuttle.Wall.Lp_Base5"]
+size = [256, 256]
+gen = "panel"
+border = 0.07
+rivets = { cols = [0.08, 0.92], rows = 8 }
+dark = [160, 159, 156]
+mid = [186, 186, 184]
+light = [195, 196, 194]
+
+["rage_shuttle.shu.Lp_Shutbase2"]
+size = [256, 256]
+gen = "tiles"
+n = 4
+grout = 0.006
+grout_color = [198, 198, 197]
+grit = 0.06
+grime = 0.08
+relief = 0.02
+dark = [213, 213, 211]
+mid = [216, 216, 215]
+light = [218, 218, 217]
+
+["rage_shuttle.wall2.Lp_BaseMetal1"]
+size = [256, 256]
+gen = "panel"
+border = 0.0
+grit = 0.1
+grime = 0.1
+dark = [149, 148, 147]
+mid = [156, 155, 154]
+light = [161, 161, 161]
+
+["rage_shuttle.mid3.OfficeWall1"]
+size = [256, 256]
+gen = "panel"
+border = 0.003
+grit = 0.1
+grime = 0.12
+relief = 0.03
+dark = [157, 157, 156]
+mid = [168, 168, 166]
+light = [175, 175, 173]
+
+["rage_shuttle.Light.Lp_light1"]
+size = [128, 128]
+gen = "lamp"
+kind = "round"
+glow = [245, 245, 245]
+dark = [128, 126, 126]
+mid = [188, 187, 186]
+light = [235, 234, 233]
+
+["rage_shuttle.Light.Lp_soloBlight"]
+size = [64, 64]
+gen = "lamp"
+kind = "tube"
+n = 2
+glow = [145, 165, 255]
+housing = [30, 38, 88]
+dark = [11, 15, 39]
+mid = [31, 44, 111]
+light = [152, 164, 226]
+
+["rage_shuttle.Light.Lp_soloGlight"]
+size = [64, 64]
+gen = "lamp"
+kind = "tube"
+n = 2
+glow = [145, 255, 205]
+housing = [20, 65, 50]
+dark = [15, 35, 28]
+mid = [43, 100, 82]
+light = [162, 216, 199]
+
+["rage_shuttle.Light.Lp_soloRlight"]
+size = [64, 64]
+gen = "lamp"
+kind = "tube"
+n = 2
+glow = [255, 155, 155]
+housing = [85, 25, 25]
+dark = [41, 11, 11]
+mid = [110, 32, 32]
+light = [226, 152, 152]
+
+["rage_shuttle.Mid.tubeipipesBlue"]
+size = [256, 128]
+gen = "pipes"
+n = 24
+dark = [11, 11, 27]
+mid = [27, 27, 51]
+light = [38, 38, 64]

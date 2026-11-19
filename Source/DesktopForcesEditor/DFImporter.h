@@ -42,6 +42,7 @@ struct FDFPacks {
 	TSet<FString> UnverifiedMaps; // lower case
 	TSet<FString> Replaced; // lower case texture keys with replacement art
 	TSet<FString> UnverifiedReplaced; // the ones only unverified maps use: art of that pack
+	TSet<FString> SharedReplacements; // reviewed keys also used by Classic; no global remaster
 	bool bRemasterClassic = false; // classic maps use replacement art too
 
 	void Load(const FString& File);
@@ -131,7 +132,9 @@ public:
 	 * unlabelled) = 0, community (/Game/Maps, /Game/MF/Community) = 1, unverified = 2,
 	 * classic = 3. Not recursive: an asset another pack uses stays in its own pack's pak.
 	 */
-	void EnsurePackLabels();
+	bool EnsurePackLabels();
+	/** Repoint reviewed textures and exclude only originals with no remaining hard references. */
+	bool ShareReplacementArt();
 	/** Move imported assets whose pack changed (packs.toml) to their pack's root, references fixed
 	 *  (bPlanOnly: log what would move). */
 	bool Repack(bool bPlanOnly);

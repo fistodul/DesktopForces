@@ -764,7 +764,9 @@ def g_flat(rng, h, w, t, o):
     top = rgb_from(o.get('top', t[1]))
     bottom = rgb_from(o.get('bottom', t[2]))
     g = np.linspace(0, 1, h, dtype=np.float32)[:, None, None]
-    return np.broadcast_to(top * (1 - g) + bottom * g, (h, w, 3)).copy()
+    # Equal endpoints must stay exactly flat (the reviewed shared color swatches).
+    # Multiplying both endpoints separately introduces rounding bands when cast to uint8.
+    return np.broadcast_to(top + (bottom - top) * g, (h, w, 3)).copy()
 
 
 def g_sky(rng, h, w, t, o):

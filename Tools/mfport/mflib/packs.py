@@ -63,6 +63,7 @@ def load() -> dict:
         'community_root': data.get('community_root', '/Game/MF/Community'),
         'community_maps_root': data.get('community_maps_root', '/Game/Maps'),
         'remaster_classic': bool(data.get('remaster_classic', False)),
+        'shared_replacements': {k.lower() for k in data.get('shared_replacements', [])},
         'community_maps': maps,
         'community_packages': packages | set(maps),   # a community map's own embedded textures
         'classic_packages': RETAIL_PACKAGES | (keep - packages),
@@ -91,7 +92,9 @@ def write_manifest(cfg: Config) -> Path:
         replaced = sorted(k.lower() for k in keys)
         # art only unverified maps use stays in their pack, so the community pack doesn't carry it
         # (what is already imported there stays: moving it is `import --steps repack`'s job)
-        used = set()
+        # Keep shared art at the common replacement root even without a community map user.
+        # The importer's explicit shared label cooks it in core chunk 0, not optional packs.
+        used = set(packs['shared_replacements'])
         for m in maps:
             if map_pack(packs, m) == 'community':
                 used |= {k.lower() for k in json.loads((cfg.out_dir / 'Maps' / m / 'level.json').read_text()).get('texture_usage', {})}
@@ -108,6 +111,7 @@ def write_manifest(cfg: Config) -> Path:
         'community_maps_root': packs['community_maps_root'],
         'replaced_root': '/Game/MF/Replacements',
         'remaster_classic': packs['remaster_classic'],
+        'shared_replacements': sorted(packs['shared_replacements'] & set(replaced)),
         'maps': {m: map_pack(packs, m) for m in maps},
         'community_packages': sorted(packs['community_packages']),
         'unverified_root': packs['unverified_root'],

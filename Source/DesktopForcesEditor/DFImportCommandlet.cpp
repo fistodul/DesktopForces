@@ -46,8 +46,8 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		Importer.MakeCollisionTwoSided();
 	if (Steps.Contains(TEXT("repack")) && !Importer.Repack(Steps.Contains(TEXT("repackplan"))))
 		return 1; // "repackplan": only log what would move
-	if (Steps.Contains(TEXT("packs")))
-		Importer.EnsurePackLabels();
+	if (Steps.Contains(TEXT("packs")) && !Importer.EnsurePackLabels())
+		++Errors;
 	if (Steps.Contains(TEXT("effects")))
 		Importer.ImportEffects();
 	if (Steps.Contains(TEXT("skeletal")) || Steps.Contains(TEXT("soldiers")))
@@ -68,7 +68,7 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 	// "zones": patch's old name; "navmesh": patch and build the navmesh again (keeps the bake)
 	if (Steps.Contains(TEXT("patch")) || Steps.Contains(TEXT("zones")) || Steps.Contains(TEXT("navmesh")))
 		for (const FString& Map : MapList)
-			Importer.PatchMapData(Map, Steps.Contains(TEXT("navmesh")));
+			Errors += Importer.PatchMapData(Map, Steps.Contains(TEXT("navmesh"))) ? 0 : 1;
 	if (Steps.Contains(TEXT("lightmapcheck")))
 		Importer.CheckLightmaps(MapList);
 	if (Steps.Contains(TEXT("layoutcheck")))

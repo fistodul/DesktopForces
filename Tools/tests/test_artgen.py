@@ -72,6 +72,11 @@ class CoreArtTests(unittest.TestCase):
 
 
 class GeneratorTests(unittest.TestCase):
+    def test_flat_swatch_keeps_its_exact_color(self):
+        spec = {'size': [64, 64], 'gen': 'flat', 'top': [254, 243, 56], 'bottom': [254, 243, 56]}
+        image = np.asarray(lookalike.make('fixture.swatch', spec))
+        np.testing.assert_array_equal(np.unique(image.reshape(-1, 3), axis=0), [[254, 243, 56]])
+
     def test_line_share_tells_ribs_from_stains(self):
         ribs = np.tile(128 + 60 * np.sign(np.sin(np.arange(128) * 0.8)), (128, 1)).astype(np.float32)
         rng = np.random.default_rng(1)

@@ -337,6 +337,12 @@ namespace {
 			P->RespawnTime = R->GetNumberField(TEXT("respawn_time"));
 			P->MaxClipAmmo = int32(R->GetNumberField(TEXT("max_clip_ammo")));
 			P->MaxClips = int32(R->GetNumberField(TEXT("max_clips")));
+			R->TryGetBoolField(TEXT("auto_pickup"), P->bAutoPickup);
+			double Radius, Height;
+			if (R->TryGetNumberField(TEXT("radius"), Radius))
+				P->TouchRadius = float(Radius);
+			if (R->TryGetNumberField(TEXT("height"), Height))
+				P->TouchHalfHeight = float(Height);
 			return P;
 		}
 		if (Type == TEXT("sprites")) {
@@ -866,8 +872,18 @@ bool FDFImporter::PatchMapData(const FString& MapName, bool bRebuildNav) {
 	}
 	FWorldContext& Context = GEngine->CreateNewWorldContext(EWorldType::Editor);
 	Context.SetCurrentWorld(World);
-	int32 Removed = 0, Added = 0;
+	int32 Removed = 0, Added = 0, UpdatedLadders = 0;
 	bool bNavChanged = bRebuildNav;
+	bool bPatchFailed = false;
+	TMap<FName, ADFLadderVolume*> Ladders;
+	for (TActorIterator<ADFLadderVolume> It(World); It; ++It) {
+		const FName Label(*It->GetActorLabel());
+		if (Ladders.Contains(Label)) {
+			UE_LOG(LogDFEditor, Error, TEXT("Patch %s: duplicate ladder label %s; map will not be saved"), *MapName, *Label.ToString());
+			bPatchFailed = true;
+		}
+		Ladders.Add(Label, *It);
+	}
 	for (TActorIterator<AActor> It(World); It; ++It) {
 		if (It->IsA<ADFZoneVolume>() || It->IsA<ALoadoutZone>() || It->IsA<ADFZoneBox>() || It->IsA<ADFRoadNetwork>() || It->IsA<ATeleporter>() || It->IsA<ADFPeriodicSound>() || It->IsA<ADFPickupSpot>() || It->IsA<ADFMover>() || It->IsA<ADFEventActor>() || It->IsA<AAmbientSound>() || It->IsA<ALoadoutBlocker>() || It->IsA<ADFBotSpot>() || It->ActorHasTag(ParticleEffectTag) || It->ActorHasTag(SpriteTag) || (It->IsA<ADFLegacyActor>() && IsVehicleGenerator(Cast<ADFLegacyActor>(*It)->MFClass.ToString()))) {
 			World->EditorDestroyActor(*It, true);
@@ -878,6 +894,49 @@ bool FDFImporter::PatchMapData(const FString& MapName, bool bRebuildNav) {
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	for (const TSharedPtr<FJsonValue>& V : Level->GetArrayField(TEXT("spawns"))) {
 		const TSharedPtr<FJsonObject> R = V->AsObject();
+		const FString Type = R->GetStringField(TEXT("type"));
+		if (Type == TEXT("actor") && R->GetStringField(TEXT("class")) == TEXT("/Script/DesktopForces.DFLadderVolume")) {
+			const FName Label(*R->GetStringField(TEXT("name")));
+			ADFLadderVolume* Ladder = Ladders.FindRef(Label);
+			if (!Ladder) {
+				UE_LOG(LogDFEditor, Error, TEXT("Patch %s: no ladder matching label %s; map will not be saved"), *MapName, *Label.ToString());
+				bPatchFailed = true;
+				continue;
+			}
+			const float OldRadius = Ladder->Radius, OldHeight = Ladder->HalfHeight, OldSpeed = Ladder->ClimbSpeed;
+			ApplyProperties(Ladder, R->GetObjectField(TEXT("props")));
+			const bool bSizeChanged = !FMath::IsNearlyEqual(OldRadius, Ladder->Radius) || !FMath::IsNearlyEqual(OldHeight, Ladder->HalfHeight);
+			if (bSizeChanged || !FMath::IsNearlyEqual(OldSpeed, Ladder->ClimbSpeed)) {
+				++UpdatedLadders;
+				if (bSizeChanged) {
+					Ladder->OnConstruction(Ladder->GetActorTransform());
+					Ladder->PlaceNavLinks();
+					bNavChanged = true;
+				}
+			}
+			continue;
+		}
+		if (Type == TEXT("map_info")) {
+			const TSharedPtr<FJsonObject>* MM = nullptr;
+			if (R->TryGetObjectField(TEXT("minimap"), MM)) {
+				const TArray<TSharedPtr<FJsonValue>>& Bounds = (*MM)->GetArrayField(TEXT("bounds"));
+				UTexture2D* Texture = FindTexture((*MM)->GetStringField(TEXT("texture")));
+				int32 MapInfos = 0;
+				if (Texture && Bounds.Num() == 4)
+					for (TActorIterator<ADFMapInfo> It(World); It; ++It) {
+						// Keep ambient light, music and the authored metadata; only the generated
+						// minimap image and its projection rectangle are refreshed in place.
+						++MapInfos;
+						It->MiniMap = Texture;
+						It->MiniMapBounds = FVector4(Bounds[0]->AsNumber(), Bounds[1]->AsNumber(), Bounds[2]->AsNumber(), Bounds[3]->AsNumber());
+					}
+				if (MapInfos == 0) {
+					UE_LOG(LogDFEditor, Error, TEXT("Patch %s: minimap texture, bounds or existing map info missing; map will not be saved"), *MapName);
+					bPatchFailed = true;
+				}
+			}
+			continue;
+		}
 		if (R->GetStringField(TEXT("type")) == TEXT("legacy") && IsVehicleGenerator(R->GetStringField(TEXT("mf_class")))) {
 			SpawnLegacy(World, R, SP)->SetActorLabel(R->GetStringField(TEXT("name")));
 			++Added;
@@ -896,8 +955,8 @@ bool FDFImporter::PatchMapData(const FString& MapName, bool bRebuildNav) {
 		BuildNavigation(World);
 	}
 	UseMFNavigation(World);
-	const bool bSaved = SaveAsset(World);
-	UE_LOG(LogDFEditor, Display, TEXT("Patch %s: %d map data actors (%d replaced)%s"), *MapName, Added, Removed, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
+	const bool bSaved = !bPatchFailed && SaveAsset(World);
+	UE_LOG(LogDFEditor, Display, TEXT("Patch %s: %d map data actors (%d replaced), %d ladders updated%s"), *MapName, Added, Removed, UpdatedLadders, bSaved ? TEXT("") : TEXT(" SAVE FAILED"));
 	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
 	World->RemoveFromRoot();

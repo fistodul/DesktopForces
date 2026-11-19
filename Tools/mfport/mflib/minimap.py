@@ -108,8 +108,10 @@ def generate(cfg: Config, root: Path, level: dict, key: str) -> list[float] | No
         t = np.array(tri, dtype=np.float64)
         n = np.cross(t[1] - t[0], t[2] - t[0])
         ln = np.linalg.norm(n)
-        if ln <= 0 or abs(n[2]) / ln < 0.3:
-            continue   # walls and steep slopes: they show as the steps around them
+        if ln <= 0 or n[2] / ln < 0.3:
+            # Mesh winding follows the surface normal. Downward-facing ceilings must not
+            # hide the floors: Turpowia's enclosing lid otherwise fills the entire picture.
+            continue   # ceilings, walls and steep slopes
         if t[:, 0].max() < ax0 or t[:, 0].min() > ax1 or t[:, 1].max() < ay0 or t[:, 1].min() > ay1:
             continue
         if t[:, 2].min() > az1 or t[:, 2].max() < az0:

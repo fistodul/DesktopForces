@@ -33,6 +33,13 @@ community_root = "/Game/MF/Community" # textures, sounds, music of community con
 community_maps_root = "/Game/Maps"    # community maps: /Game/Maps/<map>, data in <map>_Data
 classic_root = "/MobileForcesClassic" # the plugin (Plugins/MobileForcesClassic)
 remaster_classic = false              # true: classic maps use replacement art too
+# Reviewed exact flat swatches only. Classic keeps all other original art. The importer
+# repoints existing materials and excludes an original from cooking only after checking
+# that no hard references remain; originals stay locally for conversion/editor use.
+shared_replacements = [
+    "rage_generic.Sign.Black", "rage_generic.Sign.Green", "rage_generic.Sign.Red",
+    "rage_generic.Sign.grey", "rage_generic.Sign.Yellow",
+]
 
 [community.maps]
 "COOP-CoopOneUpdate" = "AKVARI (Akvarinja)"

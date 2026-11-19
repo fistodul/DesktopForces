@@ -45,8 +45,9 @@ def run_importer(cfg: Config, steps: str = 'art,textures,props,sounds,music,maps
     args = [f'-steps={steps}']
     default_out = (cfg.uproject.parent / 'Tools' / 'mfport' / 'work' / 'out').resolve()
     if cfg.out_dir.resolve() != default_out:
-        # UE re-joins argv into one command line; quote paths (they may contain spaces)
-        args.append(f'-work="{cfg.out_dir}"')
+        # UnixCommonStartup adds its own quotes around argv values containing spaces.
+        # Literal quotes here become doubled, so FParse reads an empty work directory.
+        args.append(f'-work="{cfg.out_dir}"' if os.name == 'nt' else f'-work={cfg.out_dir}')
     if maps:
         args.append('-maps=' + ','.join(maps))
     return run_commandlet(cfg, 'DFImport', *args)

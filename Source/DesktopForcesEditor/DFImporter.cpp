@@ -104,6 +104,11 @@ void FDFPacks::Load(const FString& File) {
 	if (const TArray<TSharedPtr<FJsonValue>>* Only; J->TryGetArrayField(TEXT("unverified_replaced"), Only))
 		for (const TSharedPtr<FJsonValue>& V : *Only)
 			UnverifiedReplaced.Add(V->AsString().ToLower());
+	SharedReplacements.Reset();
+	if (const TArray<TSharedPtr<FJsonValue>>* Shared; J->TryGetArrayField(TEXT("shared_replacements"), Shared))
+		for (const TSharedPtr<FJsonValue>& V : *Shared)
+			if (Replaced.Contains(V->AsString().ToLower()))
+				SharedReplacements.Add(V->AsString().ToLower());
 	UE_LOG(LogDFEditor, Display, TEXT("Packs: %d community maps, %d community packages, %d replaced textures"), CommunityMaps.Num(), CommunityPackages.Num(), Replaced.Num());
 }
 
@@ -167,7 +172,7 @@ UTexture2D* FDFImporter::FindTexture(const FString& Key) const {
 }
 
 UTexture2D* FDFImporter::FindTextureFor(const FString& Key, bool bCommunityMap) const {
-	if ((bCommunityMap || Packs.bRemasterClassic) && Packs.HasReplacement(Key)) {
+	if ((bCommunityMap || Packs.bRemasterClassic || Packs.SharedReplacements.Contains(Key.ToLower())) && Packs.HasReplacement(Key)) {
 		if (UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *ReplacementAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet))
 			return Tex;
 	}
@@ -920,7 +925,106 @@ void FDFImporter::EnsureVehicleMaterials() {
 	}
 }
 
-void FDFImporter::EnsurePackLabels() {
+bool FDFImporter::ShareReplacementArt() {
+	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AR.SearchAllAssets(true); // referencers outside Materials also have to be checked
+	TArray<TSoftObjectPtr<UObject>> Excluded;
+	TArray<TSoftObjectPtr<UObject>> Shared;
+	TArray<FString> Keys = Packs.SharedReplacements.Array();
+	Keys.Sort();
+	bool bOk = true;
+	int32 Changed = 0;
+	for (const FString& Key : Keys) {
+		UTexture2D* Original = LoadObject<UTexture2D>(nullptr, *TextureAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		UTexture2D* Replacement = LoadObject<UTexture2D>(nullptr, *ReplacementAssetPath(Key), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Replacement || Replacement == Original) {
+			UE_LOG(LogDFEditor, Error, TEXT("Shared art %s: replacement missing; original will still cook"), *Key);
+			bOk = false;
+			continue;
+		}
+		Shared.Add(TSoftObjectPtr<UObject>(Replacement));
+		if (!Original)
+			continue; // core must carry the replacement even without a local Classic installation
+		const FName OriginalPackage = Original->GetOutermost()->GetFName();
+		TArray<FName> Referencers;
+		AR.GetReferencers(OriginalPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+		TArray<FString> SavedFiles;
+		for (const FName Ref : Referencers) {
+			TArray<FAssetData> Assets;
+			AR.GetAssetsByPackageName(Ref, Assets);
+			for (const FAssetData& Asset : Assets) {
+				UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(Asset.GetAsset());
+				if (!MIC)
+					continue; // never rewrite arbitrary meshes, blueprints or source textures
+				TArray<FMaterialParameterInfo> Parameters;
+				for (const FTextureParameterValue& Value : MIC->TextureParameterValues)
+					if (Value.ParameterValue == Original)
+						Parameters.Add(Value.ParameterInfo);
+				if (Parameters.IsEmpty())
+					continue;
+				for (const FMaterialParameterInfo& Parameter : Parameters)
+					MIC->SetTextureParameterValueEditorOnly(Parameter, Replacement);
+				MIC->PostEditChange();
+				if (SaveAsset(MIC)) {
+					++Changed;
+					SavedFiles.Add(FPackageName::LongPackageNameToFilename(Ref.ToString(), FPackageName::GetAssetPackageExtension()));
+				} else
+					bOk = false;
+			}
+		}
+		if (!SavedFiles.IsEmpty())
+			AR.ScanFilesSynchronous(SavedFiles, true); // verify saved package dependencies, not just loaded pointers
+		Referencers.Reset();
+		AR.GetReferencers(OriginalPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+		if (!Referencers.IsEmpty()) {
+			for (const FName Ref : Referencers)
+				UE_LOG(LogDFEditor, Error, TEXT("Shared art %s: hard reference remains in %s; original will still cook"), *Key, *Ref.ToString());
+			bOk = false;
+			continue;
+		}
+		Excluded.Add(TSoftObjectPtr<UObject>(Original));
+		UE_LOG(LogDFEditor, Display, TEXT("Shared art %s: %s replaces %s, no remaining hard references"), *Key, *Replacement->GetPathName(), *Original->GetPathName());
+	}
+	const FString LabelName = TEXT("PAL_SharedOriginals");
+	UPrimaryAssetLabel* Label = LoadObject<UPrimaryAssetLabel>(nullptr, *(Packs.ReplacedRoot / LabelName + TEXT(".") + LabelName), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (Label || !Excluded.IsEmpty()) {
+		bool bCreated = false;
+		if (!Label)
+			Label = FindOrCreateAsset<UPrimaryAssetLabel>(Packs.ReplacedRoot, LabelName, bCreated);
+		if (bCreated || Label->ExplicitAssets != Excluded || Label->Rules.CookRule != EPrimaryAssetCookRule::NeverCook || Label->Rules.Priority != 2 || Label->Rules.bApplyRecursively || Label->bLabelAssetsInMyDirectory || Label->bIsRuntimeLabel) {
+			Label->ExplicitAssets = MoveTemp(Excluded);
+			Label->bLabelAssetsInMyDirectory = false;
+			Label->bIsRuntimeLabel = false;
+			Label->Rules.CookRule = EPrimaryAssetCookRule::NeverCook;
+			Label->Rules.Priority = 2; // above directory pack labels; applies only to these explicit originals
+			Label->Rules.bApplyRecursively = false;
+			Label->PostEditChange();
+			bOk = SaveAsset(Label) && bOk;
+		}
+	}
+	const FString SharedLabelName = TEXT("PAL_SharedReplacements");
+	UPrimaryAssetLabel* SharedLabel = LoadObject<UPrimaryAssetLabel>(nullptr, *(Packs.ReplacedRoot / SharedLabelName + TEXT(".") + SharedLabelName), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (SharedLabel || !Shared.IsEmpty()) {
+		bool bCreated = false;
+		if (!SharedLabel)
+			SharedLabel = FindOrCreateAsset<UPrimaryAssetLabel>(Packs.ReplacedRoot, SharedLabelName, bCreated);
+		if (bCreated || SharedLabel->ExplicitAssets != Shared || SharedLabel->Rules.ChunkId != 0 || SharedLabel->Rules.CookRule != EPrimaryAssetCookRule::AlwaysCook || SharedLabel->Rules.Priority != 2 || SharedLabel->Rules.bApplyRecursively || SharedLabel->bLabelAssetsInMyDirectory || SharedLabel->bIsRuntimeLabel) {
+			SharedLabel->ExplicitAssets = MoveTemp(Shared);
+			SharedLabel->bLabelAssetsInMyDirectory = false;
+			SharedLabel->bIsRuntimeLabel = false;
+			SharedLabel->Rules.ChunkId = 0; // Classic can be installed without Community; share through core
+			SharedLabel->Rules.CookRule = EPrimaryAssetCookRule::AlwaysCook;
+			SharedLabel->Rules.Priority = 2;
+			SharedLabel->Rules.bApplyRecursively = false;
+			SharedLabel->PostEditChange();
+			bOk = SaveAsset(SharedLabel) && bOk;
+		}
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("Shared art: %d materials repointed, %d originals excluded; local source textures retained"), Changed, Label ? Label->ExplicitAssets.Num() : 0);
+	return bOk;
+}
+
+bool FDFImporter::EnsurePackLabels() {
 	struct FPack {
 		FString Root;
 		const TCHAR* Name;
@@ -953,6 +1057,7 @@ void FDFImporter::EnsurePackLabels() {
 		SaveAsset(Label);
 		UE_LOG(LogDFEditor, Display, TEXT("Pack label %s/%s: chunk %d"), *P.Root, P.Name, P.Chunk);
 	}
+	return ShareReplacementArt();
 }
 
 bool FDFImporter::Repack(bool bPlanOnly) {
@@ -1726,15 +1831,26 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 	bool bCreated = false;
 	UMaterialInstanceConstant* MIC = FindOrCreateAsset<UMaterialInstanceConstant>(
 		FString::Printf(TEXT("%s/Materials/%s"), bBuildingCommunityMap ? *Packs.CommunityRoot : *Packs.TextureRoot(TexKey), *Dir), MIName, bCreated);
-	MIC->SetParentEditorOnly(GetMasterMaterial(Master));
-	if (Tex)
+	UMaterialInterface* Parent = GetMasterMaterial(Master);
+	UTexture* Current = nullptr;
+	MIC->GetTextureParameterValue(FMaterialParameterInfo(TEXT("Texture")), Current);
+	const bool bParentChanged = MIC->Parent != Parent;
+	const bool bTextureChanged = Tex && (Current != Tex || bParentChanged);
+	const bool bOverrideChanged = MIC->BasePropertyOverrides.bOverride_TwoSided != bTwoSided || (bTwoSided && !MIC->BasePropertyOverrides.TwoSided);
+	if (!bCreated && !bParentChanged && !bTextureChanged && !bOverrideChanged) {
+		MaterialCache.Add(CacheKey, MIC);
+		return MIC; // no setter/PostEditChange: these regenerate GUIDs even for unchanged values
+	}
+	if (bParentChanged)
+		MIC->SetParentEditorOnly(Parent);
+	if (bTextureChanged)
 		MIC->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Texture")), Tex);
-	else
+	else if (!Tex)
 		UE_LOG(LogDFEditor, Warning, TEXT("Material %s: texture %s missing"), *Key, *TexKey);
-	if (bTwoSided) {
+	if (bOverrideChanged) {
 		FMaterialInstanceBasePropertyOverrides Overrides = MIC->BasePropertyOverrides;
-		Overrides.bOverride_TwoSided = true;
-		Overrides.TwoSided = true;
+		Overrides.bOverride_TwoSided = bTwoSided;
+		Overrides.TwoSided = bTwoSided;
 		MIC->BasePropertyOverrides = Overrides;
 	}
 	MIC->PostEditChange();
