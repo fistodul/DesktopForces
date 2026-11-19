@@ -51,7 +51,7 @@ disagrees with this list is the stale one.
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ✅ Skeletal meshes + animations: `mflib/skelmesh.py` (SkeletalMesh + MeshAnimation -> glTF, Interchange import; `mfport.py skeletal`, importer step `skeletal`): the soldiers and every first-person weapon (stock and mods)
 - ✅ Rage `DeviceMesh` (vehicles, wheels, crates, safes, flag bases, det locks, holdout timers): `mfport.py props`
-- ✅ `LodMesh` first frame (weapon carry models, rockets, grenades, det key); ⬜ Rage `CollisionMesh`, LodMesh animation
+- ✅ `LodMesh` first frame (weapon carry models, rockets, grenades, det key); ⬜ Rage `CollisionMesh`, LodMesh animation (started 2026-11-19: `mflib/lodmesh.py` reads the AnimSeqs and every frame. Of the 17 LodMeshes in the converted packages with more than one frame, the community ones (pickup models, the M18, the seeker mine's 250-frame Drone_Air) repeat one pose in every frame; what moves is Rage's: RTG_FlagMesh's wave, MachineGunMuzzleFlashMesh, RageEffects' RageChipM and RageRingex. Next: those as morph targets on a one-bone skeletal mesh, played by sequence)
 - ✅ Movers (`ADFMover`: doors / lifts from their brushes and keyframes), zones → volumes (`ADFZoneVolume`: water, pain, currents)
 - ✅ Ladders → `ADFLadderVolume` with nav links
 - ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes
@@ -182,7 +182,9 @@ disagrees with this list is the stale one.
   converted, imported and baked on 2026-10-29; mf-nc, MB-ShippingArena and MB-Ballpark load
   with bots without errors. The rest still need a play pass.
 
-## Open threads (handoff, 2026-10-28)
+## Open threads
+
+Current fixes/release checkpoint: [November 17 validation](Validation-20261117.md). Source changes and Python staging are ready; host Unreal verification, cook checks and release archives remain pending. (handoff, 2026-10-28)
 
 Each item is sized for one focused conversation. Read `AGENTS.md`, then the linked doc.
 

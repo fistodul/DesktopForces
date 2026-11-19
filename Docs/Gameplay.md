@@ -28,8 +28,10 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 | Floor checks | flat cylinder bottom | `bUseFlatBaseForFloorChecks` (stands on stair grating rims like MF) |
 
 **Ladders** (LadderClimber): grabbed on touch like MF (the soldier's cylinder meeting the
-climber's: falling into it, or walking at the rungs) and put onto the ladder's line at once,
-no gliding in. Forward climbs and presses onto the ledge at the top; back climbs down;
+climber's: falling into it, or walking at the rungs). The soldier centres sideways while
+keeping their distance in front of solid rungs; snapping inward traps UE5's rounded capsule
+under the next rung. Forward climbs vertically, with a separate forward sweep onto the ledge
+at the top; back climbs down. Mesh overlap endings cannot release the capsule from a ladder;
 reaching the floor walks again; jump lets go (no regrab for 0.5 s).
 
 **Sounds** (RPlayer, Pawn): footsteps every stride while running (RagePlayerSounds stone01-03,
@@ -356,10 +358,17 @@ cheats death once - 5 health, 1.5 s no damage, +19 over 3 s; fire: +56 to you an
 within 400 uu in view; alt: +118 over 10 s to the team-mate you aim at; reload: +120 over 10 s
 on yourself), **Trip Laser** (group 9, 3: beam passes team-mates, burns the first enemy 280 /
 185 into the open, max 10 out; thrown: 280 on touch), **Seeker Mine** (group 9, 1: thrown
-drone hunts the nearest enemy within 1900 uu, 320 r440, escorts you otherwise, max 3),
-**Sentry Gun** (group 11, carry 3, 2 out: placed in front on flat ground, the HMG on its tripod;
-shoots the nearest enemy in sight within 1900 uu with tracers, 20 a round, 850 rounds; your team
-in team games, only you in the others: still you after you respawn; 80 health, blows up 85 r250),
+drone hunts the nearest enemy within 1900 uu, 320 r440, max 3; with nobody to hunt it escorts
+you as the mod's Escorting does - flies at you once over 450 uu off, backs off within 250,
+drifts in between - or roams; hums within 225 uu (a pawn's ambient sound defaults), pulses in
+its team's colour, beeps as a hunt starts), **Sentry Gun** (group 11, carry 3, 2 out: placed in
+front on flat ground, the HMG on its tripod; shoots the nearest enemy in sight within 1900 uu
+with tracers, 20 a round, 850 rounds; 80 health, blows up 85 r250; vehicles go through it, and
+one at its kill speed runs it down unless a friend of the turret drives). Both are on the side they were placed for -
+your team in team games (switching teams doesn't take them along), only you in the others,
+still you after you respawn - and go for every enemy thing: soldiers, vehicles with an enemy
+inside, the other side's sentry turrets and seeker mines; their placer driving counts as
+their placer. Anything hurts them, a thrown knife too (`Weapons/DFDevices`),
 **Molotov** (group 8: the flames burn about 7 s where the bottle broke, on the floor below it, 26 a second within 300 uu), **Desert Eagle** (group 2: 52, head 120, 7 a clip, heavy kick), **Grenade
 Launcher** (group 7, carry 4: one round a load, 6 loads; fire an impact grenade 250 in 200 uu, alt
 a cluster grenade bursting into 15 fragments of 20 that scatter a few metres and pop at an eighth
@@ -389,9 +398,9 @@ community pack and the guns are only offered where it's installed; `Weapons/<Nam
 | Glock 18 | 2 | 1 | 30 × 4 | 28 (40) | 0.05 / 0.5 | 0.283 / 0.097 s | 2.79 s | aiming (no zoom) turns it into a wild full-auto |
 | Desert Eagle | 2 | 1 | 12 × 5 | 25 (70) | 0.22 / 0.05 | 0.3 / 0.231 s | 2.68 s | aim 1.5× |
 | M24 | 5 | 3 | 8 × 6 | 80 (180) | 0.1 / 0.05 | 1.65 / 1.86 s | 3.18 s | bolt action, aim 2× |
-| WA 2000 | 5 | 3 | 6 × 5 | 60 (head: dead) | 0.3 / 0 | 0.61 / 0.56 s | 3.68 s | scope 6× (MF 3×–30×) |
+| WA 2000 | 5 | 3 | 6 × 5 | 60 (head: dead) | 0.3 / 0 | 0.61 / 0.56 s | 3.68 s | scope 3×–30× in 6 steps of the mouse wheel while zoomed (wa2000 ZoomScaleIncrements, as the sniper rifle's and OPRageRifle's: the only three) |
 | M1887 | 4 | 3 | 8 × 8 | 12 pellets × 14 (28) | 1.3 / 0.7 | 1.19 / 0.88 s | 2.25 s | lever-action "long shotgun"; alt is the quick lever shot, walking pace while it lasts (its DefaultFOV nudge sets RagePlayer's bIsWalking) |
-| M18 smoke | 8 | 1 | 3 | — | — | 0.333 s | — | a grenade that pours dense smoke for 15 s where its fuse runs out (grey and screening here; the mod's was a glowing additive cloud) |
+| M18 smoke | 8 | 1 | 3 | — | — | 0.333 s | — | a grenade that pours dense smoke for 15 s: fire's where its fuse runs out, alt fire's from where it first lands (smokeGrenProj2) (grey and screening here; the mod's was a glowing additive cloud) |
 
 Base trace: start at the eye, end = start + Acc×(rand−0.5)×1000·Y + Acc×(rand−0.5)×1000·Z
 + MaxTraceDistance (10000)·X.
@@ -449,7 +458,10 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 - Hits (MF Vehicle / Physical.TakeDamage): every hit clangs (MiscSFX.HitMetal) and shoves the
   car by √momentum (knife slashes and bullets a little, rockets a lot; pellets 40 % of the
   time). Bullets and knives hit the model itself, not a box around it. Soldiers can't push cars
-  by walking into or standing on them.
+  by walking into or standing on them. Pawn movement also follows the converted body mesh:
+  sloped bonnets no longer have a flat invisible platform above them. This mesh remains
+  query-only; Chaos still uses the chassis box. A missing mesh, or one without collision,
+  keeps the fallback pawn box.
 - Tyres (MF WheelCollision): 35 damage of anything bursts one (HitRubber, a jolt): it runs on
   the rim - lower, a third of the grip, half the drive, so a flat front tyre steers badly - and
   re-inflates after 30 s (ReInflatePause). Explosions reach the tyres too. Tyres block pawn
@@ -550,6 +562,19 @@ shape, including the dot. The other ring/line combinations retain their differen
 Mouse sensitivity and inversion are under Controls; crosshair shape/size and HUD size stay
 together under Game. Weapon position changes only the first-person model: Left mirrors it,
 Center uses MF's classic centered offsets, Hidden hides it. Aim and hit traces are unchanged.
+
+**First-person muzzle flashes**: weapons can specify `MuzzleBone` and a mesh-space
+`MuzzleOffset`; the HUD projects that animated opening through the current view. The HMG
+uses the front octagon of `GunBarrel`, so deployment, barrel spin, hand mirroring and FOV
+move the flash with the model. Its terminal dummy is 33.7 mesh cm short of the opening.
+Bone and component transforms stay separate to preserve the original non-uniform depth
+scale. The community servers' weapon mods (AK-74, G36, M4A1, FAMAS, Ultimax, MAC-10,
+Glock, M24, WA 2000, M1887, SC-20K and both Desert Eagles) have their muzzle measured with
+`DFMuzzleProbe` (the arms model's vertex furthest along the view, as bone and offset; the
+SC-20K needs `DFMuzzleProbe Body 45`, its laser sight's beam being further) and checked in
+firing screenshots (2026-11-19). The SC-20K and the desert.u Desert Eagle, whose mods moved
+their flash off screen, have one now (Filip). The game's own weapons keep MF's `FlashY` /
+`FlashO` canvas offsets.
 
 **Spawn fade**: the fallback black wait is 1 second, the possession wait about 0.067 seconds,
 and the fade 0.2 seconds, each reduced by one third.

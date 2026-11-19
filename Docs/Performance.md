@@ -433,6 +433,38 @@ successfully. No compatibility redirects or runtime fallback starts were added.
 
 ### Vehicles: a useful suspension reference, not a drop-in pawn replacement
 
+The November 17 handling audit checked the four retail cars against `Physics/handling.hnd2`
+and TurboCars' exported classes. Mass, engine curves, gear ratios, final drive, speed limits
+and nitro increments match the source values (the per-tick nitro increment is normalized to
+60 Hz). DF's speed-dependent steering reduction and Truck's 35° lock instead of MF's 60°
+are deliberate port tuning, not imported MF values. They remain unchanged pending a matched
+original-game comparison.
+
+One limitation is confirmed in DF's equations: aerodynamic drag still derives from the
+legacy `AccelTime` even for cars using torque curves. It grows quadratically above the normal
+speed limit and opposes nitro. On the Armadillo at its configured 50 m/s nitro limit, this
+formula alone removes 23.3 m/s² against nitro's 6 m/s². A simplified straight, level model
+(including rolling resistance and linear damping) settles at approximately 31.3 / 31.8 /
+30.7 / 21.9 m/s with throttle and nitro for Buggy / Humvee / Truck / Armadillo, versus configured
+limits of 50 / 40 / 40 / 50. These are calculated estimates, **not runtime measurements or an
+original-game baseline**. No drag, torque, nitro or steering increase was made from these
+calculations alone.
+
+`DesktopForces.Gameplay.VehicleHandling` supplies a bounded runtime baseline: all four cars
+and their nitro variants settle for four seconds on a level floor, accelerate for ten, then
+hold full steering for two. It logs speed, forward speed, distance, yaw and roll once per
+second; there are no effect assertions, so NullRHI is supported. Run it at fixed 30/60/120 FPS
+with `?TurboCars=1`, then compare equivalent original-game runs before changing handling:
+
+```bash
+"$UE_ROOT/Engine/Binaries/Linux/UnrealEditor" "$PWD/DesktopForces.uproject" '/Game/MF/Maps/MF_TestRange?TurboCars=1' -game -nullrhi -benchmark -fps=60 -unattended -ExecCmds='Automation RunTests DesktopForces.Gameplay.VehicleHandling' -TestExit='Automation Test Queue Empty'
+```
+
+`DesktopForces.Gameplay.VehiclePhysics` additionally compares pawn line and character-sized
+capsule sweeps against weapon collision over the Humvee's bonnet. Its smoke checks still
+require rendering. Check the explicit test results and TestExit reason, not just the process
+exit code.
+
 The supplied template uses `AWheeledVehiclePawn` and `UChaosWheeledVehicleMovementComponent`.
 Its sports car has torque/gear curves and Ackermann steering. DF already uses Chaos rigid
 bodies, but implements wheel raycasts, spring/damper forces, tyre forces and drivetrain logic
@@ -621,3 +653,9 @@ warehouse, sawmill, Toreford; 2026-11-04). Maps baked before that need baking ag
 `DumpUnbuiltLightInteractions` in the console names what is unbuilt.
 Collision-only world chunks (hidden) take volumetric lighting: no lightmap is baked for them.
 
+
+### Vehicle simulation budget
+
+Synchronous physics substepping uses at most six steps of 1/60 second per game frame. This admits up to 0.1 second of game time, including normal 15 FPS and slomo 2 at 30 FPS. The vehicle's suspension/brake calculation uses the same admitted frame time as Chaos. Forces remain evaluated once per game frame; this improves time accounting but does not promise identical trajectories at every render rate. Extra physics steps have CPU cost. Extreme dilation or stalls beyond the budget still discard physics time.
+
+The November 18 comparison found up to 61.56% less distance at 15 FPS with the old defaults, versus at most 0.45% difference from 60 FPS with substepping. See [validation checkpoint](Validation-20261117.md) for final configuration tests and the remaining 2x check.

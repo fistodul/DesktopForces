@@ -25,7 +25,7 @@ where the original had the command; case doesn't matter.
 | `AddBots N`, `GoodBot N`, `BadBot N` | add bots of normal / better / worse skill (single player / host) |
 | `ListBots` | bots and their skill |
 | `CallVote travel <map> [mode]`, `CallVote nextmap / restart / addbots N / kickbots / shuffle / balance` | call a vote (Gregaras' vote mutator; you vote yes; over half the players saying yes passes it, 30 s) |
-| `Vote yes`, `Vote no` | vote on the running vote |
+| `Vote yes`, `Vote no` | vote on the running vote; the in-game menu also has a Voting page with proposals, Yes/No buttons, counts and a countdown |
 | `ShowCommandMenu` | team orders menu (V); number keys or a mouse click pick the order, then All / a team-mate (the view holds still while it's open) |
 | `Say [Text]` / `TeamSay [Text]` | chat to everyone / your team; without text, type the line first (T / Y; MF Talk / TeamTalk). Works with the console option off |
 | `ViewTeam` | watch the next team-mate (F5); `ViewPlayerNum N`: NumPad1 = yourself, NumPad2.. = team-mates |
@@ -113,13 +113,14 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFAimAt X Y Z`, `DFAimAtNearest Name` | turn to a point; to a player or the nearest actor of a class (`DFAimAtNearest WoodenBox`) |
 | `DFBring Name [Dist]` | put a player (with their car) or the nearest actor of a class 300 cm (or Dist) in front of you (`DFBring MoBall`) |
 | `DFWhere` | say where you stand and look as `DFTeleport X Y Z \| DFCam X Y Z Yaw Pitch`, and put that on the clipboard (to report a spot) |
+| `DFMuzzleProbe [Bone] [MaxAhead]` | say where the held weapon's muzzle is, as `MuzzleBone` / `MuzzleOffset` for its defaults: the arms model's vertex furthest along the view (only that bone's vertices with Bone; only up to MaxAhead cm in front of the eye, past a laser sight's beam) |
 | `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
 | `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |
 | `DFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
 | `DFLoadoutPick N`, `DFLoadout [0\|1]` (toggle; 0 leave / 1 enter only if needed), `DFSelect N`, `DFScores`, `DFShot Name` | for scripted runs: `-DFExec="@4:DFLoadoutPick 1\|@6:DFLoadout\|@20:DFShot test"` |
 | `DFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position, yaw + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
-| `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads; 10-13 the options tabs, 14 Video with Advanced Graphics open; 20 / 21 join with the internet / LAN server list refreshed) / press Start / screenshot with the menu |
+| `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads, 7 voting; 10-13 the options tabs, 14 Video with Advanced Graphics open; 20 / 21 join with the internet / LAN server list refreshed) / press Start / screenshot with the menu |
 | `DFPacks`, `DFPackDownload N`, `DFPackCancel N`, `DFPackDelete N` | main menu: log the downloadable packs (state, bytes, map count) / the Downloads page's buttons for pack (chunk) N |
 | `DFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
 | `DFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |
@@ -129,7 +130,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFApplyUserSettings` | re-read the player's options (field of view, keys) |
 
 Command line for automated runs: `-DFExec="…"` (commands, `@seconds:` delays), `-DFQuitAfter=N`,
-`-DFAutoShot=N -DFShotName=x [-DFShotUI]` (`-DFShotUI` includes Slate menus), `-abslog=<file>`
+`-DFAutoShot=N -DFShotName=x [-DFShotUI]` (`-DFShotUI` includes Slate menus, also for gameplay `DFShot`; `DFMenuPage 7` opens the in-game voting page), `-abslog=<file>`
 to keep a run's log apart from a parallel editor/bake (they share `Saved/Logs/DesktopForces.log`).
 
 Not ported (no equivalent yet): `KillCars`, `ExpireCars`,

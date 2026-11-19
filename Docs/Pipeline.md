@@ -26,7 +26,7 @@ Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine o
 | `mfport.py props` | gameplay meshes from Rage.u / RageGame.u / RageWeapons.u (`DeviceMesh`: vehicles, wheels, crates, safes, flag bases, det locks, holdout timers; `LodMesh`: weapon models, rockets, det key) → `.mfmesh` |
 | `mfport.py textures` | every texture used by converted maps → PNG (≤ `max_texture_size`, ≤ `detail_texture_size` for `detail.toml`), read straight from the packages (see below) |
 | `mfport.py effects` | MF sprite particles (`mflib/effects.py`): the effect textures' AnimNext chains → flipbook atlases, plus emitter descriptions for the scripted effects (RageEffects.Explosion, VehicleExplosion, ExplosionFire, EffectsFix smoke puffs, wall hits, blood) and every map's ParticleEffect / FireyExample → `Effects/effects.json`. Run after `map` |
-| `mfport.py skeletal` | skeletal meshes with their animations → glTF (`Skeletal/<package>/*.glb`, `skeletal.json`): the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava, 302 animations each) every first-person weapon (`<X>PlayerMesh` in the weapon packages) and the waving team flags (RageGame `CTFFlagMesh`, Rage `VehicleFlagMesh`, 4 sequences each); the importer's `skeletal` step brings them in through Interchange (`<pack>/Soldiers/…`, `<pack>/Weapons/…`, `<pack>/Flags/…`) and puts MF's textures (team skins) on |
+| `mfport.py skeletal` | (`skelmesh.TWO_SIDED_VIEW`: first-person models drawn two-sided, the open shells MF showed solid - the WA 2000's stock) skeletal meshes with their animations → glTF (`Skeletal/<package>/*.glb`, `skeletal.json`): the soldiers (RageGfx `RagePlayer1Mesh` helmet, `RagePlayer2Mesh` balaclava, 302 animations each) every first-person weapon (`<X>PlayerMesh` in the weapon packages) and the waving team flags (RageGame `CTFFlagMesh`, Rage `VehicleFlagMesh`, 4 sequences each); the importer's `skeletal` step brings them in through Interchange (`<pack>/Soldiers/…`, `<pack>/Weapons/…`, `<pack>/Flags/…`) and puts MF's textures (team skins) on |
 | `mfport.py sounds [pkg…]` | exports sound packages (default: weapon/player/announcer + map ambience), WAV → 16-bit PCM |
 | `mfport.py music [pkg…]` | tracker music (`.umx`) → WAV |
 | `mfport.py packs` | lists each converted map's [content pack](#content-packs) and what core maps still use from the original game |
@@ -38,6 +38,14 @@ Mobile Forces install ──UCC.exe──► work/raw  (BMP, WAV, T3D)   (Wine o
 | `mfport.py rebake [map…]` | converts, imports and bakes every map (or these) again, one at a time, resumable from `work/rebake/progress.json`; with a map list, `--restart` the first time (after the names: `rebake mf-nc mf-Polar --restart`). `--steps lightmapcheck import` lists the maps a lightmap change touches |
 
 Configuration: `Tools/mfport/mfport.toml` (copy `mfport.example.toml`) or `MFPORT_<KEY>` env vars.
+
+`--steps patch` also updates existing ladders by their original actor labels and refreshes
+the map info's minimap texture/bounds. It preserves ladder transforms and unrelated map info
+(including ambient light and music). Changed ladder dimensions rebuild the navigation links
+and navmesh, while a speed-only change leaves navigation alone; lighting is preserved.
+Missing/duplicate ladder labels or missing minimap data fail the patch instead of saving
+an incomplete update. `LadderClimber`'s inherited defaults are radius 40, half-height 100
+MF units and climb speed 1; exported maps often explicitly override these with 32, 152 and .5.
 
 ## How the original data is read
 
@@ -183,11 +191,17 @@ Material keys are `package.group.texture|mode` (mode: `opaque`, `masked`, `addit
 `mflib/minimap.py`. MF's MiniMapInfo spreads its picture over `NumTexturesWide × NumTexturesHigh`
 textures, column-major (`MiniMapTex[i * NumTexturesHigh + j]`), each showing up to 255 of its
 pixels, 64 uu a pixel over `MapLeft..MapRight × MapTop..MapBottom`; the map step stitches them
-into `<map>.MiniMap`. A map without one gets a generated picture: the floors (faces steeper than
-about 73° left out) seen from above inside the play area (starts, loadout zones, items and
+into `<map>.MiniMap`. A map without one gets a generated picture: upward-facing floors (ceilings
+and faces steeper than about 73° left out) seen from above inside the play area (starts, loadout zones, items and
 generators plus 15 %; skybox rooms stay out), lighter higher up, darker lines where the floor
 steps more than 2.5 m between pixels; VMF maps get a map_info record for it. Both go through
 `import --steps textures` before the map is built.
+
+The surface winding matters: accepting both normal directions lets an enclosing ceiling cover
+every floor (Turpowia previously generated a flat gray rectangle). Regenerate the minimap from
+the existing `level.json` with `minimap.generate` after changing projection rules; update its
+`map_info.minimap.bounds` if the returned bounds differ. A texture-only import is sufficient
+when the bounds stay the same; no lighting bake is needed.
 
 ## Lights
 
@@ -346,6 +360,22 @@ materials (re-run `import --steps textures` for the map's textures) - no map reb
 re-bake. `mfport.py packs` shows what each core map still borrows (e.g. mf-Toreford: one
 `car_park` texture; MF-Filip: 43 from six retail packages).
 
+`shared_replacements` in `packs.toml` is a per-texture reviewed allowlist for Classic too;
+`remaster_classic` remains false. The first entries are the five flat Black/Green/Red/grey/Yellow
+swatches in `rage_generic.Sign`, not signs with lettering or detailed surface art. `mfport.py
+import --steps textures,packs` imports replacements, repoints existing material parameters,
+then checks the saved asset registry for remaining hard references to each original. An
+unresolved reference or missing replacement fails the packs step. Only verified unused
+originals enter `/Game/MF/Replacements/PAL_SharedOriginals`, an explicit, nonrecursive
+`NeverCook` label with higher priority than pack labels. This also excludes them from the
+Classic `DirectoriesToAlwaysCook` texture folder; the original editor assets remain on disk.
+The replacements keep their source paths under `/Game/MF/Replacements`, but the explicit,
+nonrecursive `PAL_SharedReplacements` label assigns only these approved textures to core
+chunk 0 with `AlwaysCook` and priority 2. Classic therefore works without Community installed.
+The cooker's chunk dependency graph removes redundant copies in the optional chunks once
+core owns an asset. Verify cook manifests contain each replacement only in chunk 0 and omit
+its approved original before distributing a build.
+
 ## Map edits (`Tools/mfport/map_edits.toml`)
 
 Changes a map carries from conversion on, where MF servers changed maps at run time with mods:
@@ -450,6 +480,13 @@ colours are taken from the originals. Outputs land in `work/generated/textures` 
 re-created anywhere from the tables, no game needed) and count as replacement art after any
 hand-made override. See-through shapes (foliage, decals) are left for hand-made art (listed at the
 end of the auto table).
+
+Stored automatic recipes do not refresh when texture decoding changes. If a replacement's
+hue or material disagrees with the original, inspect the original and generated PNGs before
+adjusting lights. The Shuttle panel, blue pipe and colored lamp entries used by Turpowia and
+SpaceZombura have explicit recipes in `lookalikes.toml`: their former automatic samples turned
+gray metal into ochre grit and pale panels into dark brick. The paired colored lamp textures
+are opaque fittings in the source maps, so their backgrounds must not be made transparent.
 
     python3 Tools/artgen/lookalike.py --auto    # after converting more core maps
     python3 Tools/artgen/lookalike.py           # generate (8 min for ~1400)
