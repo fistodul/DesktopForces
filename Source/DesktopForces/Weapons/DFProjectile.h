@@ -124,6 +124,8 @@ protected:
 
 	/** Server: deal damage and destroy. */
 	virtual void Explode(const FVector& Location, const FVector& Normal);
+	/** Who the blast's kills go to: the shooter at launch (their pawn may be dead by now). */
+	virtual AController* GetBlastCredit() const { return Shooter.Get(); }
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastExplosionFX(FVector_NetQuantize Location);
@@ -131,6 +133,8 @@ protected:
 	bool bExploded = false;
 	void PlayImpactSound(const FHitResult& Hit, const FVector& ImpactVelocity);
 	double ImpactSoundAt = -1.0;
+	UPROPERTY(Transient)
+	TObjectPtr<USoundBase> ImpactSound; // ClassicImpactSound, loaded on its first bounce
 };
 
 /** RageWeapons.Rocket: 1200 uu/s, 135 damage, radius 400. */

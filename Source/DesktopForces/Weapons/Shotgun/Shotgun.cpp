@@ -43,10 +43,6 @@ AShotgun::AShotgun() {
 	MuzzleBone = TEXT("Dummy02");
 	MuzzleOffset = FVector(-97.58f, -23.31f, 0.65f);
 	MuzzleFlashSize = 50.f; // RageWeapons TracerEvery
-	FlashY = 0.04f;
-	FlashO = -0.11f;
-	FlashS = -38.f;
-	FlashYZoom = 0.04f;
 	FireSide = 1.f;
 	AltFireTime = 0.5f; // the faster fan
 	ClassicFireSound = TEXT("WeaponSFX_Shotgun.Fire");

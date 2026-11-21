@@ -9,17 +9,12 @@ AGlock::AGlock() {
 	// Fire 8 @30 + 0.05; aiming (no magnification) fires AccurateAimFire 5 @85: full auto, wild
 	ViewMesh = TEXT("glock/glockPickupCarryMesh");
 	ArmsMesh = TEXT("glockPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(0.68f, -16.54f, 3.12f);
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(0.2f, -0.8f, -2.2f);
 	RequiredContent = TEXT("Props/glock/glockPickupCarryMesh");
 	bAddToLoadout = true;
-	FlashY = 0.1f;
-	FlashO = -0.018f;
-	FlashS = 0.f;
-	FlashYZoom = 1000.1f; // the mod's: off screen, no flash over its sideways aim
 	HUDIcon = TEXT("Textures/glock/Skins/glockimage");
 	HUDIconRect = FIntRect(0, 193, 120, 271); // WeaponIcon X=0 Y=193 W=120 H=78
 	DisplayName = LOCTEXT("Glock", "Glock 18");

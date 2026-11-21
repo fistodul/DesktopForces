@@ -161,6 +161,8 @@ and descent captures show closer spacing to the rungs. The fixture rises 450 cm 
 second without a downward pull; real-map top-out and user feel still need verification.
 
 **HMG remains unresolved.** None of the 16 firing captures has a visible muzzle flash.
+(Resolved 2026-11-21: the HMG draws MF's canvas flash again, `FlashY` 0.045 just over the
+receiver, seen in sustained-fire captures; see Gameplay.md, first-person muzzle flashes.)
 The native test proves component visibility, depth-test material and timer cleanup,
 not rendered flash visibility. An offline ray through the projected selected muzzle,
 using all four imported primitives in the Fire pose, meets Skin2 about29.3 cm from the

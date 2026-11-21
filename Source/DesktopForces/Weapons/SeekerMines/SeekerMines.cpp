@@ -88,7 +88,7 @@ void ASeekerMine::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 void ASeekerMine::InitPlacer(ADFCharacter* Placer) {
 	SetInstigator(Placer);
 	Shooter = Placer ? Placer->GetController() : nullptr;
-	PlacerState = Placer ? Placer->GetPlayerState() : nullptr;
+	PlacerState = Placer ? Placer->GetEffectivePlayerState() : nullptr; // in a vehicle too
 	PlacedTeam = Placer ? Placer->GetTeam() : DF::NoTeam;
 	OnRep_PlacedTeam();
 }
@@ -101,6 +101,8 @@ void ASeekerMine::OnRep_PlacedTeam() {
 
 void ASeekerMine::Pulse() {
 	// LT_Pulse: the brightness swings with the light's period (LightPeriod 32: about a second)
+	if (!WasRecentlyRendered(0.5f))
+		return;
 	const float Phase = FMath::Sin(float(GetWorld()->GetTimeSeconds()) * UE_TWO_PI);
 	Glow->SetIntensity(3.f * (0.6f + 0.4f * Phase));
 }
@@ -158,7 +160,7 @@ void ASeekerMine::Think() {
 	AAIController* AI = Cast<AAIController>(GetController());
 	// state Hunting
 	if (AActor* Target = FindBestTarget()) {
-		if (!Hunted.IsValid() || !DF::IsDeviceTargetAlive(Hunted.Get()) || IsFriendly(Hunted.Get())) {
+		if (Target != Hunted.Get() && (!Hunted.IsValid() || !DF::IsDeviceTargetAlive(Hunted.Get()) || IsFriendly(Hunted.Get()))) {
 			// Hunting.Scan: a beep when it starts a hunt or its prey is gone, not per change of
 			// the nearest (PlaySound(Activating, 1.5): a pawn's TransientSoundVolume 2 x 1.5)
 			ADFEffectActor::SpawnSound(GetWorld(), TEXT("WeaponSFX_TripBombs.Activating"), GetActorLocation(), 1600.f, 1.f);

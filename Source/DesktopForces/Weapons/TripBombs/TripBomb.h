@@ -34,8 +34,9 @@ public:
 	UPROPERTY(Replicated)
 	uint8 Team = DF::NoTeam;
 
-	/** Same side as the planter: their team in team games, only the planter otherwise. */
-	virtual bool IsFriendlyTo(const AActor* Other) const;
+	/** TripLaser.IsFriendly: a team mate, a team's device, a vehicle with only friends in it (an
+	 *  empty one is no friend: it stops the beam and sets it off); the placer only in deathmatch. */
+	bool IsFriendlyTo(const AActor* Other) const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -89,6 +90,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void OnStop(const FHitResult& Hit) override;
 	virtual void OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) override;
+	virtual AController* GetBlastCredit() const override;
 	/** Thrown onto another mine: both go. */
 	void HitOtherMine(AActor* Other);
 	/** Set off by a blast or a hit: Explode a moment later (chains spread). */

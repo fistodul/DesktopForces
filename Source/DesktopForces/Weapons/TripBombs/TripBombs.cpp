@@ -143,7 +143,7 @@ void ATripBombs::Throw() {
 }
 
 void ATripBombs::ServerThrow_Implementation(float Power) {
-	if (HasAmmoInClip() && ThrowNow(FMath::Clamp(Power, ThrowReleaseFloor, 10.f))) {
+	if (HasAmmoInClip() && ThrowNow(ClampReleasePower(Power))) {
 		UseAmmo(); // a remote thrower's: the server's copy of the weapon goes the same way
 		BusyFor(SlideForwardTime, &ATripBombs::Done);
 	}

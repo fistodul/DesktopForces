@@ -10,7 +10,6 @@ AM87::AM87() {
 	// lever action (extends Pistol in MF: 8 shells); Fire 9 @35 x0.5..; Reload 2.25 s empty
 	ViewMesh = TEXT("m87/M87PickupCarryMesh");
 	ArmsMesh = TEXT("M87PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(3.86f, -193.72f, -10.56f);
 	ArmsScale = 0.2f;
@@ -43,11 +42,6 @@ AM87::AM87() {
 	MaxZoomLevel = 0;
 	DamageType = UDFDamage_Shotgun::StaticClass();
 	MuzzleFlashSize = 50.f;
-	// the mod kept the pistol's numbers, which sit on this long gun's body: at the barrel instead
-	FlashY = 0.055f;
-	FlashO = -0.0155f;
-	FlashS = 0.f;
-	FlashYZoom = 0.1f;
 	ClassicFireSound = TEXT("m871.m87fire");
 	ClassicReloadSound = TEXT("m871.m87reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");

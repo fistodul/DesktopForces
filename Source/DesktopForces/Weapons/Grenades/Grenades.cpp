@@ -66,7 +66,7 @@ void AGrenades::StopFire(bool bAlt) {
 }
 
 void AGrenades::ServerThrow_Implementation(bool bAlt, float Power) {
-	Throw(bAlt, FMath::Clamp(Power, 1.5f, 10.f));
+	Throw(bAlt, ClampReleasePower(Power));
 }
 
 void AGrenades::Throw(bool bAlt, float Power) {

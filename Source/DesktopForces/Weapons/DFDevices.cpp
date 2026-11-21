@@ -2,7 +2,6 @@
 #include "Core/DFTypes.h"
 #include "Player/DFCharacter.h"
 #include "Vehicles/DFVehicle.h"
-#include "Weapons/SeekerMines/SeekerMines.h"
 #include "Weapons/SentryGun/SentryGun.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
@@ -10,11 +9,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerState.h"
 
-bool DF::GetPlacedTeam(const AActor* A, uint8& OutTeam) {
-	const IDFDevice* Device = Cast<IDFDevice>(A);
-	if (Device)
-		OutTeam = Device->GetPlacedTeam();
-	return Device != nullptr;
+bool DF::IsPawnOrDevice(const AActor* A) {
+	return Cast<APawn>(A) || Cast<IDFDevice>(A);
 }
 
 bool DF::IsDeviceTargetAlive(const AActor* A) {
@@ -67,27 +63,26 @@ DF::ESide DF::SideOf(const AActor* Other, const AActor* Device, uint8 Team, cons
 }
 
 AActor* DF::FindDeviceTarget(const AActor* Device, uint8 Team, const APlayerState* Placer, float Range, TFunctionRef<bool(const AActor*)> Usable) {
-	AActor* Best = nullptr;
-	float BestDist = Range;
 	const FVector From = Device->GetActorLocation();
+	const float RangeSq = FMath::Square(Range);
+	TArray<TPair<float, AActor*>, TInlineAllocator<16>> Enemies;
 	auto Consider = [&](AActor* A) {
-		const float D = FVector::Dist(From, A->GetActorLocation());
-		if (D < BestDist && IsDeviceTargetAlive(A) && SideOf(A, Device, Team, Placer) == ESide::Enemy && Usable(A)) {
-			BestDist = D;
-			Best = A;
-		}
+		const float D = FVector::DistSquared(From, A->GetActorLocation());
+		if (D < RangeSq && IsDeviceTargetAlive(A) && SideOf(A, Device, Team, Placer) == ESide::Enemy)
+			Enemies.Emplace(D, A);
 	};
 	UWorld* World = Device->GetWorld();
-	// 1. occupied enemy vehicles, 2. everything with a pulse (soldiers, turrets, seeker mines)
-	for (TActorIterator<ADFVehicle> It(World); It; ++It)
-		Consider(*It);
-	for (TActorIterator<ADFCharacter> It(World); It; ++It)
+	// soldiers, vehicles and seeker mines are pawns; sentry turrets the other device worth a shot
+	for (TActorIterator<APawn> It(World); It; ++It)
 		Consider(*It);
 	for (TActorIterator<ASentryTurret> It(World); It; ++It)
 		Consider(*It);
-	for (TActorIterator<ASeekerMine> It(World); It; ++It)
-		Consider(*It);
-	return Best;
+	// the nearest usable one: a line trace each, nearest first, until one is
+	Enemies.Sort([](const TPair<float, AActor*>& A, const TPair<float, AActor*>& B) { return A.Key < B.Key; });
+	for (const TPair<float, AActor*>& E : Enemies)
+		if (Usable(E.Value))
+			return E.Value;
+	return nullptr;
 }
 
 bool DF::IsRunOverByFriend(const FDamageEvent& Event, const AController* Driver, const AActor* Device, uint8 Team, const APlayerState* Placer) {

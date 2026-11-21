@@ -121,7 +121,9 @@ void ADFProjectile::PlayImpactSound(const FHitResult& Hit, const FVector& Impact
 	if (ClassicImpactSound.IsEmpty() || Speed < 120.f || Now - ImpactSoundAt < 0.1 || Cast<APawn>(Hit.GetActor()) || GetNetMode() == NM_DedicatedServer)
 		return;
 	ImpactSoundAt = Now;
-	DF::PlaySoundRadius(this, DF::LoadSound(ClassicImpactSound), Hit.ImpactPoint, FMath::Clamp(Speed / 900.f, 0.3f, 1.f), 1600.f);
+	if (!ImpactSound)
+		ImpactSound = DF::LoadSound(ClassicImpactSound);
+	DF::PlaySoundRadius(this, ImpactSound, Hit.ImpactPoint, FMath::Clamp(Speed / 900.f, 0.3f, 1.f), 1600.f);
 }
 
 void ADFProjectile::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
@@ -139,7 +141,7 @@ void ADFProjectile::Explode(const FVector& Location, const FVector& Normal) {
 	if (bExploded)
 		return;
 	bExploded = true;
-	AController* InstigatorController = Shooter.Get(); // at launch: its pawn may be dead by now
+	AController* InstigatorController = GetBlastCredit();
 	if (DamageRadius > 0.f) {
 		// MF HurtRadius: damage * (1 - dist / radius), linear
 		TArray<AActor*> Ignore;
@@ -232,6 +234,7 @@ AThrownKnife::AThrownKnife() {
 	Blade->SetGenerateOverlapEvents(false);
 	Blade->CastShadow = false;
 	Blade->bReceivesDecals = false;
+	Blade->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 	Blade->SetVisibility(false);
 }
 
@@ -283,7 +286,7 @@ void AThrownKnife::OnRep_Safe() {
 // a soldier, a vehicle, or a device left behind (sentry turret, seeker mine, trip laser): MF's
 // knife hurts anything that isn't level geometry (Dangerous.ProcessTouch -> TakeDamage)
 static bool IsKnifeVictim(const AActor* A) {
-	return Cast<APawn>(A) || Cast<IDFDevice>(A);
+	return DF::IsPawnOrDevice(A);
 }
 
 void AThrownKnife::HitVictim(AActor* Other, const FHitResult& Hit) {

@@ -9,7 +9,6 @@ AG36::AG36() {
 	// Reload @10 + 0.25
 	ViewMesh = TEXT("g36/g36PickupCarryMesh");
 	ArmsMesh = TEXT("g36PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(-6.91f, -78.09f, -4.13f);
 	ArmsScale = 0.2f;
@@ -36,7 +35,6 @@ AG36::AG36() {
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
 	ZoomedViewOffset = FVector(240.f, -81.15f, 176.f); // MF ZoomedInViewOffset
-	FlashYZoom = 0.04f; // its sights sit higher: the flash at the front sight (mod: 0.3)
 	RecoilPower = 0.75f;
 	ClassicFireSound = TEXT("g36.G36_Fire");
 	ClassicReloadSound = TEXT("g36.g36reload");

@@ -9,7 +9,6 @@ AMAC10::AMAC10() {
 	// Fire01-04 3 @55 + 0.05; Reload 10 @8 + 0.25
 	ViewMesh = TEXT("MAC10/MAC10PickupCarryMesh");
 	ArmsMesh = TEXT("MAC10PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(-2.04f, -76.46f, -9.40f);
 	ArmsScale = 0.2f;
@@ -36,10 +35,6 @@ AMAC10::AMAC10() {
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
 	ZoomedViewOffset = FVector(480.f, 31.f, 280.f); // MF ZoomedInViewOffset
-	// the mod kept the rifle's numbers, which sit on the gun's body: at the barrel instead
-	FlashS = 0.f;
-	FlashY = 0.04f;
-	FlashYZoom = 0.05f;
 	RecoilPower = 1.f;
 	ClassicFireSound = TEXT("MAC10.MAC10Fire");
 	ClassicReloadSound = TEXT("MAC10.MAC10Reload");

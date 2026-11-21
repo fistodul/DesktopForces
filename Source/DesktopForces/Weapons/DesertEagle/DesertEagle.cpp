@@ -8,7 +8,6 @@ ADesertEagle::ADesertEagle() {
 	// desert.u; Fire 5 @16 + 0.05; Reload 35 @14 + 0.25
 	ViewMesh = TEXT("desert/DesertPickupCarryMesh");
 	ArmsMesh = TEXT("DesertPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(1.12f, -84.38f, -0.95f);
 	ArmsScale = 0.2f;

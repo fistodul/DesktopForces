@@ -51,10 +51,7 @@ void ATripBomb::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 }
 
 bool ATripBomb::IsFriendlyTo(const AActor* Other) const {
-	const ADFCharacter* C = Cast<ADFCharacter>(Other);
-	if (!C)
-		return false;
-	return C == GetInstigator() || (Team != DF::NoTeam && C->GetTeam() == Team);
+	return DF::SideOf(Other, this, Team, PlacerState.Get()) == DF::ESide::Friend;
 }
 
 void ATripBomb::BeginPlay() {
@@ -120,7 +117,7 @@ void ATripBomb::Detonate(const FVector& At, float Damage) {
 	GetWorldTimerManager().ClearTimer(Timer);
 	TArray<AActor*> Ignore;
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, At, 0.f, 900.f, 1.f,
-		UDFDamage_Explosion::StaticClass(), Ignore, this, Shooter.Get(), ECC_Visibility);
+		UDFDamage_Explosion::StaticClass(), Ignore, this, DF::PlacerCredit(Shooter.Get(), Team), ECC_Visibility);
 	MulticastExplodeFX(GetActorLocation());
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
@@ -187,6 +184,10 @@ void ATripMine::OnStop(const FHitResult& Hit) {
 void ATripMine::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
 	HitOtherMine(Hit.GetActor());
 	Super::OnBounce(Hit, ImpactVelocity);
+}
+
+AController* ATripMine::GetBlastCredit() const {
+	return DF::PlacerCredit(Shooter.Get(), PlacedTeam); // none once the thrower changed sides
 }
 
 void ATripMine::HitOtherMine(AActor* Other) {

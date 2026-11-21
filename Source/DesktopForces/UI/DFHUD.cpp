@@ -313,12 +313,6 @@ void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 	const float Size = W->MuzzleFlashSize * 2.2f * PixelScale * FMath::FRandRange(0.8f, 1.2f);
 	float X = Canvas->ClipX * 0.5f - (bZoomed ? W->FlashSZoom : W->FlashS) * PixelScale + Canvas->ClipX * Side * (bZoomed ? 0.f : -W->FireSide * W->FlashO);
 	float Y = Canvas->ClipY * (0.5f + (bZoomed ? W->FlashYZoom : W->FlashY)) - (bZoomed ? W->FlashSZoom : W->FlashS) * Canvas->ClipY / 480.f;
-	FVector Muzzle;
-	if (W->GetMuzzleFlashLocation(Muzzle)) {
-		const FVector Screen = Project(Muzzle);
-		X = Screen.X;
-		Y = Screen.Y;
-	}
 	X += FMath::FRandRange(-4.f, 4.f) - Size * 0.5f;
 	Y += FMath::FRandRange(-4.f, 4.f) - Size * 0.5f;
 	const float Bright = FMath::FRandRange(0.5f, 1.f);

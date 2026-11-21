@@ -398,7 +398,7 @@ community pack and the guns are only offered where it's installed; `Weapons/<Nam
 | Glock 18 | 2 | 1 | 30 × 4 | 28 (40) | 0.05 / 0.5 | 0.283 / 0.097 s | 2.79 s | aiming (no zoom) turns it into a wild full-auto |
 | Desert Eagle | 2 | 1 | 12 × 5 | 25 (70) | 0.22 / 0.05 | 0.3 / 0.231 s | 2.68 s | aim 1.5× |
 | M24 | 5 | 3 | 8 × 6 | 80 (180) | 0.1 / 0.05 | 1.65 / 1.86 s | 3.18 s | bolt action, aim 2× |
-| WA 2000 | 5 | 3 | 6 × 5 | 60 (head: dead) | 0.3 / 0 | 0.61 / 0.56 s | 3.68 s | scope 3×–30× in 6 steps of the mouse wheel while zoomed (wa2000 ZoomScaleIncrements, as the sniper rifle's and OPRageRifle's: the only three) |
+| WA 2000 | 5 | 3 | 6 × 5 | 60 (head: dead) | 0.3 / 0 | 0.61 / 0.56 s | 3.68 s | scope 3×–30× in 6 steps of the mouse wheel while zoomed (wa2000 ZoomScaleIncrements, as the sniper rifle's; the OPWeapons mod's OPRageRifle copy of it isn't ported: DF has `?OPWeapons=1` for every weapon instead) |
 | M1887 | 4 | 3 | 8 × 8 | 12 pellets × 14 (28) | 1.3 / 0.7 | 1.19 / 0.88 s | 2.25 s | lever-action "long shotgun"; alt is the quick lever shot, walking pace while it lasts (its DefaultFOV nudge sets RagePlayer's bIsWalking) |
 | M18 smoke | 8 | 1 | 3 | — | — | 0.333 s | — | a grenade that pours dense smoke for 15 s: fire's where its fuse runs out, alt fire's from where it first lands (smokeGrenProj2) (grey and screening here; the mod's was a glowing additive cloud) |
 
@@ -564,11 +564,12 @@ together under Game. Weapon position changes only the first-person model: Left m
 Center uses MF's classic centered offsets, Hidden hides it. Aim and hit traces are unchanged.
 
 **First-person muzzle flashes**: weapons can specify `MuzzleBone` and a mesh-space
-`MuzzleOffset`; the HUD projects that animated opening through the current view. The HMG
-uses the front octagon of `GunBarrel`, so deployment, barrel spin, hand mirroring and FOV
-move the flash with the model. Its terminal dummy is 33.7 mesh cm short of the opening.
-Bone and component transforms stay separate to preserve the original non-uniform depth
-scale. The community servers' weapon mods (AK-74, G36, M4A1, FAMAS, Ultimax, MAC-10,
+`MuzzleOffset`; a depth-tested sprite (made on the first shot, seen only by the shooter)
+follows that animated opening, so animation, hand mirroring and FOV move the flash with the
+model and the gun covers it as UE1's RenderOverlays did. Bone and component transforms stay
+separate to preserve the original non-uniform depth scale. The HMG has none: its barrel's end
+(`GunBarrel` + (-0.6, 221.7, 0.1)) is behind the receiver from the gunner's eye, so it keeps
+MF's canvas flash just over the receiver (`FlashY` 0.045, 2026-11-21). The community servers' weapon mods (AK-74, G36, M4A1, FAMAS, Ultimax, MAC-10,
 Glock, M24, WA 2000, M1887, SC-20K and both Desert Eagles) have their muzzle measured with
 `DFMuzzleProbe` (the arms model's vertex furthest along the view, as bone and offset; the
 SC-20K needs `DFMuzzleProbe Body 45`, its laser sight's beam being further) and checked in

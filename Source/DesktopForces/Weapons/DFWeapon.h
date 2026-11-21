@@ -211,20 +211,23 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Hit")
 	int32 Pellets = 1;
 
-	/** Muzzle flash size (RageWeapon bDrawMuzzleFlash, drawn by the HUD), 0: none. */
+	/** Muzzle flash size (RageWeapon bDrawMuzzleFlash), 0: none. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float MuzzleFlashSize = 0.f;
 	/** Optional first-person muzzle in bone space (imported mesh centimetres, before ArmsScale).
-	 *  A depth-tested flash follows the animated barrel, including FOV and weapon hand. */
+	 *  A depth-tested flash follows the animated barrel, including FOV and weapon hand: at the
+	 *  barrel's end, not where MF's canvas put it (the Flash* values). Found with DFMuzzleProbe. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FName MuzzleBone;
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FVector MuzzleOffset = FVector::ZeroVector;
 	bool GetMuzzleFlashLocation(FVector& Location) const;
-	bool UsesWorldMuzzleFlash() const { return MuzzleSprite != nullptr; }
-	/** RageWeapon.RenderMuzzleFlash: MF draws the flash on the canvas, not at the model. Shares of
-	 *  the screen below the centre (FlashY) and sideways per unit of FireOffset.Y (FlashO), a pixel
-	 *  shift (FlashS), and the same while zoomed, where FireOffset.Y usually is 0: mid-screen. */
+	/** A flash at MuzzleBone in the world (made on the first shot), not MF's canvas one. */
+	bool UsesWorldMuzzleFlash() const;
+	/** Without a MuzzleBone, RageWeapon.RenderMuzzleFlash: MF draws the flash on the canvas, not at
+	 *  the model. Shares of the screen below the centre (FlashY) and sideways per unit of
+	 *  FireOffset.Y (FlashO), a pixel shift (FlashS), and the same while zoomed, where FireOffset.Y
+	 *  usually is 0: mid-screen. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float FlashY = 0.08f;
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
@@ -268,7 +271,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
 	int32 MaxZoomLevel = 0;
 
-	/** FOV divisor when zoomed (MF ZoomScale). */
+	/** FOV divisor when zoomed (MF ZoomScale; unused with ZoomScaleIncrements). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
 	float ZoomScale = 1.f;
 
@@ -299,11 +302,11 @@ public:
 	/** FOV multiplier for the owner's camera (1 = not zoomed). */
 	float GetFOVScale() const;
 	/** Zoomed FOV divisor: ZoomScale, or with ZoomScaleIncrements the mouse wheel's choice. */
-	virtual float GetZoomScale() const;
+	float GetZoomScale() const;
 	/** MF ZoomedIn HandleNextWeapon / HandlePrevWeapon: while zoomed, the mouse wheel moves the
 	 *  zoom Steps of ZoomScaleIncrements (prev weapon +1 in, next -1 out). False: no such zoom. */
 	bool AdjustZoom(int32 Steps);
-	/** Sub-level zoom (RageRifle, wa2000, OPRageRifle): ZoomScaleIncrements steps from
+	/** Sub-level zoom (MF RageRifle, wa2000): ZoomScaleIncrements steps from
 	 *  MinZoomScale to MaxZoomScale (Min + (Max - Min) x alpha^2), the alpha easing 1 a second. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Zoom")
 	int32 ZoomScaleIncrements = 0;
@@ -402,6 +405,7 @@ public:
 	float MuzzleFlashUntil = 0.f;
 	UPROPERTY(Transient)
 	TObjectPtr<class UMaterialBillboardComponent> MuzzleSprite;
+	void CreateMuzzleSprite();
 	void UpdateMuzzleFlash();
 	FTimerHandle MuzzleFlashTimer;
 
@@ -508,6 +512,8 @@ protected:
 	float GetThrowPower() const;
 	/** The power a release now throws with (ThrowReleaseFloor / ThrowReleaseMin applied). */
 	float GetReleasePower() const;
+	/** Server: a client's release power, kept within what GetReleasePower can give. */
+	float ClampReleasePower(float Power) const { return FMath::Clamp(Power, FMath::Max(ThrowReleaseFloor, ThrowReleaseMin), 10.f); }
 
 	UPROPERTY(Transient, Replicated)
 	int32 ClipAmmo = 0;

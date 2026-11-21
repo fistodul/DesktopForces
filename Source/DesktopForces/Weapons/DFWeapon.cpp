@@ -591,6 +591,8 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 		C->AddRecoil(RecoilPower * 6.f);
 	if (C && C->IsLocallyControlled() && MuzzleFlashSize > 0.f) {
 		MuzzleFlashUntil = GetWorld()->GetTimeSeconds() + 0.05f;
+		if (!MuzzleSprite && UsesWorldMuzzleFlash())
+			CreateMuzzleSprite();
 		UpdateMuzzleFlash();
 		if (MuzzleSprite)
 			GetWorldTimerManager().SetTimer(MuzzleFlashTimer, this, &ADFWeapon::UpdateMuzzleFlash, 0.05f, false);
@@ -626,6 +628,36 @@ bool ADFWeapon::GetMuzzleFlashLocation(FVector& Location) const {
 
 bool ADFWeapon::IsMuzzleFlashing() const {
 	return GetWorld()->GetTimeSeconds() < MuzzleFlashUntil;
+}
+
+bool ADFWeapon::UsesWorldMuzzleFlash() const {
+	return Arms && !MuzzleBone.IsNone() && Arms->GetBoneIndex(MuzzleBone) != INDEX_NONE;
+}
+
+void ADFWeapon::CreateMuzzleSprite() {
+	// on the first shot of the local soldier's gun: nobody else sees it (SetOnlyOwnerSee)
+	// UE1 Weapon.RenderOverlays draws the flash BEFORE DrawActor(self, false), so the gun
+	// covers it. A HUD tile drawn after the scene paints it across the barrel instead.
+	UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_MuzzleFlash.M_MF_MuzzleFlash"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UTexture2D* Texture = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
+	if (!Material || !Texture)
+		return;
+	UMaterialInstanceDynamic* Flash = UMaterialInstanceDynamic::Create(Material, this);
+	Flash->SetTextureParameterValue(TEXT("Texture"), Texture);
+	MuzzleSprite = NewObject<UMaterialBillboardComponent>(this, TEXT("MuzzleFlash"));
+	MuzzleSprite->SetupAttachment(RootComponent);
+	MuzzleSprite->SetOnlyOwnerSee(true);
+	MuzzleSprite->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MuzzleSprite->SetGenerateOverlapEvents(false);
+	MuzzleSprite->CastShadow = false;
+	// Provisional world-space radius for capture review; this scale is not an
+	// exported MF property. Placement follows the opening as the view/FOV changes.
+	const float Radius = MuzzleFlashSize * 0.2f;
+	MuzzleSprite->AddElement(Flash, nullptr, false, Radius, Radius, nullptr);
+	MuzzleSprite->SetVisibility(false);
+	MuzzleSprite->RegisterComponent();
+	// Use the completed pose, not last frame's barrel transform. No weapon actor tick.
+	Arms->RegisterOnBoneTransformsFinalizedDelegate(FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateUObject(this, &ADFWeapon::UpdateMuzzleFlash));
 }
 
 void ADFWeapon::UpdateMuzzleFlash() {
@@ -849,30 +881,6 @@ void ADFWeapon::SetupArms() {
 	ArmsScale3D = (Rest ? Rest->ComponentScale : FVector::OneVector) * ArmsScale;
 	Arms->RegisterComponent();
 	ApplyHand();
-	if (!MuzzleBone.IsNone() && Arms->GetBoneIndex(MuzzleBone) != INDEX_NONE) {
-		// UE1 Weapon.RenderOverlays draws the flash BEFORE DrawActor(self, false), so the gun
-		// covers it. A HUD tile drawn after the scene paints it across the barrel instead.
-		UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_MuzzleFlash.M_MF_MuzzleFlash"), nullptr, LOAD_NoWarn | LOAD_Quiet);
-		UTexture2D* Texture = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/MuzzleFlare"));
-		if (Material && Texture) {
-			UMaterialInstanceDynamic* Flash = UMaterialInstanceDynamic::Create(Material, this);
-			Flash->SetTextureParameterValue(TEXT("Texture"), Texture);
-			MuzzleSprite = NewObject<UMaterialBillboardComponent>(this, TEXT("MuzzleFlash"));
-			MuzzleSprite->SetupAttachment(RootComponent);
-			MuzzleSprite->SetOnlyOwnerSee(true);
-			MuzzleSprite->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			MuzzleSprite->SetGenerateOverlapEvents(false);
-			MuzzleSprite->CastShadow = false;
-			// Provisional world-space radius for capture review; this scale is not an
-			// exported MF property. Placement follows the opening as the view/FOV changes.
-			const float Radius = MuzzleFlashSize * 0.2f;
-			MuzzleSprite->AddElement(Flash, nullptr, false, Radius, Radius, nullptr);
-			MuzzleSprite->SetVisibility(false);
-			MuzzleSprite->RegisterComponent();
-			// Use the completed pose, not last frame's barrel transform. No weapon actor tick.
-			Arms->RegisterOnBoneTransformsFinalizedDelegate(FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateUObject(this, &ADFWeapon::UpdateMuzzleFlash));
-		}
-	}
 	if (UDFTweenAnimInstance* Anim = GetArmsAnim()) {
 		Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
 		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));

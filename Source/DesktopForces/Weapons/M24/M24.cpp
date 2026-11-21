@@ -9,7 +9,6 @@ AM24::AM24() {
 	// bolt action: Fire 17 @10 + 0.05; Reload 45 @15 + 0.25
 	ViewMesh = TEXT("M24/M24PickupCarryMesh");
 	ArmsMesh = TEXT("M24PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(1.26f, -51.18f, -3.53f);
 	ArmsScale = 0.2f;
@@ -40,11 +39,6 @@ AM24::AM24() {
 	MaxTraceDistance = 45000.f; // like the sniper rifle
 	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass: Pistol_BulletCase at the hip (the scope hides the rifle case)
 	MuzzleFlashSize = 40.f;
-	// the mod kept the pistol's numbers, which sit on this long gun's body: at the barrel instead
-	FlashY = 0.055f;
-	FlashO = -0.0115f;
-	FlashS = 0.f;
-	FlashYZoom = 1000.1f; // MF 0.1 sits on the aimed rifle's scope; the barrel is behind it: off screen, like the Glock mod
 	ClassicFireSound = TEXT("M24.M24Fire");
 	ClassicReloadSound = TEXT("M24.M24Reload");
 	ClassicSelectSound = TEXT("M24.M24Select");

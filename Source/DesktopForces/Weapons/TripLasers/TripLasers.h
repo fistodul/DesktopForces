@@ -25,7 +25,6 @@ class DESKTOPFORCES_API ATripLaser : public ATripBomb {
 	GENERATED_BODY()
 public:
 	ATripLaser();
-	virtual bool IsFriendlyTo(const AActor* Other) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:

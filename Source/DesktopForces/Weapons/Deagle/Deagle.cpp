@@ -9,7 +9,6 @@ ADeagle::ADeagle() {
 	DisplayName = LOCTEXT("Deagle", "Desert Eagle");
 	ViewMesh = TEXT("deagle/deaglePickupCarryMesh");
 	ArmsMesh = TEXT("deaglePlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("pistoletas");
 	MuzzleOffset = FVector(-35.19f, -420.13f, 289.02f);
 	ArmsScale = 0.04f;

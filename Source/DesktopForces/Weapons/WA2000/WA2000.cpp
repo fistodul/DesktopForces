@@ -8,10 +8,9 @@
 
 AWA2000::AWA2000() {
 	DeathMessage = NSLOCTEXT("DFKills", "WA2000", "%k put a bullet between %o's eyes.");
-	// head 10000000 (one shot); scope 3x - 30x in 6 steps in MF: a fixed 6x here
+	// head 10000000 (one shot); scope 3x - 30x in 6 steps of the mouse wheel
 	ViewMesh = TEXT("wa2000/wa2000PickupCarryMesh");
 	ArmsMesh = TEXT("wa2000PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(-1.85f, -108.17f, 8.65f);
 	ArmsScale = 0.2f;
@@ -36,12 +35,9 @@ AWA2000::AWA2000() {
 	Accuracy = 0.3f;
 	AltAccuracy = 0.f;
 	MaxZoomLevel = 1;
-	ZoomScale = 6.f;
-	// wa2000: ZoomScaleIncrements 6, MinZoomScale 3, MaxZoomScale 30 - the mouse wheel zooms
-	// the scope x3 to x30 as the rifle's (Filip's video, 2026-11-19: x1.7 ... x18 shown)
+	// wa2000: ZoomScaleIncrements 6, MinZoomScale 3, MaxZoomScale 30 (the defaults) - the mouse
+	// wheel zooms the scope x3 to x30 as the rifle's (Filip's video, 2026-11-19: x1.7 ... x18 shown)
 	ZoomScaleIncrements = 6;
-	MinZoomScale = 3.f;
-	MaxZoomScale = 30.f;
 	ZoomedViewOffset = FVector(140.f, -50.f, 80.f); // MF ZoomedInViewOffset
 	bInstantZoom = true;
 	RecoilPower = 3.5f;
@@ -49,11 +45,6 @@ AWA2000::AWA2000() {
 	ZoomedMoveScale = 0.f;
 	CasingMesh = TEXT("RageWeapons/RifleBullet"); // RageRifle_BulletCase
 	MuzzleFlashSize = 40.f;
-	// the mod kept the pistol's numbers, which sit on this long gun's body: at the barrel instead
-	FlashY = 0.09f;
-	FlashO = -0.0105f;
-	FlashS = 0.f;
-	FlashYZoom = 0.1f;
 	ClassicFireSound = TEXT("wa2000.wa2000_Fire");
 	ClassicReloadSound = TEXT("wa2000.wa2000_reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");

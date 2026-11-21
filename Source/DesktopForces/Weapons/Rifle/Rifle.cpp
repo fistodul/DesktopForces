@@ -9,7 +9,6 @@
 #include "Engine/DamageEvents.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
-#include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
 #define LOCTEXT_NAMESPACE "DFWeapons"
@@ -38,7 +37,6 @@ ARifle::ARifle() {
 	AltAccuracy = 0.f;
 	MaxTraceDistance = 45000.f; // MF 20000
 	MaxZoomLevel = 1;
-	ZoomScale = 3.f;
 	ZoomScaleIncrements = 6; // MinZoomScale 3, MaxZoomScale 30: the mouse wheel zooms
 	ZoomedViewOffset = FVector(0.f, 0.f, -1000.f); // MF ZoomedInViewOffset
 	bInstantZoom = true;

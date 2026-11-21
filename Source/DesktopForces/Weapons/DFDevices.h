@@ -6,7 +6,6 @@
 #include "DFDevices.generated.h"
 
 class ADFCharacter;
-class ADFVehicle;
 class AController;
 class APlayerState;
 struct FDamageEvent;
@@ -53,13 +52,13 @@ namespace DF {
 	/** IsPawnFriendly: the dead and nobody count as friends; then the team in team games, else
 	 *  only the placer. */
 	DESKTOPFORCES_API bool IsSoldierFriendly(const ADFCharacter* C, uint8 Team, const APlayerState* Placer);
-	/** MF-mods GetPlacedTeam: the team a device was placed for (DF::NoTeam in deathmatch). False
-	 *  for anything that isn't one. */
-	DESKTOPFORCES_API bool GetPlacedTeam(const AActor* A, uint8& OutTeam);
+	/** A unit, not level geometry: a soldier, a vehicle or a device (what a thrown knife hurts and
+	 *  a trip laser's beam goes off on). */
+	DESKTOPFORCES_API bool IsPawnOrDevice(const AActor* A);
 	/** Worth hunting or shooting: a living soldier, a vehicle not blown up, a working device. */
 	DESKTOPFORCES_API bool IsDeviceTargetAlive(const AActor* A);
 	/** FindBestTarget: the nearest Enemy within Range of vehicles, soldiers, sentry turrets and
-	 *  seeker mines; Usable (line of sight, for the turret) last. */
+	 *  seeker mines that is Usable (line of sight, for the turret; asked nearest first). */
 	DESKTOPFORCES_API AActor* FindDeviceTarget(const AActor* Device, uint8 Team, const APlayerState* Placer, float Range,
 		TFunctionRef<bool(const AActor*)> Usable);
 	/** SentryGunTurret.CheckVehicleRunOver: a vehicle at KillSpeed runs a device down, unless

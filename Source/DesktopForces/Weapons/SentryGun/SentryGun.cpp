@@ -103,7 +103,7 @@ void ASentryTurret::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 
 void ASentryTurret::InitPlacer(ADFCharacter* Placer) {
 	SetInstigator(Placer);
-	PlacerState = Placer ? Placer->GetPlayerState() : nullptr;
+	PlacerState = Placer ? Placer->GetEffectivePlayerState() : nullptr; // in a vehicle too
 	Team = Placer ? Placer->GetTeam() : DF::NoTeam;
 	Aim = GetActorRotation();
 }

@@ -25,7 +25,7 @@ namespace {
 				Floor = World->SpawnActor<AActor>();
 				UBoxComponent* Box = NewObject<UBoxComponent>(Floor.Get());
 				Floor->SetRootComponent(Box);
-				Box->InitBoxExtent(FVector(5000, 2000, 50));
+				Box->InitBoxExtent(FVector(5000, 5000, 50));
 				Box->SetWorldLocation(Origin - FVector(0, 0, 50));
 				Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				Box->SetCollisionObjectType(ECC_WorldStatic);
@@ -34,9 +34,10 @@ namespace {
 				Box->RegisterComponent();
 				FActorSpawnParameters Spawn;
 				Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-				// two lanes: a fast car at one turret, a slow one at the other
+				// two lanes: a fast car at one turret, a slow one at the other; out of each other's
+				// ScanRange (placerless turrets are enemies to each other)
 				for (int32 i = 0; i < 2; ++i) {
-					const FVector Lane = Origin + FVector(0.f, i * 1500.f, 0.f);
+					const FVector Lane = Origin + FVector(0.f, i * 4800.f - 2400.f, 0.f);
 					Turrets[i] = World->SpawnActor<ASentryTurret>(Lane + FVector(0.f, 0.f, 55.f), FRotator::ZeroRotator, Spawn);
 					Cars[i] = World->SpawnActor<ABuggy>(Lane + FVector(-900.f, 0.f, 150.f), FRotator::ZeroRotator, Spawn);
 				}

@@ -9,7 +9,6 @@ AFamas::AFamas() {
 	// Fire01-04 4 @50 + 0.05; Reload 30 @10 + 0.25
 	ViewMesh = TEXT("famas/FamasPickupCarryMesh");
 	ArmsMesh = TEXT("FamasPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(2.64f, -51.94f, -0.45f);
 	ArmsScale = 0.2f;

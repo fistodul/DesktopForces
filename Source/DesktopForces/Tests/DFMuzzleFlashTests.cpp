@@ -20,19 +20,29 @@ bool FDFMuzzleFlashTest::RunTest(const FString& Parameters) {
 		AddError(TEXT("Muzzle check needs a locally controlled soldier."));
 		return false;
 	}
+	// the HMG (core content) draws MF's canvas flash; give it a muzzle bone for the world one
 	AHeavyMachineGun* Gun = World->SpawnActor<AHeavyMachineGun>();
-	if (!TestTrue(TEXT("HMG has a depth-tested flash component"), Gun && Gun->UsesWorldMuzzleFlash())) {
+	if (Gun) {
+		Gun->MuzzleBone = TEXT("GunBarrel");
+		Gun->MuzzleOffset = FVector(-0.6f, 221.7f, 0.1f);
+	}
+	if (!TestTrue(TEXT("A gun with a muzzle bone flashes there"), Gun && Gun->UsesWorldMuzzleFlash())) {
 		if (Gun)
 			Gun->Destroy();
 		return false;
 	}
-	UMaterialInterface* FlashMaterial = Gun->MuzzleSprite->GetMaterial(0);
-	TestTrue(TEXT("Flash material lets the weapon occlude it"), FlashMaterial && FlashMaterial->GetMaterial() && !FlashMaterial->GetMaterial()->bDisableDepthTest);
+	TestNull(TEXT("No flash component before the first shot"), Gun->MuzzleSprite.Get());
 	Gun->OnGiven(Soldier);
 	Gun->OnEquip();
 	Gun->RecoilPower = 0.f;
 	Gun->FireSound = nullptr;
 	Gun->PlayFireEffects(false);
+	if (!TestNotNull(TEXT("The first shot makes the flash component"), Gun->MuzzleSprite.Get())) {
+		Gun->Destroy();
+		return false;
+	}
+	UMaterialInterface* FlashMaterial = Gun->MuzzleSprite->GetMaterial(0);
+	TestTrue(TEXT("Flash material lets the weapon occlude it"), FlashMaterial && FlashMaterial->GetMaterial() && !FlashMaterial->GetMaterial()->bDisableDepthTest);
 	TestTrue(TEXT("Shot enables the world flash"), Gun->MuzzleSprite->IsVisible());
 	const double ReadyAt = World->GetTimeSeconds() + 0.1;
 	FAutomationTestFramework::Get().EnqueueLatentCommand(MakeShared<FFunctionLatentCommand>([this, World, ReadyAt, Gun]() {

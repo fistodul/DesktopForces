@@ -107,7 +107,7 @@ void AKnife::StopFire(bool bAlt) {
 }
 
 void AKnife::ServerThrow_Implementation(float Power) {
-	Throw(FMath::Clamp(Power, 0.f, 10.f));
+	Throw(ClampReleasePower(Power));
 }
 
 void AKnife::Throw(float Power) {

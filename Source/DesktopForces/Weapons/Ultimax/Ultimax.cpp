@@ -9,7 +9,6 @@ AUltimax::AUltimax() {
 	// NormalFire sleeps 0.112 s (0.45 aimed); Reload 28 @8 + 0.25
 	ViewMesh = TEXT("ultimax/UltimaxPickupCarryMesh");
 	ArmsMesh = TEXT("UltimaxPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(1.77f, -151.11f, -6.81f);
 	ArmsScale = 0.2f;

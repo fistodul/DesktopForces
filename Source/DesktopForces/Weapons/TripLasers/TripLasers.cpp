@@ -1,9 +1,6 @@
 #include "Weapons/TripLasers/TripLasers.h"
 #include "Weapons/DFDevices.h"
 #include "Core/DFProps.h"
-#include "Weapons/SentryGun/SentryGun.h"
-#include "Weapons/SeekerMines/SeekerMines.h"
-#include "Vehicles/DFVehicle.h"
 #include "Player/DFCharacter.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
@@ -75,18 +72,11 @@ void ATripLaser::CheckBeam() {
 	if (!GetWorld()->LineTraceSingleByObjectType(Hit, GetActorLocation(), BeamEnd, Objects, Params))
 		return;
 	AActor* A = Hit.GetActor();
-	const bool bPawn = Cast<APawn>(A) || Cast<IDFDevice>(A); // devices: StationaryPawns in MF
-	if (bPawn && !IsFriendlyTo(A)) {
+	if (DF::IsPawnOrDevice(A) && !IsFriendlyTo(A)) { // devices: StationaryPawns in MF
 		FPointDamageEvent Ev(bAnchored ? 280.f : 185.f, Hit, GetActorForwardVector(), UDFDamage_TripLaser::StaticClass());
 		A->TakeDamage(Ev.Damage, Ev, DF::PlacerCredit(Shooter.Get(), Team), this);
 		Destroy();
 	}
-}
-
-bool ATripLaser::IsFriendlyTo(const AActor* Other) const {
-	// TripLaser.IsFriendly: a team mate, a team's device, a vehicle with only friends in it (an
-	// empty one is no friend: it stops the beam and sets it off)
-	return DF::SideOf(Other, this, Team, PlacerState.Get()) == DF::ESide::Friend;
 }
 
 float ATripLaser::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {

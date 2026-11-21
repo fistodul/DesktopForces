@@ -9,7 +9,6 @@ AM4A1::AM4A1() {
 	// Fire01-04 3 @35 + 0.05; Reload 33 @14 + 0.25
 	ViewMesh = TEXT("m4a1/M4A1PickupCarryMesh");
 	ArmsMesh = TEXT("M4A1PlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
-	// the flash at the barrel's end, not where MF's canvas put it (DFMuzzleProbe, 2026-11-19)
 	MuzzleBone = TEXT("Body");
 	MuzzleOffset = FVector(4.54f, -84.10f, -3.63f);
 	ArmsScale = 0.2f;
@@ -17,9 +16,6 @@ AM4A1::AM4A1() {
 	RequiredContent = TEXT("Props/m4a1/M4A1PickupCarryMesh");
 	bAddToLoadout = true;
 	HUDIcon = TEXT("Textures/m4a1/Skins/M4A1image");
-	FlashY = 0.142f;
-	FlashO = -0.032f;
-	FlashS = 62.f;
 	HUDIconRect = FIntRect(0, 203, 120, 263); // WeaponIcon X=0 Y=203 W=120 H=60
 	DisplayName = LOCTEXT("M4A1", "M4A1");
 	InventoryGroup = 3;
