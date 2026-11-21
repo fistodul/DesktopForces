@@ -230,6 +230,7 @@ void ADFVehicle::BeginPlay() {
 	if (HasAuthority()) {
 		const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
 		bTurbo = GM && GM->bTurboCars;
+		NitroLeft = NitroTank;
 		Body->SetMassOverrideInKg(NAME_None, MassKg, true);
 		Body->SetCenterOfMass(CenterOfMass);
 		Body->SetLinearDamping(0.02f);
@@ -462,7 +463,7 @@ void ADFVehicle::SimulateWheels(float Dt) {
 	// TurboCars: crouch held in the driver's seat, below the nitro top speed. It drives like the
 	// throttle: the wheels must not hold or coast-brake against it (braking steered wheels pull
 	// the nose the other way, so nitro alone steered backwards)
-	const bool bNitroOn = bTurbo && bNitro && Driver && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed;
+	const bool bNitroOn = bTurbo && bNitro && !bNitroDry && Driver && NitroAccel > 0.f && FMath::Abs(Speed) < NitroMaxSpeed;
 	const bool bCoasting = FMath::IsNearlyZero(Throttle) && !bNitroOn;
 	int32 Grounded = 0;
 	for (int32 i = 0; i < Wheels.Num(); ++i) {
@@ -529,8 +530,14 @@ void ADFVehicle::SimulateWheels(float Dt) {
 		WheelSpin[i] += VLong / FMath::Max(W.Radius, 1.f) * Dt;
 	}
 	SimulateDrive(Dt);
-	if (bNitroOn && Grounded > 0)
-		Body->AddForce(Fwd * MassKg * NitroAccel);
+	if (bNitroOn && Grounded > 0) {
+		Body->AddForce(Fwd * MassKg * NitroAccel * NitroBoost);
+		NitroLeft -= Dt;
+		bNitroDry = NitroLeft <= 0.f;
+	} else if (!bNitroOn) {
+		NitroLeft = FMath::Min(NitroTank, NitroLeft + Dt * NitroTank / FMath::Max(NitroRefill, 0.1f));
+		bNitroDry &= NitroLeft < NitroTank * 0.25f;
+	}
 	// air drag caps the top speed: at TopSpeed (MF MaxSpeed) the engine just matches drag plus
 	// rolling resistance; some downforce keeps it planted
 	const FVector Vel = Body->GetPhysicsLinearVelocity();
@@ -928,7 +935,7 @@ int32 ADFVehicle::ScaleDamage(float Damage, const UDFDamageType* Type, AControll
 	// the damage type says how much reaches the hull (UDFDamageType::VehicleDamageScale: MF
 	// Vehicle.TakeDamage x 1.5 for explosives, the servers' changeDamage for the rest), then
 	// Physical's armour; bulletproof hulls ignore gunpowder; bots do a fifth (changeDamage)
-	if (!Type || (Type->bBallistic && bBulletproof))
+	if (!Type || (Type->bBallistic && bBulletproof && !Type->bArmourPiercing))
 		return 0;
 	const ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>();
 	float D = Damage * Type->VehicleDamageScale * (1.f - Armour);

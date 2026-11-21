@@ -63,6 +63,7 @@ namespace {
 			}
 			Test->TestTrue(TEXT("A vehicle at KillSpeed runs the turret down"), !Turrets[0].IsValid() || !Turrets[0]->IsWorking() || Turrets[0]->IsActorBeingDestroyed());
 			Test->TestTrue(TEXT("A slow vehicle leaves the turret standing"), Turrets[1].IsValid() && Turrets[1]->IsWorking());
+			Test->TestTrue(TEXT("The turret's blast hurts the car that ran it down"), Cars[0].IsValid() && Cars[0]->Health < GetDefault<ABuggy>()->Health);
 			Cleanup();
 			return true;
 		}

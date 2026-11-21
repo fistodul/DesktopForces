@@ -21,7 +21,7 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 | Swim speed / ladder speed | 200 / 200 | 450 / 450 |
 | Health | 100 | 100 |
 | FOV | 100 | 100 |
-| Fall damage | below −750 uu/s: 100 × ((Vz+750)/(−450))², dead at −1200 | same in cm/s |
+| Fall damage | below −750 uu/s: 100 × ((Vz+750)/(−450))², dead at −1200 | same in cm/s; dead at −1200 whatever the health (see hazards below) |
 | Carry | 6 blocks; speed −5%/block, min 50% | same |
 | Headshot | hit Z − centre Z > 0.8 × half-height | same |
 | Recoil | AddRecoil(RecoilPower×6); per frame pitch += r×20 rot units, yaw ±r×20, r halves | stepped at 30 Hz |
@@ -52,6 +52,11 @@ WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for Under
 20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
 hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
 heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigisland's current).
+Map hazards (falls, pain zones, damage triggers, drowning) were made for 100-health soldiers:
+DF makes a single hazard hit of 100 or more lethal to anyone, whatever their health or armour
+(a 333-health zombie at the bottom of a death pit, a fall past −1200, DM-Office's 9000/s
+zone, MF-BangBashV2's 3000 trigger). Lesser hazards, the ones you can get out of
+(mf-Prehistoric's 40/s, the 5-50 triggers, a short fall), stay as they were.
 Gravity zones (bGravityZone, ZoneGravity) pull soldiers their own way: mf-warehouse's roof vents
 are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's push sideways.
 
@@ -364,7 +369,10 @@ drifts in between - or roams; hums within 225 uu (a pawn's ambient sound default
 its team's colour, beeps as a hunt starts), **Sentry Gun** (group 11, carry 3, 2 out: placed in
 front on flat ground, the HMG on its tripod; shoots the nearest enemy in sight within 1900 uu
 with tracers, 20 a round, 850 rounds; 80 health, blows up 85 r250; vehicles go through it, and
-one at its kill speed runs it down unless a friend of the turret drives). Both are on the side they were placed for -
+one at its kill speed runs it down unless a friend of the turret drives). DF: its rounds are
+armour-piercing (an Armadillo takes 1 a shot; MF's left bulletproof hulls alone) and its blast
+is an explosion, so the car that rams it takes a hit (MF's used the gun's own damage, which
+vehicles ignored). An enclosed driver stays behind the hull. Both are on the side they were placed for -
 your team in team games (switching teams doesn't take them along), only you in the others,
 still you after you respawn - and go for every enemy thing: soldiers, vehicles with an enemy
 inside, the other side's sentry turrets and seeker mines; their placer driving counts as
@@ -454,7 +462,10 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   replaceVehicles; `?TurboCars=0` off): drivers hold Crouch (Ctrl / C) for nitro, pushing
   forward on the ground up to the vehicle's nitro top speed (Buggy 50 m/s, Humvee 40,
   Armadillo 50, Truck 40 (TurboTruck); trailer cabs never had it). Nitro drives like the
-  throttle: steering works the same with it alone.
+  throttle: steering works the same with it alone. DF pushes 1.5 × MF's nitroScale from a tank:
+  5 s of nitro, refilling from empty in 8 s when not in use, and once dry it fires again at a
+  quarter full. No gauge. Measured on flat ground (`VehicleHandling`): Armadillo 47 → 90 km/h,
+  Buggy 95 → 133, Humvee 78 → 133, Truck 68 → 117 (MF's unlimited nitro: 77 / 113 / 113 / 105).
 - Hits (MF Vehicle / Physical.TakeDamage): every hit clangs (MiscSFX.HitMetal) and shoves the
   car by √momentum (knife slashes and bullets a little, rockets a lot; pellets 40 % of the
   time). Bullets and knives hit the model itself, not a box around it. Soldiers can't push cars

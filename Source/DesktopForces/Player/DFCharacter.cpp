@@ -358,13 +358,18 @@ float ADFCharacter::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AC
 	Damage *= DF::RadialDamageScale(DamageEvent, GetActorLocation(), GetCapsuleComponent()->GetScaledCapsuleRadius());
 	if (Damage <= 0.f)
 		return 0.f;
-	if (ADFGameMode* GM = GetWorld()->GetAuthGameMode<ADFGameMode>()) {
+	const UDFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UDFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
+	// A map hazard that hits for 100 or more was built to kill MF's 100-health soldiers outright
+	// (a fall past FallDeathThreshold, a 900/s pain zone, a 3000 damage trigger), often at the
+	// bottom of a pit with no way out: it kills anyone, whatever their health (zombies, battle
+	// royale) or armour. Lesser hazards, the kind you get out of, stay as they are.
+	const bool bLethalHazard = Type && Type->bHazard && Damage >= 100.f;
+	if (ADFGameMode* GM = bLethalHazard ? nullptr : GetWorld()->GetAuthGameMode<ADFGameMode>()) {
 		Damage = GM->ModifyDamage(Damage, this, EventInstigator, DamageCauser);
 		if (Damage <= 0.f)
 			return 0.f;
 	}
-	const UDFDamageType* Type = DamageEvent.DamageTypeClass ? Cast<UDFDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject()) : nullptr;
-	const int32 Applied = AbsorbWithArmour(FMath::RoundToInt(Damage), Type);
+	const int32 Applied = bLethalHazard ? FMath::Max(Health, 1) : AbsorbWithArmour(FMath::RoundToInt(Damage), Type);
 	Health -= Applied;
 	// PlayTakeHitSound: 0.3 s apart; damage x rand < 8 light, < 25 medium, else heavy
 	if (Applied > 0 && Health > 0 && GetWorld()->GetTimeSeconds() - LastPainSound >= 0.3f) {

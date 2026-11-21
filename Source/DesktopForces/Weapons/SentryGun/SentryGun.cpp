@@ -45,6 +45,9 @@ UDFDamage_Sentry::UDFDamage_Sentry() {
 	DeathVerb = LOCTEXT("Shredded", "shredded");
 	VehicleDamageScale = 0.125f; // gun rounds: like bullets
 	bBallistic = true;
+	// DF: armour-piercing. MF's rounds left bulletproof APCs alone (Filip, 2026-11-21: an
+	// Armadillo parked in front of a turret took nothing); 1 a shot on the Armadillo
+	bArmourPiercing = true;
 	bHitsPetrolCap = true;
 }
 
@@ -271,8 +274,10 @@ void ASentryTurret::BlowUp() {
 	GetWorldTimerManager().ClearTimer(Timer);
 	const FVector At = GetActorLocation() + FVector(0.f, 0.f, 22.5f);
 	TArray<AActor*> Ignore{ this };
+	// DF: an explosion. MF hurt with the gun's own 'SentryGunDOTSentryGun', which vehicles
+	// ignored: ramming a turret at speed blew it up without a scratch on the car
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, 85.f, 0.f, At, 0.f, 562.5f, 1.f,
-		UDFDamage_Sentry::StaticClass(), Ignore, this, Credit(), ECC_Visibility); // MF HurtRadius(85, 250)
+		UDFDamage_Explosion::StaticClass(), Ignore, this, Credit(), ECC_Visibility); // MF HurtRadius(85, 250)
 	ADFEffectActor::Spawn(GetWorld(), TEXT("Explosion"), At, 1.f); // AddExplosionServer(Size 2.5)
 	Destroy();
 }

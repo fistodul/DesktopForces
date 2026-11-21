@@ -10,7 +10,10 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Zone : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Zone() { bBypassArmour = true; }
+	UDFDamage_Zone() {
+		bBypassArmour = true;
+		bHazard = true;
+	}
 };
 
 /**

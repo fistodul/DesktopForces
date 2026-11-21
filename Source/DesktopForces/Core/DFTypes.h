@@ -39,10 +39,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicles")
 	bool bBallistic = false;
 
+	/** Gunpowder that gets through a bulletproof hull anyway (still VehicleDamageScale x
+	 *  (1 - Armour)): sentry turret rounds, so an APC can't sit in front of one for free. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicles")
+	bool bArmourPiercing = false;
+
 	/** Can hit a vehicle's petrol cap (150 of it and the vehicle blows up): MF's bullets and
 	 *  pellets; a knife too (its one way to hurt a vehicle). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicles")
 	bool bHitsPetrolCap = false;
+
+	/** The map's own hurt (falls, pain zones, damage triggers, drowning). MF made these for
+	 *  100-health soldiers: a single hit of 100 or more kills anyone outright (ADFCharacter::
+	 *  TakeDamage), the rest stays as it is. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF")
+	bool bHazard = false;
 
 	/** Armour does not absorb this ('Drowned', 'Fell' in RageArmour.ArmorAbsorbDamage). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
@@ -97,7 +108,8 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Explosion : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Explosion() { SuicideLine = NSLOCTEXT("MF", "ExplosionLine", " was blown up.");
+	UDFDamage_Explosion() {
+		SuicideLine = NSLOCTEXT("MF", "ExplosionLine", " was blown up.");
 		bExplosive = true;
 		VehicleDamageScale = 1.5f;
 	}
@@ -107,14 +119,22 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Fell : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Fell() { SuicideLine = NSLOCTEXT("MF", "FellLine", " left a small crater."); bBypassArmour = true; }
+	UDFDamage_Fell() {
+		SuicideLine = NSLOCTEXT("MF", "FellLine", " left a small crater.");
+		bBypassArmour = true;
+		bHazard = true;
+	}
 };
 /** 'Drowned' */
 UCLASS()
 class DESKTOPFORCES_API UDFDamage_Drowned : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Drowned() { SuicideLine = NSLOCTEXT("MF", "DrownedLine", " forgot to come up for air."); bBypassArmour = true; }
+	UDFDamage_Drowned() {
+		SuicideLine = NSLOCTEXT("MF", "DrownedLine", " forgot to come up for air.");
+		bBypassArmour = true;
+		bHazard = true;
+	}
 };
 /** 'Crushed' - movers, vehicles running players over. */
 UCLASS()
@@ -126,7 +146,10 @@ UCLASS()
 class DESKTOPFORCES_API UDFDamage_Suicide : public UDFDamageType {
 	GENERATED_BODY()
 public:
-	UDFDamage_Suicide() { SuicideLine = NSLOCTEXT("MF", "SuicideLine", " had a sudden heart attack."); bBypassArmour = true; }
+	UDFDamage_Suicide() {
+		SuicideLine = NSLOCTEXT("MF", "SuicideLine", " had a sudden heart attack.");
+		bBypassArmour = true;
+	}
 };
 
 /** Team orders, in MF orders menu order (Rage.int OrderAbbrev 0-4; RageBot orders). */

@@ -315,6 +315,16 @@ protected:
 	float NitroAccel = 600.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
 	float NitroMaxSpeed = 4000.f;
+	/** DF: nitro pushes this many times TurboCars' NitroAccel, but from a tank (Filip,
+	 *  2026-11-21: the Armadillo's turbo was worth ~15 km/h). MF's was unlimited and weaker. */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float NitroBoost = 1.5f;
+	/** Seconds of nitro a full tank holds; it refills from empty in NitroRefill seconds while
+	 *  not in use, and once run dry fires again only at a quarter full (no stutter). */
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float NitroTank = 5.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
+	float NitroRefill = 8.f;
 
 	/** MF PetrolCapPos / PetrolCapRadius (body space, cm): bullets and pellets there (150) blow it up. */
 	UPROPERTY(EditDefaultsOnly, Category = "Vehicle")
@@ -442,6 +452,9 @@ protected:
 	float LastInputTime = -100.f;
 	bool bNitro = false;
 	bool bTurbo = false;
+	/** Nitro left in the tank (s; server: clients don't simulate the body). */
+	float NitroLeft = 0.f;
+	bool bNitroDry = false;
 	bool bDriverFire = false;
 	bool bDriverAltFire = false;
 	/** Engine loop pitch (1 = as recorded). Car: SoundPitch 64 + 2 x speed / 60 uu/s. */
