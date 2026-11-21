@@ -5,6 +5,7 @@
 #include "Core/DFTypes.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/DFWeapons.h"
+#include "Weapons/DFDevices.h"
 #include "SeekerMines.generated.h"
 
 class ADFCharacter;
@@ -30,12 +31,13 @@ public:
  * by an AIController.
  */
 UCLASS()
-class DESKTOPFORCES_API ASeekerMine : public APawn {
+class DESKTOPFORCES_API ASeekerMine : public APawn, public IDFDevice {
 	GENERATED_BODY()
 
 public:
-	uint8 GetPlacedTeam() const { return PlacedTeam; }
-	bool IsDetonated() const { return bDetonating || bDetonated; }
+	virtual uint8 GetPlacedTeam() const override { return PlacedTeam; }
+	virtual const APlayerState* GetPlacer() const override { return PlacerState.Get(); }
+	virtual bool IsWorking() const override { return !bDetonating && !bDetonated; }
 	ASeekerMine();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

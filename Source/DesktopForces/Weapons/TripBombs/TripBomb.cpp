@@ -9,6 +9,7 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerState.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
@@ -27,6 +28,10 @@ ATripBomb::ATripBomb() {
 	Body->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	Body->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	RootComponent = Body;
+	Model = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Model"));
+	Model->SetupAttachment(Body);
+	Model->SetUsingAbsoluteScale(true); // not the hit box's
+	Model->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Beam = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Beam"));
 	Beam->SetupAttachment(Body);
 	Beam->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -54,7 +59,13 @@ bool ATripBomb::IsFriendlyTo(const AActor* Other) const {
 
 void ATripBomb::BeginPlay() {
 	Super::BeginPlay();
+	// TripBomb: Mesh TripBombMesh, its back on the wall (we stand 6 cm off it)
+	if (DF::ApplyPropMesh(Model, TEXT("RageWeapons/TripBombMesh"))) {
+		Model->SetWorldLocation(GetActorLocation() - GetActorForwardVector() * 6.f); // not scaled by the hit box
+		Body->SetVisibility(false, false);
+	}
 	Shooter = GetInstigatorController(); // the planter may be dead when it goes off
+	PlacerState = Shooter.IsValid() ? Shooter->PlayerState : nullptr;
 	if (HasAuthority())
 		GetWorldTimerManager().SetTimer(Timer, this, &ATripBomb::Arm, 1.f, false); // MF: SetTimer(1)
 }
@@ -129,6 +140,7 @@ void ATripBomb::MulticastExplodeFX_Implementation(FVector_NetQuantize At) {
 // --- thrown proximity mine -------------------------------------------------------------
 
 ATripMine::ATripMine() {
+	ClassicImpactSound = TEXT("WeaponSFX_TripBombs.Bounce"); // TripBombThrown.ImpactSound
 	Movement->InitialSpeed = 1125.f; // MF ThrowPower * 125 (overridden by the throw)
 	Movement->MaxSpeed = 2250.f;
 	Movement->ProjectileGravityScale = 1.f;
@@ -149,6 +161,10 @@ ATripMine::ATripMine() {
 
 void ATripMine::BeginPlay() {
 	Super::BeginPlay();
+	if (const ADFCharacter* Thrower = Cast<ADFCharacter>(GetInstigator())) {
+		PlacedTeam = Thrower->GetTeam();
+		PlacerState = Thrower->GetEffectivePlayerState();
+	}
 	if (HasAuthority()) {
 		// Arm after a moment so the thrower can get away; then scan at 10 Hz
 		GetWorldTimerManager().SetTimer(ProximityTimer, this, &ATripMine::CheckProximity, 0.1f, true, 1.5f);

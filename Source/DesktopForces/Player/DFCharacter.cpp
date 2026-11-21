@@ -220,13 +220,16 @@ void ADFCharacter::Destroyed() {
 
 // --- team / camera -----------------------------------------------------------------
 
+APlayerState* ADFCharacter::GetEffectivePlayerState() const {
+	if (APlayerState* PS = GetPlayerState())
+		return PS;
+	// riding in a vehicle: the controller (and its player state) is on the vehicle
+	const APawn* Ride = Cast<APawn>(GetAttachParentActor());
+	return Ride ? Ride->GetPlayerState() : nullptr;
+}
+
 uint8 ADFCharacter::GetTeam() const {
-	const ADFPlayerState* PS = GetPlayerState<ADFPlayerState>();
-	if (!PS) {
-		// riding in a vehicle: the controller (and its player state) is on the vehicle
-		if (const APawn* Ride = Cast<APawn>(GetAttachParentActor()))
-			PS = Ride->GetPlayerState<ADFPlayerState>();
-	}
+	const ADFPlayerState* PS = Cast<ADFPlayerState>(GetEffectivePlayerState());
 	return PS ? PS->GetTeam() : DF::NoTeam;
 }
 

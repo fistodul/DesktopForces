@@ -20,7 +20,7 @@ AArmadillo::AArmadillo() {
 	// Filip, 2026-11-19: too hard to turn on the move. Its top speed is low (30 mph), so the
 	// fade to 45 % of the lock at top speed cut in at walking-car speeds; 13 m/s turned it
 	// 50 deg/s where the Humvee did 80
-	SteerAtTopSpeed = 0.8f;
+	SteerAtTopSpeed = 0.65f; // Filip: 0.8 felt uncanny; a little under the Humvee's turn
 	WheelTurnShown = 0.15f; // the skirts
 	FlagPosition = FVector(-168.75f, 85.5f, 180.f); // FlagPos x 2.25
 	Armour = 0.84f;

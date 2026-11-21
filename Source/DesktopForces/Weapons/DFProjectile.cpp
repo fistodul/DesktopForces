@@ -77,7 +77,7 @@ void ADFProjectile::BeginPlay() {
 		DF::PlayLoop(RootComponent, ClassicAmbientSound);
 		if (!TrailEffect.IsEmpty())
 			Trail = DF::SpawnEffectAttached(*TrailEffect, RootComponent, 1.f, true);
-		if (bTicking && !bExplodeOnImpact) { // one that goes off where it lands has no fuse to hear
+		if (bTicking) {
 			FTimerHandle Tick;
 			GetWorldTimerManager().SetTimer(Tick, FTimerDelegate::CreateWeakLambda(this, [this]() {
 				if (GetGameTimeSinceCreation() < 3.5f)
@@ -114,7 +114,18 @@ void ADFProjectile::OnStop(const FHitResult& Hit) {
 		Explode(Hit.ImpactPoint, Hit.ImpactNormal);
 }
 
+void ADFProjectile::PlayImpactSound(const FHitResult& Hit, const FVector& ImpactVelocity) {
+	// MF HitWall: PlaySound(ImpactSound, SLOT_Misc, 1.5); a roll along the floor is no knock
+	const float Speed = FMath::Abs(FVector::DotProduct(ImpactVelocity, Hit.ImpactNormal));
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (ClassicImpactSound.IsEmpty() || Speed < 120.f || Now - ImpactSoundAt < 0.1 || Cast<APawn>(Hit.GetActor()) || GetNetMode() == NM_DedicatedServer)
+		return;
+	ImpactSoundAt = Now;
+	DF::PlaySoundRadius(this, DF::LoadSound(ClassicImpactSound), Hit.ImpactPoint, FMath::Clamp(Speed / 900.f, 0.3f, 1.f), 1600.f);
+}
+
 void ADFProjectile::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
+	PlayImpactSound(Hit, ImpactVelocity);
 	if (HasAuthority() && bExplodeOnImpact)
 		Explode(Hit.ImpactPoint, Hit.ImpactNormal);
 }
@@ -173,6 +184,7 @@ ARocket::ARocket() {
 }
 
 AGrenade::AGrenade() {
+	ClassicImpactSound = TEXT("WeaponSFX_Grenades.Bounce"); // Grenade1.ImpactSound
 	Movement->InitialSpeed = 1350.f; // MF: ThrowPower * 150 uu/s (overridden by the throw)
 	Movement->MaxSpeed = 2250.f; // MF MaxSpeed 1000
 	Movement->ProjectileGravityScale = 1.f;
@@ -194,6 +206,7 @@ AGrenade::AGrenade() {
 }
 
 AImpactGrenade::AImpactGrenade() {
+	bTicking = false; // only Grenade1 ticks
 	FuseTime = 8.f; // MF Grenade2.FuseTime
 	bExplodeOnImpact = true;
 	Damage = 120.f;
@@ -201,6 +214,7 @@ AImpactGrenade::AImpactGrenade() {
 }
 
 AThrownKnife::AThrownKnife() {
+	ClassicImpactSound = TEXT("WeaponSFX_Knife.HitWall"); // Knife_Thrown.HitWall
 	Movement->InitialSpeed = 3375.f; // RageKnife.ThrowKnife: ProjectileSpeed 10 * 150 uu/s
 	Movement->MaxSpeed = 0.f; // (Knife_Thrown.MaxSpeed 1000 never applied: PHYS_Falling)
 	Movement->ProjectileGravityScale = 1.f; // PHYS_Falling
@@ -269,8 +283,7 @@ void AThrownKnife::OnRep_Safe() {
 // a soldier, a vehicle, or a device left behind (sentry turret, seeker mine, trip laser): MF's
 // knife hurts anything that isn't level geometry (Dangerous.ProcessTouch -> TakeDamage)
 static bool IsKnifeVictim(const AActor* A) {
-	uint8 Team;
-	return Cast<APawn>(A) || DF::GetPlacedTeam(A, Team);
+	return Cast<APawn>(A) || Cast<IDFDevice>(A);
 }
 
 void AThrownKnife::HitVictim(AActor* Other, const FHitResult& Hit) {
@@ -327,9 +340,8 @@ void AThrownKnife::OnKnifeBounce(const FHitResult& Hit, const FVector& ImpactVel
 		return;
 	}
 	// HitWall -> Stick, floors too: with bBounce, UE1 falling physics calls HitWall for every
-	// surface (MF's grenades bounce off floors the same way), so Landed and Bounce never ran
-	if (USoundBase* S = DF::LoadClassic<USoundBase>(TEXT("Sounds/WeaponSFX_Knife/HitWall")))
-		DF::PlaySoundAtLocation(this, S, Hit.ImpactPoint);
+	// surface (MF's grenades bounce off floors the same way), so Landed and Bounce never ran.
+	// Its HitWall sound: ClassicImpactSound (ADFProjectile::OnBounce)
 	SetActorRotation(ImpactVelocity.Rotation());
 	BecomeSafe(Hit.GetComponent());
 }

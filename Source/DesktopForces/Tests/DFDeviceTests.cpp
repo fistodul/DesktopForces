@@ -60,8 +60,8 @@ namespace {
 				Stage = 2;
 				return false;
 			}
-			Test->TestTrue(TEXT("A vehicle at KillSpeed runs the turret down"), !Turrets[0].IsValid() || Turrets[0]->IsDead() || Turrets[0]->IsActorBeingDestroyed());
-			Test->TestTrue(TEXT("A slow vehicle leaves the turret standing"), Turrets[1].IsValid() && !Turrets[1]->IsDead());
+			Test->TestTrue(TEXT("A vehicle at KillSpeed runs the turret down"), !Turrets[0].IsValid() || !Turrets[0]->IsWorking() || Turrets[0]->IsActorBeingDestroyed());
+			Test->TestTrue(TEXT("A slow vehicle leaves the turret standing"), Turrets[1].IsValid() && Turrets[1]->IsWorking());
 			Cleanup();
 			return true;
 		}

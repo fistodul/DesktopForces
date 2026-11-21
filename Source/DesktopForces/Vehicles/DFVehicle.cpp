@@ -1101,8 +1101,7 @@ void ADFVehicle::OnBodyHit(UPrimitiveComponent* HitComp, AActor* Other, UPrimiti
 void ADFVehicle::OnPawnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep, const FHitResult& Sweep) {
 	// MF Vehicle.CheckKill (Bump): run down soldiers at KillSpeed, without making their
 	// kinematic capsules stop the rigid body. Riders and soldiers on the roof are excluded.
-	uint8 DeviceTeam;
-	if (!Cast<ADFCharacter>(Other) && DF::GetPlacedTeam(Other, DeviceTeam)) {
+	if (Cast<IDFDevice>(Other)) {
 		// SentryGunTurret.CheckVehicleRunOver: a sentry turret or a seeker mine in the way of a
 		// vehicle at KillSpeed is gone (unless a friend of it drives: the device decides)
 		const FVector Before = Body->GetPhysicsLinearVelocity();

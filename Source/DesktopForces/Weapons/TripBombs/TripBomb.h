@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Core/DFTypes.h"
 #include "Weapons/DFProjectile.h"
+#include "Weapons/DFDevices.h"
 #include "TripBomb.generated.h"
 
 class UStaticMeshComponent;
@@ -17,11 +18,14 @@ class ADFCharacter;
  * The beam is checked at 20 Hz by a timer (MF checked every tick).
  */
 UCLASS()
-class DESKTOPFORCES_API ATripBomb : public AActor {
+class DESKTOPFORCES_API ATripBomb : public AActor, public IDFDevice {
 	GENERATED_BODY()
 
 public:
 	ATripBomb();
+	virtual uint8 GetPlacedTeam() const override { return Team; }
+	virtual const APlayerState* GetPlacer() const override { return PlacerState.Get(); }
+	virtual bool IsWorking() const override { return !bExploded; }
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
@@ -36,9 +40,13 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	TWeakObjectPtr<AController> Shooter;
+	TWeakObjectPtr<APlayerState> PlacerState;
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Body;
+	/** RageWeapons' TripBombMesh (the mods' TripLaser too) on the wall; the box stays without it. */
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UStaticMeshComponent> Model;
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Beam;
@@ -68,10 +76,13 @@ protected:
  * off (a moment later: a heap of them goes up one after another).
  */
 UCLASS()
-class DESKTOPFORCES_API ATripMine : public ADFProjectile {
+class DESKTOPFORCES_API ATripMine : public ADFProjectile, public IDFDevice {
 	GENERATED_BODY()
 public:
 	ATripMine();
+	virtual uint8 GetPlacedTeam() const override { return PlacedTeam; }
+	virtual const APlayerState* GetPlacer() const override { return PlacerState.Get(); }
+	virtual bool IsWorking() const override { return !bExploded; }
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
@@ -82,6 +93,9 @@ protected:
 	void HitOtherMine(AActor* Other);
 	/** Set off by a blast or a hit: Explode a moment later (chains spread). */
 	virtual void SetOff();
+	/** The thrower's side when it was thrown. */
+	uint8 PlacedTeam = DF::NoTeam;
+	TWeakObjectPtr<APlayerState> PlacerState;
 	FTimerHandle SetOffTimer;
 	void CheckProximity();
 	/** A live pawn came close: does it set the mine off? */

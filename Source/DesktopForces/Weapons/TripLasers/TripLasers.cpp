@@ -1,4 +1,5 @@
 #include "Weapons/TripLasers/TripLasers.h"
+#include "Weapons/DFDevices.h"
 #include "Core/DFProps.h"
 #include "Weapons/SentryGun/SentryGun.h"
 #include "Weapons/SeekerMines/SeekerMines.h"
@@ -14,7 +15,12 @@
 
 UDFDamage_TripLaser::UDFDamage_TripLaser() {
 	DeathVerb = LOCTEXT("Disintegrated", "disintegrated");
-	VehicleDamageScale = 0.125f; // a burning beam: like any other non-explosive hit (changeDamage)
+	// TripLaser hits a vehicle with GetDamage() (280 anchored, 185 into the open) like a pawn.
+	// changeDamage scales it x 10 of 8000 health (x 0.125 here) unless Rage's
+	// IsExplosiveDamageType counts 'TripLasersDOTTripLasers' (x 80, no armour); that list is in
+	// Rage.u, whose script text doesn't export. Filip, 2026-11-21: one of the strongest single
+	// hits, vehicles too - as an explosive here: x 1.5 x (1 - Armour), a Humvee gone in one
+	VehicleDamageScale = 1.5f;
 }
 
 // --- planted ------------------------------------------------------------------------------
@@ -69,7 +75,7 @@ void ATripLaser::CheckBeam() {
 	if (!GetWorld()->LineTraceSingleByObjectType(Hit, GetActorLocation(), BeamEnd, Objects, Params))
 		return;
 	AActor* A = Hit.GetActor();
-	const bool bPawn = Cast<APawn>(A) || A->IsA<ASentryTurret>(); // StationaryPawn in MF
+	const bool bPawn = Cast<APawn>(A) || Cast<IDFDevice>(A); // devices: StationaryPawns in MF
 	if (bPawn && !IsFriendlyTo(A)) {
 		FPointDamageEvent Ev(bAnchored ? 280.f : 185.f, Hit, GetActorForwardVector(), UDFDamage_TripLaser::StaticClass());
 		A->TakeDamage(Ev.Damage, Ev, DF::PlacerCredit(Shooter.Get(), Team), this);
@@ -78,44 +84,9 @@ void ATripLaser::CheckBeam() {
 }
 
 bool ATripLaser::IsFriendlyTo(const AActor* Other) const {
-	// TripLaser.IsFriendly: a team mate, a team's device, a vehicle with only friends in it
-	if (!Other || Other == this)
-		return true;
-	const bool bTeams = Team != DF::NoTeam;
-	auto Friend = [&](const ADFCharacter* P) {
-		return !P->IsAlive() || (bTeams ? P->GetTeam() == Team : P == GetInstigator());
-	};
-	uint8 DeviceTeam = DF::NoTeam;
-	bool bDevice = true;
-	if (const ATripBomb* Bomb = Cast<ATripBomb>(Other))
-		DeviceTeam = Bomb->Team;
-	else if (const ATripLaserMine* Mine = Cast<ATripLaserMine>(Other))
-		DeviceTeam = Mine->GetPlacedTeam();
-	else if (const ASeekerMine* Seeker = Cast<ASeekerMine>(Other))
-		DeviceTeam = Seeker->GetPlacedTeam();
-	else if (const ASentryTurret* Sentry = Cast<ASentryTurret>(Other))
-		DeviceTeam = Sentry->GetTeam();
-	else
-		bDevice = false;
-	if (bDevice)
-		return bTeams ? DeviceTeam == Team : Other->GetInstigator() == GetInstigator();
-	if (const ADFVehicle* V = Cast<ADFVehicle>(Other)) {
-		bool bFoundFriend = false;
-		TArray<ADFCharacter*> Riders;
-		if (ADFCharacter* Driver = V->GetDriver())
-			Riders.Add(Driver);
-		for (ADFCharacter* P : V->GetPassengers())
-			if (P)
-				Riders.AddUnique(P);
-		for (const ADFCharacter* P : Riders) {
-			if (!Friend(P))
-				return false;
-			bFoundFriend = true;
-		}
-		return bFoundFriend;
-	}
-	const ADFCharacter* C = Cast<ADFCharacter>(Other);
-	return C && Friend(C);
+	// TripLaser.IsFriendly: a team mate, a team's device, a vehicle with only friends in it (an
+	// empty one is no friend: it stops the beam and sets it off)
+	return DF::SideOf(Other, this, Team, PlacerState.Get()) == DF::ESide::Friend;
 }
 
 float ATripLaser::TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) {
@@ -130,14 +101,8 @@ ATripLaserMine::ATripLaserMine() {
 	InitialLifeSpan = 480.f;
 }
 
-void ATripLaserMine::BeginPlay() {
-	Super::BeginPlay();
-	if (const ADFCharacter* Planter = Cast<ADFCharacter>(GetInstigator()))
-		PlacedTeam = Planter->GetTeam();
-}
-
 bool ATripLaserMine::ShouldTrigger(const ADFCharacter* Who) const {
-	return Who && Who != GetInstigator() && (PlacedTeam == DF::NoTeam || Who->GetTeam() != PlacedTeam);
+	return DF::SideOf(Who, this, PlacedTeam, PlacerState.Get()) == DF::ESide::Enemy; // TripLaserOnGround.IsFriendly
 }
 
 void ATripLaserMine::Trigger(ADFCharacter* Who) {

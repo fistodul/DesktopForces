@@ -43,15 +43,12 @@ class DESKTOPFORCES_API ATripLaserMine : public ATripMine {
 	GENERATED_BODY()
 public:
 	ATripLaserMine();
-	uint8 GetPlacedTeam() const { return PlacedTeam; }
 
 protected:
-	virtual void BeginPlay() override;
 	virtual bool ShouldTrigger(const ADFCharacter* Who) const override;
 	virtual void Trigger(ADFCharacter* Who) override;
 	/** It has no blast: a hit or a mine landing on it just breaks it. */
 	virtual void SetOff() override;
-	uint8 PlacedTeam = DF::NoTeam;
 };
 
 /** Trip Lasers (TripLasers extends TripBombs): 3 per pick, at most 10 out per player. */

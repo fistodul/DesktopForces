@@ -211,6 +211,9 @@ public:
 	/** Team id from the player state (DF::NoTeam in deathmatch). */
 	UFUNCTION(BlueprintPure, Category = "DF")
 	uint8 GetTeam() const;
+	/** The player state this soldier plays under: their own, or while driving the vehicle's (the
+	 *  controller sits on the vehicle). */
+	class APlayerState* GetEffectivePlayerState() const;
 
 	// IGenericTeamAgentInterface (AI perception, team checks)
 	virtual FGenericTeamId GetGenericTeamId() const override { return FGenericTeamId(GetTeam()); }

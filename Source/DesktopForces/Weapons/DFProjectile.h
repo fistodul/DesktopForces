@@ -68,6 +68,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float ExplosionEffectScale = 0.f;
 
+	/** HitWall's ImpactSound ("Package.Name"): each bounce off something that isn't a pawn,
+	 *  louder the harder it hits, on every machine (Grenade1: Grenades.Bounce, TripBombThrown:
+	 *  TripBombs.Bounce, Knife_Thrown: Knife.HitWall). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FString ClassicImpactSound;
+
 	/** Looping sound on the way ("Package.Name", MF AmbientSound: the rocket's RocketFly). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicAmbientSound;
@@ -123,6 +129,8 @@ protected:
 	void MulticastExplosionFX(FVector_NetQuantize Location);
 
 	bool bExploded = false;
+	void PlayImpactSound(const FHitResult& Hit, const FVector& ImpactVelocity);
+	double ImpactSoundAt = -1.0;
 };
 
 /** RageWeapons.Rocket: 1200 uu/s, 135 damage, radius 400. */

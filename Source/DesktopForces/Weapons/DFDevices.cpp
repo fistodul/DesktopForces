@@ -4,7 +4,6 @@
 #include "Vehicles/DFVehicle.h"
 #include "Weapons/SeekerMines/SeekerMines.h"
 #include "Weapons/SentryGun/SentryGun.h"
-#include "Weapons/TripLasers/TripLasers.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -12,17 +11,10 @@
 #include "GameFramework/PlayerState.h"
 
 bool DF::GetPlacedTeam(const AActor* A, uint8& OutTeam) {
-	if (const ASeekerMine* M = Cast<ASeekerMine>(A))
-		OutTeam = M->GetPlacedTeam();
-	else if (const ASentryTurret* S = Cast<ASentryTurret>(A))
-		OutTeam = S->GetTeam();
-	else if (const ATripLaser* L = Cast<ATripLaser>(A))
-		OutTeam = L->Team;
-	else if (const ATripLaserMine* G = Cast<ATripLaserMine>(A))
-		OutTeam = G->GetPlacedTeam();
-	else
-		return false;
-	return true;
+	const IDFDevice* Device = Cast<IDFDevice>(A);
+	if (Device)
+		OutTeam = Device->GetPlacedTeam();
+	return Device != nullptr;
 }
 
 bool DF::IsDeviceTargetAlive(const AActor* A) {
@@ -30,13 +22,10 @@ bool DF::IsDeviceTargetAlive(const AActor* A) {
 		return false;
 	if (const ADFCharacter* C = Cast<ADFCharacter>(A))
 		return C->IsAlive();
-	if (const ASentryTurret* S = Cast<ASentryTurret>(A))
-		return !S->IsDead();
-	if (const ASeekerMine* M = Cast<ASeekerMine>(A))
-		return !M->IsDetonated();
 	if (const ADFVehicle* V = Cast<ADFVehicle>(A))
 		return V->Health > 0 && !V->IsBlownUp();
-	return true;
+	const IDFDevice* Device = Cast<IDFDevice>(A);
+	return !Device || Device->IsWorking();
 }
 
 bool DF::IsSoldierFriendly(const ADFCharacter* C, uint8 Team, const APlayerState* Placer) {
@@ -44,49 +33,37 @@ bool DF::IsSoldierFriendly(const ADFCharacter* C, uint8 Team, const APlayerState
 		return true;
 	if (Team != DF::NoTeam)
 		return C->GetTeam() == Team;
-	// whoever drives has no player state of their own: the controller is on the vehicle
-	const APlayerState* PS = C->GetPlayerState();
-	if (!PS)
-		if (const APawn* Ride = Cast<APawn>(C->GetAttachParentActor()))
-			PS = Ride->GetPlayerState();
-	return Placer && PS == Placer;
+	return Placer && C->GetEffectivePlayerState() == Placer;
 }
 
-uint8 DF::VehicleStatus(const ADFVehicle* V, uint8 Team, const APlayerState* Placer) {
-	if (!V)
-		return 0;
-	bool bFriend = false;
-	auto Check = [&](const ADFCharacter* C) {
-		if (!C)
-			return false;
-		if (!IsSoldierFriendly(C, Team, Placer))
-			return true;
-		bFriend = true;
-		return false;
-	};
-	if (Check(V->GetDriver()))
-		return 2;
-	for (const ADFCharacter* P : V->GetPassengers())
-		if (Check(P))
-			return 2;
-	return bFriend ? 1 : 0;
-}
-
-bool DF::IsDeviceFriendly(const AActor* Other, const AActor* Device, uint8 Team, const APlayerState* Placer) {
+DF::ESide DF::SideOf(const AActor* Other, const AActor* Device, uint8 Team, const APlayerState* Placer) {
 	if (!Other || Other == Device)
-		return true;
-	uint8 OtherTeam;
-	if (GetPlacedTeam(Other, OtherTeam)) {
+		return ESide::Friend;
+	if (const IDFDevice* OtherDevice = Cast<IDFDevice>(Other)) {
 		if (Team != DF::NoTeam)
-			return OtherTeam == Team;
-		const APawn* OtherPlacer = Other->GetInstigator();
-		return OtherPlacer == Device->GetInstigator() || (Placer && OtherPlacer && OtherPlacer->GetPlayerState() == Placer);
+			return OtherDevice->GetPlacedTeam() == Team ? ESide::Friend : ESide::Enemy;
+		return Placer && OtherDevice->GetPlacer() == Placer ? ESide::Friend : ESide::Enemy;
 	}
-	if (const ADFVehicle* V = Cast<ADFVehicle>(Other))
-		return VehicleStatus(V, Team, Placer) != 2;
+	if (const ADFVehicle* V = Cast<ADFVehicle>(Other)) {
+		// GetVehicleStatus: an enemy inside makes it an enemy, only friends a friend
+		bool bFriend = false;
+		auto Rider = [&](const ADFCharacter* C) {
+			if (!C)
+				return false;
+			const bool bFriendly = IsSoldierFriendly(C, Team, Placer);
+			bFriend |= bFriendly;
+			return !bFriendly;
+		};
+		if (Rider(V->GetDriver()))
+			return ESide::Enemy;
+		for (const ADFCharacter* P : V->GetPassengers())
+			if (Rider(P))
+				return ESide::Enemy;
+		return bFriend ? ESide::Friend : ESide::Neutral;
+	}
 	if (const ADFCharacter* C = Cast<ADFCharacter>(Other))
-		return IsSoldierFriendly(C, Team, Placer);
-	return true;
+		return IsSoldierFriendly(C, Team, Placer) ? ESide::Friend : ESide::Enemy;
+	return ESide::Neutral;
 }
 
 AActor* DF::FindDeviceTarget(const AActor* Device, uint8 Team, const APlayerState* Placer, float Range, TFunctionRef<bool(const AActor*)> Usable) {
@@ -95,7 +72,7 @@ AActor* DF::FindDeviceTarget(const AActor* Device, uint8 Team, const APlayerStat
 	const FVector From = Device->GetActorLocation();
 	auto Consider = [&](AActor* A) {
 		const float D = FVector::Dist(From, A->GetActorLocation());
-		if (D < BestDist && IsDeviceTargetAlive(A) && !IsDeviceFriendly(A, Device, Team, Placer) && Usable(A)) {
+		if (D < BestDist && IsDeviceTargetAlive(A) && SideOf(A, Device, Team, Placer) == ESide::Enemy && Usable(A)) {
 			BestDist = D;
 			Best = A;
 		}
@@ -116,9 +93,13 @@ AActor* DF::FindDeviceTarget(const AActor* Device, uint8 Team, const APlayerStat
 bool DF::IsRunOverByFriend(const FDamageEvent& Event, const AController* Driver, const AActor* Device, uint8 Team, const APlayerState* Placer) {
 	if (!Event.DamageTypeClass || !Event.DamageTypeClass->IsChildOf(UDFDamage_RunOver::StaticClass()))
 		return false;
-	const ADFCharacter* C = Driver ? Cast<ADFCharacter>(Driver->GetPawn()) : nullptr;
-	if (!C)
-		if (const ADFVehicle* V = Driver ? Cast<ADFVehicle>(Driver->GetPawn()) : nullptr)
-			C = V->GetDriver();
-	return C && C->IsAlive() && IsSoldierFriendly(C, Team, Placer);
+	// the vehicle's controller is its driver's: their player state is on it
+	if (!Driver || !Driver->PlayerState)
+		return false;
+	if (Team != DF::NoTeam) {
+		const ADFVehicle* V = Cast<ADFVehicle>(Driver->GetPawn());
+		const ADFCharacter* C = V ? V->GetDriver() : Cast<ADFCharacter>(Driver->GetPawn());
+		return C && IsSoldierFriendly(C, Team, Placer);
+	}
+	return Driver->PlayerState == Placer;
 }

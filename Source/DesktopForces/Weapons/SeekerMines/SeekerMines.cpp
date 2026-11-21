@@ -131,7 +131,7 @@ void ASeekerMine::BeginPlay() {
 }
 
 bool ASeekerMine::IsFriendly(const AActor* Other) const {
-	return DF::IsDeviceFriendly(Other, this, PlacedTeam, PlacerState.Get());
+	return DF::SideOf(Other, this, PlacedTeam, PlacerState.Get()) != DF::ESide::Enemy;
 }
 
 AActor* ASeekerMine::FindBestTarget() const {
@@ -267,6 +267,7 @@ void ASeekerMine::BlowUp() {
 // --- thrown -----------------------------------------------------------------------------------
 
 ASeekerMineThrown::ASeekerMineThrown() {
+	ClassicImpactSound = TEXT("WeaponSFX_TripBombs.Bounce"); // SeekerMineThrown extends TripBombThrown
 	Movement->InitialSpeed = 2700.f; // MF speed 1200 uu/s (the throw sets it)
 	Movement->MaxSpeed = 6750.f; // MF MaxSpeed 3000
 	Movement->ProjectileGravityScale = 1.f;

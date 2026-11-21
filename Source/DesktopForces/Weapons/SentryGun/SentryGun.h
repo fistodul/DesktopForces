@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Core/DFTypes.h"
 #include "Weapons/DFWeapon.h"
+#include "Weapons/DFDevices.h"
 #include "SentryGun.generated.h"
 
 class ADFCharacter;
@@ -25,12 +26,13 @@ public:
  * (85, radius 250). 8 minutes. Timer driven: 5 Hz while scanning, 20 Hz while firing.
  */
 UCLASS()
-class DESKTOPFORCES_API ASentryTurret : public AActor {
+class DESKTOPFORCES_API ASentryTurret : public AActor, public IDFDevice {
 	GENERATED_BODY()
 
 public:
-	uint8 GetTeam() const { return Team; }
-	bool IsDead() const { return bDead; }
+	virtual uint8 GetPlacedTeam() const override { return Team; }
+	virtual const APlayerState* GetPlacer() const override { return PlacerState.Get(); }
+	virtual bool IsWorking() const override { return !bDead; }
 	ASentryTurret();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

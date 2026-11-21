@@ -43,6 +43,7 @@ void ASmokeGrenade::Explode(const FVector& Location, const FVector& Normal) {
 
 ASmokeGrenadeImpact::ASmokeGrenadeImpact() {
 	bExplodeOnImpact = true; // the "explosion" is the smoke: it keeps bouncing along with it
+	bTicking = false; // smokeGrenProj2 has no fuse to hear
 }
 
 void ASmokeGrenade::MulticastSmoke_Implementation() {

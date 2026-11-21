@@ -150,7 +150,7 @@ void ASentryTurret::OnRep_Aim() {
 }
 
 bool ASentryTurret::IsFriendly(const AActor* Other) const {
-	return DF::IsDeviceFriendly(Other, this, Team, PlacerState.Get());
+	return DF::SideOf(Other, this, Team, PlacerState.Get()) != DF::ESide::Enemy;
 }
 
 FVector ASentryTurret::Muzzle() const {
@@ -239,11 +239,9 @@ void ASentryTurret::FireShot() {
 	MulticastShot(Start, bHit ? FVector(Hit.ImpactPoint) : Start + Dir * ScanRange, Hit.ImpactNormal, bHit && (!Other || !Other->IsA<APawn>()));
 	if (!bHit)
 		return;
-	// ProcessTraceHit: friends take nothing - soldiers, devices, and vehicles with only friends
-	// in them (an empty one is not a friend of the sentry's: it takes the rounds)
-	uint8 OtherTeam;
-	const bool bFriendThing = Other && (Other->IsA<ADFCharacter>() || DF::GetPlacedTeam(Other, OtherTeam) || (Other->IsA<ADFVehicle>() && DF::VehicleStatus(Cast<ADFVehicle>(Other), Team, PlacerState.Get()) == 1));
-	if (!Other || (bFriendThing && IsFriendly(Other)))
+	// ProcessTraceHit: friends take nothing (soldiers, devices, vehicles with only friends in
+	// them); the rest - an empty vehicle, a prop - takes the round
+	if (!Other || DF::SideOf(Other, this, Team, PlacerState.Get()) == DF::ESide::Friend)
 		return;
 	FPointDamageEvent Ev(ShotDamage, Hit, Dir, UDFDamage_Sentry::StaticClass());
 	Other->TakeDamage(ShotDamage, Ev, Credit(), this);
