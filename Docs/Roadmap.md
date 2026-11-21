@@ -28,7 +28,7 @@ disagrees with this list is the stale one.
   skins; the play-test leftovers (trip laser on vehicles, rotor start, flags on Armadillo, Jeep
   and Heli, the stairs snag, the white text, M1887 alt shot, three sentry guns, HMG and jeep gun
   animations, MAC-10 hand speed, steering).
-- **Maps and conversion**: Rage `CollisionMesh` and LodMesh animation; the Source maps' 312 HL2
+- **Maps and conversion**: Rage `CollisionMesh`; the Source maps' 312 HL2
   model stand-ins (thread 20); replacement art shared between packs; music stand-ins and sounds
   not listened to (thread 9); mod paks in a `Mods/` folder (thread 1).
 - **Tooling**: the CI workflow has never run and has no import test; old build folders on the
@@ -51,7 +51,7 @@ disagrees with this list is the stale one.
 - ✅ Music (`.umx` Impulse Tracker modules → WAV via ffmpeg/libopenmpt, looping SoundWaves)
 - ✅ Skeletal meshes + animations: `mflib/skelmesh.py` (SkeletalMesh + MeshAnimation -> glTF, Interchange import; `mfport.py skeletal`, importer step `skeletal`): the soldiers and every first-person weapon (stock and mods)
 - ✅ Rage `DeviceMesh` (vehicles, wheels, crates, safes, flag bases, det locks, holdout timers): `mfport.py props`
-- ✅ `LodMesh` first frame (weapon carry models, rockets, grenades, det key); ⬜ Rage `CollisionMesh`, LodMesh animation (started 2026-11-19: `mflib/lodmesh.py` reads the AnimSeqs and every frame. Of the 17 LodMeshes in the converted packages with more than one frame, the community ones (pickup models, the M18, the seeker mine's 250-frame Drone_Air) repeat one pose in every frame; what moves is Rage's: RTG_FlagMesh's wave, MachineGunMuzzleFlashMesh, RageEffects' RageChipM and RageRingex. Next: those as morph targets on a one-bone skeletal mesh, played by sequence)
+- ✅ `LodMesh` first frame (weapon carry models, rockets, grenades, det key); ⬜ Rage `CollisionMesh`, LodMesh animation (started 2026-11-19: `mflib/lodmesh.py` reads the AnimSeqs and every frame. Of the 17 LodMeshes in the converted packages with more than one frame, the community ones (pickup models, the M18, the seeker mine's 250-frame Drone_Air) repeat one pose in every frame; what moves is Rage's: RTG_FlagMesh's wave, MachineGunMuzzleFlashMesh, RageEffects' RageChipM and RageRingex. All four are retail Rage content: parked, nothing in the community packs moves. If a third-person muzzle flash is wanted (MF's MachineGunMuzzleFlashMesh), make our own art for it)
 - ✅ Movers (`ADFMover`: doors / lifts from their brushes and keyframes), zones → volumes (`ADFZoneVolume`: water, pain, currents)
 - ✅ Ladders → `ADFLadderVolume` with nav links
 - ✅ Navmesh baked by the importer; per-resolution step height 56 cm (MF stairs), drop-down links (experimental UE generator), 16k A* nodes

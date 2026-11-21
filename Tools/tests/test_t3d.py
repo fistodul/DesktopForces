@@ -39,12 +39,24 @@ class OrientTests(unittest.TestCase):
         self.assertTrue(all(outward(t) > 0 for t in orient_triangles(box)))
 
     def test_a_room_seen_from_inside_stays_inside(self):
-        # wound and smoothed inwards, as a room or tunnel: the normals agree, the shape isn't asked
+        # facing inwards as the export winds it (clockwise from the front: 95 % of the maps'
+        # triangles go against their normals so) and smoothed inwards, as a room or tunnel
         room = []
         for a, b, c in cube_faces():
             n = tuple(-x for x in face_normal(a, b, c))
-            room.append(tri(a, c, b, n))
+            room.append(tri(a, b, c, n))
         self.assertTrue(all(outward(t) < 0 for t in orient_triangles(room)))
+
+    def test_a_mirrored_solid_faces_out(self):
+        # wound outwards as the export winds it, its normals turned in (mf-warehouse's mirrored
+        # StaticMesh9 barrels): out, and its normals with it
+        box = []
+        for a, b, c in cube_faces():
+            n = tuple(-x for x in face_normal(a, b, c))
+            box.append(tri(a, c, b, n))
+        out = orient_triangles(box)
+        self.assertTrue(all(outward(t) > 0 for t in out))
+        self.assertTrue(all(sum(v[1][i] * v[0][i] for i in range(3)) > 0 for t in out for v in t.verts))
 
 
 def face_normal(a, b, c):

@@ -245,7 +245,11 @@ def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
             if ps[a] != ps[b]:
                 edges.setdefault((min(ps[a], ps[b]), max(ps[a], ps[b])), []).append((i, ps[a] < ps[b]))
     links: list[list[tuple[int, bool]]] = [[] for _ in tris]
+    open_edge = [False] * len(tris)   # an edge no other triangle shares: not a closed solid
     for pair in edges.values():
+        if len(pair) != 2:
+            for i, _ in pair:
+                open_edge[i] = True
         if len(pair) == 2 and pair[0][0] != pair[1][0]:   # three or more: not a surface to follow
             (i, up_i), (j, up_j) = pair
             same = up_i == up_j   # both cross it the same way: one of them must turn
@@ -285,10 +289,18 @@ def orient_triangles(tris: list[SMTriangle]) -> list[SMTriangle]:
             side = _parity_side(tris, flip, rays)
             if side:
                 agreement = side
+        # Normals pointing into a closed solid, against the export's usual winding (wound
+        # against the normals, which turns the piece round) and the shape: a mirrored copy
+        # (mf-warehouse's StaticMesh9 barrels; UE2 drew by winding, so they looked right).
+        # Turn it outwards and its normals with it
+        inverted = False
+        if agreement > 0.0 and not any(open_edge[i] for i in flip) and _parity_side(tris, flip, rays) < 0:
+            agreement, inverted = -agreement, True
         for i, turned in flip.items():
-            if turned != (agreement < 0):
-                v = tris[i].verts
-                tris[i].verts = [v[0], v[2], v[1]]
+            v = tris[i].verts
+            if inverted:
+                v = [(p, (-n[0], -n[1], -n[2]), uv) for p, n, uv in v]
+            tris[i].verts = [v[0], v[2], v[1]] if turned != (agreement < 0) else v
     # A triangle whose three normals all point straight away from its face is wound backwards
     # whatever its piece voted (mf-BraveDwarfes' tree house floors): smoothing can't do that.
     # Backwards, a floor is culled from above and Recast sees it facing down (no navmesh)

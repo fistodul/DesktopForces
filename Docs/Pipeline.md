@@ -145,6 +145,11 @@ area-weighted cosine: smoothing round the corners of overlapping boxes, e.g. mf-
 bench rings) the shape decides: rays from up to 8 of the piece's faces cross a closed solid an even
 number of times outwards and an odd number inwards (at least three conclusive, four in five
 agreeing). Strongly agreeing normals win, so rooms and tunnels seen from inside stay that way.
+One exception: the export winds clockwise from the front (95 % of the maps' triangles run against
+their normals), so a closed piece whose winding agrees with its normals while the rays say they
+point into the solid is a mirrored copy with turned normals (6 of the 30 barrels in
+mf-warehouse's StaticMesh9, boxes and posts on 6 other maps; UE2 drew by winding). It is turned
+outwards, normals included (2026-11-21).
 
 ### `level.json`
 - `world`: geometry chunks (`geo/World_x_y`, `geo/Collision_x_y`) with pivot location.
