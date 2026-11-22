@@ -12,7 +12,6 @@ class DESKTOPFORCES_API UDFDamage_Zone : public UDFDamageType {
 public:
 	UDFDamage_Zone() {
 		bBypassArmour = true;
-		bHazard = true;
 	}
 };
 

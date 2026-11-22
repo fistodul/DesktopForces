@@ -42,9 +42,10 @@ namespace {
 	}
 } // namespace
 
-// Map hazards were made for 100-health soldiers: one that hits for 100 or more kills anyone
-// (a 333-health zombie at the bottom of a death pit), a lesser one stays as it is.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFHazardTest, "DesktopForces.Gameplay.LethalHazards", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+// Map hazards hurt as MF made them, whatever the health: a fall past FallDeathThreshold takes
+// 100, so a 333-health zombie walks away from it (the mod's point: zombies drop from anywhere).
+// Pits with no way out kill with a death zone of their own (map_edits.toml death_pits).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFHazardTest, "DesktopForces.Gameplay.Hazards", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 
 bool FDFHazardTest::RunTest(const FString& Parameters) {
 	UWorld* World = FindGameWorld();
@@ -63,10 +64,8 @@ bool FDFHazardTest::RunTest(const FString& Parameters) {
 	Zombie->SetHealthAndMax(333);
 	Zombie->TakeDamage(40.f, FDamageEvent(UDFDamage_Zone::StaticClass()), nullptr, nullptr);
 	TestEqual(TEXT("A 40 pain zone tick takes 40"), Zombie->GetHealth(), 293);
-	Zombie->TakeDamage(99.f, FDamageEvent(UDFDamage_Fell::StaticClass()), nullptr, nullptr);
-	TestEqual(TEXT("A fall short of FallDeathThreshold takes what it did"), Zombie->GetHealth(), 194);
 	Zombie->TakeDamage(100.f, FDamageEvent(UDFDamage_Fell::StaticClass()), nullptr, nullptr);
-	TestFalse(TEXT("A fall past FallDeathThreshold kills a 333-health zombie"), Zombie->IsAlive());
+	TestEqual(TEXT("A fall past FallDeathThreshold takes 100"), Zombie->GetHealth(), 193);
 	Zombie->Destroy();
 	return true;
 }

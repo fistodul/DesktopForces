@@ -24,6 +24,11 @@
 #   layout_from    "<map>": another release of the same map (same coordinates) whose layout this
 #                  one takes - world, static meshes, movers, gameplay - keeping only its own look:
 #                  lights, ambient sounds, zone fog / ambient, LevelInfo, sky box (mflib/twins.py)
+#   death_pits     [{ min = [x, y, z], max = [x, y, z] }]: boxes (cm) that kill whoever is in them,
+#                  at the bottom of dry shafts with no way out. MF's killed with the fall; a zombie
+#                  (more than 100 health) lands alive. Water at the bottom broke the fall, in MF too:
+#                  those stay as they are. Found with the DFFindPits cheat (Saved/Pits/<map>.json:
+#                  the pit's navmesh; the box takes it out to the walls and up past a soldier's head)
 #   generators     change a map's generators: { class = "<MF generator class>",
 #                  vehicle = "<MF vehicle class>" } turns every one of that class into a
 #                  VehicleGenerator of that vehicle
@@ -202,3 +207,103 @@ quality = "High"
 # take its texture unwrap, and baked so the blocks behind the streets came out a flat olive where
 # they were pale with their windows showing (2026-11-16): it keeps the box projection
 lightmap_uvs = { L1fad = "box" }
+# death pits (DFFindPits, 2026-11-22): the map's bottom, 26 m down
+death_pits = [
+  { min = [-39873.0, -47169.0, -9000.0], max = [28682.0, 64915.0, -8590.0] },
+]
+
+["COOP-GhettoZomburaUpdated"]
+# death pits (DFFindPits, 2026-11-22): two 31 m shafts
+death_pits = [
+  { min = [-12304.0, -19182.0, -2972.0], max = [-11598.0, -18476.0, -2572.0] },
+  { min = [21972.0, 15018.0, -2972.0], max = [22678.0, 15724.0, -2572.0] },
+]
+
+["DM-Warship"]
+# death pits (DFFindPits, 2026-11-22): the sea floor around the ship (21 m down)
+death_pits = [
+  { min = [-50133.0, -49297.0, -2259.0], max = [48841.0, 49658.0, -1859.0] },
+]
+
+["MB-Ballpark"]
+# death pits (DFFindPits, 2026-11-22): two 25 m shafts (the sloped ground outside, 719 boxes, is left out)
+death_pits = [
+  { min = [25411.0, -619.0, -11888.0], max = [25965.0, 30.0, -11488.0] },
+  { min = [-25946.0, 1452.0, -11888.0], max = [-25392.0, 2101.0, -11488.0] },
+]
+
+["MF-BangBashV2"]
+# death pits (DFFindPits, 2026-11-22): the pit under the arena, 56 m down (its 3000 damage triggers are only scattered points)
+death_pits = [
+  { min = [6202.0, -3621.0, -6012.0], max = [13368.0, 3545.0, -5612.0] },
+]
+
+["MF-ChaozWarzV2"]
+# death pits (DFFindPits, 2026-11-22): four 68 m shafts
+death_pits = [
+  { min = [-6566.0, 10097.0, -7490.0], max = [-5385.0, 11164.0, -7090.0] },
+  { min = [-7231.0, -885.0, -7490.0], max = [-6050.0, 201.0, -7090.0] },
+  { min = [-2481.0, -1113.0, -7490.0], max = [-1357.0, -27.0, -7090.0] },
+  { min = [-2101.0, 16709.0, -7490.0], max = [-1091.0, 17757.0, -7090.0] },
+]
+
+["MF-KitchenV2"]
+# death pits (DFFindPits, 2026-11-22): a 40 m drop (an 8 x 72 m strip)
+death_pits = [
+  { min = [-10328.0, -18764.0, 45.0], max = [-9489.0, -11484.0, 445.0] },
+]
+
+["MF-VortexTrainV1"]
+# death pits (DFFindPits, 2026-11-22): the map's bottom, 156 m down
+death_pits = [
+  { min = [-5521.0, -67765.0, -16125.0], max = [7820.0, 66948.0, -15725.0] },
+]
+
+["mf-BigBridge"]
+# death pits (DFFindPits, 2026-11-22): the floor under the bridge (52 m) and a 37 m shaft
+death_pits = [
+  { min = [-5749.0, -1417.0, -5570.0], max = [5749.0, 1417.0, -5170.0] },
+  { min = [-5749.0, -11791.0, -5570.0], max = [5749.0, -8938.0, -5170.0] },
+  { min = [-5749.0, -17586.0, -5570.0], max = [5749.0, -14733.0, -5170.0] },
+  { min = [-638.0, -16750.0, -4130.0], max = [638.0, -15493.0, -3730.0] },
+]
+
+["mf-nc"]
+# death pits (DFFindPits, 2026-11-22): the low ground (19 m down and more)
+death_pits = [
+  { min = [578.0, 31054.0, -2078.0], max = [73123.0, 31646.0, -1608.0] },
+  { min = [578.0, 31586.0, -2198.0], max = [73123.0, 32634.0, -1678.0] },
+  { min = [578.0, 32574.0, -2318.0], max = [73123.0, 33622.0, -1798.0] },
+  { min = [578.0, 33562.0, -2448.0], max = [73123.0, 34610.0, -1918.0] },
+  { min = [578.0, 34550.0, -2568.0], max = [73123.0, 35598.0, -2048.0] },
+  { min = [578.0, 35538.0, -2688.0], max = [73123.0, 36586.0, -2168.0] },
+  { min = [578.0, 36526.0, -2818.0], max = [73123.0, 37574.0, -2288.0] },
+  { min = [578.0, 37514.0, -2938.0], max = [73123.0, 38562.0, -2418.0] },
+  { min = [578.0, 38502.0, -3058.0], max = [73123.0, 39550.0, -2538.0] },
+  { min = [578.0, 39490.0, -3188.0], max = [48442.0, 40538.0, -2658.0] },
+  { min = [52334.0, 39490.0, -3188.0], max = [73123.0, 40538.0, -2658.0] },
+  { min = [49370.0, 39490.0, -3078.0], max = [50418.0, 39645.0, -2658.0] },
+  { min = [50358.0, 39490.0, -3088.0], max = [51406.0, 39721.0, -2658.0] },
+  { min = [48382.0, 39490.0, -3098.0], max = [49430.0, 39835.0, -2658.0] },
+  { min = [51346.0, 39490.0, -3118.0], max = [52394.0, 39968.0, -2658.0] },
+  { min = [51346.0, 40478.0, -3308.0], max = [73123.0, 41526.0, -2788.0] },
+  { min = [578.0, 40478.0, -3308.0], max = [48442.0, 41526.0, -2788.0] },
+  { min = [48382.0, 40668.0, -3308.0], max = [49430.0, 41526.0, -2808.0] },
+  { min = [49370.0, 40782.0, -3308.0], max = [51406.0, 41526.0, -2828.0] },
+  { min = [578.0, 41466.0, -3348.0], max = [73123.0, 57334.0, -2908.0] },
+  { min = [49370.0, 57274.0, -3328.0], max = [51406.0, 58151.0, -2828.0] },
+  { min = [578.0, 57274.0, -3328.0], max = [49430.0, 58322.0, -2798.0] },
+  { min = [51346.0, 57274.0, -3328.0], max = [73123.0, 58322.0, -2798.0] },
+  { min = [578.0, 58262.0, -3198.0], max = [48442.0, 59310.0, -2678.0] },
+  { min = [51346.0, 58262.0, -3198.0], max = [73123.0, 59310.0, -2678.0] },
+  { min = [48382.0, 59098.0, -3098.0], max = [49031.0, 59310.0, -2678.0] },
+  { min = [578.0, 59250.0, -3078.0], max = [73123.0, 60298.0, -2558.0] },
+  { min = [578.0, 60238.0, -2958.0], max = [73123.0, 61286.0, -2428.0] },
+  { min = [578.0, 61226.0, -2828.0], max = [73123.0, 62274.0, -2308.0] },
+  { min = [578.0, 62214.0, -2708.0], max = [73123.0, 63262.0, -2188.0] },
+  { min = [578.0, 63202.0, -2588.0], max = [73123.0, 64250.0, -2058.0] },
+  { min = [578.0, 64190.0, -2458.0], max = [73123.0, 65238.0, -1938.0] },
+  { min = [578.0, 65178.0, -2338.0], max = [73123.0, 66226.0, -1818.0] },
+  { min = [578.0, 66166.0, -2218.0], max = [73123.0, 67214.0, -1688.0] },
+  { min = [578.0, 67154.0, -2088.0], max = [73123.0, 67879.0, -1608.0] },
+]

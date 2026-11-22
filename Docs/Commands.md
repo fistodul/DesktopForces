@@ -118,6 +118,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |
 | `DFCam X Y Z Yaw Pitch` | fixed camera for screenshots |
+| `DFFindPits` | find death pits on the map's navmesh (floor reached from a start only by a fall, with no way back) and write `Saved/Pits/<map>.json`; `Tools/mfport/debug/deathpits.py <map>` turns it into `map_edits.toml` death_pits |
 | `DFLoadoutPick N`, `DFLoadout [0\|1]` (toggle; 0 leave / 1 enter only if needed), `DFSelect N`, `DFScores`, `DFShot Name` | for scripted runs: `-DFExec="@4:DFLoadoutPick 1\|@6:DFLoadout\|@20:DFShot test"` |
 | `DFWalk Yaw Seconds [Fwd] [Right] [Up]` | hold movement input (in a vehicle throttle / steering; Up 1 Jump, -1 Crouch), logging position, yaw + movement mode every 0.25 s (stairs, ladder, vehicle tests) |
 | `DFMenuPage N`, `DFMenuStart`, `DFShot Name` | main menu: show page N (0 main, 1 play, 2 join, 3 options, 4 credits, 5 downloads, 7 voting; 10-13 the options tabs, 14 Video with Advanced Graphics open; 20 / 21 join with the internet / LAN server list refreshed) / press Start / screenshot with the menu |

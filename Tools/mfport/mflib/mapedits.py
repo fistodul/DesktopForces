@@ -40,6 +40,20 @@ def apply(map_name: str, actors: list[dict]) -> None:
         print(f'  map edit: {len(edits["add_vehicles"])} vehicle generators added')
 
 
+def death_pits(map_name: str) -> list[dict]:
+    """map_edits.toml death_pits: a zone that kills (100000 a second) over each box. MF's deep
+    shafts with no way out killed with the fall; a soldier with more than 100 health (zombies)
+    lands alive and would be stuck there (the DFFindPits cheat finds them)."""
+    out = []
+    for i, pit in enumerate(_edits_for(map_name).get('death_pits', [])):
+        lo, hi = [float(c) for c in pit['min']], [float(c) for c in pit['max']]
+        out.append({'name': f'DeathPit{i}', 'location': [(a + b) / 2 for a, b in zip(lo, hi)],
+                    'rotation': {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}, 'type': 'zone_volume',
+                    'box_min': lo, 'box_max': hi, 'water': False, 'damage_per_sec': 100000.0,
+                    'damage_type': '', 'velocity': [0.0, 0.0, 0.0], 'zone_name': 'Death pit'})
+    return out
+
+
 def hull_collision(map_name: str) -> list[str]:
     """Static meshes that collide as one smooth shape, by name (a ladder lying on a slope)."""
     return _edits_for(map_name).get('hull_collision', [])

@@ -618,6 +618,7 @@ class LevelConverter:
         self.add_minimap(actors, spawns)
         spawns += self.convert_movers(pkg, level)
         spawns = prune_events(spawns)
+        spawns += mapedits.death_pits(self.map)   # map_edits.toml
         roads = road_network(pkg, actors)
         if roads:
             spawns.append(dict(type='road_network', name='RoadNetwork', location=[0.0, 0.0, 0.0], **roads))

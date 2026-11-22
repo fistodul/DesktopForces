@@ -1,4 +1,5 @@
 #include "Vehicles/DFVehicle.h"
+#include "GameFramework/WorldSettings.h"
 #include "World/DFZoneVolume.h"
 #include "World/DFMapActors.h"
 #include "Game/DFPlayerState.h"
@@ -697,21 +698,26 @@ bool ADFVehicle::FindExitSpot(const ADFCharacter* C, FVector& OutSpot) const {
 	const FCollisionShape Shape = FCollisionShape::MakeCapsule(C->GetCapsuleComponent()->GetScaledCapsuleRadius(), C->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFVehicleExit), false, this);
 	Params.AddIgnoredActor(C);
-	for (int32 D = 0; D <= FMath::Max(1, DoorPositions.Num()); ++D) {
-		const FVector Try = D < FMath::Max(1, DoorPositions.Num()) ? DoorExit(D) : Roof;
-		if (GetWorld()->OverlapBlockingTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params)) // not Any: water and other zones overlap soldiers
-			continue;
-		// on this side of the wall: a door against one put the soldier behind it, or inside
-		// a solid mesh (its collision is only the surface), and they fell out of the world
-		if (GetWorld()->LineTraceTestByChannel(GetActorLocation(), Try, ECC_Pawn, Params))
-			continue;
-		// and something to stand on (or water) below
-		const FVector Below = Try - FVector(0.f, 0.f, 3000.f);
-		if (!GetWorld()->LineTraceTestByChannel(Try, Below, ECC_Pawn, Params) && !GetWorld()->LineTraceTestByChannel(Try, Below, ECC_WorldStatic, Params))
-			continue;
-		OutSpot = Try;
-		return true;
-	}
+	// a door with something to land on (or water) below, however far (out of a flying heli or
+	// plane, then the parachute); failing that, any free door: someone who flew a vehicle out of
+	// the world gets out, falls past KillZ and respawns rather than being stuck in it
+	const AWorldSettings* WS = GetWorld()->GetWorldSettings();
+	const int32 Doors = FMath::Max(1, DoorPositions.Num());
+	for (const bool bNeedGround : { true, false })
+		for (int32 D = 0; D <= Doors; ++D) {
+			const FVector Try = D < Doors ? DoorExit(D) : Roof;
+			if (GetWorld()->OverlapBlockingTestByChannel(Try, FQuat::Identity, ECC_Pawn, Shape, Params)) // not Any: water and other zones overlap soldiers
+				continue;
+			// on this side of the wall: a door against one put the soldier behind it, or inside
+			// a solid mesh (its collision is only the surface), and they fell out of the world
+			if (GetWorld()->LineTraceTestByChannel(GetActorLocation(), Try, ECC_Pawn, Params))
+				continue;
+			const FVector Below(Try.X, Try.Y, FMath::Max(WS ? WS->KillZ : -1.0e6f, Try.Z - 1.0e6f));
+			if (bNeedGround && !GetWorld()->LineTraceTestByChannel(Try, Below, ECC_Pawn, Params) && !GetWorld()->LineTraceTestByChannel(Try, Below, ECC_WorldStatic, Params))
+				continue;
+			OutSpot = Try;
+			return true;
+		}
 	return false;
 }
 

@@ -203,6 +203,11 @@ public:
 	UFUNCTION(Exec)
 	void DFOrbit(float Yaw = 180.f, float Dist = 250.f, int32 Other = 0);
 
+	/** Death pits on this map's navmesh (DF::FindPits): logged and written to
+	 *  Saved/Pits/<map>.json, for Tools/mfport/map_edits.toml death_pits. */
+	UFUNCTION(Exec)
+	void DFFindPits();
+
 private:
 	/** The player of that name, any case (playing, dead or driving). */
 	class APlayerState* FindPlayer(const FString& Name) const;

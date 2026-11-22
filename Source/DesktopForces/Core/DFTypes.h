@@ -49,12 +49,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|Vehicles")
 	bool bHitsPetrolCap = false;
 
-	/** The map's own hurt (falls, pain zones, damage triggers, drowning). MF made these for
-	 *  100-health soldiers: a single hit of 100 or more kills anyone outright (ADFCharacter::
-	 *  TakeDamage), the rest stays as it is. */
-	UPROPERTY(EditDefaultsOnly, Category = "DF")
-	bool bHazard = false;
-
 	/** Armour does not absorb this ('Drowned', 'Fell' in RageArmour.ArmorAbsorbDamage). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	bool bBypassArmour = false;
@@ -122,7 +116,6 @@ public:
 	UDFDamage_Fell() {
 		SuicideLine = NSLOCTEXT("MF", "FellLine", " left a small crater.");
 		bBypassArmour = true;
-		bHazard = true;
 	}
 };
 /** 'Drowned' */
@@ -133,7 +126,6 @@ public:
 	UDFDamage_Drowned() {
 		SuicideLine = NSLOCTEXT("MF", "DrownedLine", " forgot to come up for air.");
 		bBypassArmour = true;
-		bHazard = true;
 	}
 };
 /** 'Crushed' - movers, vehicles running players over. */

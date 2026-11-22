@@ -36,6 +36,35 @@ class RetextureTests(unittest.TestCase):
         self.assertEqual(mapedits.retexture('no-such-map'), [])
 
 
+class DeathPitTests(unittest.TestCase):
+    def test_a_pit_becomes_a_zone_that_kills(self):
+        edits = {'death_pits': [{'min': [0, 0, -100], 'max': [400, 200, 300]}]}
+        real = mapedits._edits_for
+        mapedits._edits_for = lambda name: edits
+        try:
+            (pit,) = mapedits.death_pits('any')
+        finally:
+            mapedits._edits_for = real
+        self.assertEqual((pit['type'], pit['box_min'], pit['box_max'], pit['location']),
+                         ('zone_volume', [0.0, 0.0, -100.0], [400.0, 200.0, 300.0], [200.0, 100.0, 100.0]))
+        self.assertGreaterEqual(pit['damage_per_sec'] * 0.4, 10000)   # feet only: still kills anyone
+        self.assertEqual(mapedits.death_pits('no-such-map'), [])
+
+
+class DeathPitScanTests(unittest.TestCase):
+    def setUp(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'mfport' / 'debug'))
+        import deathpits
+        self.dp = deathpits
+
+    def test_only_pits_every_way_into_which_killed(self):
+        pit = {'min_fall': 2300, 'max_fall': 2300, 'hurts': False, 'area': 23.5, 'clashes': 0, 'boxes': [[0, 0, 0, 1, 1, 1]]}
+        self.assertTrue(self.dp.is_death_pit(pit))
+        for change in ({'min_fall': 1220}, {'hurts': True}, {'area': 0.3}, {'boxes': []}, {'water': True}, {'clashes': 3}, {'boxes': [[0, 0, 0, 1, 1, 1]] * 51}):
+            self.assertFalse(self.dp.is_death_pit(dict(pit, **change)))
+        self.assertIn('max = [1.0, 1.0, 1.0]', self.dp.toml('m', self.dp.death_pits([pit])))
+
+
 class LightmapChartTests(unittest.TestCase):
     def test_a_named_mesh_carries_its_chart_source_to_the_importer(self):
         self.assertEqual(mapedits.lightmap_uvs('mf-aquarius'), {'staticmesh97': 'texture'})

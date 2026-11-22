@@ -119,6 +119,14 @@ public:
 			Test->TestFalse(TEXT("Fire stands up from feign death"), BotPawn->IsFeigningDeath());
 			Test->TestEqual(TEXT("Wake-up press does not also shoot"), Gun->GetAmmoCount(), AmmoBefore);
 			Driver->SetActorLocation(Car->GetActorLocation() + FVector(0, 220, 0), false, nullptr, ETeleportType::TeleportPhysics);
+			Test->TestTrue(TEXT("Reenter before testing a bail-out"), Car->EnterSeat(Driver, 0));
+			// 60 m up, like a flying heli: there is ground below, however far, so out they go
+			const FVector Parked = Car->GetActorLocation();
+			Car->SetActorLocation(Parked + FVector(0, 0, 6000), false, nullptr, ETeleportType::TeleportPhysics);
+			Car->Exit();
+			Test->TestTrue(TEXT("Bail out 60 m up"), Controller->GetPawn() == Driver);
+			Car->SetActorLocation(Parked, false, nullptr, ETeleportType::TeleportPhysics);
+			Driver->SetActorLocation(Parked + FVector(0, 220, 0), false, nullptr, ETeleportType::TeleportPhysics);
 			Test->TestTrue(TEXT("Reenter before testing death"), Car->EnterSeat(Driver, 0));
 			Driver->Die(nullptr, UDFDamage_Bullet::StaticClass(), nullptr);
 			Test->TestFalse(TEXT("Death unpossesses the controller instead of retaining a corpse"), Controller->GetPawn() == Driver);

@@ -390,6 +390,15 @@ actor list before anything is built; `import <maps> --steps patch` re-places a b
 vehicle generators without re-baking. Server admins can still add / swap vehicles at run time
 (`AddedVehicles` / `VehicleSwaps`, [Hosting.md](Hosting.md)).
 
+`death_pits` puts a zone that kills (100000 a second) at the bottom of shafts with no way out.
+MF killed there with the fall; a fall hurts at most 100, so a zombie lands alive and stays stuck.
+To find them, run the `DFFindPits` cheat on the map. Navmesh islands count as one if a soldier
+gets between them by walking, a drop, a jump onto a ledge, a ladder or teleporter, a mover,
+or water and updrafts. A pit is an island reached from a player start that reaches none back.
+Then `debug/deathpits.py <map>` keeps the pits where every way in killed a 100-health soldier
+(1705 cm), not already in a pain zone and not under water (water breaks a fall, in MF too). Its boxes stay clear of floor soldiers walk on and get
+back from. Run `mfport.py map <map>`, then `import <map> --steps patch`.
+
 `retexture` gives world (BSP) faces another texture: `{ from, to, faces = "floor", below = <cm> }`
 takes the faces drawn with `from`, only those lying flat with `faces = "floor"`, only those up to
 that height with `below`. The new texture is laid like the old one. mf-Sardine_City's level

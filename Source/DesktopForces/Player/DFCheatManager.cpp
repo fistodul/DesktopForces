@@ -22,6 +22,9 @@
 #include "Vehicles/DFVehicle.h"
 #include "Weapons/DFWeapon.h"
 #include "World/DFLadder.h"
+#include "World/DFPitFinder.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Camera/CameraActor.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
@@ -953,4 +956,25 @@ void UDFCheatManager::Kick(const FString& Line) {
 		return;
 	}
 	GM->GameSession->KickPlayer(Target, FText::FromString(TEXT("Kicked by an admin")));
+}
+
+void UDFCheatManager::DFFindPits() {
+	UWorld* World = GetWorld();
+	const FString Map = UWorld::RemovePIEPrefix(World->GetMapName());
+	const TArray<DF::FPit> Pits = DF::FindPits(World);
+	FString Json = TEXT("[\n");
+	for (int32 i = 0; i < Pits.Num(); ++i) {
+		const DF::FPit& P = Pits[i];
+		FString Boxes;
+		for (const FBox& B : P.Boxes)
+			Boxes += FString::Printf(TEXT("%s[%.0f, %.0f, %.0f, %.0f, %.0f, %.0f]"), Boxes.IsEmpty() ? TEXT("") : TEXT(", "), B.Min.X, B.Min.Y, B.Min.Z, B.Max.X, B.Max.Y, B.Max.Z);
+		const FString Line = FString::Printf(TEXT("{\"min\": [%.0f, %.0f, %.0f], \"max\": [%.0f, %.0f, %.0f], \"min_fall\": %.0f, \"max_fall\": %.0f, \"area\": %.1f, \"hurts\": %s, \"water\": %s, \"clashes\": %d, \"boxes\": [%s]}"),
+			P.Floor.Min.X, P.Floor.Min.Y, P.Floor.Min.Z, P.Floor.Max.X, P.Floor.Max.Y, P.Floor.Max.Z, P.MinFall, P.MaxFall, P.Area, P.bHurts ? TEXT("true") : TEXT("false"), P.bWater ? TEXT("true") : TEXT("false"), P.Clashes, *Boxes);
+		UE_LOG(LogDF, Display, TEXT("DFFindPits %s: %s"), *Map, *Line.Left(300));
+		Json += TEXT(" ") + Line + (i + 1 < Pits.Num() ? TEXT(",\n") : TEXT("\n"));
+	}
+	Json += TEXT("]\n");
+	const FString File = FPaths::ProjectSavedDir() / TEXT("Pits") / (Map + TEXT(".json"));
+	FFileHelper::SaveStringToFile(Json, *File);
+	Say(FString::Printf(TEXT("%d pits -> %s"), Pits.Num(), *File));
 }

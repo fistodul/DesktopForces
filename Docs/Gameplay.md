@@ -21,7 +21,7 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 | Swim speed / ladder speed | 200 / 200 | 450 / 450 |
 | Health | 100 | 100 |
 | FOV | 100 | 100 |
-| Fall damage | below −750 uu/s: 100 × ((Vz+750)/(−450))², dead at −1200 | same in cm/s; dead at −1200 whatever the health (see hazards below) |
+| Fall damage | below −750 uu/s: 100 × ((Vz+750)/(−450))², dead at −1200 | same in cm/s (a fall hurts at most 100: higher health walks it off) |
 | Carry | 6 blocks; speed −5%/block, min 50% | same |
 | Headshot | hit Z − centre Z > 0.8 × half-height | same |
 | Recoil | AddRecoil(RecoilPower×6); per frame pitch += r×20 rot units, yaw ±r×20, r halves | stepped at 30 Hz |
@@ -52,11 +52,10 @@ WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for Under
 20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
 hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
 heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigisland's current).
-Map hazards (falls, pain zones, damage triggers, drowning) were made for 100-health soldiers:
-DF makes a single hazard hit of 100 or more lethal to anyone, whatever their health or armour
-(a 333-health zombie at the bottom of a death pit, a fall past −1200, DM-Office's 9000/s
-zone, MF-BangBashV2's 3000 trigger). Lesser hazards, the ones you can get out of
-(mf-Prehistoric's 40/s, the 5-50 triggers, a short fall), stay as they were.
+Map hazards hurt as MF made them, whatever the health: zombies drop from anywhere and walk it
+off. Deep shafts with no way out, death pits that killed a 100-health soldier with the fall, get
+a zone that kills at the bottom (`map_edits.toml` death_pits, found with the `DFFindPits`
+cheat: navmesh islands reached from a player start that lead back to none).
 Gravity zones (bGravityZone, ZoneGravity) pull soldiers their own way: mf-warehouse's roof vents
 are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's push sideways.
 
@@ -439,7 +438,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   empty driver seat, matching MF aSeatNearDrivers; rear seats stay passengers. Right Alt
   (`UseClosest`) uses the nearest free seat including the driver, without front-seat redirection.
   It also selects loadout items, so it can replace E through Controls.
-  E again exits through a clear door. Drivers drive (WASD, Space
+  E again exits through a clear door (else over the roof), one with something below it first,
+  however far (out of a flying heli or plane, then the parachute); only walls on every side keep
+  you in (flown out of the world: out you get, fall and respawn). Drivers drive (WASD, Space
   handbrake, mouse orbits the camera) and can't shoot; passengers ride standing or sitting at
   their seat, look around and use their own weapons (MF InCarState).
 - Bots (RageBot): 4 in 5 use vehicles in deathmatch, up to 3 in 4 of a team's bots in team
