@@ -3,6 +3,7 @@
 #include "Engine/DamageEvents.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "GameFramework/PhysicsVolume.h"
 #include "Misc/AutomationTest.h"
 #include "Player/DFCharacter.h"
 #include "Vehicles/Armadillo/Armadillo.h"
@@ -42,9 +43,9 @@ namespace {
 	}
 } // namespace
 
-// Map hazards hurt as MF made them, whatever the health: a fall past FallDeathThreshold takes
-// 100, so a 333-health zombie walks away from it (the mod's point: zombies drop from anywhere).
-// Pits with no way out kill with a death zone of their own (map_edits.toml death_pits).
+// Map hazards hurt as MF made them, whatever the health (no rule of ours on top); falls top out
+// at MF's ZoneTerminalVelocity, 2500 uu/s. Pits with no way out kill with a death zone of their
+// own (map_edits.toml death_pits).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDFHazardTest, "DesktopForces.Gameplay.Hazards", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 
 bool FDFHazardTest::RunTest(const FString& Parameters) {
@@ -65,7 +66,8 @@ bool FDFHazardTest::RunTest(const FString& Parameters) {
 	Zombie->TakeDamage(40.f, FDamageEvent(UDFDamage_Zone::StaticClass()), nullptr, nullptr);
 	TestEqual(TEXT("A 40 pain zone tick takes 40"), Zombie->GetHealth(), 293);
 	Zombie->TakeDamage(100.f, FDamageEvent(UDFDamage_Fell::StaticClass()), nullptr, nullptr);
-	TestEqual(TEXT("A fall past FallDeathThreshold takes 100"), Zombie->GetHealth(), 193);
+	TestEqual(TEXT("A 100 fall takes 100"), Zombie->GetHealth(), 193);
+	TestEqual(TEXT("Falls top out at MF's ZoneTerminalVelocity (2500 uu/s)"), World->GetDefaultPhysicsVolume()->TerminalVelocity, 5625.f);
 	Zombie->Destroy();
 	return true;
 }

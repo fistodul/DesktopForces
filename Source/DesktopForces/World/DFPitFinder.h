@@ -27,8 +27,8 @@ namespace DF {
 
 	/**
 	 * Death pits on a map's navmesh (the DFFindPits cheat, for map_edits.toml death_pits): MF's
-	 * deep shafts killed a 100-health soldier with the fall; a zombie (333 health, falls hurt it
-	 * at most 100) lands alive and is stuck down there for good. Navmesh islands connected by what
+	 * deep shafts killed a 100-health soldier with the fall; a zombie (333 health, its falls
+	 * hurt less) can land alive and be stuck down there for good. Navmesh islands connected by what
 	 * a soldier can do: walk, step off a ledge, jump up onto one, ladders and teleporters (their
 	 * nav links), lifts and doors (movers), swimming and updrafts (water and gravity zones). A
 	 * pit: an island reached from a player start that reaches none back.

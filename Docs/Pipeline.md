@@ -391,7 +391,7 @@ vehicle generators without re-baking. Server admins can still add / swap vehicle
 (`AddedVehicles` / `VehicleSwaps`, [Hosting.md](Hosting.md)).
 
 `death_pits` puts a zone that kills (100000 a second) at the bottom of shafts with no way out.
-MF killed there with the fall; a fall hurts at most 100, so a zombie lands alive and stays stuck.
+MF killed there with the fall; a zombie's falls hurt less, so it can land alive and stay stuck.
 To find them, run the `DFFindPits` cheat on the map. Navmesh islands count as one if a soldier
 gets between them by walking, a drop, a jump onto a ledge, a ladder or teleporter, a mover,
 or water and updrafts. A pit is an island reached from a player start that reaches none back.

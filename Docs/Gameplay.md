@@ -21,7 +21,7 @@ from `RageWeapons.u`. Distances: MF units (uu); in code ×2.25 → cm.
 | Swim speed / ladder speed | 200 / 200 | 450 / 450 |
 | Health | 100 | 100 |
 | FOV | 100 | 100 |
-| Fall damage | below −750 uu/s: 100 × ((Vz+750)/(−450))², dead at −1200 | same in cm/s (a fall hurts at most 100: higher health walks it off) |
+| Fall damage | below −750 uu/s: 100 × ((Vz+750)/(−450))², dead at −1200 | same in cm/s; no cap (past −1200 more than 100); falls top out at MF's ZoneTerminalVelocity 2500 uu/s = 5625 cm/s (up to 1512) |
 | Carry | 6 blocks; speed −5%/block, min 50% | same |
 | Headshot | hit Z − centre Z > 0.8 × half-height | same |
 | Recoil | AddRecoil(RecoilPower×6); per frame pitch += r×20 rot units, yaw ±r×20, r halves | stepped at 30 Hz |
@@ -52,8 +52,8 @@ WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for Under
 20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
 hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
 heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigisland's current).
-Map hazards hurt as MF made them, whatever the health: zombies drop from anywhere and walk it
-off. Deep shafts with no way out, death pits that killed a 100-health soldier with the fall, get
+Map hazards hurt as MF made them, whatever the health (a zombie's falls hurt less, see Zombie).
+Deep shafts with no way out, death pits that killed a 100-health soldier with the fall, get
 a zone that kills at the bottom (`map_edits.toml` death_pits, found with the `DFFindPits`
 cheat: navmesh islands reached from a player start that lead back to none).
 Gravity zones (bGravityZone, ZoneGravity) pull soldiers their own way: mf-warehouse's roof vents
