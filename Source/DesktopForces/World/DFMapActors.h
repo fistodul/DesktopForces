@@ -9,6 +9,23 @@
 class USoundBase;
 class UAudioComponent;
 
+/** A UE1 zone's distance fog (ZoneInfo bDistanceFog). */
+USTRUCT()
+struct FDFZoneFog {
+	GENERATED_BODY()
+
+	/** DistanceFogColor (sRGB). */
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	FColor Color = FColor::Black;
+
+	/** DistanceFogStart / End (cm): clear before Start, all fog at End. */
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	float Start = 0.f;
+
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	float End = 0.f;
+};
+
 /** Per-map settings (MF LevelInfo + LevelSummary). One per map. */
 UCLASS()
 class DESKTOPFORCES_API ADFMapInfo : public AInfo {
@@ -50,6 +67,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DF")
 	FLinearColor Ambient = FLinearColor::Black;
 
+	/**
+	 * The zones' distance fog: UE1 fogs what a viewer sees by the zone they are in, linearly from
+	 * DistanceFogStart to End. Empty in maps without. Which fog a spot has comes from a grid the
+	 * converter sampled from the BSP (mflib/actors.py zone_fog): FogCell cm cells from FogOrigin,
+	 * FogSize of them, x fastest, run-length coded (FogRunEnds: one past each run's last cell;
+	 * FogRunValues: 0 clear, n ZoneFog[n - 1], 255 keep the fog the view has: solid, zone 0).
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	TArray<FDFZoneFog> ZoneFog;
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	FVector FogOrigin = FVector::ZeroVector;
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	FIntVector FogSize = FIntVector::ZeroValue;
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	float FogCell = 300.f;
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	TArray<int32> FogRunEnds;
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	TArray<uint8> FogRunValues;
+
+	/** The fog at a spot: 0 clear, n ZoneFog[n - 1], 255 unknown (solid, zone 0, off the grid). */
+	uint8 FogAt(const FVector& Spot) const;
+
 	/** The map's info, or null (a map without one). */
 	static ADFMapInfo* Get(const UWorld* World);
 	/** The local view went under water or came up (brightens the ambient floor). */
@@ -64,6 +104,14 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> MusicComponent;
+
+	/** The view's fog: UE's height fog, set to the camera's zone (a client's own, not a map actor). */
+	UPROPERTY(Transient)
+	TObjectPtr<class AExponentialHeightFog> Fog;
+	uint8 FogZone = 254;
+	FTimerHandle FogTimer;
+	/** Which zone the local camera is in; that zone's fog (a few times a second). */
+	void UpdateFog();
 };
 
 /**

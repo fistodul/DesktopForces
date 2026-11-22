@@ -1811,13 +1811,15 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 
 	FString Dir, Name;
 	SplitKey(TexKey, Dir, Name);
-	if (Dir.IsEmpty() || Dir.StartsWith(TEXT("Engine"))) {
-		// untextured surfaces: the master itself (engine default texture)
+	// Engine.DefaultTexture, MF's red bricks for a surface without a texture, once the textures
+	// step has converted it; other Engine keys and untextured surfaces before that: the master
+	// itself (UE's default texture)
+	UTexture2D* Tex = Dir.IsEmpty() ? nullptr : FindTextureFor(TexKey, bBuildingCommunityMap);
+	if (Dir.IsEmpty() || (Dir.StartsWith(TEXT("Engine")) && !Tex)) {
 		UMaterialInterface* M = GetMasterMaterial(Master);
 		MaterialCache.Add(CacheKey, M);
 		return M;
 	}
-	UTexture2D* Tex = FindTextureFor(TexKey, bBuildingCommunityMap);
 	if (Tex) {
 		// the texture's own folder spelling: maps name packages in any case (UE1 didn't care:
 		// "Train.Ammocount" and "train.Ammocount"), and case twins of a folder hide each other's

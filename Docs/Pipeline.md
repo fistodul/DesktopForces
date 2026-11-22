@@ -115,7 +115,14 @@ MF units and climb speed 1; exported maps often explicitly override these with 3
   servers mostly run weapon mods (an orange-wood AK74 instead of the stock M16-style MG, a black
   Glock/MAC-10 instead of the silver 1911), so footage of the stock weapons is rare.
 - **Static meshes**: embedded in the level T3D (inside the first StaticMeshActor using them);
-  triangles have position, normal and normalised UV.
+  triangles have position, normal and normalised UV. The T3D names each triangle's texture as
+  it was at import. MF draws the mesh's sections, whose texture the mapper could change later:
+  the Ghetto maps' cars were imported without one ("Texture None") and given car_park and
+  rage_urban textures in the editor. `mflib/staticmesh.py` reads the sections from the package
+  (format in its docstring) and gives each run of triangles its section's texture: 147 meshes
+  on 30 maps changed (2026-11-22). A section with no texture is drawn with MF's
+  `Engine.DefaultTexture`, Rage's red bricks; the textures step converts it, the editor sprites
+  of `Engine` it leaves out.
 - **Animations** (`mflib/anims.py`): `MeshAnimation` objects parse fully (bones, motion
   chunks, sequences with one group name, frame counts, rates, notifies); weapon timings come
   from them, and `skelmesh.py` converts them with their meshes.

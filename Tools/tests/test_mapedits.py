@@ -146,6 +146,49 @@ class TerminalVelocityTests(unittest.TestCase):
         self.assertEqual(self.volumes(), [])
 
 
+class ZoneFogTests(unittest.TestCase):
+    """UE1 distance fog per zone, sampled from the BSP onto a grid."""
+    def actors(self):
+        rot = {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}
+        return [{'class': 'LevelInfo', 'name': 'LevelInfo0', 'location': [0, 0, 0], 'zone': 0, 'rotation': rot, 'props': {}},
+                {'class': 'ZoneInfo', 'name': 'Fogged', 'location': [0, 0, 0], 'zone': 1, 'rotation': rot,
+                 'props': {'bDistanceFog': 'True', 'DistanceFogColor': '(R=56,G=52,B=41)', 'DistanceFogStart': '10.000000', 'DistanceFogEnd': '5000.000000'}},
+                {'class': 'ZoneInfo', 'name': 'Clear', 'location': [0, 0, 0], 'zone': 2, 'rotation': rot, 'props': {}}]
+
+    def grid(self, zone_at):
+        bounds = {0: ((0.0, 0.0, 0.0), (900.0, 300.0, 300.0)), 1: ((0.0, 0.0, 0.0), (600.0, 300.0, 300.0)),
+                  2: ((600.0, 0.0, 0.0), (900.0, 300.0, 300.0))}
+        tree = _Tree()
+        tree.PARENTS = dict(_Tree.PARENTS, ZoneInfo='Info', LevelInfo='ZoneInfo')
+        tree.default = lambda cls, prop, fallback=None: fallback
+        return actors.zone_fog(self.actors(), bounds, [None, 'Fogged', 'Clear'], tree, zone_at)
+
+    def cells(self, z):
+        out, prev = [], 0
+        for end, value in zip(z['run_ends'], z['run_values']):
+            out += [value] * (end - prev)
+            prev = end
+        return out
+
+    def test_each_cell_gets_its_zones_fog(self):
+        # x in uu: cells 0-1 zone 1 (fog), cell 2 zone 2 (clear)
+        z = self.grid(lambda p: 1 if p[0] * 2.25 < 600 else 2)
+        self.assertEqual((z['size'], z['fogs']), ([3, 1, 1], [{'color': [56, 52, 41], 'start': 22.5, 'end': 11250.0}]))
+        self.assertEqual(self.cells(z), [1, 1, 0])
+
+    def test_zone_0_takes_its_neighbours_fog(self):
+        # the middle cell is zone 0 (a rail bridge no zone claims)
+        z = self.grid(lambda p: 0 if 300 <= p[0] * 2.25 < 600 else 1)
+        self.assertEqual(self.cells(z), [1, 1, 1])
+
+    def test_no_fog_no_grid(self):
+        a = self.actors()
+        del a[1]['props']['bDistanceFog']
+        tree = _Tree()
+        tree.default = lambda cls, prop, fallback=None: fallback
+        self.assertIsNone(actors.zone_fog(a, {1: ((0.0, 0.0, 0.0), (300.0, 300.0, 300.0))}, [None, 'Fogged', 'Clear'], tree, lambda p: 1))
+
+
 class EventTests(unittest.TestCase):
     def records(self, cls, **props):
         mapper = actors.ActorMapper({}, {}, [], _Tree())

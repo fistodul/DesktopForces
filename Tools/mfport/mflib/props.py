@@ -111,8 +111,9 @@ def _qualify(pkg_name: str, ref: str, tex_info: dict) -> str:
 
 def _static_meshes(cfg: Config, pkg_name: str, tex_info: dict, out_root: Path,
                    usage: dict[str, set[str]], meshes: dict[str, dict]) -> int:
-    from . import t3d, ucc
+    from . import staticmesh, t3d, ucc
     raw = cfg.work_dir / 'raw' / 'StaticMeshes' / pkg_name
+    pkg = Package(str(_package_path(cfg, pkg_name)))
     if not list(raw.glob('*.t3d')):
         ucc.batch_export(cfg, _package_path(cfg, pkg_name).relative_to(cfg.game_dir).as_posix(),
                          'StaticMesh', 't3d', raw)
@@ -122,7 +123,12 @@ def _static_meshes(cfg: Config, pkg_name: str, tex_info: dict, out_root: Path,
             mb = MeshBuilder(blk.name)
             mb.collision = 'complex'
             area = 0.0
-            for tri in t3d.orient_triangles(t3d.static_mesh_triangles(blk)):
+            tris = t3d.static_mesh_triangles(blk)
+            # their sections' textures, as drawn (mflib/staticmesh.py)
+            drawn = staticmesh.triangle_textures([t.texture for t in tris], staticmesh.sections(pkg, blk.name))
+            for tri, tex in zip(tris, drawn or ()):
+                tri.texture = tex
+            for tri in t3d.orient_triangles(tris):
                 tex = tri.texture or 'Engine.DefaultTexture'
                 info = tex_info.get(tex.lower(), {})
                 key = material_key(tex, tri.poly_flags | (PF_MASKED if info.get('masked') else 0) | info.get('polyflags', 0))

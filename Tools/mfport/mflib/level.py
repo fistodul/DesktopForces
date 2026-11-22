@@ -18,8 +18,8 @@ import math
 from pathlib import Path
 
 from . import t3d, ucc
-from . import mapedits, minimap, twins
-from .actors import ActorMapper, ClassTree, apply_weapon_replacers, prune_events, zone_ambient
+from . import mapedits, minimap, staticmesh, twins
+from .actors import ActorMapper, ClassTree, apply_weapon_replacers, prune_events, zone_ambient, zone_fog
 from .bsp import (LevelModel, PF_FAKEBACKDROP, PF_INVISIBLE, PF_MASKED, PF_MODULATED, PF_NOTSOLID,
                   PF_PORTAL, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT)
 from .config import Config, UU_TO_CM
@@ -390,7 +390,7 @@ class LevelConverter:
             mb.add_triangle(key, vs[a], vs[b], vs[c], color)
 
     # --- static meshes ----------------------------------------------------
-    def convert_static_meshes(self, level: t3d.Block) -> dict[str, dict]:
+    def convert_static_meshes(self, level: t3d.Block, pkg: Package | None = None) -> dict[str, dict]:
         meshes = {}
         out = self.out / 'meshes'
         drop = mapedits.drop_faces(self.map)   # map_edits.toml
@@ -403,7 +403,13 @@ class LevelConverter:
                 mb = MeshBuilder(name)
                 mb.collision = 'complex'
                 area = 0.0
-                for tri in t3d.orient_triangles(t3d.static_mesh_triangles(blk)):
+                tris = t3d.static_mesh_triangles(blk)
+                # drawn with their sections' textures, which the mapper could change after the
+                # import (mflib/staticmesh.py): the T3D has the import's
+                drawn = staticmesh.triangle_textures([t.texture for t in tris], staticmesh.sections(pkg, name)) if pkg else None
+                for tri, tex in zip(tris, drawn or ()):
+                    tri.texture = tex
+                for tri in t3d.orient_triangles(tris):
                     tex = tri.texture
                     if (tex or '').lower() in drop.get(name.lower(), ()):
                         continue
@@ -609,7 +615,7 @@ class LevelConverter:
         waters = {a['name'] for a in actors if tree.is_water(a)}
         self.water_zones = {i for i, name in enumerate(model.zones) if name in waters}
         world = self.convert_world(model, ambients, source)
-        meshes = self.convert_static_meshes(level)
+        meshes = self.convert_static_meshes(level, pkg)
         bounds = self.zone_bounds(model)
         mapper = ActorMapper(bounds, meshes, model.zones, tree)
         spawns = apply_weapon_replacers([rec for a in actors for rec in mapper.map(a)])
@@ -635,9 +641,12 @@ class LevelConverter:
         # lit materials: world vertex colour = its zone's ambient, everything else uses the main
         # one (MPC_MF.Ambient), both scaled by AmbientFloor x the player's brightness
         amb = [round(c, 4) for c in self.map_ambient]
+        fog = zone_fog(actors, bounds, model.zones, tree, model.zone_at)
         for rec in spawns:
             if rec['type'] == 'map_info':
                 rec['ambient'] = amb
+                if fog:
+                    rec['zone_fog'] = fog
         env_color, env_intensity = amb, 1.0
         data = {
             'map': self.map,

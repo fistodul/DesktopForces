@@ -29,6 +29,10 @@ from .config import Config, TOOL_DIR
 from .upkg import Package, Reader
 
 OVERRIDE_DIR = TOOL_DIR / 'overrides' / 'textures'
+# Originals never converted: the override in OVERRIDE_DIR stands in for them everywhere, classic
+# maps too. mf-nc's building06 carries a sexualized drawing of a young-looking character
+# (2026-11-22): a plain wall here.
+WITHHELD = {'omegasquad.hentai anime.hentai_wall_1'}
 # Acquired source art is local-only; do not publish standalone licensed images.
 LICENSED_DIR = TOOL_DIR / 'overrides' / 'licensed'
 # procedural replacement art from Tools/artgen/lookalike.py (git-ignored; hand-made overrides win)
@@ -82,6 +86,18 @@ UI_TEXTURES = {
     # black means "nothing": alpha from brightness lets the HUD darken only the shape
     **{f'rage.crosshair{c}': {'lumalpha'} for c in 'abcdefghijklmnopqrstuvwx'},
 }
+
+# What MF draws where a face or a static mesh section has no texture: Rage's Engine.u replaced
+# UE1's bubbles with red bricks. Static meshes imported without a texture (the cars of the Ghetto
+# maps, mf-nc's lamps, mf-airport's trolleys) are bricks in MF too; their sections hold no
+# texture either, so there is nothing else to find in the package.
+DEFAULT_TEXTURE = 'engine.defaulttexture'
+
+
+def drawn(usage: dict[str, set[str]]) -> dict[str, set[str]]:
+    """The textures to convert: Engine's are editor sprites (S_Ladder, Border), except
+    DefaultTexture."""
+    return {k: v for k, v in usage.items() if not k.startswith('engine.') or k == DEFAULT_TEXTURE}
 
 
 def texture_index(cfg: Config, package: str) -> dict[str, dict]:
@@ -168,7 +184,9 @@ def convert(cfg: Config, package: str, usage: dict[str, set[str]]) -> dict[str, 
                 rep = bleed_alpha(rep)
             rep = _limit_size(rep, size_limit(cfg, key))
             (lift(rep) if is_lifted(key) else rep).save(replacement, optimize=True)
-        if (native := decode_p8(pkg, info, needs_alpha)) is not None:
+        if key.lower() in WITHHELD and replacement:
+            img = Image.open(replacement)
+        elif (native := decode_p8(pkg, info, needs_alpha)) is not None:
             img = native
         else:
             raw = raw or export_package(cfg, package)

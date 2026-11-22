@@ -74,6 +74,34 @@ namespace {
 		return FVector((*A)[0]->AsNumber(), (*A)[1]->AsNumber(), (*A)[2]->AsNumber());
 	}
 
+	/** The map_info record's zone_fog (mflib/actors.py zone_fog) onto the map's info. */
+	void ReadZoneFog(const TSharedPtr<FJsonObject>& R, ADFMapInfo* Info) {
+		Info->ZoneFog.Reset();
+		Info->FogRunEnds.Reset();
+		Info->FogRunValues.Reset();
+		Info->FogSize = FIntVector::ZeroValue;
+		const TSharedPtr<FJsonObject>* Grid = nullptr;
+		if (!R->TryGetObjectField(TEXT("zone_fog"), Grid))
+			return;
+		for (const TSharedPtr<FJsonValue>& V : (*Grid)->GetArrayField(TEXT("fogs"))) {
+			const TSharedPtr<FJsonObject> F = V->AsObject();
+			const TArray<TSharedPtr<FJsonValue>>& C = F->GetArrayField(TEXT("color"));
+			FDFZoneFog& Fog = Info->ZoneFog.AddDefaulted_GetRef();
+			if (C.Num() == 3)
+				Fog.Color = FColor(uint8(C[0]->AsNumber()), uint8(C[1]->AsNumber()), uint8(C[2]->AsNumber()));
+			Fog.Start = F->GetNumberField(TEXT("start"));
+			Fog.End = F->GetNumberField(TEXT("end"));
+		}
+		Info->FogOrigin = Vec(*Grid, TEXT("origin"));
+		const FVector Size = Vec(*Grid, TEXT("size"));
+		Info->FogSize = FIntVector(int32(Size.X), int32(Size.Y), int32(Size.Z));
+		Info->FogCell = (*Grid)->GetNumberField(TEXT("cell"));
+		for (const TSharedPtr<FJsonValue>& V : (*Grid)->GetArrayField(TEXT("run_ends")))
+			Info->FogRunEnds.Add(int32(V->AsNumber()));
+		for (const TSharedPtr<FJsonValue>& V : (*Grid)->GetArrayField(TEXT("run_values")))
+			Info->FogRunValues.Add(uint8(V->AsNumber()));
+	}
+
 	FRotator Rot(const TSharedPtr<FJsonObject>& O) {
 		const TSharedPtr<FJsonObject>* R = nullptr;
 		if (!O->TryGetObjectField(TEXT("rotation"), R))
@@ -752,6 +780,7 @@ bool FDFImporter::BuildMap(const FString& MapName) {
 			Info->Author = R->GetStringField(TEXT("author"));
 			Info->IdealPlayerCount = R->GetStringField(TEXT("ideal_players"));
 			Info->SourceMap = MapName;
+			ReadZoneFog(R, Info);
 			const TArray<TSharedPtr<FJsonValue>>* Amb = nullptr;
 			if (R->TryGetArrayField(TEXT("ambient"), Amb) && Amb->Num() == 3)
 				Info->Ambient = FLinearColor((*Amb)[0]->AsNumber(), (*Amb)[1]->AsNumber(), (*Amb)[2]->AsNumber());
@@ -923,6 +952,8 @@ bool FDFImporter::PatchMapData(const FString& MapName, bool bRebuildNav) {
 			continue;
 		}
 		if (Type == TEXT("map_info")) {
+			for (TActorIterator<ADFMapInfo> It(World); It; ++It)
+				ReadZoneFog(R, *It);
 			const TSharedPtr<FJsonObject>* MM = nullptr;
 			if (R->TryGetObjectField(TEXT("minimap"), MM)) {
 				const TArray<TSharedPtr<FJsonValue>>& Bounds = (*MM)->GetArrayField(TEXT("bounds"));

@@ -61,6 +61,14 @@ are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's p
 ZoneTerminalVelocity caps how fast a fall gets (2500 uu/s by default): mf-Prehistoric's
 sideways-gravity zone floats you down at 90, BR-thebigisland's island at 830, so a fall
 there hurts 3 at most.
+Distance fog (ZoneInfo bDistanceFog): the zone the viewer is in fogs everything they see,
+linearly from DistanceFogStart to End in DistanceFogColor (23 maps: the Ghetto maps' brown haze
+ends at 5000 uu, mf-airport's night blue at 6000). DF draws it with UE's height fog, flat (no
+height falloff), set to the camera's zone a few times a second: the same amount of fog on average
+over Start to End (a fifth of a surface left at End). A map without a sky zone shows the fog's
+colour through its sky windows, as UE1 cleared the screen to it. Which zone the camera is in comes
+from the BSP, sampled by the converter onto a 3 m grid (mflib/actors.py zone_fog); zone 0 (space
+no zone claims, COOP-GhettoZomburaUpdated's rail bridge) takes its neighbours' fog.
 
 **Soldiers** (RageGfx): the helmet soldier (RagePlayerHelmet: `RagePlayer1Mesh`, team A
 animations, MFTeamA skins) and the balaclava one (RagePlayerBalaclava: `RagePlayer2Mesh`, team

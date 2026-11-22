@@ -9,6 +9,6 @@ redistributable. List each one:
 
 | File | Source | Author | Licence |
 |---|---|---|---|
-| _(none yet)_ | | | |
+| `textures/OmegaSquad/Hentai Anime/Hentai_Wall_1.png` | generated grey plaster (numpy noise), stands in for a withheld original on mf-nc (`mflib/textures.py` WITHHELD) | Desktop Forces | CC0 |
 
 Good CC0 sources: ambientCG, Poly Haven, Kenney, OpenGameArt (check licence), freesound (CC0 filter).

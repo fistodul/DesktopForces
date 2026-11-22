@@ -160,6 +160,85 @@ def prune_events(spawns: list[dict]) -> list[dict]:
         spawns = kept
 
 
+FOG_CELL = 300.0   # cm: the zone grid's cell (a doorway between zones moves by at most half of it)
+FOG_KEEP = 255     # a cell of zone 0 (solid, or space no zone claims) until its neighbours' fog fills it
+
+
+def zone_fog(actors: list[dict], bounds: dict[int, tuple], zone_names: list, tree: 'ClassTree', zone_at) -> dict | None:
+    """UE1 distance fog (ZoneInfo bDistanceFog, DistanceFogColor / Start / End): the zone the
+    viewer is in fogs everything they see, linearly from Start to End. A zone without a ZoneInfo
+    of its own takes LevelInfo's. The game can't tell zones apart (their boxes overlap), so this
+    samples the BSP (zone_at, a point in uu) on a FOG_CELL grid over the zones and keeps, per
+    cell, which fog it has: 0 clear, n the n-th of 'fogs' (zone 0 cells: their neighbours').
+    Run-length coded (x fastest, then y, z). None when no zone of the map has fog."""
+    by_name = {a['name']: a for a in actors}
+    level = next((a for a in actors if a['class'] == 'LevelInfo'), None)
+    fogs: list[dict] = []
+    value: dict[int, int] = {}
+    sky = set()
+    for z in range(len(zone_names)):
+        name = zone_names[z]
+        a = by_name.get(name) if name else level
+        if a is not None and not tree.is_a(a['class'], 'ZoneInfo'):
+            a = level   # not a ZoneInfo: the level's settings
+        if a is not None and tree.is_a(a['class'], 'SkyZoneInfo'):
+            sky.add(z)
+        fog = None
+        if a is not None and t3d.parse_bool(a['props'].get('bDistanceFog', tree.default(a['class'], 'bDistanceFog'))):
+            base = tree.default(a['class'], 'DistanceFogColor') or ''
+            # a struct default comes as {field: (value, class that set it)}
+            col = {k: v[0] if isinstance(v, tuple) else v for k, v in base.items()} if isinstance(base, dict) else t3d.parse_struct(base)
+            # T3D leaves out a zero member: (R=24,G=33) is B 0, not the default's 128
+            if 'DistanceFogColor' in a['props']:
+                col = {'R': '0', 'G': '0', 'B': '0'}
+            col.update(t3d.parse_struct(a['props'].get('DistanceFogColor', '')))
+            def prop(key, default):
+                return t3d.parse_float(a['props'].get(key, tree.default(a['class'], key)), default)
+            fog = {'color': [int(t3d.parse_float(col.get(c), 128.0)) for c in 'RGB'],
+                   'start': prop('DistanceFogStart', 3000.0) * UU_TO_CM, 'end': prop('DistanceFogEnd', 8000.0) * UU_TO_CM}
+        if fog is not None and fog not in fogs:
+            fogs.append(fog)
+        value[z] = fogs.index(fog) + 1 if fog is not None else 0
+    if not fogs:
+        return None
+    value[0] = FOG_KEEP
+    boxes = [b for z, b in bounds.items() if z not in sky and z != 0]
+    lo = [min(b[0][i] for b in boxes) for i in range(3)]
+    hi = [max(b[1][i] for b in boxes) for i in range(3)]
+    size = [max(1, math.ceil((hi[i] - lo[i]) / FOG_CELL)) for i in range(3)]
+    import numpy as np
+    grid = np.empty((size[2], size[1], size[0]), dtype=np.uint8)
+    for k in range(size[2]):
+        cz = (lo[2] + (k + 0.5) * FOG_CELL) / UU_TO_CM
+        for j in range(size[1]):
+            cy = (lo[1] + (j + 0.5) * FOG_CELL) / UU_TO_CM
+            grid[k, j] = [value.get(zone_at(((lo[0] + (i + 0.5) * FOG_CELL) / UU_TO_CM, cy, cz)), FOG_KEEP) for i in range(size[0])]
+    # zone 0 is solid, and open space no zone claims too (COOP-GhettoZomburaUpdated's rail bridge):
+    # it takes the fog of the zone next to it, spreading a cell at a time
+    while True:
+        unknown = grid == FOG_KEEP
+        if not unknown.any():
+            break
+        filled = grid.copy()
+        for axis in range(3):
+            for step in (1, -1):
+                near = np.roll(grid, step, axis=axis)
+                edge = [slice(None)] * 3
+                edge[axis] = 0 if step == 1 else -1
+                near[tuple(edge)] = FOG_KEEP   # no wrapping round the grid
+                take = (filled == FOG_KEEP) & (near != FOG_KEEP)
+                filled[take] = near[take]
+        if (filled == grid).all():
+            break
+        grid = filled
+    flat = grid.ravel()
+    change = np.flatnonzero(flat[1:] != flat[:-1]) + 1
+    ends = [int(e) for e in change] + [int(flat.size)]
+    values = [int(flat[0])] + [int(v) for v in flat[change]]
+    return {'cell': FOG_CELL, 'origin': [float(c) for c in lo], 'size': size, 'fogs': fogs,
+            'run_ends': ends, 'run_values': values}
+
+
 def rotate(v, rot: dict) -> tuple:
     """Rotate a vector like UE's FRotationMatrix(FRotator(Pitch, Yaw, Roll)) (degrees)."""
     p, y, r = (math.radians(rot.get(k, 0.0)) for k in ('pitch', 'yaw', 'roll'))
