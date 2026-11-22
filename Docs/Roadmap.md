@@ -755,3 +755,16 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       (`bakequality.py` reads `Content/Maps` only), GPU Lightmass. Production was measured on
       three maps (thread 16); 4 bounces on three (above).
 
+25. ⬜ **Map look the converter misses** (Filip saw it on COOP-GhettoZomburaUpdated, 2026-11-22).
+    - Distance fog isn't ported. 23 maps set `bDistanceFog` on their zones: the Ghetto maps in
+      brown fog that ends at 5000 uu (no sky zone, the fog hides it), mf-Sardine_City 1210 /
+      21000, BR-thebigisland 1200, mf-warehouse 25000, and others. Needs a way to draw linear
+      zone fog (start, end, colour) per zone that fits the forward, baked, low-end budget
+      ([Performance](Performance.md)).
+    - Static meshes whose material is not a plain texture (UE2 Shader / FinalBlend /
+      Combiner) export from T3D as `Texture None` and are drawn with the default texture: 270
+      meshes on 37 maps (the Ghetto maps' cars and buildings, 23 each; mf-nc 37; mf-airport
+      13; mf-City_Rush 11). The fix is to read each StaticMesh's `Materials` and per-triangle
+      material index from the package (not the T3D) and follow the material to its texture.
+    - 35 maps have no sky zone (see the list from `level.json`): check with the reference
+      videos which ones showed a sky (or fog) in MF.
