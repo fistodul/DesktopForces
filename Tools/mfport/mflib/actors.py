@@ -326,6 +326,12 @@ class ActorMapper:
             gravity = None
             if t3d.parse_bool(props.get('bGravityZone')) and props.get('ZoneGravity'):
                 gravity = [c * UU_TO_CM for c in t3d.parse_vector(props.get('ZoneGravity'))]
+            # ZoneTerminalVelocity: how fast a fall gets there (ZoneInfo 2500 uu/s, the game's
+            # PhysicsSettings default): mf-Prehistoric's sideways-gravity zones float you down at
+            # 90, BR-thebigisland's island takes falls at 830 (they hardly hurt). Not in water:
+            # swimming has no such limit (MF-SpeedPipes' 0)
+            terminal = t3d.parse_float(props.get('ZoneTerminalVelocity'), 2500.0)
+            terminal = None if water or terminal == 2500.0 else terminal * UU_TO_CM
             box = self.zone_bounds.get(a['zone'])
             # the BSP build binds a ZoneInfo to the zone it stands in, and zone 0, a map's unsealed
             # rest, takes none: left there it does nothing (MB-EndagaDam's river basin, no water)
@@ -333,9 +339,10 @@ class ActorMapper:
                 box = None
             if box and min(hi - lo for lo, hi in zip(box[0], box[1])) < 10.0:
                 box = None   # flat zone bounds (a sheet): nothing to stand in
-            if box and (water or pain or any(vel) or gravity):
+            if box and (water or pain or any(vel) or gravity or terminal is not None):
                 out.append(dict(base, type='zone_volume', box_min=box[0], box_max=box[1], water=water,
                                 **({'gravity': gravity} if gravity else {}),
+                                **({'terminal_velocity': terminal} if terminal is not None else {}),
                                 damage_per_sec=t3d.parse_float(props.get('DamagePerSec')) if pain else 0.0,
                                 damage_type=(t3d.parse_object_ref(props.get('DamageType')) or props.get('DamageType', '') or '').strip("'\""),
                                 velocity=[c * UU_TO_CM for c in vel],

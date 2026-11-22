@@ -58,6 +58,9 @@ a zone that kills at the bottom (`map_edits.toml` death_pits, found with the `DF
 cheat: navmesh islands reached from a player start that lead back to none).
 Gravity zones (bGravityZone, ZoneGravity) pull soldiers their own way: mf-warehouse's roof vents
 are updrafts (-100 against -950 uu/s2: jump in and float up), mf-Prehistoric's push sideways.
+ZoneTerminalVelocity caps how fast a fall gets (2500 uu/s by default): mf-Prehistoric's
+sideways-gravity zone floats you down at 90, BR-thebigisland's island at 830, so a fall
+there hurts 3 at most.
 
 **Soldiers** (RageGfx): the helmet soldier (RagePlayerHelmet: `RagePlayer1Mesh`, team A
 animations, MFTeamA skins) and the balaclava one (RagePlayerBalaclava: `RagePlayer2Mesh`, team

@@ -476,7 +476,13 @@ namespace {
 			Z->ZoneName = R->GetStringField(TEXT("zone_name"));
 			Z->bGravityZone = R->HasField(TEXT("gravity"));
 			Z->ZoneGravity = Z->bGravityZone ? Vec(R, TEXT("gravity")) : FVector::ZeroVector;
-			Z->Priority = Z->bWaterVolume ? 1 : 2;
+			double Terminal = 0.0;
+			if (R->TryGetNumberField(TEXT("terminal_velocity"), Terminal))
+				Z->TerminalVelocity = Terminal;
+			// one that only sets how fast you fall (a whole island) yields to everything else
+			const bool bOnlyTerminal = !Z->bWaterVolume && Z->DamagePerSec == 0.f && Z->ZoneVelocity.IsZero() && !Z->bGravityZone;
+			Z->Priority = bOnlyTerminal ? 0 : Z->bWaterVolume ? 1
+															  : 2;
 			return Z;
 		}
 		ADFZoneBox* Z = World->SpawnActor<ADFZoneBox>(Center, FRotator::ZeroRotator, SP);

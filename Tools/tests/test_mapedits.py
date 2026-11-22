@@ -130,6 +130,22 @@ class MoBallZoneTests(unittest.TestCase):
         self.assertEqual((box['tag'], box['box_max']), ('MoBallDestruct', (900.0, 2000.0, 500.0)))
 
 
+class TerminalVelocityTests(unittest.TestCase):
+    def volumes(self, **props):
+        mapper = actors.ActorMapper({3: ((0.0, 0.0, 0.0), (900.0, 2000.0, 500.0))}, {}, [None, None, None, 'Zone0'], _Tree())
+        actor = {'class': 'ZoneInfo', 'name': 'Zone0', 'location': [1.0, 2.0, 3.0], 'zone': 3,
+                 'rotation': {'pitch': 0.0, 'yaw': 0.0, 'roll': 0.0}, 'props': props}
+        return [r for r in mapper.map(actor) if r['type'] == 'zone_volume']
+
+    def test_a_zone_of_its_own_fall_speed_gets_a_volume(self):
+        vol, = self.volumes(ZoneTerminalVelocity='830.000000')   # BR-thebigisland's island
+        self.assertAlmostEqual(vol['terminal_velocity'], 830 * 2.25)
+
+    def test_the_default_speed_adds_nothing(self):
+        self.assertEqual(self.volumes(ZoneTerminalVelocity='2500.000000'), [])
+        self.assertEqual(self.volumes(), [])
+
+
 class EventTests(unittest.TestCase):
     def records(self, cls, **props):
         mapper = actors.ActorMapper({}, {}, [], _Tree())
