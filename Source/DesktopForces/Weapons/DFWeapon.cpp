@@ -406,7 +406,7 @@ void ADFWeapon::StartReload() {
 	if (HasAuthority())
 		MulticastReload();
 	if (IsLocallyControlled())
-		PlaySoundLocal(ReloadSound);
+		PlaySoundLocal(GetReloadSound());
 }
 
 void ADFWeapon::ServerReload_Implementation() {
@@ -1003,6 +1003,7 @@ void ADFWeapon::FidgetTick() {
 	if (IdleSeconds < 8)
 		return;
 	IdleSeconds = 0;
+	UpdateIdleFidgets();
 	const int32 i = FMath::RandRange(0, 1);
 	if (IdleFidgets[i].IsNone() || !Anim->Play(IdleFidgets[i], 1.f, 0.1f, false))
 		return;
@@ -1131,7 +1132,7 @@ void ADFWeapon::MulticastReload_Implementation() {
 	if (!C || GetNetMode() == NM_DedicatedServer)
 		return;
 	if (!IsLocallyControlled())
-		DF::PlaySoundRadius(this, ReloadSound, C->GetActorLocation(), 0.6f);
+		DF::PlaySoundRadius(this, GetReloadSound(), C->GetActorLocation(), 0.6f);
 	if (UDFSoldierAnimInstance* Anim = C->GetSoldierAnim())
 		Anim->OnReload(ReloadTime);
 }

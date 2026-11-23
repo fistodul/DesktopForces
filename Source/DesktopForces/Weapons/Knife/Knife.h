@@ -25,6 +25,8 @@ protected:
 	/** RageKnife: Empty* arm animations while the knife is out of the hand, Slash01-04 /
 	 *  Punch01 stabs. */
 	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt) override;
+	/** SetNoKnifeAnims: with the knife thrown, EmptyIdle01 / 02 and their EIdle sounds. */
+	virtual void UpdateIdleFidgets() override;
 	/** Throw speed (cm/s) after holding for Power (0-10, +8 a second): RageKnife 10 * 150 uu/s. */
 	virtual float GetThrowSpeed(float Power) const { return 3375.f; }
 	/** Show the wind-up on the HUD (ZombieKnife.DrawPowerGuage). */

@@ -89,6 +89,7 @@ void ADFCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ADFCharacter, Health);
 	DOREPLIFETIME(ADFCharacter, bFeigningDeath);
+	DOREPLIFETIME(ADFCharacter, FeignPose);
 	DOREPLIFETIME_CONDITION(ADFCharacter, bParachute, COND_SkipOwner);
 	DOREPLIFETIME(ADFCharacter, MaxHealth);
 	DOREPLIFETIME_CONDITION(ADFCharacter, bInfiniteAmmo, COND_OwnerOnly);
@@ -395,6 +396,36 @@ bool ADFCharacter::IsDeployed() const {
 
 bool ADFCharacter::CanJumpInternal_Implementation() const {
 	return !IsDeployed() && Super::CanJumpInternal_Implementation(); // MF PHYS_Gunnery: no jumping
+}
+
+void ADFCharacter::SetMeshLift(float DeltaZ) {
+	if (USkeletalMeshComponent* Body = GetMesh()) {
+		Body->SetRelativeLocation(Body->GetRelativeLocation() + FVector(0.f, 0.f, DeltaZ));
+		BaseTranslationOffset.Z = Body->GetRelativeLocation().Z;
+	}
+}
+
+void ADFCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) {
+	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	AirCrouchDrop = 0.f;
+	if (GetCharacterMovement()->IsFalling()) {
+		AirCrouchDrop = HalfHeightAdjust;
+		SetMeshLift(-HalfHeightAdjust);
+	}
+}
+
+void ADFCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) {
+	AirCrouchDrop = 0.f; // the standing offset again, wherever
+	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+}
+
+void ADFCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) {
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	// landed still ducked: the capsule's bottom is on the floor now, the body goes back on it
+	if (AirCrouchDrop != 0.f && bIsCrouched && !GetCharacterMovement()->IsFalling()) {
+		SetMeshLift(AirCrouchDrop);
+		AirCrouchDrop = 0.f;
+	}
 }
 
 void ADFCharacter::Landed(const FHitResult& Hit) {
@@ -995,6 +1026,7 @@ void ADFCharacter::ServerSetFeignDeath_Implementation(bool bFeign) {
 	bFeigningDeath = bFeign;
 	if (bFeign) {
 		FeignStartedAt = GetWorld()->GetTimeSeconds();
+		FeignPose = uint8(FMath::RandRange(0, 2)); // decision < 0.33 / 0.67 / else
 		StopFire(false);
 		StopFire(true);
 		Move->StopMovementImmediately();

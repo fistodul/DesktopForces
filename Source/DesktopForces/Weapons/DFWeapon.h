@@ -377,6 +377,11 @@ public:
 	FName IdleFidgets[2];
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicIdleSounds[2];
+	/** Before a fidget plays: a gun whose fidgets depend on its state sets IdleFidgets here
+	 *  (the shotgun's barrels, the knife without a knife). */
+	virtual void UpdateIdleFidgets() {}
+	/** The reload's sound (deagle.PlayEmptyReloadingAnim: its own from an empty clip). */
+	virtual USoundBase* GetReloadSound() const { return ReloadSound; }
 	/** Sets the fidgets as most of MF's do: Idle01 / Idle02, with Package.Idle01 / Idle02. */
 	void SetIdleFidgets(const TCHAR* SoundPackage) {
 		IdleFidgets[0] = TEXT("Idle01");

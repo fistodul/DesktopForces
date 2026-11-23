@@ -59,7 +59,18 @@ rate the spin rate) and at the slowest turn on to the end of their cycle before 
 The HMG fires a round the moment the trigger goes down (NormalFire.BeginState), then by its
 spin; deployed, the body crouches behind it only once ActivateGun01 is over (1.05 s,
 CrouchForGunnery: a 1 s tween to HmachGStill). Seeker Mines throw when both buttons are up
-(either winds up). Spent cases (FDFCasing): the HMG's every 5th round (DrawScale 0.7, out to
+(either winds up). The shotgun's poses follow its barrels as shotgun.uc's GetBarrelState
+(the left fires first: still, fidgets, select, put-down, reload and fire by which hold a shell);
+the knife fidgets EmptyIdle01/02 with its EIdle sounds while thrown away; the deagle's last round
+fires ShootEmpty (AccurateAimFireEmpty under the sights) and an empty clip reloads with
+ReloadEmpty and deagleEmptyReload. Feign death lies in DeathEnd, DeathEnd2 or DeathEnd3 (a third
+each, picked by the server). Standing still aiming more than 22.5 degrees up or down, a soldier
+holds the set's AimUp / AimDown pose, a deployed HMG gunner aiming above 30 degrees HmachGUp: MF's
+code asked for them by names its meshes lack (AimUpSm, StillSmHmachGUp), so retail never showed
+them. Ducking in the air keeps the body where it was and brings the knees up (the duck pose); UE
+would have lifted the whole body to the shrunken capsule's bottom. Chat, Dead1, Dead9, the dodges,
+Look and FireBuildup stay unused: MF itself never played them (commented out, or no dodging).
+Spent cases (FDFCasing): the HMG's every 5th round (DrawScale 0.7, out to
 the side), the shotgun's on a reload 0.65 s in (two when both barrels were spent, DrawScale
 1.5), the jeep gun's vehWeap_Shell each shot (sideways and up, two bounces, its own tink); all
 on the shooter's screen only, as in MF.

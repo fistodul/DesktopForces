@@ -23,6 +23,10 @@ protected:
 	virtual void FireShot(bool bAlt) override;
 	virtual void PlayFireEffects(bool bAlt) override;
 	virtual void OnLocalReload() override;
+	/** shotgun.uc's barrel states (GetBarrelState): every pose by which barrels hold a shell, the
+	 *  left one firing first (two shells: both full; one: the right; none: both empty). */
+	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt) override;
+	virtual void UpdateIdleFidgets() override;
 	/** shotgun.EjectShellcase, EjectPause after the reload starts (the second with both barrels spent). */
 	FTimerHandle ShellTimer;
 	/** MF-mods ZombieShotgun ("Zombie Boomstick"): 12 pellets x 15, 22 clips, less kick. */

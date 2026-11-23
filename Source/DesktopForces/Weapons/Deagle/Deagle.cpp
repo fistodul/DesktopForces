@@ -2,6 +2,8 @@
 #include "Core/DFContent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "Player/DFSoldierAnimInstance.h"
+#include "Sound/SoundBase.h"
 
 #define LOCTEXT_NAMESPACE "DFDeagle"
 
@@ -33,6 +35,30 @@ void ADeagle::PostInitializeComponents() {
 		HUDIconRect = GetDefault<APistol>()->HUDIconRect;
 	}
 	Super::PostInitializeComponents();
+}
+
+FName ADeagle::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
+	UDFTweenAnimInstance* Anim = GetArmsAnim();
+	if (Anim && ClipAmmo == 0) {
+		// Fire: if (ClipAmmo == 0) PlayEmptyFiringAnim / PlayEmptyAltFiringAnim; ClientReload:
+		// ClipAmmo == 0 -> PlayEmptyReloadingAnim
+		const TCHAR* Empty = ForState == EDFWeaponState::Firing ? (IsZoomed() ? TEXT("AccurateAimFireEmpty") : TEXT("ShootEmpty"))
+			: ForState == EDFWeaponState::Reloading             ? TEXT("ReloadEmpty")
+																: nullptr;
+		if (Empty && Anim->HasSequence(Empty))
+			return Empty;
+	}
+	return Super::GetArmsAnimName(ForState, bAlt);
+}
+
+USoundBase* ADeagle::GetReloadSound() const {
+	if (ClipAmmo == 0) {
+		if (!EmptyReloadSound)
+			const_cast<ADeagle*>(this)->EmptyReloadSound = DF::LoadSound(TEXT("deagleSFX.deagleEmptyReload"));
+		if (EmptyReloadSound)
+			return EmptyReloadSound;
+	}
+	return Super::GetReloadSound();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -106,6 +106,8 @@ protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 	/** MF Pawn.uc: the movement sequence for the pawn's state, weapon and stance. */
 	FName PickMovement(class ADFCharacter* C, bool& bOutLoop, float& OutTween);
+	/** PickMovement's rate: 0 holds the pose's first frame (UE1 TweenAnim to a still pose). */
+	float PickRate = 1.f;
 
 	bool bWasFalling = false;
 	bool bDead = false;

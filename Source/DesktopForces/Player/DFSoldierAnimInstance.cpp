@@ -230,9 +230,18 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 	}
 	if (W && W->IsDeployed() && C->GetWorld()->GetTimeSeconds() - W->GetZoomChangeTime() >= W->GetDeployCrouchDelay()) {
 		// HeavyMachineGun: down behind the gun on its tripod once ActivateGun01 is over
-		// (CrouchForGunnery: TweenAnim HmachGStill 1.0, held)
+		// (CrouchForGunnery: TweenAnim HmachGStill 1.0, held); aiming above 30 degrees
+		// (ZoomedIn.Tick: ViewRotation.Pitch > 5461) the up pose, 0.5 (MF named it StillSmHmachGUp,
+		// which its mesh doesn't have: the HmachGUp it meant)
 		bOutLoop = false;
-		OutTween = 1.f;
+		const float Pitch = FRotator::NormalizeAxis(C->GetBaseAimRotation().Pitch);
+		if (Pitch > 30.f && HasSequence(TEXT("HmachGUp"))) {
+			OutTween = 0.5f;
+			bOutLoop = true;
+			PickRate = 0.f; // TweenAnim: the pose, held
+			return TEXT("HmachGUp");
+		}
+		OutTween = CurrentName == TEXT("HmachGUp") ? 0.5f : 1.f;
 		return TEXT("HmachGStill");
 	}
 	if (M->IsSwimming()) {
@@ -240,15 +249,32 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 		return Speed > 20.f ? (bSmall ? TEXT("SwimSM") : TEXT("SwimLG")) : (bSmall ? TEXT("TreadSM") : TEXT("TreadLG"));
 	}
 	if (M->IsFalling()) {
-		// PlayInAir: tween to the jump pose and hold it
+		// PlayInAir: tween to the jump pose and hold it; ducked in the air, the duck pose (the
+		// knees up: ADFCharacter::OnStartCrouch keeps the body where it was)
 		bOutLoop = false;
 		OutTween = 0.25f;
+		if (C->bIsCrouched)
+			return Set < 0 ? TEXT("KnifeDuckStillAlt") : DuckAnims[Set];
 		return Set < 0 ? TEXT("KnifeJumpAlt") : JumpAnims[Set];
 	}
 	if (C->bIsCrouched)
 		return Set < 0 ? (Speed > 20.f ? TEXT("KnifeDuckWalkAlt") : TEXT("KnifeDuckStillAlt")) : (Speed > 20.f ? CrawlAnims[Set] : DuckAnims[Set]);
-	if (Speed < 20.f)
-		return Set < 0 ? TEXT("KnifeStillSm") : StillAnims[Point][Set];
+	if (Speed < 20.f) {
+		const FName Still = Set < 0 ? TEXT("KnifeStillSm") : StillAnims[Point][Set];
+		// standing and aiming well up or down: the set's AimUp / AimDown pose (RBot.PlayWaiting:
+		// past RotationRate.Pitch, 4096 = 22.5 degrees, TweenAnim AimUp / AimDn 0.3; MF asked for
+		// AimUpSm / AimDnLg, which its meshes name per weapon: never shown there)
+		const float Pitch = FRotator::NormalizeAxis(C->GetBaseAimRotation().Pitch);
+		if (FMath::Abs(Pitch) > 22.5f) {
+			const FName Aim(*Still.ToString().Replace(TEXT("Still"), Pitch > 0.f ? TEXT("AimUp") : TEXT("AimDown")));
+			if (HasSequence(Aim)) {
+				OutTween = 0.3f;
+				PickRate = 0.f; // TweenAnim: the pose, held
+				return Aim;
+			}
+		}
+		return Still;
+	}
 	if (Speed < M->MaxWalkSpeed * 0.5f) // walking (shift) is 0.3 of running
 		return Set < 0 ? TEXT("KnifeWalkAlt") : WalkAnims[Point][Set];
 	// GetRunAnim: by where the pawn moves against where it faces
@@ -270,8 +296,11 @@ void UDFSoldierAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	if (!C || bDead)
 		return;
 	if (C->IsFeigningDeath()) {
-		if (CurrentName != TEXT("DeathEnd"))
-			Play(TEXT("DeathEnd"), 1.f, 0.5f, false); // RPlayer.PlayFeignDeath
+		// RPlayer.PlayFeignDeath: TweenAnim DeathEnd, DeathEnd2 or DeathEnd3 (a third each), 0.5
+		static const FName Poses[] = { TEXT("DeathEnd"), TEXT("DeathEnd2"), TEXT("DeathEnd3") };
+		const FName Pose = Poses[FMath::Min<int32>(C->GetFeignPose(), 2)];
+		if (CurrentName != Pose)
+			Play(HasSequence(Pose) ? Pose : Poses[0], 1.f, 0.5f, false);
 		return;
 	}
 	const bool bFalling = C->GetCharacterMovement()->IsFalling();
@@ -285,7 +314,8 @@ void UDFSoldierAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 		return; // a throw, stab or landing plays out
 	bool bLoop = true;
 	float Tween = 0.15f;
+	PickRate = 1.f;
 	const FName Want = PickMovement(C, bLoop, Tween);
 	if (Want != CurrentName)
-		Play(Want, 1.f, Tween, bLoop);
+		Play(Want, PickRate, Tween, bLoop);
 }

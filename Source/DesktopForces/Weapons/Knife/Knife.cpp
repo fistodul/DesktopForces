@@ -169,6 +169,14 @@ void AKnife::KnifeReturned() {
 	}
 }
 
+void AKnife::UpdateIdleFidgets() {
+	const bool bEmpty = !HasAmmoInClip();
+	IdleFidgets[0] = bEmpty ? TEXT("EmptyIdle01") : TEXT("Idle01");
+	IdleFidgets[1] = bEmpty ? TEXT("EmptyIdle02") : TEXT("Idle02");
+	ClassicIdleSounds[0] = bEmpty ? TEXT("WeaponSFX_Knife.EIdle01") : TEXT("WeaponSFX_Knife.Idle01");
+	ClassicIdleSounds[1] = bEmpty ? TEXT("WeaponSFX_Knife.EIdle02") : TEXT("WeaponSFX_Knife.Idle02");
+}
+
 FName AKnife::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
 	if (!HasAmmoInClip() && !(ForState == EDFWeaponState::Firing && bAlt)) {
 		switch (ForState) {

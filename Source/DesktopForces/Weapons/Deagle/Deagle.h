@@ -15,4 +15,12 @@ class DESKTOPFORCES_API ADeagle : public APistol {
 public:
 	ADeagle();
 	virtual void PostInitializeComponents() override;
+
+protected:
+	/** deagle.uc: the last round fires ShootEmpty (AccurateAimFireEmpty under the sights), a reload
+	 *  from an empty clip plays ReloadEmpty with deagleEmptyReload. */
+	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt) override;
+	virtual USoundBase* GetReloadSound() const override;
+	UPROPERTY(Transient)
+	TObjectPtr<USoundBase> EmptyReloadSound;
 };

@@ -1,4 +1,5 @@
 #include "Weapons/Shotgun/Shotgun.h"
+#include "Player/DFSoldierAnimInstance.h"
 #include "Game/DFGameState.h"
 #include "Weapons/DFProjectile.h"
 #include "Weapons/TripBombs/TripBomb.h"
@@ -70,6 +71,46 @@ void AShotgun::OnLocalReload() {
 			EjectCasing(Shell, FVector(15.f, FireSide + 5.f, -1.f));
 	}),
 		0.65f, false);
+}
+
+FName AShotgun::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
+	UDFTweenAnimInstance* Anim = GetArmsAnim();
+	if (!Anim)
+		return NAME_None;
+	auto First = [Anim](std::initializer_list<const TCHAR*> Names) -> FName {
+		for (const TCHAR* N : Names)
+			if (Anim->HasSequence(N))
+				return N;
+		return NAME_None;
+	};
+	const int32 Shells = ClipAmmo; // after the shot while firing (UseAmmo comes first)
+	switch (ForState) {
+	case EDFWeaponState::Firing:
+		// PlayFiringAnim / PlayAltFiringAnim / PlayTwinFiringAnim
+		if (bAlt)
+			return First({ TEXT("FireBothBarrelsFull") });
+		return Shells >= 1 ? First({ TEXT("FireLeftBarrelRightFull") }) : First({ TEXT("FireRightBarrelLeftEmpty"), TEXT("FireLeftBarrelRightEmpty") });
+	case EDFWeaponState::Reloading: // PlayReloadingAnim (the mesh lacks ReloadLeftBarrelRightFull: MF played nothing there)
+		return Shells >= 1 ? First({ TEXT("ReloadLeftBarrelRightFull"), TEXT("ReloadBothEmpty") }) : First({ TEXT("ReloadBothEmpty") });
+	case EDFWeaponState::Equipping: // PlaySelectAnim (BS_BothFull plays SelectUpBothEmpty, as MF named it)
+		return Shells >= 2 ? First({ TEXT("SelectUpBothEmpty") }) : Shells == 1 ? First({ TEXT("SelectUpRightFullLeftEmpty") })
+																				: First({ TEXT("SelectUpBothEmptyNoReload"), TEXT("SelectUpBothEmpty") });
+	case EDFWeaponState::PuttingDown: // PlayTweenDownAnim
+		return Shells >= 2 ? First({ TEXT("SelectDownBothFull") }) : Shells == 1 ? First({ TEXT("SelectDownLeftEmpty") })
+																				 : First({ TEXT("SelectDownBothEmpty") });
+	case EDFWeaponState::Idle: // PlayIdleAnim: IdleAnims[0] (both empty: StillBothFull, as MF had it)
+		return Shells == 1 ? First({ TEXT("StillLeftEmpty"), TEXT("StillBothFull") }) : First({ TEXT("StillBothFull") });
+	default:
+		return Super::GetArmsAnimName(ForState, bAlt);
+	}
+}
+
+void AShotgun::UpdateIdleFidgets() {
+	// PlayIdleAnim: IdleAnims[1-2] by the barrels
+	const TCHAR* Suffix = ClipAmmo >= 2 ? TEXT("BothFull") : ClipAmmo == 1 ? TEXT("LeftEmptyRightFull")
+																		   : TEXT("BothEmpty");
+	IdleFidgets[0] = *FString::Printf(TEXT("Idle01%s"), Suffix);
+	IdleFidgets[1] = *FString::Printf(TEXT("Idle02%s"), Suffix);
 }
 
 void AShotgun::BeginPlay() {

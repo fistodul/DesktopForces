@@ -57,6 +57,14 @@ public:
 	/** The current weapon put away (driving): bring it up again. */
 	void ResumeWeapon();
 	virtual void Landed(const FHitResult& Hit) override;
+	/** Ducking in the air shrinks the capsule about its middle: the body stays where it was and
+	 *  its knees come up (UE would lift the whole body to the capsule's raised bottom). */
+	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
+	/** The mesh's lift cancelled by an air duck (cm), restored on landing still ducked. */
+	float AirCrouchDrop = 0.f;
+	void SetMeshLift(float DeltaZ);
 	virtual bool CanJumpInternal_Implementation() const override;
 	virtual float TakeDamage(float Damage, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
@@ -90,6 +98,10 @@ public:
 	UFUNCTION()
 	void OnRep_FeigningDeath();
 	float FeignStartedAt = -1.f;
+	/** RPlayer.PlayFeignDeath's pose, picked by the server as it starts: 0 DeathEnd, 1 DeathEnd2, 2 DeathEnd3. */
+	UPROPERTY(Replicated)
+	uint8 FeignPose = 0;
+	uint8 GetFeignPose() const { return FeignPose; }
 	virtual FVector GetPawnViewLocation() const override;
 
 	/** Deployed HMG and the like (ADFWeapon::IsDeployed): rooted to the spot. */
