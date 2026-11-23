@@ -41,6 +41,8 @@ protected:
 	float MaxSpin = 3.f; // MF MaxFireAnimRate
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float MinSpin = 0.4f; // MF MinFireAnimRate
+	/** Where the Fire cycle was at the last spin tick (its wrap ends the run-out). */
+	float LastSpinPhase = -1.f;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float RoundsPerCycle = 8.f;
 };

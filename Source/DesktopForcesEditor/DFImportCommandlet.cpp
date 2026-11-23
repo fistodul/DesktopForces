@@ -73,6 +73,12 @@ int32 UDFImportCommandlet::Main(const FString& Params) {
 		Importer.CheckLightmaps(MapList);
 	if (Steps.Contains(TEXT("layoutcheck")))
 		Importer.CheckCharts(MapList);
+	if (Steps.Contains(TEXT("meshmaterials")) && !Maps.IsEmpty()) {
+		TArray<FString> NeedRebake;
+		for (const FString& Map : MapList)
+			Errors += Importer.RefreshMapMaterials(Map, NeedRebake) ? 0 : 1;
+		UE_LOG(LogDFEditor, Display, TEXT("Materials: %d maps need a rebake%s%s"), NeedRebake.Num(), NeedRebake.IsEmpty() ? TEXT("") : TEXT(": "), *FString::Join(NeedRebake, TEXT(" ")));
+	}
 	if (Steps.Contains(TEXT("collision")) && !Maps.IsEmpty())
 		for (const FString& Map : MapList)
 			Errors += Importer.RefreshMapCollision(Map) ? 0 : 1;

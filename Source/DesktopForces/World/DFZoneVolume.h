@@ -64,3 +64,30 @@ protected:
 	void PainTimer();
 	FTimerHandle PainHandle;
 };
+
+/**
+ * RageWaterRing: a ring on the water where something went in (RageWaterImpact makes two, 0.3 and
+ * 0.6 s after). RageRingex, lying flat, its Explosion sequence (6 frames) at rate 0.25 over its
+ * 0.8 s life, fading out (ScaleGlow = LifeSpan / Default.LifeSpan), Splash_A01 drawn STY_Alpha,
+ * unlit. Its frames are the converted mesh's (`mfport.py props`: RageRingex, RageRingex_F1-5);
+ * nothing without the classic pack. Client only.
+ */
+UCLASS(NotPlaceable, Transient)
+class DESKTOPFORCES_API ADFWaterRing : public AActor {
+	GENERATED_BODY()
+
+public:
+	ADFWaterRing();
+	static void Spawn(UWorld* World, const FVector& At, float DrawScale);
+
+protected:
+	UPROPERTY(VisibleAnywhere, Category = "DF")
+	TObjectPtr<class UStaticMeshComponent> Mesh;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class UStaticMesh>> Frames;
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInstanceDynamic> Material;
+	float Age = 0.f;
+	FTimerHandle StepTimer;
+	void Step();
+};

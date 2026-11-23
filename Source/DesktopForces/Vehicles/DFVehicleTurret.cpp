@@ -245,6 +245,7 @@ AJeepGunnerWeapon::AJeepGunnerWeapon() {
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(1.f, 0.f, -10.f);
 	ArmsRoll = 0; // square to the view: the soldier's tilt doesn't suit a mounted gun
+	EquipTime = 23.f / 16.f; // vehWeap.playSelectAnim: selectUp (24 frames at 1 fps) at rate 16
 }
 
 void ADFVehicleTurretWeapon::MulticastShot_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer, USoundBase* Sound) {

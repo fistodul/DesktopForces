@@ -50,6 +50,7 @@ AMachineGun::AMachineGun() {
 	ClassicFireSound = TEXT("WeaponSFX_MachineGun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_MachineGun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_MachineGun.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_MachineGun"));
 }
 
 #undef LOCTEXT_NAMESPACE

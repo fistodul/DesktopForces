@@ -84,6 +84,10 @@ public:
 	bool ImportSounds(const FString& SubDir = TEXT("Sounds"), bool bLooping = false);
 	bool BuildMap(const FString& MapName);
 	bool RefreshMapCollision(const FString& MapName);
+	/** `--steps meshmaterials`: a built map's meshes take the materials of their converted
+	 *  sections (a texture change) in place, keeping the bake; a mesh whose sections changed
+	 *  (other geometry) goes to OutNeedRebake instead. */
+	bool RefreshMapMaterials(const FString& MapName, TArray<FString>& OutNeedRebake);
 
 	/** M_MF_TeamTint: unlit, colour from custom primitive data 0-3 (UDFGameSettings::TeamTintMaterial). */
 	void EnsureTeamTintMaterial();
@@ -126,6 +130,8 @@ public:
 	void EnsureVehicleMaterials();
 	/** M_MF_MuzzleFlash: the guns' flash quad (classic FlashYellow). */
 	void EnsureMuzzleFlashMaterial();
+	/** M_MF_Fade: unlit, translucent, Texture's alpha x Fade (the water ring). */
+	void EnsureFadeMaterial();
 	/**
 	 * Content packs as separate paks (bGenerateChunks): a PrimaryAssetLabel in each pack root
 	 * puts everything in its folder into the pack's chunk. Core (/Game/MF, the engine's, all

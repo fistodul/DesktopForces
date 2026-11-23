@@ -361,6 +361,8 @@ void ASentryGun::Place() {
 	FRotator Rot;
 	const bool bPlaced = HasAuthority() ? Deploy() : FindPlacementSpot(Loc, Rot); // ClientFinish: the same test
 	if (IsLocallyControlled()) {
+		if (bPlaced)
+			PlayBodyFire(false);
 		PlayArms(bPlaced ? TEXT("PlaceBack") : TEXT("PlaceBombDown"), PlaceBackTime);
 		PlayMFSound(bPlaced ? TEXT("WeaponSFX_TripBombs.Plant") : TEXT("WeaponSFX_TripBombs.PlantFail"));
 	}
@@ -397,6 +399,7 @@ bool ASentryGun::Deploy() {
 	if (Turret) {
 		Turret->InitPlacer(Me);
 		UGameplayStatics::FinishSpawningActor(Turret, FTransform(Rot, Loc));
+		ShowShot(false); // the others see the plant
 	}
 	if (!IsValid(Turret)) {
 		Message(TEXT("Cannot deploy Sentry Gun (space obstructed)"));

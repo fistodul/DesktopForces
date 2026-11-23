@@ -9,6 +9,11 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
+#include "Core/DFProps.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 ADFZoneVolume::ADFZoneVolume() {
 	PrimaryActorTick.bCanEverTick = true;
@@ -52,7 +57,60 @@ void ADFZoneVolume::ActorEnteredVolume(AActor* Other) {
 	if (bWaterVolume && GetNetMode() != NM_DedicatedServer && (Cast<APawn>(Other) || Other->IsA<ADFProjectile>())) {
 		const FVector At(Other->GetActorLocation().X, Other->GetActorLocation().Y, GetSurfaceZ());
 		DF::SpawnEffect(this, TEXT("Splash"), At, Other->IsA<ADFProjectile>() ? 0.5f : 1.f);
+		// RageWaterImpact.Timer: a ring (DrawScale 0.15) every 0.3 s, twice
+		for (const float Delay : { 0.3f, 0.6f }) {
+			FTimerHandle Ring;
+			GetWorldTimerManager().SetTimer(Ring, FTimerDelegate::CreateWeakLambda(this, [this, At]() { ADFWaterRing::Spawn(GetWorld(), At, 0.15f); }), Delay, false);
+		}
 	}
+}
+
+ADFWaterRing::ADFWaterRing() {
+	PrimaryActorTick.bCanEverTick = false;
+	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Mesh->SetCastShadow(false);
+	RootComponent = Mesh;
+}
+
+void ADFWaterRing::Spawn(UWorld* World, const FVector& At, float DrawScale) {
+	if (!World || World->GetNetMode() == NM_DedicatedServer)
+		return;
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ADFWaterRing* Ring = World->SpawnActor<ADFWaterRing>(At, FRotator(90.f, 0.f, 0.f), SP); // rot(16384, 0, 0)
+	if (!Ring)
+		return;
+	for (int32 i = 0; i < 6; ++i) {
+		const FString Name = i == 0 ? FString(TEXT("RageEffects/RageRingex")) : FString::Printf(TEXT("RageEffects/RageRingex_F%d"), i);
+		if (!DF::ApplyPropMesh(Ring->Mesh, *Name, DrawScale))
+			break;
+		Ring->Frames.Add(Ring->Mesh->GetStaticMesh());
+	}
+	UMaterialInterface* Fade = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Fade.M_MF_Fade"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UTexture2D* Skin = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageEffects/WaterRingTex/Splash_A01"));
+	if (Ring->Frames.Num() < 6 || !Fade || !Skin) {
+		Ring->Destroy(); // no classic pack, or a pipeline from before the ring's frames
+		return;
+	}
+	Ring->Material = UMaterialInstanceDynamic::Create(Fade, Ring);
+	Ring->Material->SetTextureParameterValue(TEXT("Texture"), Skin);
+	for (int32 i = 0; i < Ring->Mesh->GetNumMaterials(); ++i)
+		Ring->Mesh->SetMaterial(i, Ring->Material);
+	Ring->Step();
+	World->GetTimerManager().SetTimer(Ring->StepTimer, Ring, &ADFWaterRing::Step, 1.f / 30.f, true);
+}
+
+void ADFWaterRing::Step() {
+	const float Life = 0.8f;
+	if (Age >= Life) {
+		Destroy();
+		return;
+	}
+	// Explosion: 6 frames at 30 fps x 0.25 = 7.5 a second, the last held
+	Mesh->SetStaticMesh(Frames[FMath::Min(FMath::FloorToInt(Age * 7.5f), Frames.Num() - 1)]);
+	Material->SetScalarParameterValue(TEXT("Fade"), 1.f - Age / Life);
+	Age += 1.f / 30.f;
 }
 
 float ADFZoneVolume::GetGravityZ() const {

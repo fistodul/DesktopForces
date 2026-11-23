@@ -49,6 +49,7 @@ ARocketLauncher::ARocketLauncher() {
 	ClassicFireSound = TEXT("WeaponSFX_RocketLauncher.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_RocketLauncher.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_RocketLauncher.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_RocketLauncher"));
 }
 
 void ARocketLauncher::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {

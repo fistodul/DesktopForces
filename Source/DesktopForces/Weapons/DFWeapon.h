@@ -136,6 +136,12 @@ public:
 	bool HasAmmoInClip() const { return ClipAmmo > 0; }
 	/** A shot's effects play here, not through OnRep_BurstCounter: a listen host gets no RepNotify. */
 	bool ShowsFireHere() const { return IsLocallyControlled() || GetNetMode() == NM_Standalone || GetNetMode() == NM_ListenServer; }
+	/** A throw or a plant done (on the server): the others see it through BurstCounter, a listen
+	 *  host or standalone game watching someone else's here (no RepNotify there). */
+	void ShowShot(bool bAlt);
+	/** The holder's body plays the shot (a throw, a plant), nothing else: for items whose own
+	 *  sounds play apart from PlayFireEffects. */
+	void PlayBodyFire(bool bAlt) const;
 	/** Take Count from the clip (nothing while HasInfiniteAmmo). */
 	void UseAmmo(int32 Count = 1);
 	/** Clips that never run dry: the game's (?OPWeapons: every item, single-use ones too) or
@@ -342,6 +348,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicSelectSound;
 
+	/** MF RageWeapon IdleAnims(1-2) / IdleSound(1-2): after 8 s of the idle loop (not zoomed),
+	 *  one of these at random, with its sound ("WeaponSFX_Pistol.Idle01"). None: no fidget
+	 *  (RageWeapon's own: Still). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FName IdleFidgets[2];
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FString ClassicIdleSounds[2];
+	/** Sets the fidgets as most of MF's do: Idle01 / Idle02, with Package.Idle01 / Idle02. */
+	void SetIdleFidgets(const TCHAR* SoundPackage) {
+		IdleFidgets[0] = TEXT("Idle01");
+		IdleFidgets[1] = TEXT("Idle02");
+		ClassicIdleSounds[0] = SoundPackage ? FString(SoundPackage) + TEXT(".Idle01") : FString();
+		ClassicIdleSounds[1] = SoundPackage ? FString(SoundPackage) + TEXT(".Idle02") : FString();
+	}
+
 	/** HUD / loadout icon: texture + pixel rect inside it (MF RageWeapon.WeaponIcon TexRect). The
 	 *  texture as DF::LoadClassic takes it: "Textures/<Package>/<Group>/<Name>" from whichever pack
 	 *  has it, or a package path ("/Game/MF/Mods/Icons/MolotovIcon"). */
@@ -535,6 +556,10 @@ protected:
 	void ResetZoom();
 	/** Zooming out: the arms lower the sights once the view is back (MF PostZoomOut AnimEnd). */
 	FTimerHandle ZoomAnimTimer;
+	/** RageWeapon.Timer: the idle fidget, checked once a second on the local player's weapon. */
+	FTimerHandle FidgetTimer;
+	int32 IdleSeconds = 0;
+	void FidgetTick();
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Dropped)
 	bool bDropped = false;
@@ -555,6 +580,9 @@ protected:
 	bool bFireHeld = false;
 	bool bAltFireHeld = false;
 	bool bPendingReload = false;
+	/** The last shot was the alt one: everyone else's view of it (BurstCounter's RepNotify) plays
+	 *  the alt body animation, a trip bomb's throw rather than its plant. */
+	UPROPERTY(Transient, Replicated)
 	bool bLastShotAlt = false;
 
 	/** RageEffect.AddWallHit (ricochet / impact) and RageChunkHit on a soldier, for everyone. */

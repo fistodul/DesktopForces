@@ -655,7 +655,11 @@ bool FDFImporter::ImportProps() {
 	for (const auto& Pair : Props->GetObjectField(TEXT("meshes"))->Values) {
 		const FString Rel = Pair.Value->AsObject()->GetStringField(TEXT("mesh")); // Package/Name
 		++Total;
-		Ok += BuildStaticMesh(WorkDir / TEXT("Props") / (Rel + TEXT(".mfmesh.json")), FString::Printf(TEXT("%s/Props/%s"), *Packs.PackageRoot(FPaths::GetPath(Rel)), *Rel)) ? 1 : 0;
+		// the community pack's props take its own material instances, as its maps do: none of
+		// them may lean on the classic pack (Engine.DefaultTexture's instance on a mod jeep's gun)
+		const FString Root = Packs.PackageRoot(FPaths::GetPath(Rel));
+		TGuardValue<bool> CommunityMaterials(bBuildingCommunityMap, Root == Packs.CommunityRoot);
+		Ok += BuildStaticMesh(WorkDir / TEXT("Props") / (Rel + TEXT(".mfmesh.json")), FString::Printf(TEXT("%s/Props/%s"), *Root, *Rel)) ? 1 : 0;
 	}
 	UE_LOG(LogDFEditor, Display, TEXT("Props: %d / %d meshes"), Ok, Total);
 	return Ok > 0;
@@ -718,6 +722,7 @@ bool FDFImporter::ImportArt() {
 	EnsureTracerMaterial();
 	EnsureVehicleMaterials();
 	EnsureMuzzleFlashMaterial();
+	EnsureFadeMaterial();
 	return true;
 }
 
@@ -1223,6 +1228,37 @@ void FDFImporter::EnsureMuzzleFlashMaterial() {
 	M->PostEditChange();
 	SaveAsset(M);
 	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_MuzzleFlash (%s)"), Flash ? TEXT("FlashYellow") : TEXT("no classic texture yet"));
+}
+
+void FDFImporter::EnsureFadeMaterial() {
+	// unlit see-through art that fades out (UE1 ScaleGlow over a LifeSpan): its Texture's colour,
+	// its alpha times Fade (1 to 0). RageWaterRing (ADFWaterRing)
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_Fade"), bCreated);
+	if (!bCreated)
+		return;
+	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+	UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+	T->ParameterName = TEXT("Texture");
+	T->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+	M->GetExpressionCollection().AddExpression(T);
+	UMaterialExpressionScalarParameter* Fade = NewObject<UMaterialExpressionScalarParameter>(M);
+	Fade->ParameterName = TEXT("Fade");
+	Fade->DefaultValue = 1.f;
+	M->GetExpressionCollection().AddExpression(Fade);
+	UMaterialExpressionMultiply* Alpha = NewObject<UMaterialExpressionMultiply>(M);
+	Alpha->A.Connect(4, T); // the texture's alpha
+	Alpha->B.Connect(0, Fade);
+	M->GetExpressionCollection().AddExpression(Alpha);
+	E->EmissiveColor.Connect(0, T);
+	E->Opacity.Connect(0, Alpha);
+	M->SetShadingModel(MSM_Unlit);
+	M->BlendMode = BLEND_Translucent;
+	M->TwoSided = true;
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_Fade"));
 }
 
 void FDFImporter::EnsureGoalAssets() {
@@ -1864,6 +1900,12 @@ UMaterialInterface* FDFImporter::GetMaterial(const FString& InKey) {
 // --- static meshes ---------------------------------------------------------------------
 
 namespace {
+	/** Whether triangle ABC has an area: BuildStaticMesh leaves out the ones in a line (the build
+	 *  would drop them, after the lightmap packer had scaled their charts up). */
+	bool HasArea(const FVector3f& A, const FVector3f& B, const FVector3f& C) {
+		return ((B - A) ^ (C - A)).SizeSquared() >= 1e-4f;
+	}
+
 	/** Whether triangle ABC covers any of the texel square at (X, Y) (separating axes). */
 	bool TouchesTexel(const FVector2f& A, const FVector2f& B, const FVector2f& C, int32 X, int32 Y) {
 		const FVector2f Corners[4] = { { X + 0.f, Y + 0.f }, { X + 1.f, Y + 0.f }, { X + 0.f, Y + 1.f }, { X + 1.f, Y + 1.f } };
@@ -2201,7 +2243,7 @@ UStaticMesh* FDFImporter::BuildStaticMesh(const FString& JsonFile, const FString
 			// no area (three points in a line): the build drops it anyway, but first the lightmap
 			// packer would scale its chart by world length over (no) UV length: 100 x the texels,
 			// overflowing the lightmap onto everything else (mf-western's buildings: 65 % shared)
-			if (((Pos(B) - Pos(A)) ^ (Pos(C) - Pos(A))).SizeSquared() < 1e-4f)
+			if (!HasArea(Pos(A), Pos(B), Pos(C)))
 				continue;
 			const int32 Side = BoxAxis(A, B, C);
 			// mfmesh triangles wind cross(v1-v0, v2-v0) along the normal; UE wants the opposite
@@ -2391,5 +2433,82 @@ bool FDFImporter::RefreshMapCollision(const FString& MapName) {
 		++Updated;
 	}
 	UE_LOG(LogDFEditor, Display, TEXT("Collision %s: %d updated, %d errors"), *MapName, Updated, Errors);
+	return Errors == 0 && Files.Num() > 0;
+}
+
+bool FDFImporter::RefreshMapMaterials(const FString& MapName, TArray<FString>& OutNeedRebake) {
+	TGuardValue<bool> CommunityMaterials(bBuildingCommunityMap, Packs.IsCommunityMap(MapName));
+	const FString MapDir = WorkDir / TEXT("Maps") / MapName;
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *MapDir, TEXT("*.mfmesh.json"), true, false);
+	int32 Errors = 0, Updated = 0, Rebake = 0;
+	for (const FString& File : Files) {
+		const TSharedPtr<FJsonObject> J = LoadJson(File);
+		if (!J) {
+			++Errors;
+			continue;
+		}
+		bool bRender = true;
+		J->TryGetBoolField(TEXT("render"), bRender);
+		if (!bRender)
+			continue;
+		FString Rel = File;
+		FPaths::MakePathRelativeTo(Rel, *(MapDir + TEXT("/")));
+		const FString Folder = Rel.StartsWith(TEXT("geo/")) ? TEXT("Geo") : TEXT("Meshes");
+		const FString Name = SafeName(FPaths::GetCleanFilename(File).LeftChop(12)); // .mfmesh.json
+		const FString Path = Packs.MapDataRoot(MapName) / Folder / Name;
+		UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *(Path + TEXT(".") + Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Mesh || !Mesh->GetRenderData() || Mesh->GetRenderData()->LODResources.IsEmpty())
+			continue; // not in this map's build (a mesh no actor places)
+		// the same sections as when the map was built (slot i = section i, BuildStaticMesh): only
+		// the materials differ, and the baked lighting still fits. Other sections are other
+		// geometry with other lightmap charts: the map needs its rebake
+		const TArray<TSharedPtr<FJsonValue>>& Materials = J->GetArrayField(TEXT("materials"));
+		const TArray<TSharedPtr<FJsonValue>>& Sections = J->GetArrayField(TEXT("sections"));
+		TArray<uint8> Bin;
+		const int32 NumVerts = J->GetIntegerField(TEXT("vertex_count"));
+		const int32 Stride = J->GetStringField(TEXT("vertex_layout")).EndsWith(TEXT("col3f")) ? 11 : 8;
+		if (!FFileHelper::LoadFileToArray(Bin, *(FPaths::GetPath(File) / J->GetStringField(TEXT("bin")))) || Bin.Num() < NumVerts * Stride * 4 + J->GetIntegerField(TEXT("index_count")) * 4) {
+			++Errors;
+			continue;
+		}
+		const float* V = reinterpret_cast<const float*>(Bin.GetData());
+		const uint32* Idx = reinterpret_cast<const uint32*>(Bin.GetData() + NumVerts * Stride * 4);
+		auto Pos = [&](uint32 I) { return FVector3f(V[I * Stride], V[I * Stride + 1], V[I * Stride + 2]); };
+		TArray<int32> Built;
+		Built.Init(0, Mesh->GetStaticMaterials().Num());
+		for (const FStaticMeshSection& S : Mesh->GetRenderData()->LODResources[0].Sections)
+			if (Built.IsValidIndex(S.MaterialIndex))
+				Built[S.MaterialIndex] += S.NumTriangles;
+		bool bSame = Built.Num() == Sections.Num();
+		for (int32 i = 0; bSame && i < Sections.Num(); ++i) {
+			const TSharedPtr<FJsonObject> S = Sections[i]->AsObject();
+			const int32 First = S->GetIntegerField(TEXT("first_index"));
+			int32 Kept = 0; // what BuildStaticMesh took of it
+			for (int32 t = 0; t < S->GetIntegerField(TEXT("num_triangles")); ++t)
+				Kept += HasArea(Pos(Idx[First + t * 3]), Pos(Idx[First + t * 3 + 1]), Pos(Idx[First + t * 3 + 2])) ? 1 : 0;
+			bSame = Built[i] == Kept;
+		}
+		if (!bSame) {
+			++Rebake;
+			OutNeedRebake.AddUnique(MapName);
+			UE_LOG(LogDFEditor, Display, TEXT("Materials %s: %s has other sections now, needs a rebake"), *MapName, *Name);
+			continue;
+		}
+		bool bChanged = false;
+		for (int32 i = 0; i < Sections.Num(); ++i) {
+			const int32 MatIndex = Sections[i]->AsObject()->GetIntegerField(TEXT("material"));
+			UMaterialInterface* M = GetMaterial(Materials.IsValidIndex(MatIndex) ? Materials[MatIndex]->AsString() : FString());
+			if (Mesh->GetStaticMaterials()[i].MaterialInterface != M) {
+				Mesh->GetStaticMaterials()[i].MaterialInterface = M;
+				bChanged = true;
+			}
+		}
+		if (bChanged) {
+			Mesh->PostEditChange();
+			Updated += SaveAsset(Mesh) ? 1 : 0;
+		}
+	}
+	UE_LOG(LogDFEditor, Display, TEXT("Materials %s: %d meshes updated in place, %d need a rebake, %d errors"), *MapName, Updated, Rebake, Errors);
 	return Errors == 0 && Files.Num() > 0;
 }

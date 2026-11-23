@@ -50,6 +50,7 @@ APistol::APistol() {
 	ClassicFireSound = TEXT("WeaponSFX_Pistol.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Pistol.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Pistol.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_Pistol")); // IdleAnims / IdleSound (1-2)
 }
 
 #undef LOCTEXT_NAMESPACE

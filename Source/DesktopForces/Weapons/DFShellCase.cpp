@@ -37,7 +37,7 @@ ADFShellCase::ADFShellCase() {
 	InitialLifeSpan = 3.f;
 }
 
-void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& Port, const FVector& InheritVelocity) {
+void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& Port, const FVector& InheritVelocity, float Side) {
 	if (!World || World->GetNetMode() == NM_DedicatedServer || MeshName.IsEmpty())
 		return;
 	const FRotationMatrix Axes(View);
@@ -53,7 +53,8 @@ void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, co
 		return;
 	}
 	// Eject(((FRand()*0.3+0.4)*X + (FRand()*0.2+0.2)*Y + (FRand()*0.3+1.0)*Z) * 160) uu/s
-	const FVector V = ((FMath::FRand() * 0.3f + 0.4f) * X + (FMath::FRand() * 0.2f + 0.2f) * Y + (FMath::FRand() * 0.3f + 1.f) * Z) * 360.f;
+	// (Side -1: thrown to the left, the grenade pin pulled by hand)
+	const FVector V = ((FMath::FRand() * 0.3f + 0.4f) * X + Side * (FMath::FRand() * 0.2f + 0.2f) * Y + (FMath::FRand() * 0.3f + 1.f) * Z) * 360.f;
 	S->Movement->Velocity = V + InheritVelocity;
 	S->Movement->UpdateComponentVelocity();
 	S->SetActorRotation(FRotator(FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f), 0.f));

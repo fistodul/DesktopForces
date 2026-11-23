@@ -1,6 +1,8 @@
 #include "Weapons/Grenades/Grenades.h"
 #include "Player/DFSoldierAnimInstance.h"
 #include "Weapons/DFProjectile.h"
+#include "Weapons/DFShellCase.h"
+#include "Core/DFUserSettings.h"
 #include "Weapons/TripBombs/TripBomb.h"
 #include "Player/DFCharacterMovement.h"
 #include "Kismet/GameplayStatics.h"
@@ -36,33 +38,73 @@ AGrenades::AGrenades() {
 	AltProjectileClass = AImpactGrenade::StaticClass();
 	RecoilPower = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_Grenades.Fire");
-	ClassicSelectSound = TEXT("WeaponSFX_Grenades.Select");
+	ClassicSelectSound = TEXT("WeaponSFX_HeavyMachineGun.Select"); // Grenades' SelectSound (RageWeapon's)
+	SetIdleFidgets(nullptr); // IdleAnims(1-2), no IdleSound
 }
 
 void AGrenades::StartFire(bool bAlt) {
 	if (State != EDFWeaponState::Idle || !HasAmmoInClip() || bWinding)
 		return;
-	StartWindUp();
 	bWindingAlt = bAlt;
-	// PlayFiringAnim: the pin comes out with the teeth or by hand, then Powering while winding up
+	bReleased = false;
+	GetWorldTimerManager().ClearTimer(NextTimer);
+	// PlayFiringAnim: the pin comes out with the teeth or by hand (PullPinBack(02) at 0.9), then
+	// Powering while winding up. The power charges and a release throws only once the arm is back
+	// (MF Begin: FinishAnim, then Tick): a tap throws at the end of the pull
 	const bool bTeeth = FMath::RandBool();
+	const FName Pull = bTeeth ? TEXT("PullPinBack02") : TEXT("PullPinBack");
+	UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr;
+	const float PullTime = Anim ? Anim->GetLength(Pull) / 0.9f : 30.f / 30.f / 0.9f; // 30 frames @30
+	StartWindUp(PullTime);
 	PlayMFSound(bTeeth ? TEXT("WeaponSFX_Grenades.PullPinTeeth") : TEXT("WeaponSFX_Grenades.PullPinHand"));
 	SetAmbientMFSound(TEXT("WeaponSFX_Grenades.Powering"));
-	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr) {
+	if (Anim) {
 		Anim->SetIdle(NAME_None); // the arm stays drawn back until the throw
-		Anim->Play(bTeeth ? TEXT("PullPinBack02") : TEXT("PullPinBack"), 0.9f, 0.05f, false);
+		Anim->Play(Pull, 0.9f, 0.05f, false);
+		// EjectPause 0.65 (hand), EjectPause2 0.85 (teeth)
+		GetWorldTimerManager().SetTimer(EjectTimer, FTimerDelegate::CreateWeakLambda(this, [this, bTeeth]() { EjectPin(bTeeth); }), bTeeth ? 0.85f : 0.65f, false);
 	}
+	GetWorldTimerManager().SetTimer(PinTimer, FTimerDelegate::CreateWeakLambda(this, [this]() {
+		if (bReleased)
+			Release();
+	}),
+		FMath::Max(PullTime, 0.01f), false);
 }
 
 void AGrenades::StopFire(bool bAlt) {
 	if (!bWinding || bAlt != bWindingAlt)
 		return;
-	const float Power = GetReleasePower();
+	bReleased = true;
+	if (GetWorld()->GetTimeSeconds() >= WindUpStart)
+		Release();
+}
+
+void AGrenades::EjectPin(bool bTeeth) {
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (!C || State == EDFWeaponState::Inactive)
+		return;
+	FVector Eye;
+	FRotator View;
+	C->GetActorEyesViewPoint(Eye, View);
+	// Owner.Location + CalcDrawOffset() + PinEjectLoc (60, -10, -10) / PinEjectLoc2 (60, -5, -15),
+	// out to the right from the teeth, to the left from the hand (uu here x 2.25)
+	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
+	const float Side = Hand == EDFWeaponHand::Left ? -1.f : 1.f;
+	const FVector Pin = bTeeth ? FVector(60.f, -5.f, -15.f) : FVector(60.f, -10.f, -10.f);
+	const FVector Draw = FVector(Pin.X + ArmsOffset.X, Side * (Pin.Y + ArmsOffset.Y), Pin.Z + ArmsOffset.Z);
+	ADFShellCase::Eject(GetWorld(), TEXT("RageWeapons/GrenadePin"), 1.f, Eye, View, Draw * 2.25f, C->GetVelocity(), bTeeth ? Side : -Side);
+}
+
+void AGrenades::Release() {
+	if (!bWinding)
+		return;
+	// MF: at least 1.5 on a throw, 3 on an alt (impact) throw
+	const float Power = FMath::Max(GetReleasePower(), bWindingAlt ? 3.f : ThrowReleaseMin);
 	bWinding = false;
 	SetAmbientMFSound(nullptr);
 	if (GetLocalRole() < ROLE_Authority)
-		ServerThrow(bAlt, Power);
-	Throw(bAlt, Power);
+		ServerThrow(bWindingAlt, Power);
+	Throw(bWindingAlt, Power);
 }
 
 void AGrenades::ServerThrow_Implementation(bool bAlt, float Power) {
@@ -75,11 +117,22 @@ void AGrenades::Throw(bool bAlt, float Power) {
 	UseAmmo();
 	SetState(EDFWeaponState::Firing, FireTime);
 	if (HasAuthority()) {
-		++BurstCounter;
+		ShowShot(bAlt);
 		SpawnProjectile(bAlt ? AltProjectileClass : ProjectileClass, Power * 337.5f, bAlt); // MF ThrowPower * 150 uu/s
 	}
-	if (IsLocallyControlled())
+	if (IsLocallyControlled()) {
 		PlayFireEffects(bAlt);
+		GetWorldTimerManager().SetTimer(NextTimer, this, &AGrenades::NextGrenade, FireTime, false);
+	}
+}
+
+void AGrenades::NextGrenade() {
+	// PlayReloadingAnim: SelectUp at rate 1 and the select sound, while there is one to bring up
+	UDFTweenAnimInstance* Anim = HasAmmoInClip() && !bWinding ? GetArmsAnim() : nullptr;
+	if (!Anim || !Anim->Play(TEXT("SelectUp"), 1.f, 0.f, false))
+		return;
+	Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));
+	PlaySoundLocal(SelectSound);
 }
 
 #undef LOCTEXT_NAMESPACE

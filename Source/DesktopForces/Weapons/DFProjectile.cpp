@@ -1,4 +1,5 @@
 #include "Weapons/DFProjectile.h"
+#include "GameFramework/RotatingMovementComponent.h"
 #include "Weapons/DFDevices.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -73,6 +74,12 @@ void ADFProjectile::BeginPlay() {
 	}
 	if (HasAuthority() && FuseTime > 0.f)
 		SetLifeSpan(FuseTime);
+	if (GetNetMode() != NM_DedicatedServer && !TumbleSpin.IsZero() && Mesh) {
+		Tumble = NewObject<URotatingMovementComponent>(this, TEXT("Tumble"));
+		Tumble->SetUpdatedComponent(Mesh);
+		Tumble->RegisterComponent();
+		SetTumble(1.f);
+	}
 	if (GetNetMode() != NM_DedicatedServer) {
 		DF::PlayLoop(RootComponent, ClassicAmbientSound);
 		if (!TrailEffect.IsEmpty())
@@ -108,7 +115,16 @@ void ADFProjectile::LifeSpanExpired() {
 	Super::LifeSpanExpired();
 }
 
+void ADFProjectile::SetTumble(float Scale) {
+	if (!Tumble)
+		return;
+	// RandSpin(n): each of Yaw, Pitch, Roll at n x (2 FRand - 1)
+	const FRotator Max = TumbleSpin * Scale;
+	Tumble->RotationRate = FRotator(Max.Pitch * FMath::FRandRange(-1.f, 1.f), Max.Yaw * FMath::FRandRange(-1.f, 1.f), Max.Roll * FMath::FRandRange(-1.f, 1.f));
+}
+
 void ADFProjectile::OnStop(const FHitResult& Hit) {
+	SetTumble(0.f); // at rest (PHYS_None): no more turning
 	UE_LOG(LogDF, Verbose, TEXT("%s stopped by %s (%s) at %s"), *GetName(), *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent()), *Hit.ImpactPoint.ToCompactString());
 	if (HasAuthority() && bExplodeOnImpact)
 		Explode(Hit.ImpactPoint, Hit.ImpactNormal);
@@ -128,6 +144,8 @@ void ADFProjectile::PlayImpactSound(const FHitResult& Hit, const FVector& Impact
 
 void ADFProjectile::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
 	PlayImpactSound(Hit, ImpactVelocity);
+	if (TumbleOnBounce > 0.f)
+		SetTumble(TumbleOnBounce);
 	if (HasAuthority() && bExplodeOnImpact)
 		Explode(Hit.ImpactPoint, Hit.ImpactNormal);
 }
@@ -196,6 +214,8 @@ AGrenade::AGrenade() {
 	Movement->BounceVelocityStopSimulatingThreshold = 45.f; // MF: speed < 20 uu -> stop
 	Movement->bRotationFollowsVelocity = false;
 	FuseTime = 3.f; // MF Grenade1.FuseTime
+	TumbleSpin = FRotator(274.66f, 274.66f, 274.66f); // RandSpin(50000) rot units
+	TumbleOnBounce = 2.f; // HitWall: RandSpin(100000)
 	bTicking = true;
 	bExplodeOnImpact = false;
 	LaunchUpVelocity = 472.5f; // MF Velocity.z += 210

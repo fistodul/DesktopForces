@@ -42,6 +42,7 @@ AKnife::AKnife() {
 	RecoilPower = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_Knife.Fire01");
 	ClassicSelectSound = TEXT("WeaponSFX_Knife.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_Knife"));
 }
 
 void AKnife::FireShot(bool bAlt) {

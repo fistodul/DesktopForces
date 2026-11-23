@@ -84,6 +84,17 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<class UParticleSystemComponent> Trail;
 
+	/** UE1 RandSpin: the model tumbles in flight, each axis up to this fast either way (deg/s;
+	 *  zero axes stay still), again at TumbleOnBounce times that on every bounce, until it comes
+	 *  to rest. Only the model turns, not the collision. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FRotator TumbleSpin = FRotator::ZeroRotator;
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	float TumbleOnBounce = 0.f;
+	UPROPERTY(Transient)
+	TObjectPtr<class URotatingMovementComponent> Tumble;
+	void SetTumble(float Scale);
+
 	/** Grenade1.Tick: "Ticking" every second for the first 3 s. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	bool bTicking = false;

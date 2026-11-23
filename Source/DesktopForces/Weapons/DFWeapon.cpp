@@ -82,6 +82,7 @@ void ADFWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 	DOREPLIFETIME(ADFWeapon, ZoomLevel);
 	DOREPLIFETIME(ADFWeapon, bDropped);
 	DOREPLIFETIME_CONDITION(ADFWeapon, BurstCounter, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(ADFWeapon, bLastShotAlt, COND_SkipOwner);
 }
 
 void ADFWeapon::PostInitializeComponents() {
@@ -672,7 +673,20 @@ void ADFWeapon::UpdateMuzzleFlash() {
 }
 
 void ADFWeapon::OnRep_BurstCounter() {
-	PlayFireEffects(false);
+	PlayFireEffects(bLastShotAlt);
+}
+
+void ADFWeapon::ShowShot(bool bAlt) {
+	bLastShotAlt = bAlt;
+	++BurstCounter;
+	if (!IsLocallyControlled() && ShowsFireHere())
+		PlayFireEffects(bAlt);
+}
+
+void ADFWeapon::PlayBodyFire(bool bAlt) const {
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (UDFSoldierAnimInstance* Anim = C ? C->GetSoldierAnim() : nullptr)
+		Anim->OnFire(bAlt);
 }
 
 void ADFWeapon::OnDepleted() {
@@ -885,7 +899,25 @@ void ADFWeapon::SetupArms() {
 		Anim->SetSequencePrefix(Mesh->GetOutermost()->GetName());
 		Anim->SetIdle(GetArmsAnimName(EDFWeaponState::Idle, false));
 	}
+	if (!IdleFidgets[0].IsNone())
+		GetWorldTimerManager().SetTimer(FidgetTimer, this, &ADFWeapon::FidgetTick, 1.f, true);
 	UpdateDroppedLook();
+}
+
+void ADFWeapon::FidgetTick() {
+	// PlayIdleAnim loops Still and sets an 8 s timer; Timer then plays IdleAnims(1 or 2) if Still
+	// is still what plays (Owner set, the arms model shown), with its IdleSound
+	UDFTweenAnimInstance* Anim = GetArmsAnim();
+	const bool bIdle = Anim && State == EDFWeaponState::Idle && ZoomLevel == 0 && IsLocallyControlled() && Arms->IsVisible() && Anim->IsIdle();
+	IdleSeconds = bIdle ? IdleSeconds + 1 : 0;
+	if (IdleSeconds < 8)
+		return;
+	IdleSeconds = 0;
+	const int32 i = FMath::RandRange(0, 1);
+	if (IdleFidgets[i].IsNone() || !Anim->Play(IdleFidgets[i], 1.f, 0.1f, false))
+		return;
+	if (!ClassicIdleSounds[i].IsEmpty())
+		PlayMFSound(*ClassicIdleSounds[i]);
 }
 
 UDFTweenAnimInstance* ADFWeapon::GetArmsAnim() const {

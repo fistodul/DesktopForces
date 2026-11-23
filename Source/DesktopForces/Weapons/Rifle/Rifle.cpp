@@ -53,6 +53,7 @@ ARifle::ARifle() {
 	ClassicFireSound = TEXT("WeaponSFX_SniperRifle.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_SniperRifle.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_SniperRifle"));
 }
 
 float ARifle::GetShotPower() const {

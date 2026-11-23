@@ -119,6 +119,7 @@ bool UDFTweenAnimInstance::Play(FName Name, float Rate, float InTweenTime, bool 
 	Previous = Current;
 	Current = { Seq, 0.f, Rate, bLoop };
 	CurrentName = Name;
+	bHeldLoop = bLoop && Name != IdleName;
 	TweenTime = InTweenTime;
 	Alpha = InTweenTime > 0.f && Previous.Seq ? 0.f : 1.f;
 	return true;
@@ -137,6 +138,17 @@ bool UDFTweenAnimInstance::IsPlayingOnce() const {
 	return Current.Seq && !Current.bLoop && Current.Time < Current.Seq->GetPlayLength();
 }
 
+float UDFTweenAnimInstance::GetLength(FName Name) {
+	const UAnimSequence* Seq = Find(Name);
+	return Seq ? Seq->GetPlayLength() : 0.f;
+}
+
+float UDFTweenAnimInstance::GetPhase(FName Name) const {
+	if (Name != CurrentName || !Current.Seq || Current.Seq->GetPlayLength() <= 0.f)
+		return -1.f;
+	return Current.Time / Current.Seq->GetPlayLength();
+}
+
 void UDFTweenAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 	// advance: the current sequence plays (or loops); the one tweened from stays put (UE1 tweens
@@ -148,7 +160,7 @@ void UDFTweenAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	}
 	if (Alpha < 1.f)
 		Alpha = TweenTime > 0.f ? FMath::Min(1.f, Alpha + DeltaSeconds / TweenTime) : 1.f;
-	if (!IdleName.IsNone() && CurrentName != IdleName && !IsPlayingOnce())
+	if (!IdleName.IsNone() && CurrentName != IdleName && !IsPlayingOnce() && !bHeldLoop)
 		Play(IdleName, 1.f, IdleTween, true);
 }
 
@@ -165,7 +177,8 @@ void UDFSoldierAnimInstance::OnFire(bool bAlt) {
 	const int32 Row = bCrouched ? (bMoving ? 0 : 3) : !bMoving                       ? 4
 		: C->GetVelocity().Size2D() < C->GetCharacterMovement()->MaxWalkSpeed * 0.5f ? 1
 																					 : 2;
-	Play(FireAnims[bAlt ? 1 : 0][Row][Col], 1.f, 0.1f, false);
+	// Pawn.PlayFiring: PlayAnim(anim, 1, 0.05); PlayAltFiring: PlayAnim(anim, 2) (no tween)
+	Play(FireAnims[bAlt ? 1 : 0][Row][Col], bAlt ? 2.f : 1.f, bAlt ? 0.f : 0.05f, false);
 }
 
 void UDFSoldierAnimInstance::OnReload(float Duration) {

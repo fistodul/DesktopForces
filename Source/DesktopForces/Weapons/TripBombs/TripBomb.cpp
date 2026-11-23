@@ -145,6 +145,7 @@ ATripMine::ATripMine() {
 	Movement->Bounciness = 0.3f;
 	Movement->Friction = 0.8f;
 	Movement->bRotationFollowsVelocity = false;
+	TumbleSpin = FRotator(0.f, 274.66f, 0.f); // TripBombThrown: RotationRate.Yaw up to 50000 either way
 	bExplodeOnImpact = false;
 	FuseTime = 0.f;
 	InitialLifeSpan = 0.f; // stays until triggered

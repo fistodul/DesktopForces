@@ -48,6 +48,9 @@ AShotgun::AShotgun() {
 	ClassicFireSound = TEXT("WeaponSFX_Shotgun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Shotgun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_Shotgun"));
+	IdleFidgets[0] = TEXT("Idle01BothFull"); // shotgun.uc IdleAnims(1-2)
+	IdleFidgets[1] = TEXT("Idle02BothFull");
 }
 
 void AShotgun::BeginPlay() {

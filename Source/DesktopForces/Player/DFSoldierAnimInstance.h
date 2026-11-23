@@ -57,8 +57,14 @@ public:
 	}
 	bool HasSequence(FName Name) { return Find(Name) != nullptr; }
 
+	/** The idle loop is what plays. */
+	bool IsIdle() const { return !IdleName.IsNone() && CurrentName == IdleName; }
 	/** A non-looping sequence still has frames to play. */
 	bool IsPlayingOnce() const;
+	/** Name's length at rate 1 (s), 0 if there is no such sequence. */
+	float GetLength(FName Name);
+	/** How far Name has got through its cycle (0-1), or -1 when it isn't the one playing. */
+	float GetPhase(FName Name) const;
 
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override { return new FDFSoldierAnimProxy(this); }
@@ -74,6 +80,9 @@ protected:
 	FName CurrentName;
 	FName IdleName;
 	float IdleTween = 0.25f;
+	/** A loop other than the idle, played on purpose (the HMG's turning barrels): it runs until
+	 *  something else is played, the idle doesn't take over. */
+	bool bHeldLoop = false;
 	FString SequencePrefix;
 
 	UPROPERTY(Transient)

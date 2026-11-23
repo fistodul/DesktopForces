@@ -57,6 +57,9 @@ UI_TEXTURES = {
         'desert.skins.desertimage', 'ultimax.skins.ultimaximage', 'm24.skins.m24image', 'wa2000.skins.wa2000image',
         'm87.skins.m87image', 'm18.skins.m18image')},
     'rageweapons.icons.scopemask': {'masked', 'ui'},
+    # RageWaterRing's skin (STY_Alpha: the palette's soft alpha), the ring on water where
+    # something goes in (ADFWaterRing)
+    'rageeffects.waterringtex.splash_a01': {'masked'},
     # muzzle flashes (RageWeapon: FlashYellow, drawn additive)
     **{f'rageweapons.muzzleflash.flashyellow_a0{i}': {'translucent'} for i in range(1, 5)},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},

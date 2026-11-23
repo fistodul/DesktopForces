@@ -38,7 +38,8 @@ ATripBombs::ATripBombs() {
 	BombClass = ATripBomb::StaticClass();
 	RecoilPower = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_TripBombs.Plant");
-	ClassicSelectSound = TEXT("WeaponSFX_TripBombs.Idle01");
+	ClassicSelectSound = TEXT("WeaponSFX_HeavyMachineGun.Select"); // TripBombs.SelectSound
+	SetIdleFidgets(TEXT("WeaponSFX_TripBombs"));
 }
 
 void ATripBombs::PlayArms(FName Name, float Duration) {
@@ -94,7 +95,7 @@ void ATripBombs::EndPlace() {
 		bStuck = CanPlace() && TryPlant();
 		if (bStuck) {
 			UseAmmo();
-			++BurstCounter;
+			ShowShot(false);
 		}
 	} else {
 		bStuck = CanPlant(); // ClientFinish: the same test, the server's bomb follows
@@ -103,6 +104,8 @@ void ATripBombs::EndPlace() {
 	}
 	// PlayTripBombPlant (PlaceBack + Plant) / PlayTripBombFailToPlant (PlaceBombDown + PlantFail)
 	if (IsLocallyControlled()) {
+		if (bStuck)
+			PlayBodyFire(false); // the pawn's plant (PlayFiring)
 		PlayArms(bStuck ? TEXT("PlaceBack") : TEXT("PlaceBombDown"), PlaceBackTime);
 		PlayMFSound(bStuck ? TEXT("WeaponSFX_TripBombs.Plant") : TEXT("WeaponSFX_TripBombs.PlantFail"));
 	}
@@ -138,6 +141,8 @@ void ATripBombs::Throw() {
 	// MF's FireSound)
 	PlayArms(TEXT("SlideForward"), SlideForwardTime);
 	if (IsLocallyControlled())
+		PlayBodyFire(true); // the pawn's throw (PlayAltFiring)
+	if (IsLocallyControlled())
 		PlayMFSound(TEXT("WeaponSFX_TripBombs.Throw"));
 	BusyFor(SlideForwardTime, &ATripBombs::Done);
 }
@@ -152,7 +157,7 @@ void ATripBombs::ServerThrow_Implementation(float Power) {
 bool ATripBombs::ThrowNow(float Power) {
 	if (!CanPlace())
 		return false;
-	++BurstCounter;
+	ShowShot(true);
 	SpawnProjectile(AltProjectileClass, GetThrowSpeed(Power), true);
 	return true;
 }

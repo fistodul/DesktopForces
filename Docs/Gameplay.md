@@ -44,12 +44,27 @@ pull the pin (teeth or hand) and hum (Powering) while winding up, a timed grenad
 second; rifle hums while charging and chimes at full power (PoweredUp); the HMG deploy plays
 tripod / magazine / step back over its 2.5 s (ActivateGun01-03), picking it up 1 s (Pickup);
 rockets roar in flight (RocketFly).
+Arms (RageWeapon / Grenades / HeavyMachineGun): after 8 s of the still pose (not zoomed) an idle
+fidget, Idle01 or Idle02 at random with its IdleSound (pistol, knife, rifle, machine gun,
+shotgun's *BothFull ones, rocket launcher, HMG, trip bombs; grenades without a sound). A grenade
+throws only once the pin is out (PullPinBack(02) at 0.9, about 1.1 s; a tap throws at its end),
+the pin flies off 0.65 s (hand, to the left) or 0.85 s (teeth, to the right) into the pull, an
+alt throw is at least power 3, and after ThrowOver the next grenade comes up (SelectUp, the
+select sound). Grenades tumble in flight (RandSpin 50000 rot units, 100000 after each bounce)
+and a thrown trip bomb spins on its yaw. The HMG's barrels turn with the spin (Fire, its frame
+rate the spin rate) and at the slowest turn on to the end of their cycle before standing
+(ActivateStill, no tween); picking it up plays PickUpGun at rate 1. The jeep gun comes up in
+1.4 s (selectUp at rate 16). The body: fire at rate 1 (tween 0.05), alt fire at rate 2
+(Pawn.PlayFiring / PlayAltFiring), so a trip bomb's throw shows as a throw to everyone.
 
 **Water** (RageWaterZone, ZoneInfo bWaterZone): a water volume over the zone, only when the BSP
 bound that ZoneInfo to it (one left in unsealed zone 0 does nothing in UE1: MB-EndagaDam,
 mf-Hydroworks); swimming goes where you look, Jump up and Crouch down (PlayerSwimming), at
 WaterSpeed 200, Buoyancy 99 / Mass 100 (sinks very slowly). Head under for UnderWaterTime
-20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Pain zones (bPainZone, DamagePerSec)
+20 s, then 5 'Drowned' every 2 s; a gasp on coming up. Going in (a soldier, a grenade, a
+knife): a splash (LSplash and spray), then two rings on the surface 0.3 s apart
+(RageWaterImpact / RageWaterRing: RageRingex lying flat, its 6 frames over 0.8 s, fading out).
+Pain zones (bPainZone, DamagePerSec)
 hurt by how deep you stand (feet 0.4, body +0.4, head +0.2) once a second; negative values
 heal (mf-City_Rush, mf-Space_station). ZoneVelocity pushes along (BR-thebigisland's current).
 Map hazards hurt as MF made them, whatever the health (a zombie's falls hurt less, see Zombie).

@@ -51,6 +51,7 @@ AHeavyMachineGun::AHeavyMachineGun() {
 	FireSide = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_HeavyMachineGun.Fire");
 	ClassicSelectSound = TEXT("WeaponSFX_HeavyMachineGun.Select");
+	SetIdleFidgets(TEXT("WeaponSFX_HeavyMachineGun"));
 }
 
 void AHeavyMachineGun::ToggleZoom() {
@@ -81,6 +82,7 @@ void AHeavyMachineGun::ToggleZoom() {
 			1.026f, false);
 	} else if (!bDeploying) {
 		SetState(EDFWeaponState::Zooming, 1.f); // PlayAimDownAnim: PickUpGun 31 frames @30
+		PlayArms(TEXT("PickupGun"), 1.f); // at its own rate, not fitted to the deploy's ZoomTime
 		PlayMFSound(TEXT("WeaponSFX_HeavyMachineGun.Pickup"));
 	}
 }
@@ -125,10 +127,19 @@ void AHeavyMachineGun::SpinTick() {
 	// and the rest work while the barrels run out
 	if (State == EDFWeaponState::Firing)
 		State = EDFWeaponState::Idle;
-	SpinRate -= SpinAccel * Dt;
-	if (State == EDFWeaponState::Idle) // not over a reload or a put-down started in the run-out
+	SpinRate = FMath::Max(MinSpin, SpinRate - SpinAccel * Dt);
+	UDFTweenAnimInstance* Anim = IsLocallyControlled() && State == EDFWeaponState::Idle ? GetArmsAnim() : nullptr;
+	if (Anim) // not over a reload or a put-down started in the run-out
 		PlayArmsSpin();
-	if (SpinRate <= MinSpin) {
+	// MF ZoomedIn.Tick: at MinFireAnimRate the barrels turn on to the end of their cycle and stand
+	// there (ActivateStill, no tween)
+	const float Phase = Anim ? Anim->GetPhase(TEXT("Fire")) : -1.f;
+	const bool bCycleDone = Phase < 0.f || Phase < LastSpinPhase || Phase > 0.97f;
+	LastSpinPhase = Phase;
+	if (SpinRate <= MinSpin && bCycleDone) {
+		if (Anim)
+			Anim->Play(TEXT("ActivateStill"), 1.f, 0.f, true);
+		LastSpinPhase = -1.f;
 		SpinRate = 0.f;
 		ShotAccumulator = 0.f;
 		GetWorldTimerManager().ClearTimer(SpinTimer);
@@ -150,6 +161,7 @@ void AHeavyMachineGun::PlayArmsSpin() {
 void AHeavyMachineGun::ForceInactive() {
 	GetWorldTimerManager().ClearTimer(SpinTimer);
 	SpinRate = 0.f;
+	LastSpinPhase = -1.f;
 	Super::ForceInactive();
 }
 
