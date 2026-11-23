@@ -756,15 +756,11 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
       three maps (thread 16); 4 bounces on three (above).
 
 25. ⬜ **Map look the converter misses** (Filip saw it on COOP-GhettoZomburaUpdated, 2026-11-22).
-    - Distance fog isn't ported. 23 maps set `bDistanceFog` on their zones: the Ghetto maps in
-      brown fog that ends at 5000 uu (no sky zone, the fog hides it), mf-Sardine_City 1210 /
-      21000, BR-thebigisland 1200, mf-warehouse 25000, and others. Needs a way to draw linear
-      zone fog (start, end, colour) per zone that fits the forward, baked, low-end budget
-      ([Performance](Performance.md)).
-    - Static meshes whose material is not a plain texture (UE2 Shader / FinalBlend /
-      Combiner) export from T3D as `Texture None` and are drawn with the default texture: 270
-      meshes on 37 maps (the Ghetto maps' cars and buildings, 23 each; mf-nc 37; mf-airport
-      13; mf-City_Rush 11). The fix is to read each StaticMesh's `Materials` and per-triangle
-      material index from the package (not the T3D) and follow the material to its texture.
+    - ✅ Distance fog (2026-11-23): 23 maps' `bDistanceFog` zones, one height fog retinted
+      from a 3 m zone grid as the camera moves (`ADFMapInfo::ZoneFog`, Pipeline "zone fog").
+    - ✅ Static meshes with Shader / FinalBlend / Combiner materials (270 on 37 maps) take their
+      textures from the package's StaticMesh `Materials`; all 47 affected maps rebaked
+      2026-11-23. A later material-only change needs no rebake: `import <maps> --steps
+      meshmaterials` swaps them in place (and names the maps whose geometry changed).
     - 35 maps have no sky zone (see the list from `level.json`): check with the reference
       videos which ones showed a sky (or fog) in MF.
