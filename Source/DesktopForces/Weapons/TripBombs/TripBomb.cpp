@@ -8,6 +8,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
+#include "EngineUtils.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -163,6 +164,13 @@ void ATripMine::BeginPlay() {
 
 void ATripMine::OnStop(const FHitResult& Hit) {
 	HitOtherMine(Hit.GetActor());
+	// TripBombOnGround.Touch: a bomb that comes down inside another's 64 uu sphere sets both off
+	// (no stacking). Plain trip bombs only: trip lasers' mines don't (Filip). Mines fly through
+	// each other (projectiles ignore their own channel), so it's checked here, by distance.
+	if (HasAuthority() && GetClass() == ATripMine::StaticClass())
+		for (TActorIterator<ATripMine> It(GetWorld()); It; ++It)
+			if (*It != this && It->GetClass() == ATripMine::StaticClass() && It->HitSphere && FVector::Dist(It->GetActorLocation(), Hit.ImpactPoint) < TriggerRadius)
+				HitOtherMine(*It);
 	if (bExploded)
 		return;
 	// lie on its base: TripBombsThrowMesh's thin side (its local Y, base at +Y, the body
