@@ -9,7 +9,7 @@ ADesertEagle::ADesertEagle() {
 	ViewMesh = TEXT("desert/DesertPickupCarryMesh");
 	ArmsMesh = TEXT("DesertPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
 	MuzzleBone = TEXT("Body");
-	MuzzleOffset = FVector(1.12f, -84.38f, -0.95f);
+	MuzzleOffset = FVector(13.f, -84.38f, -0.95f); // past the slide's face (its X is the barrel): at the tip the slide hid it
 	ArmsScale = 0.2f;
 	ArmsOffset = FVector(1.f, -1.4f, -2.4f);
 	RequiredContent = TEXT("Props/desert/DesertPickupCarryMesh");

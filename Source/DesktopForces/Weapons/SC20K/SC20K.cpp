@@ -40,7 +40,7 @@ ASC20K::ASC20K() {
 	AltAccuracy = 0.056f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
-	ZoomedViewOffset = FVector(270.f, -152.12f, 230.f); // MF ZoomedInViewOffset
+	ZoomedViewOffset = FVector(270.f, -147.f, 218.f); // MF (270, -152.12, 230) put the holo reticle above the crosshair here: tuned by eye, 2026-11-23
 	RecoilPower = 0.63f;
 	ClassicFireSound = TEXT("SC20K.sc20kFire");
 	ClassicReloadSound = TEXT("SC20K.sc20kreload");

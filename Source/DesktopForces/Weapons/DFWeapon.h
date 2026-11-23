@@ -482,6 +482,10 @@ public:
 	virtual void OnGiven(ADFCharacter* NewOwner);
 	virtual void OnEquip();
 	virtual void OnPutDown();
+	/** A switch asked for while this is mid-throw (MF: PutDown in a firing state sets
+	 *  bChangeWeapon, the switch comes at Finish): the throw plays out first. */
+	virtual bool DefersPutDown() const { return false; }
+	bool bPutDownQueued = false;
 	/** Immediately holster without animation (death, loadout). */
 	virtual void ForceInactive();
 

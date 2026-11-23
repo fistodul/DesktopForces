@@ -114,6 +114,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFBring Name [Dist]` | put a player (with their car) or the nearest actor of a class 300 cm (or Dist) in front of you (`DFBring MoBall`) |
 | `DFWhere` | say where you stand and look as `DFTeleport X Y Z \| DFCam X Y Z Yaw Pitch`, and put that on the clipboard (to report a spot) |
 | `DFMuzzleProbe [Bone] [MaxAhead]` | say where the held weapon's muzzle is, as `MuzzleBone` / `MuzzleOffset` for its defaults: the arms model's vertex furthest along the view (only that bone's vertices with Bone; only up to MaxAhead cm in front of the eye, past a laser sight's beam) |
+| `DFWeaponSet Property Value` | set a property of the held weapon live, as its defaults (`DFWeaponSet ZoomedViewOffset (X=270,Y=-147,Z=218)`, `DFWeaponSet MuzzleOffset (X=13,Y=-84,Z=-1)`); with `df.HoldMuzzleFlash 1` the first-person flash stays up while you tune it |
 | `DFOrder N` | give team order N to everyone (0 Defend, 1 Hold, 2 Attack, 3 Cover me, 4 Freelance), as the V menu does |
 | `DFHurtEnemies N` | N damage from you to every enemy (mode rules apply: Tug converts, Totem saves) |
 | `DFTopView X Y Width [Z]` | orthographic top view (`DFTopView 0 0 0` = back) |

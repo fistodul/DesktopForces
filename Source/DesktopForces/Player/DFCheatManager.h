@@ -116,6 +116,9 @@ public:
 	 *  only vertices up to that far (cm) in front of the eye (a laser sight's beam goes further). */
 	UFUNCTION(Exec)
 	void DFMuzzleProbe(const FString& Bone = TEXT(""), float MaxAhead = 0.f);
+	/** Set a property of the held weapon, as its defaults would ("DFWeaponSet ZoomedViewOffset (X=240,Y=-50,Z=180)"): live tuning of view offsets and flashes. */
+	UFUNCTION(Exec)
+	void DFWeaponSet(const FString& Property, const FString& Value);
 
 	/** Developer: log what the view looks at (component, mesh, material, compile errors). */
 	UFUNCTION(Exec)

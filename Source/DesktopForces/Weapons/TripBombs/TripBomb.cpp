@@ -179,6 +179,18 @@ void ATripMine::OnStop(const FHitResult& Hit) {
 	const FQuat Now = GetActorQuat();
 	SetActorRotation(FQuat::FindBetweenNormals(Now.RotateVector(-FVector::YAxisVector), Normal) * Now);
 	SetActorLocation(Hit.ImpactPoint + Normal * 2.25f);
+	// TripBombOnGround: a 64 uu collision sphere that traces hit (bProjTarget), TakeDamage ->
+	// BlowUp: a knife's slash or a shot anywhere in it sets the bomb off, as in MF
+	if (!HitSphere) {
+		HitSphere = NewObject<USphereComponent>(this, TEXT("HitSphere"));
+		HitSphere->InitSphereRadius(TriggerRadius);
+		HitSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		HitSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+		HitSphere->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Block); // the Weapon trace
+		HitSphere->SetCanEverAffectNavigation(false);
+		HitSphere->SetupAttachment(GetRootComponent());
+		HitSphere->RegisterComponent();
+	}
 	Super::OnStop(Hit);
 }
 

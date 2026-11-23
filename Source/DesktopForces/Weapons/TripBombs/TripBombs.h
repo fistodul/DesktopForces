@@ -19,6 +19,8 @@ public:
 	virtual void StopFire(bool bAlt) override;
 
 	virtual void ForceInactive() override;
+	/** Mid-plant or mid-throw (NormalFire / AltFiring ignore PutDown): the switch waits for Done. */
+	virtual bool DefersPutDown() const override { return State == EDFWeaponState::Firing || bWinding; }
 
 protected:
 	// NormalFire: PlaceForward, then the plant (or not) and PlaceBack / PlaceBombDown

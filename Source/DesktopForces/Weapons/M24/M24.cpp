@@ -34,7 +34,7 @@ AM24::AM24() {
 	AltAccuracy = 0.05f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
-	ZoomedViewOffset = FVector(450.f, -80.95f, 156.5f); // MF ZoomedInViewOffset
+	ZoomedViewOffset = FVector(450.f, -85.f, 125.f); // MF (450, -80.95, 156.5) hid the view under the scope: the sight ring just below the crosshair
 	RecoilPower = 4.0f;
 	MaxTraceDistance = 45000.f; // like the sniper rifle
 	Casing.Mesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass: Pistol_BulletCase at the hip (the scope hides the rifle case)

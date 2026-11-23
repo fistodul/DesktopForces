@@ -51,6 +51,10 @@ ARifle::ARifle() {
 	ZoomedMoveScale = 0.f; // can't walk while scoped (MF: "no use to players on the move")
 	RecoilPower = 1.f;
 	MuzzleFlashSize = 40.f;
+	// at the barrel's end on the model (DFMuzzleProbe, 2026-11-23): MF's canvas spot stayed put
+	// while the firing animation threw the gun about, so the flash sat inside it (Filip's shots)
+	MuzzleBone = TEXT("DummyMainSnipe");
+	MuzzleOffset = FVector(-296.71f, -9.34f, -2.07f);
 	FlashY = -0.05f;
 	FlashO = 0.003f;
 	FlashS = 55.f;

@@ -107,4 +107,8 @@ protected:
 	FTimerHandle ProximityTimer;
 	/** MF TripBombOnGround.CollisionRadius 64 uu. */
 	float TriggerRadius = 144.f;
+	/** At rest, the sphere a knife or bullet hits it by (TripBombOnGround: bCollisionSphere,
+	 *  CollisionRadius 64, bProjTarget): weapon traces only, made on landing. */
+	UPROPERTY(Transient)
+	TObjectPtr<class USphereComponent> HitSphere;
 };

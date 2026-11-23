@@ -35,7 +35,7 @@ AUltimax::AUltimax() {
 	AltAccuracy = 0.07f;
 	MaxZoomLevel = 1;
 	ZoomScale = 2.f;
-	ZoomedViewOffset = FVector(140.f, -92.2f, 160.f); // MF ZoomedInViewOffset
+	ZoomedViewOffset = FVector(140.f, -108.f, 115.f); // MF (140, -92.2, 160) covered the crosshair with the sight's block: held just under it, tuned by eye
 	RecoilPower = 0.85f;
 	ClassicFireSound = TEXT("ultimax.ultimaxFire");
 	ClassicReloadSound = TEXT("ultimax.ultimaxreload");

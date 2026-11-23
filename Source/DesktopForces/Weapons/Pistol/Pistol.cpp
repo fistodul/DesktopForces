@@ -43,6 +43,10 @@ APistol::APistol() {
 	RecoilPower = 1.f;
 	TracerEvery = 1;
 	MuzzleFlashSize = 30.f;
+	// at the barrel's end on the model (DFMuzzleProbe, 2026-11-23): MF's canvas spot stayed put
+	// while the firing animation threw the gun about, so the flash sat inside it (Filip's shots)
+	MuzzleBone = TEXT("MainPistolDummy");
+	MuzzleOffset = FVector(-67.06f, -27.76f, -0.35f);
 	FlashY = 0.08f; // RageWeapons Pistol
 	FlashO = -0.042f;
 	FlashS = -6.f;

@@ -980,3 +980,18 @@ void UDFCheatManager::DFFindPits() {
 	FFileHelper::SaveStringToFile(Json, *File);
 	Say(FString::Printf(TEXT("%d pits -> %s"), Pits.Num(), *File));
 }
+
+void UDFCheatManager::DFWeaponSet(const FString& Property, const FString& Value) {
+	const ADFCharacter* C = Cast<ADFCharacter>(GetPlayerController()->GetPawn());
+	ADFWeapon* W = C ? C->GetCurrentWeapon() : nullptr;
+	FProperty* P = W ? W->GetClass()->FindPropertyByName(*Property) : nullptr;
+	if (!P) {
+		UE_LOG(LogDF, Display, TEXT("DFWeaponSet: no %s on %s"), *Property, *GetNameSafe(W));
+		return;
+	}
+	void* Ptr = P->ContainerPtrToValuePtr<void>(W);
+	P->ImportText_Direct(*Value, Ptr, W, PPF_None);
+	FString Now;
+	P->ExportTextItem_Direct(Now, Ptr, nullptr, W, PPF_None);
+	UE_LOG(LogDF, Display, TEXT("DFWeaponSet %s.%s = %s"), *W->GetClass()->GetName(), *Property, *Now);
+}

@@ -42,6 +42,10 @@ AMachineGun::AMachineGun() {
 	RecoilPower = 0.8f;
 	TracerEvery = 5;
 	MuzzleFlashSize = 40.f;
+	// at the barrel's end on the model (DFMuzzleProbe, 2026-11-23): MF's canvas spot stayed put
+	// while the firing animation threw the gun about, so the flash sat inside it (Filip's shots)
+	MuzzleBone = TEXT("MainGunDummy");
+	MuzzleOffset = FVector(-138.98f, -3.25f, 7.31f);
 	FlashY = 0.11f; // RageWeapons defaults
 	FlashO = -0.03f;
 	FlashS = -30.f;

@@ -340,8 +340,14 @@ void ADFWeapon::Finish() {
 
 	if (bDestroyWhenEmpty && !HasAnyAmmo()) {
 		// MF: single-use items must leave the hands right away (loadout-consumables 6B)
+		bPutDownQueued = false;
 		if (HasAuthority())
 			OnDepleted();
+		return;
+	}
+
+	if (bPutDownQueued) {
+		OnPutDown(); // the switch asked for during the throw
 		return;
 	}
 
@@ -686,8 +692,13 @@ bool ADFWeapon::GetMuzzleFlashLocation(FVector& Location) const {
 	return true;
 }
 
+namespace {
+	// tuning aid: the held gun's flash stays up (DFWeaponSet MuzzleOffset / FlashY ... by eye)
+	TAutoConsoleVariable<int32> CVarHoldMuzzleFlash(TEXT("df.HoldMuzzleFlash"), 0, TEXT("1: the first-person muzzle flash stays shown (tuning its place)"), ECVF_Cheat);
+} // namespace
+
 bool ADFWeapon::IsMuzzleFlashing() const {
-	return GetWorld()->GetTimeSeconds() < MuzzleFlashUntil;
+	return GetWorld()->GetTimeSeconds() < MuzzleFlashUntil || CVarHoldMuzzleFlash.GetValueOnGameThread() != 0;
 }
 
 bool ADFWeapon::UsesWorldMuzzleFlash() const {
@@ -766,6 +777,7 @@ void ADFWeapon::OnGiven(ADFCharacter* NewOwner) {
 }
 
 void ADFWeapon::OnEquip() {
+	bPutDownQueued = false;
 	SetActorHiddenInGame(false);
 	SetState(EDFWeaponState::Equipping, EquipTime);
 	if (ADFCharacter* C = GetOwnerCharacter(); C && C->GetSoldierAnim())
@@ -775,6 +787,11 @@ void ADFWeapon::OnEquip() {
 }
 
 void ADFWeapon::OnPutDown() {
+	if (DefersPutDown()) {
+		bPutDownQueued = true;
+		return;
+	}
+	bPutDownQueued = false;
 	bFireHeld = bAltFireHeld = false;
 	SetAmbientMFSound(nullptr);
 	if (ZoomLevel > 0)
@@ -900,6 +917,7 @@ void ADFWeapon::UpdateDroppedLook() {
 }
 
 void ADFWeapon::ForceInactive() {
+	bPutDownQueued = false;
 	ClearStateTimer();
 	GetWorldTimerManager().ClearTimer(MuzzleFlashTimer);
 	MuzzleFlashUntil = 0.f;

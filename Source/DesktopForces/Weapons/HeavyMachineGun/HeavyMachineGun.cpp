@@ -52,14 +52,14 @@ AHeavyMachineGun::AHeavyMachineGun() {
 	Casing.Speed = 120.f * 2.25f;
 	CasingEvery = 5;
 	CasingPort = FVector(30.f, 6.f, -10.f);
-	MuzzleFlashSize = 40.f;
+	MuzzleFlashSize = 90.f; // Filip: big enough to cover the gun's true nozzle (MF 40 hid in it)
 	// MF's canvas flash, just over the receiver: no MuzzleBone, the barrel's end (GunBarrel
 	// + (-0.6, 221.7, 0.1)) is behind the receiver from the gunner's eye (DFMuzzleProbe,
 	// 2026-11-21), so a depth-tested flash there never shows
 	FlashY = 0.045f;
 	FlashO = 0.f;
 	FlashS = 0.f;
-	FlashYZoom = 0.085f;
+	FlashYZoom = 0.06f; // the front of the receiver, where the barrels come out
 	FireSide = 0.f;
 	ClassicFireSound = TEXT("WeaponSFX_HeavyMachineGun.Fire");
 	ClassicSelectSound = TEXT("WeaponSFX_HeavyMachineGun.Select");
