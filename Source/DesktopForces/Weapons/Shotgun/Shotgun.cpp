@@ -13,6 +13,9 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AShotgun::AShotgun() {
+	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
+	ThirdPersonFlashScale = 0.15f;
+	ThirdPersonFlashOffset = FVector(8.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "Shotgun", "%k blew away %o.");
 	ViewMesh = TEXT("RageWeapons/ShotgunPickupCarryMesh");
 	ArmsMesh = TEXT("ShotgunPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
@@ -51,6 +54,22 @@ AShotgun::AShotgun() {
 	SetIdleFidgets(TEXT("WeaponSFX_Shotgun"));
 	IdleFidgets[0] = TEXT("Idle01BothFull"); // shotgun.uc IdleAnims(1-2)
 	IdleFidgets[1] = TEXT("Idle02BothFull");
+}
+
+void AShotgun::OnLocalReload() {
+	// Reloading / ClientReloading.Timer, EjectPause (0.65 s) in: a Shotgun_ShellCase, DrawScale 1.5,
+	// from 15 X + (FireOffset.Y + 5) Y - Z; a second when both barrels were spent and more is left
+	const bool bBoth = ClipAmmo == 0 && TotalAmmo > 1;
+	GetWorldTimerManager().SetTimer(ShellTimer, FTimerDelegate::CreateWeakLambda(this, [this, bBoth]() {
+		if (State != EDFWeaponState::Reloading)
+			return;
+		FDFCasing Shell;
+		Shell.Mesh = TEXT("RageWeapons/ShotgunShell");
+		Shell.Scale = 1.5f;
+		for (int32 i = 0; i < (bBoth ? 2 : 1); ++i)
+			EjectCasing(Shell, FVector(15.f, FireSide + 5.f, -1.f));
+	}),
+		0.65f, false);
 }
 
 void AShotgun::BeginPlay() {

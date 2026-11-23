@@ -37,36 +37,44 @@ ADFShellCase::ADFShellCase() {
 	InitialLifeSpan = 3.f;
 }
 
-void ADFShellCase::Eject(UWorld* World, const FString& MeshName, float Scale, const FVector& Eye, const FRotator& View, const FVector& Port, const FVector& InheritVelocity, float Side) {
-	if (!World || World->GetNetMode() == NM_DedicatedServer || MeshName.IsEmpty())
-		return;
+void ADFShellCase::Eject(UWorld* World, const FDFCasing& Casing, const FVector& Eye, const FRotator& View, const FVector& Port, const FVector& InheritVelocity, float Side) {
 	const FRotationMatrix Axes(View);
 	const FVector X = Axes.GetUnitAxis(EAxis::X), Y = Axes.GetUnitAxis(EAxis::Y), Z = Axes.GetUnitAxis(EAxis::Z);
 	const FVector At = Eye + X * Port.X + Y * Port.Y + Z * Port.Z;
+	const FVector& Min = Casing.VelocityMin;
+	const FVector& R = Casing.VelocityRange;
+	const FVector V = ((FMath::FRand() * R.X + Min.X) * X + Side * (FMath::FRand() * R.Y + Min.Y) * Y + (FMath::FRand() * R.Z + Min.Z) * Z) * Casing.Speed;
+	Launch(World, Casing, At, View, V + InheritVelocity);
+}
+
+ADFShellCase* ADFShellCase::Launch(UWorld* World, const FDFCasing& Casing, const FVector& At, const FRotator& Rotation, const FVector& Velocity) {
+	if (!World || World->GetNetMode() == NM_DedicatedServer || Casing.Mesh.IsEmpty())
+		return nullptr;
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ADFShellCase* S = World->SpawnActor<ADFShellCase>(At, View, SP);
+	ADFShellCase* S = World->SpawnActor<ADFShellCase>(At, Rotation, SP);
 	if (!S)
-		return;
-	if (!DF::ApplyPropMesh(S->Mesh, *MeshName, Scale)) {
-		S->Destroy(); // no classic content: no cases
-		return;
+		return nullptr;
+	if (!DF::ApplyPropMesh(S->Mesh, *Casing.Mesh, Casing.Scale)) {
+		S->Destroy(); // no classic content: none
+		return nullptr;
 	}
-	// Eject(((FRand()*0.3+0.4)*X + (FRand()*0.2+0.2)*Y + (FRand()*0.3+1.0)*Z) * 160) uu/s
-	// (Side -1: thrown to the left, the grenade pin pulled by hand)
-	const FVector V = ((FMath::FRand() * 0.3f + 0.4f) * X + Side * (FMath::FRand() * 0.2f + 0.2f) * Y + (FMath::FRand() * 0.3f + 1.f) * Z) * 360.f;
-	S->Movement->Velocity = V + InheritVelocity;
+	S->MaxBounces = Casing.MaxBounces;
+	S->Tink = Casing.Sound.IsEmpty() ? nullptr : DF::LoadClassic<USoundBase>(Casing.Sound);
+	S->Movement->Velocity = Velocity;
 	S->Movement->UpdateComponentVelocity();
 	S->SetActorRotation(FRotator(FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f), 0.f));
+	return S;
 }
 
 void ADFShellCase::OnBounce(const FHitResult& Hit, const FVector& ImpactVelocity) {
-	// RageRifle_BulletCase.HitWall: a tink each bounce, gone after three
-	if (++Bounces > 3) {
+	// RageRifle_BulletCase.HitWall: a tink each bounce, still after three (vehWeap_Shell: two)
+	if (++Bounces > MaxBounces) {
 		Movement->StopMovementImmediately();
 		return;
 	}
-	DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Shell")), GetActorLocation(), 0.5f, 600.f);
+	if (Tink)
+		DF::PlaySoundRadius(this, Tink, GetActorLocation(), 0.5f, 600.f);
 	SetActorRotation(FRotator(FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f), FMath::FRandRange(0.f, 360.f)));
 }
 

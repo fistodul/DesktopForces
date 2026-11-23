@@ -129,7 +129,7 @@ void ATripBomb::MulticastExplodeFX_Implementation(FVector_NetQuantize At) {
 	if (GetNetMode() != NM_DedicatedServer) {
 		DF::PlaySoundAtLocation(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), At);
 		DF::SpawnEffect(this, TEXT("Explosion"), At, 0.4f);
-		DF::SpawnScorchBelow(this, At, 180.f);
+		DF::SpawnScorch(this, At, GetActorForwardVector(), 180.f); // on its wall (it faces out of it)
 	}
 	SetActorHiddenInGame(true);
 }

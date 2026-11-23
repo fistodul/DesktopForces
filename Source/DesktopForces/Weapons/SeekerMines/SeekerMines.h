@@ -123,4 +123,6 @@ public:
 protected:
 	virtual bool CanPlace() const override;
 	virtual float GetThrowSpeed(float Power) const override { return 1800.f + Power * 405.f; } // MF 800 + ThrowPower * 180 uu/s
+	/** The buttons winding the throw up (bit 0 fire, bit 1 alt fire): it goes once both are up. */
+	uint8 HeldButtons = 0;
 };

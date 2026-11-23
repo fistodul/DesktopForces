@@ -52,3 +52,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "DF")
 	TObjectPtr<URotatingMovementComponent> Spin;
 };
+
+/**
+ * A wheel thrown off a vehicle that blows up (Vehicle.BlowUp: Rage.WheelL / WheelR, Props of
+ * Bill's physics): the first sound wheel always, each other one 3 in 10, pushed out from the
+ * middle and up (WheelExplosionForce); 2 in 5 burning while TrailFXC (4) lasts (WheelLburning:
+ * an ExplosionFire with it). Bumps with WheelSFX.HitWheel; gone after 20-25 s. MF threw its
+ * generic Rage wheel; this is the vehicle's own wheel mesh. Cosmetic, on each client.
+ */
+UCLASS(NotBlueprintable)
+class DESKTOPFORCES_API AVehicleWheelFrag : public AVehicleFrag {
+	GENERATED_BODY()
+
+public:
+	static void Throw(UWorld* World, class UStaticMesh* WheelMesh, const FTransform& Where, const FVector& Velocity, bool bBurning);
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void PickMesh() override {}
+	virtual void PlayHitSound(float Speed) override;
+};

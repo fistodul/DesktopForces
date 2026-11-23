@@ -60,6 +60,10 @@ UI_TEXTURES = {
     # RageWaterRing's skin (STY_Alpha: the palette's soft alpha), the ring on water where
     # something goes in (ADFWaterRing)
     'rageeffects.waterringtex.splash_a01': {'masked'},
+    # RageBloodSplat / RageBloodPool (STY_Alpha projectors): blood behind a hit soldier, under a corpse
+    **{f'rageeffects.bloodsplat0{i}': {'masked'} for i in range(1, 9)},
+    # the third-person muzzle flash's particles (RageWeapon MuzzleFlashTexture, STY_Translucent)
+    'rageweapons.skins.jmachinegunmuzzleflash': {'translucent'},
     # muzzle flashes (RageWeapon: FlashYellow, drawn additive)
     **{f'rageweapons.muzzleflash.flashyellow_a0{i}': {'translucent'} for i in range(1, 5)},
     'rageweapons.icons.sniperrifleaim': {'masked', 'ui'},

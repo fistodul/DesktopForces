@@ -12,6 +12,9 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AMachineGun::AMachineGun() {
+	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
+	ThirdPersonFlashScale = 0.1f;
+	ThirdPersonFlashOffset = FVector(8.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "MachineGun", "%k machine-gunned %o.");
 	ViewMesh = TEXT("RageWeapons/MachineGunPickupCarryMesh");
 	ArmsMesh = TEXT("MachineGunPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
@@ -45,8 +48,8 @@ AMachineGun::AMachineGun() {
 	// MF 0.3 lands on our sighted gun's body: up at the front sight post, where the barrel ends
 	FlashYZoom = 0.09f;
 	FireSide = 4.f;
-	CasingMesh = TEXT("RageWeapons/MachineGunBullet"); // EjectBrass
-	CasingScale = 0.7f; // RageWeapons TracerEvery
+	Casing.Mesh = TEXT("RageWeapons/MachineGunBullet"); // EjectBrass
+	Casing.Scale = 0.7f; // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_MachineGun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_MachineGun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_MachineGun.Select");

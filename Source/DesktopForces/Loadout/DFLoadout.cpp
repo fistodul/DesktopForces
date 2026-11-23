@@ -3,6 +3,8 @@
 #include "Player/DFCharacter.h"
 #include "Weapons/DFWeapon.h"
 #include "Core/DFGameSettings.h"
+#include "Core/DFContent.h"
+#include "Core/DFProps.h"
 #include "Components/BoxComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/CapsuleComponent.h"
@@ -97,6 +99,21 @@ void ALoadoutCrate::BeginPlay() {
 	if (!IsRelevantNow()) {
 		SetActorHiddenInGame(true);
 		SetActorEnableCollision(false);
+		return;
+	}
+	// with the classic pack: MF's own crate (Rage.LoadoutCrate<Blue|Red|DM>[Open|Skewed]Mesh,
+	// DrawScale 1, drawn at the decoration's location); our crate stays in the map itself
+	if (Mesh && IsVisibleCrate() && GetNetMode() != NM_DedicatedServer && (Team == DF::NoTeam || Team <= 1)) {
+		const TCHAR* Colour = Team == DF::NoTeam ? TEXT("DM") : Team == 0 ? TEXT("Blue")
+																		  : TEXT("Red");
+		const TCHAR* Kind = Variant == TEXT("Open") ? TEXT("Open") : Variant == TEXT("Skewed") ? TEXT("Skewed")
+																							   : TEXT("");
+		const FString Name = FString::Printf(TEXT("Rage/LoadoutCrate%s%sMesh"), Colour, Kind);
+		if (DF::LoadClassic<UStaticMesh>(TEXT("Props/") + Name)) {
+			Mesh->SetMobility(EComponentMobility::Movable);
+			if (DF::ApplyPropMesh(Mesh, *Name, 1.f))
+				Mesh->SetRelativeLocation(FVector::ZeroVector);
+		}
 	}
 }
 

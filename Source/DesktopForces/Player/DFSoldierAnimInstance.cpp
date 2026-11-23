@@ -228,10 +228,11 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 			return TEXT("PassLgStill");
 		}
 	}
-	if (W && W->IsDeployed()) {
-		// HeavyMachineGun: down behind the gun on its tripod (TweenAnim HmachGStill, held)
+	if (W && W->IsDeployed() && C->GetWorld()->GetTimeSeconds() - W->GetZoomChangeTime() >= W->GetDeployCrouchDelay()) {
+		// HeavyMachineGun: down behind the gun on its tripod once ActivateGun01 is over
+		// (CrouchForGunnery: TweenAnim HmachGStill 1.0, held)
 		bOutLoop = false;
-		OutTween = 0.5f;
+		OutTween = 1.f;
 		return TEXT("HmachGStill");
 	}
 	if (M->IsSwimming()) {

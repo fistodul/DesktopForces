@@ -12,6 +12,9 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 APistol::APistol() {
+	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
+	ThirdPersonFlashScale = 0.1f;
+	ThirdPersonFlashOffset = FVector(20.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "Pistol", "%k popped a cap in %o's ass.");
 	ViewMesh = TEXT("RageWeapons/PistolPickupCarryMesh");
 	ArmsMesh = TEXT("PistolPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
@@ -45,8 +48,8 @@ APistol::APistol() {
 	FlashS = -6.f;
 	// MF 0.1 is on our sighted slide's back: up at the front sight, where the barrel ends
 	FlashYZoom = 0.025f;
-	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass
-	CasingScale = 1.f; // RageWeapons TracerEvery
+	Casing.Mesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass
+	Casing.Scale = 1.f; // RageWeapons TracerEvery
 	ClassicFireSound = TEXT("WeaponSFX_Pistol.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_Pistol.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Pistol.Select");

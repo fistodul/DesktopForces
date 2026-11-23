@@ -92,7 +92,9 @@ void AGrenades::EjectPin(bool bTeeth) {
 	const float Side = Hand == EDFWeaponHand::Left ? -1.f : 1.f;
 	const FVector Pin = bTeeth ? FVector(60.f, -5.f, -15.f) : FVector(60.f, -10.f, -10.f);
 	const FVector Draw = FVector(Pin.X + ArmsOffset.X, Side * (Pin.Y + ArmsOffset.Y), Pin.Z + ArmsOffset.Z);
-	ADFShellCase::Eject(GetWorld(), TEXT("RageWeapons/GrenadePin"), 1.f, Eye, View, Draw * 2.25f, C->GetVelocity(), bTeeth ? Side : -Side);
+	FDFCasing PinCase;
+	PinCase.Mesh = TEXT("RageWeapons/GrenadePin");
+	ADFShellCase::Eject(GetWorld(), PinCase, Eye, View, Draw * 2.25f, C->GetVelocity(), bTeeth ? Side : -Side);
 }
 
 void AGrenades::Release() {

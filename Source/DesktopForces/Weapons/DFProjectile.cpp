@@ -166,21 +166,21 @@ void ADFProjectile::Explode(const FVector& Location, const FVector& Normal) {
 		UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 0.f, Location + Normal * 36.f, 0.f, DamageRadius, 1.f,
 			DamageType, Ignore, this, InstigatorController, ECC_Visibility);
 	}
-	MulticastExplosionFX(Location + Normal * 36.f); // Rocket: AddExplosion(Location + HitNormal * 16)
+	MulticastExplosionFX(Location + Normal * 36.f, Normal); // Rocket: AddExplosion(Location + HitNormal * 16)
 	SetLifeSpan(0.2f); // let the multicast go out
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
 	Movement->StopMovementImmediately();
 }
 
-void ADFProjectile::MulticastExplosionFX_Implementation(FVector_NetQuantize Location) {
+void ADFProjectile::MulticastExplosionFX_Implementation(FVector_NetQuantize Location, FVector_NetQuantizeNormal Normal) {
 	if (Trail)
 		Trail->DeactivateSystem();
 	if (GetNetMode() != NM_DedicatedServer && ExplosionSound)
 		DF::PlaySoundAtLocation(this, ExplosionSound, Location, ExplosionVolume);
 	if (ExplosionEffectScale > 0.f) {
 		DF::SpawnEffect(this, TEXT("Explosion"), Location, ExplosionEffectScale);
-		DF::SpawnScorchBelow(this, Location, ExplosionEffectScale * 450.f); // grenade ~1.8 m, rocket ~5.4 m
+		DF::SpawnScorch(this, Location, Normal, ExplosionEffectScale * 450.f); // grenade ~1.8 m, rocket ~5.4 m; on the wall or ceiling it hit
 	}
 	SetActorHiddenInGame(true);
 }

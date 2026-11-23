@@ -6,21 +6,47 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Core/DFContent.h"
+#include "UObject/StrongObjectPtr.h"
 #include "TimerManager.h"
 #if WITH_EDITOR
 #include "StaticMeshCompiler.h"
 #endif
 
 namespace {
-	const TCHAR* DecalTexture(DF::EDecal Kind, int32 Variant) {
+	int32 DecalVariants(DF::EDecal Kind) {
+		return Kind == DF::EDecal::BulletHole ? 4 : Kind == DF::EDecal::Blood ? 8
+																			  : 2;
+	}
+
+	FString DecalTexture(DF::EDecal Kind, int32 Variant) {
 		static const TCHAR* Holes[] = { TEXT("BulletHole0"), TEXT("BulletHole1"), TEXT("BulletHole2"), TEXT("BulletHole3") };
 		static const TCHAR* Scorches[] = { TEXT("Scorch0"), TEXT("Scorch1") };
+		if (Kind == DF::EDecal::Blood)
+			return FString::Printf(TEXT("BloodSplat0%d"), Variant % 8 + 1);
 		return Kind == DF::EDecal::BulletHole ? Holes[Variant % 4] : Scorches[Variant % 2];
 	}
 
 	UMaterialInterface* DecalMaterial(DF::EDecal Kind, int32 Variant, bool bQuad) {
-		const FString Name = FString::Printf(TEXT("MI_MF_%s%s"), DecalTexture(Kind, Variant), bQuad ? TEXT("_Quad") : TEXT(""));
+		if (Kind == DF::EDecal::Blood) {
+			// MF's own splats on the quad master (dark where the splat is): made here, as the
+			// textures are the classic pack's (the core game holds no material pointing at them)
+			static TMap<FString, TStrongObjectPtr<UMaterialInstanceDynamic>> Made;
+			const FString Name = DecalTexture(Kind, Variant);
+			if (const TStrongObjectPtr<UMaterialInstanceDynamic>* Found = Made.Find(Name); Found && Found->IsValid())
+				return Found->Get();
+			UMaterialInterface* Master = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_DecalQuad.M_MF_DecalQuad"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+			UTexture* Tex = DF::LoadClassic<UTexture>(TEXT("Textures/RageEffects/") + Name);
+			if (!Master || !Tex)
+				return nullptr;
+			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Master, GetTransientPackage());
+			MID->SetTextureParameterValue(TEXT("Texture"), Tex);
+			Made.Add(Name, TStrongObjectPtr<UMaterialInstanceDynamic>(MID));
+			return MID;
+		}
+		const FString Name = FString::Printf(TEXT("MI_MF_%s%s"), *DecalTexture(Kind, Variant), bQuad ? TEXT("_Quad") : TEXT(""));
 		return LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/MF/Materials/Decals/%s.%s"), *Name, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
 	}
 
@@ -32,7 +58,7 @@ namespace {
 void DF::SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At, const FVector& Normal, float Size) {
 	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	const int32 Quality = UDFUserSettings::Get().DecalQuality;
-	if (!World || World->GetNetMode() == NM_DedicatedServer || Quality <= 0 || Normal.IsNearlyZero())
+	if (!World || World->GetNetMode() == NM_DedicatedServer || Quality <= 0 || Normal.IsNearlyZero() || (Kind == EDecal::Blood && UDFUserSettings::Get().bLowGore))
 		return;
 	// marks stay put: none on things that move (crates, vehicles), they'd hang in the air
 	const FVector N = Normal.GetSafeNormal();
@@ -40,8 +66,8 @@ void DF::SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At,
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFDecalSurface), false, Cast<AActor>(WorldContext));
 	if (!World->LineTraceSingleByChannel(Surface, At + N * 4.f, At - N * 4.f, ECC_GameTraceChannel2, Params) || !Surface.GetComponent() || Surface.GetComponent()->Mobility == EComponentMobility::Movable)
 		return;
-	const int32 Variant = FMath::RandRange(0, Kind == EDecal::BulletHole ? 3 : 1);
-	if (Kind == EDecal::Scorch && Quality >= 2) {
+	const int32 Variant = FMath::RandRange(0, DecalVariants(Kind) - 1);
+	if (Kind != EDecal::BulletHole && Quality >= 2) {
 		UMaterialInterface* Material = DecalMaterial(Kind, Variant, true);
 		if (Material) {
 			FActorSpawnParameters Spawn;
@@ -70,13 +96,21 @@ void DF::SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At,
 }
 
 void DF::SpawnScorchBelow(const UObject* WorldContext, const FVector& Location, float Size, float Range) {
+	SpawnScorch(WorldContext, Location, FVector::UpVector, Size, Range);
+}
+
+void DF::SpawnScorch(const UObject* WorldContext, const FVector& Location, const FVector& Normal, float Size, float Range) {
 	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	if (!World || World->GetNetMode() == NM_DedicatedServer)
 		return;
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFScorch), false, Cast<AActor>(WorldContext)); // not the rocket itself
 	// the Weapon channel: the surfaces bullets hit (the map's collision blocks it, players don't)
-	if (World->LineTraceSingleByChannel(Hit, Location + FVector(0.f, 0.f, 50.f), Location - FVector(0.f, 0.f, Range), ECC_GameTraceChannel2, Params))
+	auto Trace = [&](const FVector& Out) {
+		return World->LineTraceSingleByChannel(Hit, Location + Out * 50.f, Location - Out * Range, ECC_GameTraceChannel2, Params);
+	};
+	const FVector N = Normal.GetSafeNormal();
+	if ((!N.IsZero() && Trace(N)) || (!N.Equals(FVector::UpVector, 0.01f) && Trace(FVector::UpVector)))
 		SpawnDecal(WorldContext, EDecal::Scorch, Hit.ImpactPoint, Hit.ImpactNormal, Size);
 }
 

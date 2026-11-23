@@ -37,7 +37,7 @@ AM24::AM24() {
 	ZoomedViewOffset = FVector(450.f, -80.95f, 156.5f); // MF ZoomedInViewOffset
 	RecoilPower = 4.0f;
 	MaxTraceDistance = 45000.f; // like the sniper rifle
-	CasingMesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass: Pistol_BulletCase at the hip (the scope hides the rifle case)
+	Casing.Mesh = TEXT("RageWeapons/PistolBullet"); // EjectBrass: Pistol_BulletCase at the hip (the scope hides the rifle case)
 	MuzzleFlashSize = 40.f;
 	ClassicFireSound = TEXT("M24.M24Fire");
 	ClassicReloadSound = TEXT("M24.M24Reload");

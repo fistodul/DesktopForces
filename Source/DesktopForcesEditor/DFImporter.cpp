@@ -723,6 +723,7 @@ bool FDFImporter::ImportArt() {
 	EnsureVehicleMaterials();
 	EnsureMuzzleFlashMaterial();
 	EnsureFadeMaterial();
+	EnsureSpriteCloudMaterial();
 	return true;
 }
 
@@ -1259,6 +1260,75 @@ void FDFImporter::EnsureFadeMaterial() {
 	M->PostEditChange();
 	SaveAsset(M);
 	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_Fade"));
+}
+
+void FDFImporter::EnsureSpriteCloudMaterial() {
+	bool bCreated = false;
+	UMaterial* M = FindOrCreateAsset<UMaterial>(TEXT("/Game/MF/Materials"), TEXT("M_MF_SpriteCloud"), bCreated);
+	if (!bCreated)
+		return;
+	UMaterialEditorOnlyData* E = M->GetEditorOnlyData();
+	auto Add = [M](UMaterialExpression* X) {
+		M->GetExpressionCollection().AddExpression(X);
+		return X;
+	};
+	auto Mask = [&](UMaterialExpression* In, bool R, bool G) {
+		UMaterialExpressionComponentMask* C = NewObject<UMaterialExpressionComponentMask>(M);
+		C->Input.Connect(0, In);
+		C->R = R;
+		C->G = G;
+		return Add(C);
+	};
+	auto Mul = [&](UMaterialExpression* A, UMaterialExpression* B) {
+		UMaterialExpressionMultiply* X = NewObject<UMaterialExpressionMultiply>(M);
+		X->A.Connect(0, A);
+		X->B.Connect(0, B);
+		return Add(X);
+	};
+	auto Centred = [&](UMaterialExpression* A) { // corner 0 / 1 -> -0.5 / 0.5
+		UMaterialExpressionSubtract* X = NewObject<UMaterialExpressionSubtract>(M);
+		X->A.Connect(0, A);
+		X->ConstB = 0.5f;
+		return Add(X);
+	};
+	auto ViewAxis = [&](float X, float Y) {
+		UMaterialExpressionConstant3Vector* C = NewObject<UMaterialExpressionConstant3Vector>(M);
+		C->Constant = FLinearColor(X, Y, 0.f);
+		UMaterialExpressionTransform* T = NewObject<UMaterialExpressionTransform>(M);
+		T->Input.Connect(0, Add(C));
+		T->TransformSourceType = TRANSFORMSOURCE_View;
+		T->TransformType = TRANSFORM_World;
+		return Add(T);
+	};
+	UMaterialExpressionTextureSampleParameter2D* T = NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+	T->ParameterName = TEXT("Texture");
+	T->Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture"));
+	Add(T);
+	UMaterialExpressionScalarParameter* Size = NewObject<UMaterialExpressionScalarParameter>(M);
+	Size->ParameterName = TEXT("SpriteSize");
+	Size->DefaultValue = 10.f;
+	Add(Size);
+	UMaterialExpression* Corner = Add(NewObject<UMaterialExpressionVertexColor>(M));
+	UMaterialExpression* CornerX = Mask(Corner, true, false);
+	UMaterialExpression* CornerY = Mask(Corner, false, true);
+	UMaterialExpressionAdd* Offset = NewObject<UMaterialExpressionAdd>(M);
+	Offset->A.Connect(0, Mul(Mul(Centred(CornerX), Size), ViewAxis(1.f, 0.f)));
+	Offset->B.Connect(0, Mul(Mul(Centred(CornerY), Size), ViewAxis(0.f, 1.f)));
+	E->WorldPositionOffset.Connect(0, Add(Offset));
+	UMaterialExpressionOneMinus* Down = NewObject<UMaterialExpressionOneMinus>(M);
+	Down->Input.Connect(0, CornerY);
+	UMaterialExpressionAppendVector* UV = NewObject<UMaterialExpressionAppendVector>(M);
+	UV->A.Connect(0, CornerX);
+	UV->B.Connect(0, Add(Down));
+	T->Coordinates.Connect(0, Add(UV));
+	E->EmissiveColor.Connect(0, T);
+	M->SetShadingModel(MSM_Unlit);
+	M->BlendMode = BLEND_Additive;
+	M->TwoSided = true;
+	M->PreEditChange(nullptr);
+	M->PostEditChange();
+	SaveAsset(M);
+	UE_LOG(LogDFEditor, Display, TEXT("Created M_MF_SpriteCloud"));
 }
 
 void FDFImporter::EnsureGoalAssets() {

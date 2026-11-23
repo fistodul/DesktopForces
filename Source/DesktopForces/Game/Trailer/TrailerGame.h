@@ -7,6 +7,37 @@
 class ADFVehicle;
 
 /**
+ * A delivery bay's wall (TrailerDelivery.PostBeginPlay, TrailerGame only): MF's WallMeshBlue /
+ * WallMeshRed, DrawScale CollisionRadius * 0.02343, lowered by CollisionHeight (PrePivot),
+ * STY_Translucent and unlit, on BlueWall_A01 / RedWall_A01. Without the classic pack the goal
+ * ring of our MoBall, tinted. Spawned by the server, seen by all.
+ */
+UCLASS(NotPlaceable)
+class DESKTOPFORCES_API ATrailerBayWall : public AActor {
+	GENERATED_BODY()
+
+public:
+	ATrailerBayWall();
+	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Look)
+	uint8 Team = 0;
+	/** The bay's CollisionRadius / CollisionHeight, cm. */
+	UPROPERTY(ReplicatedUsing = OnRep_Look)
+	float Radius = 576.f;
+	UPROPERTY(ReplicatedUsing = OnRep_Look)
+	float Height = 144.f;
+
+protected:
+	UFUNCTION()
+	void OnRep_Look();
+
+	UPROPERTY(VisibleAnywhere, Category = "Trailer")
+	TObjectPtr<UStaticMeshComponent> Wall;
+};
+
+/**
  * Trailer (MF TrailerGame): one neutral cab with a bomb trailer starts at the map's
  * TrailerGenerator. Whoever drives it tries to get it into the enemy's delivery bay
  * (TrailerDelivery, radius 128 + 128 uu around it); there it locks, counts down 5 s and
@@ -55,6 +86,8 @@ protected:
 	TObjectPtr<ADFVehicle> TrailerVehicle;
 
 	TArray<FBay> Bays;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<ATrailerBayWall>> Walls;
 	FTransform GeneratorSpot;
 	bool bHaveGenerator = false;
 	int32 DeliveredTo = -1; // bay team while the countdown runs

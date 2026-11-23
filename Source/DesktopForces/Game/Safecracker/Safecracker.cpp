@@ -14,6 +14,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "GameFramework/RotatingMovementComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -163,7 +165,37 @@ void ASafe::MulticastCrackFX_Implementation() {
 	if (GetNetMode() != NM_DedicatedServer) {
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/Explode")), GetActorLocation(), 1.f, 2000.f);
 		AVehicleFrag::Explosion(GetWorld(), GetActorLocation(), 0.8f);
+		// OpenSafe: the door at Location - vector(Rotation) * CollisionRadius (40), 64 uu up
+		if (!Door.IsValid())
+			Door = ASafeDoor::Throw(GetWorld(), GetActorLocation() - GetActorForwardVector() * 90.f + FVector(0.f, 0.f, 144.f), GetActorRotation());
 	}
+}
+
+ASafeDoor* ASafeDoor::Throw(UWorld* World, const FVector& At, const FRotator& SafeRotation) {
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	// PostBeginPlay: Pitch -= 16384, stood up
+	ASafeDoor* D = World->SpawnActor<ASafeDoor>(At, SafeRotation + FRotator(-90.f, 0.f, 0.f), SP);
+	if (D)
+		D->Movement->Velocity = (-SafeRotation.Vector() * 200.f + FVector(0.f, 0.f, 450.f)) * 2.25f;
+	return D;
+}
+
+void ASafeDoor::BeginPlay() {
+	Super::BeginPlay();
+	SetLifeSpan(0.f); // no LifeSpan: CloseSafe takes it away
+	Movement->Bounciness = 0.25f; // HitWall: Velocity = 0.25 * reflected
+	Spin->RotationRate = FRotator(-274.66f, 0.f, 0.f); // RotationRate Pitch 50000
+}
+
+void ASafeDoor::PickMesh() {
+	DF::ApplyPropMesh(Mesh, TEXT("RageGame/RageSafeDoorMesh"));
+}
+
+void ASafeDoor::PlayHitSound(float Speed) {
+	// HitWall: speed > 60: aImpactSounds[Rand(2)], volume 4, radius 1000, pitch 0.85-1.15
+	if (Speed > 60.f)
+		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(FMath::RandBool() ? TEXT("Sounds/SafeCrackerSFX/FragHit1") : TEXT("Sounds/SafeCrackerSFX/FragHit2")), GetActorLocation(), 1.f, 1000.f, 0.85f + FMath::FRand() * 0.3f);
 }
 
 void ASafe::OnRep_Open() {
@@ -171,6 +203,8 @@ void ASafe::OnRep_Open() {
 }
 
 void ASafe::UpdateLook() {
+	if (!bOpen && Door.IsValid()) // CloseSafe: SafeDoor.Destroy()
+		Door->Destroy();
 	// MF RageSafe meshes per team, the blown-open one once cracked
 	const TCHAR* Prop = bOpen ? (Team == 1 ? TEXT("RageGame/RageSafeOpenMeshRed") : TEXT("RageGame/RageSafeOpenMeshBlue"))
 							  : (Team == 1 ? TEXT("RageGame/RageSafeMeshRed") : TEXT("RageGame/RageSafeMeshBlue"));

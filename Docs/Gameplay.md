@@ -56,6 +56,20 @@ rate the spin rate) and at the slowest turn on to the end of their cycle before 
 (ActivateStill, no tween); picking it up plays PickUpGun at rate 1. The jeep gun comes up in
 1.4 s (selectUp at rate 16). The body: fire at rate 1 (tween 0.05), alt fire at rate 2
 (Pawn.PlayFiring / PlayAltFiring), so a trip bomb's throw shows as a throw to everyone.
+The HMG fires a round the moment the trigger goes down (NormalFire.BeginState), then by its
+spin; deployed, the body crouches behind it only once ActivateGun01 is over (1.05 s,
+CrouchForGunnery: a 1 s tween to HmachGStill). Seeker Mines throw when both buttons are up
+(either winds up). Spent cases (FDFCasing): the HMG's every 5th round (DrawScale 0.7, out to
+the side), the shotgun's on a reload 0.65 s in (two when both barrels were spent, DrawScale
+1.5), the jeep gun's vehWeap_Shell each shot (sideways and up, two bounces, its own tink); all
+on the shooter's screen only, as in MF.
+
+**Seen by others**: the flash at the gun in a soldier's hand (bMuzzleFlashParticles:
+MachineGunMuzzleFlashMesh's points drawn as sprites of JMachineGunMuzzleFlash, one of its 9
+frames for 0.05 s a shot; MuzzleFlashScale / Offset per gun: machine gun and pistol 0.1,
+rifle, shotgun and HMG 0.15, rocket launcher 0.35); the sniper rifle's charge beam
+(RageRifle.StartLaser: Blue/RedBeamRifle from 64 uu ahead of the eyes along the aim to what it
+meets, brighter with the power; never on the sniper's own screen).
 
 **Water** (RageWaterZone, ZoneInfo bWaterZone): a water volume over the zone, only when the BSP
 bound that ZoneInfo to it (one left in unsealed zone 0 does nothing in UE1: MB-EndagaDam,
@@ -204,6 +218,8 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
 - The crates you see block nothing either (MF decorations with bCollideActors only, no
   bBlockPlayers / bBlockActors / bProjTarget): soldiers, vehicles and shots pass through, and
   they leave no hole in the navmesh.
+- With the classic pack a crate is MF's own model (Rage.LoadoutCrate<Blue|Red|DM>[Open|Skewed]Mesh,
+  swapped in at play, so maps keep our generated crate for builds without it).
 - Bots off the navmesh (on a crate, blown onto a ledge) walk straight to the nearest mesh point
   before roaming, since no path starts off the mesh.
 - The navmesh keeps a soldier's radius off every wall, counted in whole 19 cm cells: the agent
@@ -265,6 +281,8 @@ scale by the smaller of width / 640 and height / 480, so the scope stays round o
   attackers must beat part 1's time. Carrier kill +4, steal +7, respawn 5 s. Dropped gold
   goes home after 25 s or when a defender touches it. HUD: safe meter + countdown bottom
   right (RageSafeCrackerHud). Safes/gold are placeholders until the MF meshes convert.
+  A cracked safe throws its door out of the front (RageSafeDoor: -200 back, +450 up uu/s,
+  turning end over end, FragHit1/2), lying there till the safe is repaired.
   The safe is a dynamic object (`BlockAllDynamic`): UE's radial damage only reaches dynamic
   object types, and as world-static no rocket hurt it (6 rockets crack it now, 100 health at
   0.15 of an explosive's damage). The Battle Royale towers had the same.
@@ -528,7 +546,10 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
 - Blowing up (EffectsFix.VehExplosion -> RageEffects.VehicleExplosion): a fireball of smoke and
   flames, 2-4 fires on the ground around it, and 16 chunks (RageEffects.VehicleFrag carfrag01-09)
   that spin, bounce with half their speed and clank (FragHit1-3), then lie there 10-17 s; up to
-  4 of them burn (ExplosionFire: flames and smoke for 4.5 s, VehicleBurnLoop). A blown tyre puffs
+  4 of them burn (ExplosionFire: flames and smoke for 4.5 s, VehicleBurnLoop). Its sound wheels
+  fly off too (Vehicle.BlowUp: the first always, each other 3 in 10, out from the middle and
+  up; 2 in 5 burning while 4 fires last), bump with WheelSFX.HitWheel and lie 20-25 s (MF threw
+  its generic Rage wheel; here the vehicle's own wheel model). A blown tyre puffs
   smoke (SmokePuffVeh). Tyres landing hard thump
   (Wheel.HitWall, HitWheel); bumping into things clunks (Bump1-4).
 - Damage: explosives x 1.5 x (1 - Armour) (Vehicle.TakeDamage, Physical), falling off with the
@@ -588,6 +609,9 @@ y up / z forward = UE Y / Z / X), Rage classes (seats, doors, NearCamera, Armour
   128 + 128 uu): it locks, "Trailer detonation in 5 sec", blows up (600, 1200 uu), team point and
   +7 for the driver; a new one 5 s later (also when it's destroyed on the way). 4 / 10 min.
   Vehicle generators at the bays stay off in this mode.
+  The bays show (TrailerDelivery.PostBeginPlay, this mode only): MF's translucent WallMesh in
+  the team's colour, DrawScale radius x 0.02343, standing on the bay's floor; without the classic
+  pack our MoBall goal ring.
 
 **Score limit**: `?ScoreLimit=N` is the single match target (0 disables it). Its unit
 follows the mode: kills/points, captures, rounds, or Holdout minutes. There are no old-name
@@ -624,7 +648,14 @@ Changing effects volume also affects already-playing loops through their sound c
 
 **Scorch marks**: Simple uses flat instanced quads. Full projects a 16×16 mesh onto nearby
 static surfaces, with gaps rejected; this follows slopes/steps without DBuffer. Bullet holes
-stay lightweight quads. Full is capped at 24 scorch meshes, each lasting 30 seconds.
+stay lightweight quads. Full is capped at 24 scorch meshes, each lasting 30 seconds. A rocket
+or grenade marks the wall or ceiling it went off against (along the hit's normal), a placed
+trip bomb its own wall; an explosion with nothing that way marks the floor below it.
+Full marks also throw RageWallHit's chips at bullet hits (Rage wrote them and commented them
+out: MaxChips 5 at ChipOdds 0.2, RageChipM in one of four poses, DrawScale 0.3-0.7, 3 s).
+**Blood** (both qualities; none with Low gore, Options > Game, MF bLowGore): a hit soldier
+marks the wall up to 256 uu behind them along the shot (RPlayer.TraceBlood: RageBloodSplat, 32
+uu x 1-2), a fallen one the floor under them (RageBloodPool), MF's own dark BloodSplat01-08.
 
 ### Feign death
 

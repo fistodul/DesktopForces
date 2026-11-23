@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Core/DFTypes.h"
+#include "Weapons/DFShellCase.h"
 #include "DFWeapon.generated.h"
 
 class ADFCharacter;
@@ -248,12 +249,33 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	float FireSide = 5.f;
 
-	/** Spent case thrown out on each shot (a converted prop: "RageWeapons/MachineGunBullet";
-	 *  empty: none). */
+	/** The flash others see at the gun in the soldier's hand (Inventory MuzzleFlashMesh drawn as
+	 *  particles, bMuzzleFlashParticles: MachineGunMuzzleFlashMesh's points as sprites of
+	 *  MuzzleFlashTexture), at MuzzleFlashScale (0: none) and MuzzleFlashOffset (uu) along the gun. */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
-	FString CasingMesh;
+	float ThirdPersonFlashScale = 0.f;
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
-	float CasingScale = 1.f;
+	FVector ThirdPersonFlashOffset = FVector::ZeroVector;
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> Flash3P;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class UStaticMesh>> Flash3PFrames;
+	FTimerHandle Flash3PTimer;
+	void ShowThirdPersonFlash();
+
+	/** Spent case thrown out on a shot (EjectBrass; no Mesh: none). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FDFCasing Casing;
+	/** One case every Nth shot (HeavyMachineGun EjectCountMax 5). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	int32 CasingEvery = 1;
+	/** Where it comes out along the view (uu), when the gun names its own spot (HeavyMachineGun
+	 *  30 X + 6 Y - 10 Z); zero: RageWeapon.EjectBrass's, from the hand and FireOffset. */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
+	FVector CasingPort = FVector::ZeroVector;
+	int32 CasingCount = 0;
+	/** Throw a case out of the local soldier's gun now (Port: along the view, uu). */
+	void EjectCasing(const FDFCasing& What, const FVector& PortUU) const;
 
 	/** RageWeapon.TracerEvery: a tracer every Nth shot (pistol 1, machine gun 5, shotgun 2;
 	 *  0 none). */
@@ -476,10 +498,17 @@ public:
 	virtual bool IsMeleeWeapon() const { return false; }
 	/** Set up on the spot (deployed HMG, MF PHYS_Gunnery): no walking, jumping or loadout. */
 	virtual bool IsDeployed() const { return false; }
+	/** Seconds into a deploy before the body crouches behind the gun (RagePlayer.CrouchForGunnery,
+	 *  at the end of the HMG's ActivateGun01). */
+	virtual float GetDeployCrouchDelay() const { return 0.f; }
+	/** World time ZoomLevel last changed on this machine. */
+	float GetZoomChangeTime() const { return ZoomChangeTime; }
 	/** ZoomLevel changed (the owner's toggle, or replicated to everyone else). */
 	virtual void OnZoomChanged() {}
 	virtual void StopFire(bool bAlt);
 	virtual void StartReload();
+	/** The local soldier's reload began here (ClipAmmo still the old clip's): shells out etc. */
+	virtual void OnLocalReload() {}
 
 	/** Armour hook: return the damage left after this item absorbed its share. */
 	virtual int32 AbsorbDamage(int32 Damage, const UDFDamageType* Type) { return Damage; }

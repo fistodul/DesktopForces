@@ -20,6 +20,7 @@ public:
 	/** RageRifle.PostRender: the sniper scope in the team's colour with the zoom readout. */
 	virtual bool DrawHUD(UCanvas* Canvas) override;
 	float GetShotPower() const;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void FireShot(bool bAlt) override;
@@ -36,4 +37,19 @@ protected:
 	/** Full power reached: the Powering loop stops, PoweredUp plays. */
 	FTimerHandle PoweredUpTimer;
 	float ReleasedPower = 1.f;
+
+	/** RageRifle.StartLaser: while it powers up, everyone else sees a beam from the sniper's eye
+	 *  along the aim (Blue/RedBeamRifle, bOwnerNoSee; ScaleGlow = ShotPower / 10). */
+	UPROPERTY(ReplicatedUsing = OnRep_Laser)
+	bool bLaser = false;
+	UFUNCTION()
+	void OnRep_Laser();
+	UFUNCTION(Server, Reliable)
+	void ServerSetLaser(bool bOn);
+	void SetLaser(bool bOn);
+	void UpdateLaser();
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> LaserBeam;
+	double LaserStart = 0.0;
+	FTimerHandle LaserTimer;
 };

@@ -10,10 +10,18 @@
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "Core/DFGameSettings.h"
+#include "Core/DFProps.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Net/UnrealNetwork.h"
 
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ARifle::ARifle() {
+	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
+	ThirdPersonFlashScale = 0.15f;
+	ThirdPersonFlashOffset = FVector(-10.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "Rifle", "%k sniped %o.");
 	ViewMesh = TEXT("RageWeapons/SniperRiflePickupCarryMesh");
 	ArmsMesh = TEXT("SniperRiflePlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
@@ -48,8 +56,8 @@ ARifle::ARifle() {
 	FlashS = 55.f;
 	FlashYZoom = 0.3f;
 	FlashSZoom = 120.f;
-	CasingMesh = TEXT("RageWeapons/RifleBullet"); // EjectBrass
-	CasingScale = 1.f;
+	Casing.Mesh = TEXT("RageWeapons/RifleBullet"); // EjectBrass
+	Casing.Scale = 1.f;
 	ClassicFireSound = TEXT("WeaponSFX_SniperRifle.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_SniperRifle.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");
@@ -75,6 +83,7 @@ void ARifle::StartFire(bool bAlt) {
 			PlayMFSound(TEXT("WeaponSFX_SniperRifle.PoweredUp"));
 		}),
 			4.5f, false);
+		SetLaser(true);
 		return; // fires on release
 	}
 	Super::StartFire(bAlt);
@@ -85,6 +94,7 @@ void ARifle::StopFire(bool bAlt) {
 		ReleasedPower = GetShotPower();
 		bCharging = false;
 		bFireHeld = false;
+		SetLaser(false);
 		GetWorldTimerManager().ClearTimer(PoweredUpTimer);
 		SetAmbientMFSound(nullptr);
 		if (IsLocallyControlled() && GetLocalRole() < ROLE_Authority)
@@ -107,6 +117,8 @@ void ARifle::ForceInactive() {
 }
 
 void ARifle::CancelCharge() {
+	if (bCharging)
+		SetLaser(false);
 	bCharging = false;
 	ReleasedPower = 1.f;
 	GetWorldTimerManager().ClearTimer(PoweredUpTimer);
@@ -116,6 +128,8 @@ void ARifle::CancelCharge() {
 void ARifle::ServerReleaseFire_Implementation(float Power) {
 	ReleasedPower = FMath::Clamp(Power, 1.f, 10.f);
 	bCharging = false;
+	bLaser = false;
+	OnRep_Laser();
 	TryFire(false);
 }
 
@@ -141,6 +155,82 @@ void ARifle::ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool
 	Super::ProcessTraceHit(Hit, ShotDir, bAlt);
 	HitDamage = SavedDamage;
 	HitMomentum = SavedMomentum;
+}
+
+void ARifle::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(ARifle, bLaser, COND_SkipOwner);
+}
+
+void ARifle::SetLaser(bool bOn) {
+	if (HasAuthority()) {
+		bLaser = bOn;
+		OnRep_Laser(); // a listen server's own view of someone else's rifle
+	} else if (IsLocallyControlled()) {
+		ServerSetLaser(bOn);
+	}
+}
+
+void ARifle::ServerSetLaser_Implementation(bool bOn) {
+	bLaser = bOn && HasAmmoInClip();
+	OnRep_Laser();
+}
+
+void ARifle::OnRep_Laser() {
+	// bOwnerNoSee: never on the sniper's own screen
+	const bool bShow = bLaser && GetNetMode() != NM_DedicatedServer && !IsLocallyControlled();
+	if (!bShow) {
+		GetWorldTimerManager().ClearTimer(LaserTimer);
+		if (LaserBeam)
+			LaserBeam->SetVisibility(false);
+		return;
+	}
+	if (!LaserBeam) {
+		LaserBeam = NewObject<UStaticMeshComponent>(this, TEXT("Laser"));
+		LaserBeam->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+		LaserBeam->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		LaserBeam->SetCastShadow(false);
+		LaserBeam->SetUsingAbsoluteLocation(true);
+		LaserBeam->SetUsingAbsoluteRotation(true);
+		LaserBeam->SetUsingAbsoluteScale(true);
+		LaserBeam->SetupAttachment(GetRootComponent());
+		LaserBeam->RegisterComponent();
+	}
+	// StartLaser: ShotPower from 1, rising 2 a second while held (UpdateLaser)
+	LaserStart = GetWorld()->GetTimeSeconds();
+	UpdateLaser();
+	GetWorldTimerManager().SetTimer(LaserTimer, this, &ARifle::UpdateLaser, 1.f / 30.f, true);
+}
+
+void ARifle::UpdateLaser() {
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (!LaserBeam || !C || !C->IsAlive()) {
+		if (LaserBeam)
+			LaserBeam->SetVisibility(false);
+		return;
+	}
+	// TraceLaser: from the eyes along the aim to what it meets (MaxTraceDistance), drawn from 64 uu out
+	FVector Eye;
+	FRotator Aim;
+	C->GetActorEyesViewPoint(Eye, Aim);
+	Aim = C->GetBaseAimRotation();
+	const FVector X = Aim.Vector();
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFRifleLaser), false, C);
+	Params.AddIgnoredActor(this);
+	const FVector End = GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + X * MaxTraceDistance, ECC_Visibility, Params) ? Hit.ImpactPoint : Eye + X * MaxTraceDistance;
+	const FVector Start = Eye + X * 144.f;
+	const FVector Delta = End - Start;
+	if (FVector::DotProduct(Delta, X) <= 0.f) {
+		LaserBeam->SetVisibility(false);
+		return;
+	}
+	const float Power = FMath::Clamp(1.f + 2.f * float(GetWorld()->GetTimeSeconds() - LaserStart), 1.f, 10.f);
+	const uint8 Team = C->GetTeam();
+	DF::Tint(LaserBeam, (Team == 1 ? UDFGameSettings::Get().GetTeamColor(1) : UDFGameSettings::Get().GetTeamColor(0)) * (Power / 10.f));
+	LaserBeam->SetWorldLocationAndRotation(Start + Delta * 0.5f, Delta.Rotation());
+	LaserBeam->SetWorldScale3D(FVector(Delta.Size() / 100.f, 0.01f, 0.01f));
+	LaserBeam->SetVisibility(true);
 }
 
 int32 ARifle::GetPowerLevel() const {

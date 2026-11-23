@@ -407,6 +407,7 @@ private:
 	float FOV = 100.f;
 	float RenderScale = 1.f;
 	bool bInvert = false;
+	bool bLowGore = false;
 	bool bConsole = false;
 	bool bConsoleEdited = false;
 	bool bAdvancedExpanded = false;
@@ -1245,6 +1246,11 @@ private:
 				.OnTextChanged_Lambda([this](const FText& T) { DownloadServer = T.ToString().TrimStartAndEnd(); })
 			]
 		];
+		Game->AddSlot(0, 9)[Label(LOCTEXT("LowGore", "Low gore"))];
+		Game->AddSlot(1, 9).Padding(2.f).HAlign(HAlign_Left)
+		[
+			SNew(SBox).ToolTipText(LOCTEXT("LowGoreHint", "No blood marks on walls or under the fallen."))[Check(bLowGore)]
+		];
 
 		auto Tab = [this](const FText& Text, int32 Index)
 		{
@@ -1320,6 +1326,7 @@ private:
 		bInvert = D->bInvertMouse;
 		StickSensitivity = D->StickSensitivity;
 		bTapToFire = D->bTapToFire;
+		bLowGore = D->bLowGore;
 		SelectedHand = Hands[int32(D->WeaponHand)];
 		bConsole = D->bConsole;
 		bConsoleEdited = true;
@@ -1621,6 +1628,7 @@ private:
 		bInvert = S.bInvertMouse;
 		StickSensitivity = FMath::Clamp(S.StickSensitivity, 0.25f, 3.f);
 		bTapToFire = S.bTapToFire;
+		bLowGore = S.bLowGore;
 		Hands = { MakeShared<FString>(TEXT("Right")), MakeShared<FString>(TEXT("Left")), MakeShared<FString>(TEXT("Center")), MakeShared<FString>(TEXT("Hidden")) };
 		SelectedHand = Hands[FMath::Clamp(int32(S.WeaponHand), 0, Hands.Num() - 1)];
 		bConsole = S.IsConsoleEnabled();
@@ -1792,6 +1800,7 @@ private:
 		S.bInvertMouse = bInvert;
 		S.StickSensitivity = StickSensitivity;
 		S.bTapToFire = bTapToFire;
+		S.bLowGore = bLowGore;
 		S.WeaponHand = EDFWeaponHand(FMath::Max(0, IndexOf(Hands, SelectedHand)));
 		S.bConsole = bConsoleEdited ? bConsole : S.IsConsoleEnabled();
 		S.FieldOfView = FOV;

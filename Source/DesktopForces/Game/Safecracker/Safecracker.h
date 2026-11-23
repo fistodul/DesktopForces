@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Vehicles/VehicleFrag.h"
 #include "GameFramework/Actor.h"
 #include "Game/CTF/Flag.h"
 #include "Safecracker.generated.h"
@@ -16,6 +17,24 @@ class UStaticMeshComponent;
  * anything else x0.05, at least 1 per hit); below zero the door blows open. Touching the open
  * safe takes the gold; touching your own safe with the enemy gold scores.
  */
+/**
+ * A blown safe's door (RageSafeDoor): RageSafeDoorMesh stood up, thrown out of the front
+ * (-200 uu/s back along the safe, +450 up), turning end over end (RotationRate Pitch 50000),
+ * bouncing with a quarter of its speed (FragHit1/2), lying flat once down. Cosmetic.
+ */
+UCLASS(NotBlueprintable)
+class DESKTOPFORCES_API ASafeDoor : public AVehicleFrag {
+	GENERATED_BODY()
+
+public:
+	static ASafeDoor* Throw(UWorld* World, const FVector& At, const FRotator& SafeRotation);
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void PickMesh() override;
+	virtual void PlayHitSound(float Speed) override;
+};
+
 UCLASS()
 class DESKTOPFORCES_API ASafe : public AActor {
 	GENERATED_BODY()
@@ -70,6 +89,8 @@ protected:
 	void MulticastCrackFX();
 	void UpdateLook();
 	FTimerHandle CloseTimer;
+	/** RageSafe.OpenSafe's RageSafeDoor, here till the safe shuts (CloseSafe destroys it). */
+	TWeakObjectPtr<AActor> Door;
 };
 
 /**

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import devmesh, lodmesh
 from .config import Config
-from .level import PF_MASKED, PF_TRANSLUCENT, PF_TWOSIDED, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
+from .level import PF_MASKED, PF_TRANSLUCENT, PF_TWOSIDED, PF_UNLIT, UU_TO_CM, material_key, _cross, _dot, _sub, _area, _next_pow2
 from .mfmesh import MeshBuilder
 from .textures import _package_path, texture_index
 from .upkg import Package
@@ -27,6 +27,12 @@ PACKAGES = ('Rage', 'RageGame', 'RageWeapons', 'RageEffects', 'deagle', 'grenLau
             'wa2000', 'improvedRL', 'parachute', 'BoxPhysics', 'mineGenerator',
             # MF-mods items with their own models
             'SeekerMines')
+# UE1 particle meshes (bParticles / bMuzzleFlashParticles): every vertex drawn as a sprite of
+# the actor's texture. Exported as well as a "cloud" per frame, <name>_Cloud[_F<n>]: a tiny quad
+# at each vertex, its corner in the vertex colour, which M_MF_SpriteCloud spreads to face the camera
+PARTICLE_MESHES = {'RageWeapons.MachineGunMuzzleFlashMesh': 'RageWeapons.Skins.JMachineGunMuzzleFlash'}
+CLOUD_HALF = 0.1    # cm: a quad's own half size (big enough that the build keeps it)
+
 # packages whose StaticMeshes are props too (exported as T3D by UCC: Gregaras' CC0 Battle Royale models)
 STATIC_MESH_PACKAGES = ('battleRoyale',)
 
@@ -72,6 +78,13 @@ def convert(cfg: Config) -> Path:
                 count = _write_mesh(name, mesh_tris, cls, tex_info, usage, out_root / pkg_name)
                 meshes[f'{pkg_name}/{name}'] = {'mesh': f'{pkg_name}/{name}', 'triangles': count}
                 n += 1
+            if cls == 'LodMesh' and f'{pkg_name}.{exp.name}' in PARTICLE_MESHES:
+                tex = PARTICLE_MESHES[f'{pkg_name}.{exp.name}']
+                for f in range(max(1, mesh.anim_frames)):
+                    name = f'{exp.name}_Cloud' + (f'_F{f}' if f else '')
+                    count = _write_cloud(name, mesh.frame_positions(f), tex, usage, out_root / pkg_name)
+                    meshes[f'{pkg_name}/{name}'] = {'mesh': f'{pkg_name}/{name}', 'triangles': count}
+                    n += 1
             if frames:
                 meshes[f'{pkg_name}/{exp.name}'].update(
                     frames=mesh.anim_frames, sequences=[{'name': q[0], 'first': q[1], 'count': q[2], 'rate': q[3]} for q in mesh.sequences])
@@ -123,6 +136,29 @@ def _write_mesh(name: str, tris: list, cls: str, tex_info: dict, usage: dict[str
         mb.add_triangle(key, *verts)
         area += _area(p)
     mb.lightmap_resolution = int(min(256, max(32, _next_pow2(math.sqrt(area) / 16.0))))
+    mb.write(out_dir)
+    return mb.triangle_count
+
+
+def _write_cloud(name: str, positions, tex: str, usage: dict[str, set[str]], out_dir: Path) -> int:
+    """A particle mesh frame as sprites: a quad per distinct vertex (uu -> cm), corners (0/1, 0/1)
+    in the vertex colour, upright in the mesh's YZ plane; the material turns them."""
+    mb = MeshBuilder(name)
+    mb.collision = 'none'
+    mb.has_colors = True
+    mb.lightmap_resolution = 4
+    key = material_key(tex, PF_TRANSLUCENT | PF_UNLIT)
+    usage.setdefault(tex.lower(), set()).add(key.split('|')[1].split('_')[0])
+    seen = set()
+    for p in positions:
+        c = tuple(round(x * UU_TO_CM, 3) for x in p)
+        if c in seen:
+            continue
+        seen.add(c)
+        vs = [((c[0], c[1] + (cx - 0.5) * 2 * CLOUD_HALF, c[2] + (cy - 0.5) * 2 * CLOUD_HALF), (-1.0, 0.0, 0.0), (1.0, 1.0), (float(cx), float(cy), 0.0))
+              for cx, cy in ((0, 0), (1, 0), (1, 1), (0, 1))]
+        mb.add_triangle(key, vs[0], vs[1], vs[2])
+        mb.add_triangle(key, vs[0], vs[2], vs[3])
     mb.write(out_dir)
     return mb.triangle_count
 

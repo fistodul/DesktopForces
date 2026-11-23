@@ -710,8 +710,10 @@ void UDFCheatManager::DFDecal(int32 Kind, float Size) {
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFDecalCheat), false, PC->GetPawn());
 	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + View.Vector() * 10000.f, ECC_GameTraceChannel2, Params)) // the Weapon channel: what bullets hit
 	{
-		const DF::EDecal K = Kind == 0 ? DF::EDecal::BulletHole : DF::EDecal::Scorch;
-		DF::SpawnDecal(PC, K, Hit.ImpactPoint, Hit.ImpactNormal, Size > 0.f ? Size : (Kind == 0 ? 12.f : 300.f));
+		const DF::EDecal K = Kind == 0 ? DF::EDecal::BulletHole : Kind == 1 ? DF::EDecal::Scorch
+																			: DF::EDecal::Blood;
+		DF::SpawnDecal(PC, K, Hit.ImpactPoint, Hit.ImpactNormal, Size > 0.f ? Size : (Kind == 0 ? 12.f : Kind == 1 ? 300.f
+																												   : 108.f));
 		UE_LOG(LogDF, Display, TEXT("DFDecal %d at %s normal %s on %s"), Kind, *Hit.ImpactPoint.ToCompactString(), *Hit.ImpactNormal.ToCompactString(), *GetNameSafe(Hit.GetActor()));
 	}
 }

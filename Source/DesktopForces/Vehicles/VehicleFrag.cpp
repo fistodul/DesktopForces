@@ -8,6 +8,7 @@
 #include "GameFramework/RotatingMovementComponent.h"
 #include "Engine/World.h"
 #include "Components/AudioComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Sound/SoundBase.h"
@@ -122,4 +123,35 @@ void AVehicleFrag::Fire(UWorld* World, USceneComponent* AttachTo, const FVector&
 		FTimerHandle T;
 		World->GetTimerManager().SetTimer(T, FTimerDelegate::CreateWeakLambda(Audio, [Audio]() { Audio->FadeOut(0.5f, 0.f); }), 4.5f, false);
 	}
+}
+
+void AVehicleWheelFrag::Throw(UWorld* World, UStaticMesh* WheelMesh, const FTransform& Where, const FVector& Velocity, bool bBurning) {
+	if (!World || World->GetNetMode() == NM_DedicatedServer || !WheelMesh)
+		return;
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AVehicleWheelFrag* W = World->SpawnActor<AVehicleWheelFrag>(Where.GetLocation(), Where.Rotator(), SP);
+	if (!W)
+		return;
+	W->Mesh->SetStaticMesh(WheelMesh);
+	W->Mesh->SetWorldScale3D(Where.GetScale3D());
+	DF::SetMovingLight(W->Mesh);
+	// rolls on its tyre: the sphere as big as the wheel's middle
+	W->Collision->SetSphereRadius(FMath::Max(8.f, W->Mesh->Bounds.SphereRadius * 0.6f));
+	W->Movement->Velocity = Velocity;
+	if (bBurning)
+		Fire(World, W->GetRootComponent(), Where.GetLocation());
+}
+
+void AVehicleWheelFrag::BeginPlay() {
+	Super::BeginPlay();
+	// Wheel: LifeSpan 20 + FRand() * 5 (Prop)
+	SetLifeSpan(20.f + FMath::FRand() * 5.f);
+	Spin->RotationRate *= 0.3f; // a heavy wheel tumbles slower than a scrap of panel
+}
+
+void AVehicleWheelFrag::PlayHitSound(float Speed) {
+	// Wheel.HitWall: PlaySound(WheelSFX.HitWheel, SLOT_None, 2, , , 0.75 + FRand() * 0.25)
+	if (Speed > 1.f)
+		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/WheelSFX/HitWheel")), GetActorLocation(), 1.f, 1600.f, 0.75f + FMath::FRand() * 0.25f);
 }

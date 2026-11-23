@@ -246,6 +246,14 @@ AJeepGunnerWeapon::AJeepGunnerWeapon() {
 	ArmsOffset = FVector(1.f, 0.f, -10.f);
 	ArmsRoll = 0; // square to the view: the soldier's tilt doesn't suit a mounted gun
 	EquipTime = 23.f / 16.f; // vehWeap.playSelectAnim: selectUp (24 frames at 1 fps) at rate 16
+	// vehWeap.ejectBrass: a vehWeap_Shell (jeepWeapShell, DrawScale 0.7) each shot, out to the side
+	// and up: ((FRand()*0.2+0.2)*Y*5 + (FRand()*0.3+1)*Z) * 160, two bounces, its own tink
+	Casing.Mesh = TEXT("jeep/jeepWeapShell");
+	Casing.Scale = 0.7f;
+	Casing.VelocityMin = FVector(0.f, 1.f, 1.f);
+	Casing.VelocityRange = FVector(0.f, 1.f, 0.3f);
+	Casing.MaxBounces = 2;
+	Casing.Sound = TEXT("Sounds/jeep/vehWeapShellSound");
 }
 
 void ADFVehicleTurretWeapon::MulticastShot_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End, bool bTracer, USoundBase* Sound) {
@@ -261,6 +269,8 @@ void ADFVehicleTurretWeapon::MulticastShot_Implementation(FVector_NetQuantize St
 	MuzzleFlashUntil = GetWorld()->GetTimeSeconds() + 0.05f;
 	if (Arms)
 		PlayArmsAnim(EDFWeaponState::Firing, 0.1f);
+	if (IsLocallyControlled()) // the gunner's own view, as vehWeap's simulated ejectBrass
+		EjectCasing(Casing, FVector(30.f, 2.8f, -6.f));
 }
 
 void ADFVehicleTurretWeapon::StartFire(bool bAlt) {

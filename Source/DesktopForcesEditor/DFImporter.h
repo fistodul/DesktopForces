@@ -132,6 +132,9 @@ public:
 	void EnsureMuzzleFlashMaterial();
 	/** M_MF_Fade: unlit, translucent, Texture's alpha x Fade (the water ring). */
 	void EnsureFadeMaterial();
+	/** M_MF_SpriteCloud: a UE1 particle mesh (props.py <mesh>_Cloud), each tiny quad spread to
+	 *  face the camera, SpriteSize cm across, additive (the third-person muzzle flash). */
+	void EnsureSpriteCloudMaterial();
 	/**
 	 * Content packs as separate paks (bGenerateChunks): a PrimaryAssetLabel in each pack root
 	 * puts everything in its folder into the pack's chunk. Core (/Game/MF, the engine's, all

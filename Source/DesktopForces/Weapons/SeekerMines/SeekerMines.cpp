@@ -305,11 +305,17 @@ ASeekerMines::ASeekerMines() {
 }
 
 void ASeekerMines::StartFire(bool bAlt) {
+	if (State == EDFWeaponState::Idle)
+		HeldButtons = 0; // a hold left over from before a switch or a throw
+	HeldButtons |= bAlt ? 2 : 1;
 	Super::StartFire(true); // SeekerMines.Fire -> AltFire: both buttons wind up a throw
 }
 
 void ASeekerMines::StopFire(bool bAlt) {
-	Super::StopFire(true);
+	// AltFiring.Tick: the throw goes when bAltFire == 0 && bFire == 0, not on either release
+	HeldButtons &= bAlt ? ~2 : ~1;
+	if (HeldButtons == 0)
+		Super::StopFire(true);
 }
 
 bool ASeekerMines::CanPlace() const {

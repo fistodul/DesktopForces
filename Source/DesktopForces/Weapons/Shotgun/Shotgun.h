@@ -22,6 +22,9 @@ protected:
 	virtual bool TryFire(bool bAlt) override;
 	virtual void FireShot(bool bAlt) override;
 	virtual void PlayFireEffects(bool bAlt) override;
+	virtual void OnLocalReload() override;
+	/** shotgun.EjectShellcase, EjectPause after the reload starts (the second with both barrels spent). */
+	FTimerHandle ShellTimer;
 	/** MF-mods ZombieShotgun ("Zombie Boomstick"): 12 pellets x 15, 22 clips, less kick. */
 	void ApplyBoomstick();
 };

@@ -105,6 +105,10 @@ public:
 	UPROPERTY(Config)
 	int32 DecalQuality = 2;
 
+	/** No blood marks (MF GameInfo.bLowGore: RageBloodSplat / RageBloodPool destroy themselves). */
+	UPROPERTY(Config)
+	bool bLowGore = false;
+
 	/** Draw textures one mip down (r.MipMapLODBias 1): blurrier, for very weak GPUs (the menu's
 	 *  "Blurry" texture filtering, with level 0). No preset
 	 *  sets it; it saves no memory (every mip is loaded, texture streaming is off). */

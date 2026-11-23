@@ -15,6 +15,9 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AHeavyMachineGun::AHeavyMachineGun() {
+	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
+	ThirdPersonFlashScale = 0.15f;
+	ThirdPersonFlashOffset = FVector(-20.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "HeavyMachineGun", "%k gunned down %o like a worthless dog.");
 	ViewMesh = TEXT("RageWeapons/HeavyMachineGunPickupCarryMesh");
 	ArmsMesh = TEXT("HeavyMachineGunPlayerMesh"); // PlayerViewMesh, PlayerViewScale, PlayerViewOffset
@@ -40,6 +43,15 @@ AHeavyMachineGun::AHeavyMachineGun() {
 	ZoomedMoveScale = 0.f; // can't move while deployed
 	RecoilPower = 0.3f;
 	TracerEvery = 5; // RageWeapons defaults
+	// EjectBrass: a MachineGun_BulletCase every EjectCountMax (5) rounds, DrawScale 0.7, from
+	// 30 X + 6 Y - 10 Z, Eject(((FRand()*0.3+0.4)*X + (FRand()*0.2+0.2)*Y*4 + (FRand()*0.3+1)*Z)*120)
+	Casing.Mesh = TEXT("RageWeapons/MachineGunBullet");
+	Casing.Scale = 0.7f;
+	Casing.VelocityMin = FVector(0.4f, 0.8f, 1.f);
+	Casing.VelocityRange = FVector(0.3f, 0.8f, 0.3f);
+	Casing.Speed = 120.f * 2.25f;
+	CasingEvery = 5;
+	CasingPort = FVector(30.f, 6.f, -10.f);
 	MuzzleFlashSize = 40.f;
 	// MF's canvas flash, just over the receiver: no MuzzleBone, the barrel's end (GunBarrel
 	// + (-0.6, 221.7, 0.1)) is behind the receiver from the gunner's eye (DFMuzzleProbe,
@@ -97,7 +109,10 @@ void AHeavyMachineGun::StartFire(bool bAlt) {
 		ServerStartFire(false);
 	if (IsSimulatingLocally() && ZoomLevel > 0 && State == EDFWeaponState::Idle && HasAmmoInClip()) {
 		State = EDFWeaponState::Firing;
+		// NormalFire.BeginState: a round at once, then the spin's (also over a run-out)
+		ShotAccumulator += 1.f;
 		GetWorldTimerManager().SetTimer(SpinTimer, this, &AHeavyMachineGun::SpinTick, 1.f / 30.f, true);
+		SpinTick();
 	}
 }
 

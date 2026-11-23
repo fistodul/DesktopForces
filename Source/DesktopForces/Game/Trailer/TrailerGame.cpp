@@ -3,6 +3,11 @@
 #include "World/DFRoadNetwork.h"
 #include "DesktopForces.h"
 #include "Core/DFGameSettings.h"
+#include "Core/DFProps.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Net/UnrealNetwork.h"
 #include "Game/DFGameState.h"
 #include "Game/DFPlayerState.h"
 #include "Player/DFCharacter.h"
@@ -53,9 +58,66 @@ void ATrailerGame::GetVehicleExclusions(TArray<FVector>& OutPoints) const {
 		OutPoints.Add(B.Location);
 }
 
+ATrailerBayWall::ATrailerBayWall() {
+	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	bAlwaysRelevant = true;
+	Wall = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Wall"));
+	Wall->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Wall->SetCastShadow(false);
+	Wall->SetCanEverAffectNavigation(false);
+	RootComponent = Wall;
+}
+
+void ATrailerBayWall::BeginPlay() {
+	Super::BeginPlay();
+	OnRep_Look();
+}
+
+void ATrailerBayWall::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ATrailerBayWall, Team);
+	DOREPLIFETIME(ATrailerBayWall, Radius);
+	DOREPLIFETIME(ATrailerBayWall, Height);
+}
+
+void ATrailerBayWall::OnRep_Look() {
+	if (GetNetMode() == NM_DedicatedServer)
+		return;
+	const bool bBlue = Team != 1;
+	UTexture* Tex = DF::LoadClassic<UTexture>(bBlue ? TEXT("Textures/RageGame/BlueWall/BlueWall_A01") : TEXT("Textures/RageGame/RedWall/RedWall_A01"));
+	UMaterialInterface* Additive = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Additive.M_MF_Additive"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (Tex && Additive && DF::ApplyPropMesh(Wall, bBlue ? TEXT("RageGame/WallMeshBlue") : TEXT("RageGame/WallMeshRed"), Radius / 2.25f * 0.02343f)) {
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Additive, this);
+		M->SetTextureParameterValue(TEXT("Texture"), Tex);
+		for (int32 i = 0; i < Wall->GetNumMaterials(); ++i)
+			Wall->SetMaterial(i, M);
+		return;
+	}
+	// our MoBall goal's ring (1 m across, 1 m tall), the bay's size, in the team's colour
+	Wall->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/MF/Meshes/SM_MF_Ring.SM_MF_Ring"), nullptr, LOAD_NoWarn | LOAD_Quiet));
+	Wall->SetRelativeScale3D(FVector(Radius / 50.f, Radius / 50.f, Height * 2.f / 100.f));
+	const FLinearColor C = GetDefault<UDFGameSettings>()->GetTeamColor(Team);
+	Wall->SetCustomPrimitiveDataVector4(0, FVector4(C.R, C.G, C.B, 1.f));
+}
+
 void ATrailerGame::HandleMatchHasStarted() {
 	Super::HandleMatchHasStarted();
 	FindMapData();
+	// TrailerDelivery.PostBeginPlay: the bays show in this game only
+	if (Walls.IsEmpty())
+		for (const FBay& B : Bays) {
+			FActorSpawnParameters SP;
+			SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			// PrePivot.Z -= CollisionHeight: the wall stands from the bottom of the bay's cylinder
+			if (ATrailerBayWall* W = GetWorld()->SpawnActorDeferred<ATrailerBayWall>(ATrailerBayWall::StaticClass(), FTransform(B.Location - FVector(0.f, 0.f, B.Height)))) {
+				W->Team = B.Team;
+				W->Radius = B.Radius;
+				W->Height = B.Height;
+				W->FinishSpawning(FTransform(B.Location - FVector(0.f, 0.f, B.Height)));
+				Walls.Add(W);
+			}
+		}
 	if (!bHaveGenerator || Bays.Num() < 2) {
 		UE_LOG(LogDF, Warning, TEXT("Trailer: map has %s generator and %d delivery bays"), bHaveGenerator ? TEXT("a") : TEXT("no"), Bays.Num());
 		return;

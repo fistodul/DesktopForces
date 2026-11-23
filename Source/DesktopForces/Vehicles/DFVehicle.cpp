@@ -1043,6 +1043,19 @@ void ADFVehicle::MulticastBlowUpFX_Implementation() {
 		DF::PlaySoundAtLocation(this, DF::LoadSound(TEXT("MiscSFX.Explode")), GetActorLocation());
 		AVehicleFrag::Burst(GetWorld(), GetActorLocation());
 		AVehicleFrag::Explosion(GetWorld(), GetActorLocation()); // EffectsFix.VehExplosion
+		// Vehicle.BlowUp: the sound wheels fly off, out from the middle and up
+		// (Force = (dir, 1) * WheelExplosionForce 15 into Bill's physics; ~840 cm/s each way here)
+		int32 Thrown = 0, TrailFXC = 4;
+		for (int32 i = 0; i < WheelMeshes.Num(); ++i) {
+			UStaticMeshComponent* W = WheelMeshes[i];
+			if (!W || !W->IsVisible() || !W->GetStaticMesh() || IsWheelBlown(i) || (Thrown > 0 && FMath::FRand() > 0.3f))
+				continue;
+			++Thrown;
+			const FVector Out = (W->GetComponentLocation() - GetActorLocation()).GetSafeNormal2D();
+			const bool bBurning = TrailFXC > 0 && FMath::FRand() < 0.4f;
+			TrailFXC -= bBurning ? 1 : 0;
+			AVehicleWheelFrag::Throw(GetWorld(), W->GetStaticMesh(), W->GetComponentTransform(), (Out + FVector::UpVector) * 15.f * 25.f * 2.25f + GetVelocity(), bBurning);
+		}
 	}
 }
 

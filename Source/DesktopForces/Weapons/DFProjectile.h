@@ -139,7 +139,7 @@ protected:
 	virtual AController* GetBlastCredit() const { return Shooter.Get(); }
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastExplosionFX(FVector_NetQuantize Location);
+	void MulticastExplosionFX(FVector_NetQuantize Location, FVector_NetQuantizeNormal Normal);
 
 	bool bExploded = false;
 	void PlayImpactSound(const FHitResult& Hit, const FVector& ImpactVelocity);

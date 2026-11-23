@@ -15,6 +15,7 @@ class DESKTOPFORCES_API AHeavyMachineGun : public ADFWeapon {
 public:
 	AHeavyMachineGun();
 	virtual bool IsDeployed() const override { return ZoomLevel > 0; }
+	virtual float GetDeployCrouchDelay() const override { return 41.f / 30.f / 1.3f; } // ActivateGun01
 	virtual void StartFire(bool bAlt) override;
 	virtual void StopFire(bool bAlt) override;
 	virtual void ForceInactive() override;

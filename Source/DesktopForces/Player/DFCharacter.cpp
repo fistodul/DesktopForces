@@ -9,6 +9,7 @@
 #include "World/DFZoneVolume.h"
 #include "Vehicles/DFVehicle.h"
 #include "Core/DFUserSettings.h"
+#include "World/DFDecals.h"
 #include "Player/DFCharacterMovement.h"
 #include "Player/DFSoldierAnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -588,6 +589,18 @@ void ADFCharacter::MulticastOnDeath_Implementation(FVector_NetQuantizeNormal Dir
 	}
 	GetWorldTimerManager().ClearTimer(SoldierTimer);
 	SetActorTickEnabled(false);
+	// RagePlayerCarcass.Landed: a RageBloodPool under the body (32 uu) once it's down
+	if (GetNetMode() != NM_DedicatedServer) {
+		FTimerHandle Pool;
+		GetWorldTimerManager().SetTimer(Pool, FTimerDelegate::CreateWeakLambda(this, [this]() {
+			FHitResult Floor;
+			FCollisionQueryParams Params(SCENE_QUERY_STAT(DFBloodPool), false, this);
+			const FVector From = GetActorLocation();
+			if (GetWorld()->LineTraceSingleByChannel(Floor, From, From - FVector(0.f, 0.f, GetSimpleCollisionHalfHeight() + 100.f), ECC_GameTraceChannel2, Params))
+				DF::SpawnDecal(this, DF::EDecal::Blood, Floor.ImpactPoint, Floor.ImpactNormal, 72.f);
+		}),
+			1.f, false);
+	}
 }
 
 void ADFCharacter::OnRep_Health(int32 OldHealth) {

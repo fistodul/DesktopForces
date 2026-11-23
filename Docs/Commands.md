@@ -126,7 +126,7 @@ your machine and need cheats on too). The admin commands above work the same way
 | `DFEnterSeat N` | get into seat N (0 driver, 1.. passengers) of the nearest vehicle |
 | `DFBlowUp` | blow up the nearest vehicle (explosive damage: debris, wreck) |
 | `DFVehicles` | log every vehicle: position, mass, gravity, physics awake, height above ground, wheel compression |
-| `DFDecal 0\|1 [Size]` | a bullet hole / scorch mark where you look |
+| `DFDecal 0\|1\|2 [Size]` | a bullet hole / scorch mark / blood splat where you look |
 | `DFNavRelevant` | log moving things that can dirty the navmesh ("NAVMESH NEEDS TO BE REBUILT" hunts) |
 | `DFApplyUserSettings` | re-read the player's options (field of view, keys) |
 

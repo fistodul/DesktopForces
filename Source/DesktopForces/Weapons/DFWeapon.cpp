@@ -400,6 +400,8 @@ void ADFWeapon::StartReload() {
 		return;
 	if (ZoomLevel > 0)
 		ResetZoom();
+	if (IsLocallyControlled())
+		OnLocalReload();
 	SetState(EDFWeaponState::Reloading, ReloadTime);
 	if (HasAuthority())
 		MulticastReload();
@@ -604,18 +606,75 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 	}
 	if (UDFSoldierAnimInstance* Anim = C ? C->GetSoldierAnim() : nullptr)
 		Anim->OnFire(bAlt); // knife stab, grenade / trip bomb throw
-	if (C && !CasingMesh.IsEmpty()) {
+	if (C && (!C->IsLocallyControlled() || C->IsBehindView()))
+		ShowThirdPersonFlash();
+	if (C && !Casing.Mesh.IsEmpty() && ++CasingCount >= CasingEvery) {
+		CasingCount = 0;
 		// EjectBrass: Owner.Location + CalcDrawOffset() + 30 X + (2.8 FireOffset.Y + 5) Y - Z, or
-		// 30 X + 2.8 Y - 6 Z under the sights; the weapon's hand sets the side (uu here x 2.25)
-		FVector Eye;
-		FRotator View;
-		C->GetActorEyesViewPoint(Eye, View);
+		// 30 X + 2.8 Y - 6 Z under the sights; the weapon's hand sets the side
 		const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
 		const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
 																							: 0.f;
-		const FVector Draw = (IsZoomed() ? FVector(30.f, 2.8f, -6.f) : FVector(30.f, 2.8f * FireSide * Side + 5.f * Side, -1.f)) + FVector(ArmsOffset.X, Side * ArmsOffset.Y, ArmsOffset.Z);
-		ADFShellCase::Eject(GetWorld(), CasingMesh, CasingScale, Eye, View, Draw * 2.25f, C->GetVelocity());
+		const FVector Port = !CasingPort.IsZero() ? FVector(CasingPort.X, Side * CasingPort.Y, CasingPort.Z) : IsZoomed() ? FVector(30.f, 2.8f, -6.f)
+																														  : FVector(30.f, 2.8f * FireSide * Side + 5.f * Side, -1.f);
+		EjectCasing(Casing, Port);
 	}
+}
+
+void ADFWeapon::ShowThirdPersonFlash() {
+	if (ThirdPersonFlashScale <= 0.f || !Mesh3P || !Mesh3P->IsVisible() || GetNetMode() == NM_DedicatedServer)
+		return;
+	if (!Flash3P) {
+		// MachineGunMuzzleFlashMesh's frames (Shoot, 9) as sprite clouds (props.py PARTICLE_MESHES)
+		for (int32 F = 0; F < 9; ++F)
+			if (UStaticMesh* Frame = DF::LoadClassic<UStaticMesh>(F ? FString::Printf(TEXT("Props/RageWeapons/MachineGunMuzzleFlashMesh_Cloud_F%d"), F) : FString(TEXT("Props/RageWeapons/MachineGunMuzzleFlashMesh_Cloud"))))
+				Flash3PFrames.Add(Frame);
+		UMaterialInterface* Master = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_SpriteCloud.M_MF_SpriteCloud"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		UTexture2D* Tex = DF::LoadClassic<UTexture2D>(TEXT("Textures/RageWeapons/Skins/JMachineGunMuzzleFlash"));
+		if (Flash3PFrames.IsEmpty() || !Master || !Tex) {
+			ThirdPersonFlashScale = 0.f; // no classic pack (or an older import): no flash, no more tries
+			return;
+		}
+		Flash3P = NewObject<UStaticMeshComponent>(this, TEXT("Flash3P"));
+		Flash3P->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Flash3P->SetCastShadow(false);
+		Flash3P->SetUsingAbsoluteScale(true);
+		Flash3P->SetOwnerNoSee(false);
+		Flash3P->SetBoundsScale(4.f); // the sprites spread past the points
+		Flash3P->SetupAttachment(Mesh3P);
+		Flash3P->SetStaticMesh(Flash3PFrames[0]);
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Master, this);
+		M->SetTextureParameterValue(TEXT("Texture"), Tex);
+		// a particle: the texture's size x DrawScale (MuzzleFlashScale), uu -> cm
+		M->SetScalarParameterValue(TEXT("SpriteSize"), Tex->GetSizeX() * ThirdPersonFlashScale * 2.25f);
+		Flash3P->SetMaterial(0, M);
+		Flash3P->RegisterComponent();
+	}
+	const FVector Scale3P = Mesh3P->GetComponentScale();
+	Flash3P->SetRelativeLocation(ThirdPersonFlashOffset * 2.25f / Scale3P.GetMax());
+	Flash3P->SetWorldScale3D(FVector(ThirdPersonFlashScale));
+	Flash3P->SetStaticMesh(Flash3PFrames[FMath::RandRange(0, Flash3PFrames.Num() - 1)]);
+	Flash3P->SetVisibility(true);
+	GetWorldTimerManager().SetTimer(Flash3PTimer, FTimerDelegate::CreateWeakLambda(this, [this]() {
+		if (Flash3P)
+			Flash3P->SetVisibility(false);
+	}),
+		0.05f, false);
+}
+
+void ADFWeapon::EjectCasing(const FDFCasing& What, const FVector& PortUU) const {
+	const ADFCharacter* C = GetOwnerCharacter();
+	if (!C)
+		return;
+	FVector Eye;
+	FRotator View;
+	C->GetActorEyesViewPoint(Eye, View);
+	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
+	const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
+																						: 0.f;
+	// thrown to the right whatever the hand (MF's Y is the view's)
+	const FVector Draw = PortUU + FVector(ArmsOffset.X, Side * ArmsOffset.Y, ArmsOffset.Z);
+	ADFShellCase::Eject(GetWorld(), What, Eye, View, Draw * 2.25f, C->GetVelocity());
 }
 
 bool ADFWeapon::GetMuzzleFlashLocation(FVector& Location) const {
@@ -858,12 +917,43 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 		// PlaySound(Sound'MiscSFX.RageChunkHit',, 4.0,,100): only right next to it; RageEffect.AddBlood
 		DF::PlaySoundRadius(this, DF::LoadClassic<USoundBase>(TEXT("Sounds/MiscSFX/RageChunkHit")), At, 1.f, 100.f);
 		DF::SpawnEffect(this, TEXT("Blood"), At);
+		// RageWeapon.ProcessTraceHit -> RPlayer.TraceBlood: on the wall up to 256 uu behind the
+		// soldier along the shot, a RageBloodSplat (32 uu x DrawScale 1-2)
+		if (const ADFCharacter* Shooter = GetOwnerCharacter()) {
+			FVector Eye;
+			FRotator View;
+			Shooter->GetActorEyesViewPoint(Eye, View);
+			const FVector Dir = (FVector(At) - Eye).GetSafeNormal();
+			FHitResult Wall;
+			FCollisionQueryParams Params(SCENE_QUERY_STAT(DFBlood), false, this);
+			if (!Dir.IsZero() && GetWorld()->LineTraceSingleByChannel(Wall, At, FVector(At) + Dir * 576.f, ECC_GameTraceChannel2, Params))
+				DF::SpawnDecal(this, DF::EDecal::Blood, Wall.ImpactPoint, Wall.ImpactNormal, 72.f * (1.f + FMath::FRand()));
+		}
 		return;
 	}
 	// RageEffect.AddWallHit: windy smoke and specks off the wall (+X of the effect: the normal),
 	// a hole (RagePock: BulletHole01-04 at DrawScale 0.15, ~11 cm)
 	DF::SpawnEffect(this, TEXT("WallHit"), At, 1.f, FVector(Normal).Rotation());
 	DF::SpawnDecal(this, DF::EDecal::BulletHole, At, Normal, 12.f);
+	// RageWallHit's chips (Rage commented them out; full marks only): MaxChips 5 at ChipOdds 0.2,
+	// a RageChip each: one of four poses, DrawScale 0.3-0.7, VRand()*200*FRand() + Normal*250 uu/s
+	if (UDFUserSettings::Get().DecalQuality >= 2) {
+		static const TCHAR* Poses[] = { TEXT("RageEffects/RageChipM"), TEXT("RageEffects/RageChipM_F1"), TEXT("RageEffects/RageChipM_F2"), TEXT("RageEffects/RageChipM_F3") };
+		for (int32 i = 0; i < 5; ++i) {
+			if (FMath::FRand() >= 0.2f)
+				continue;
+			FDFCasing Chip;
+			// BeginState: Position1 a quarter, else Position2 a quarter, else Position3 a quarter, else 4
+			Chip.Mesh = Poses[FMath::FRand() < 0.25f ? 0 : FMath::FRand() < 0.25f ? 1
+					: FMath::FRand() < 0.25f                                      ? 2
+																				  : 3];
+			Chip.Scale = FMath::FRand() * 0.4f + 0.3f;
+			Chip.MaxBounces = 2; // HitWall: after the first, bouncing on only 15 % of the time
+			Chip.Sound.Empty();
+			const FVector V = (FMath::VRand() * 200.f * FMath::FRand() + FVector(Normal) * 250.f) * 2.25f;
+			ADFShellCase::Launch(GetWorld(), Chip, FVector(At) + FVector(Normal) * 2.f, FMath::VRand().Rotation(), V);
+		}
+	}
 	// RageEffect.AddWallHit: a ricochet, one of two impacts, or nothing (a quarter each)
 	const float R = FMath::FRand();
 	if (R < 0.25f)

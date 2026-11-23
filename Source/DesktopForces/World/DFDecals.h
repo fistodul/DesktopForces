@@ -10,7 +10,7 @@ class UMaterialInterface;
 
 /**
  * Marks left on the world: bullet holes (MF RagePock, 10 s) and scorch marks after explosions
- * (MF had them switched off; a graphics upgrade here). Art: Tools/artgen (T_MF_BulletHole*,
+ * (MF had them switched off; a graphics upgrade here), blood (MF RageBloodSplat / RageBloodPool). Art: Tools/artgen (T_MF_BulletHole*,
  * T_MF_Scorch*), materials M_MF_Decal / M_MF_DecalQuad (importer EnsureDecalMaterials).
  * UDFUserSettings::DecalQuality: 2 full (surface-conforming scorch meshes), 1 simple
  * (flat instanced quads), 0 none. Bullet holes stay quads. Local only, static surfaces only.
@@ -18,11 +18,17 @@ class UMaterialInterface;
  */
 namespace DF {
 	enum class EDecal : uint8 { BulletHole,
-		Scorch };
+		Scorch,
+		/** RageBloodSplat (on a wall behind a hit soldier) / RageBloodPool (under a corpse): MF's
+		 *  BloodSplat01-08, classic content only; none with UDFUserSettings::bLowGore. */
+		Blood };
 	/** Size: across, cm. Normal: the surface's, pointing out. */
 	DESKTOPFORCES_API void SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At, const FVector& Normal, float Size);
 	/** A scorch mark on whatever is below Location within Range (explosions in the air leave none). */
 	DESKTOPFORCES_API void SpawnScorchBelow(const UObject* WorldContext, const FVector& Location, float Size, float Range = 300.f);
+	/** A scorch mark on the surface an explosion went off against (Normal: out of it; a wall, a
+	 *  ceiling), or below it when there's none that way. */
+	DESKTOPFORCES_API void SpawnScorch(const UObject* WorldContext, const FVector& Location, const FVector& Normal, float Size, float Range = 300.f);
 } // namespace DF
 
 /** The quad marks of a world: one instanced mesh per texture, a ring of slots reused oldest first. */
