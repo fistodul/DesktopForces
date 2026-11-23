@@ -11,7 +11,8 @@ starts on the main menu. On Windows use `py -3` instead of `python3` if needed.
     python3 package.py Android --downloads      core pack in the build; the other packs for
                                                 the download server (Docs/Building.md)
     python3 package.py --compile-only           build the editor and game code, no cook (CI)
-    python3 package.py Linux --server           a dedicated server (Linux, Development): built in
+    python3 package.py Linux --server           a dedicated server (Linux, Development; `Linux Shipping --server`
+                                                for the release one: faster, no logs, no cheats): built in
                                                 Epic's engine image, runs anywhere without it
     python3 package.py --dry-run Windows        print the commands instead of running them
 
@@ -304,11 +305,11 @@ SERVER_TIMEOUT = '6h'  # clang once crash-looped for 2 hours in the container wi
 SERVER_SKIP = ['/Binaries/', '/Intermediate/', '/Saved/', '/DerivedDataCache/', '/Build/', '/.git/', '/Tools/mfport/work/']
 
 
-def server_uat(maps: list[str], ue_home: str) -> list[str]:
+def server_uat(maps: list[str], ue_home: str, config: str = 'Development') -> list[str]:
     """BuildCookRun in the image for a server of `maps`, the project mounted at /project."""
     uat = [f'{ue_home}/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh', 'BuildCookRun', '-project=/project/DesktopForces.uproject',
            '-noP4', '-utf8output', '-unattended', '-ubtargs=-NoUBA', '-server', '-noclient', '-serverplatform=Linux',
-           '-serverconfig=Development', '-build', '-cook', '-stage', '-pak', '-iostore', '-compressed', '-archive',
+           f'-serverconfig={config}', '-build', '-cook', '-stage', '-pak', '-iostore', '-compressed', '-archive',
            '-archivedirectory=/project/Saved/Server']
     if maps:
         uat.append(f'-map={"+".join(maps)}')
@@ -328,8 +329,8 @@ def package_server(a: argparse.Namespace) -> None:
     version = a.version or game_version(project)  # a client joins only a server of its own ProjectVersion
     suffix = '-public' if a.public else ''
     tree = Path(os.environ.get('DF_SERVER_TREE', Path.home() / '.cache/desktopforces-server')) / f'project{suffix}'
-    out = project / f'Saved/Packages/LinuxServer{suffix}'
-    print(f'Packaging the Linux server {version}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
+    out = project / f'Saved/Packages/LinuxServer{"" if a.config == "Development" else "-" + a.config}{suffix}'
+    print(f'Packaging the Linux server ({a.config}) {version}{" (public: no classic content)" if a.public else ""} -> {out} ({len(maps)} maps)')
     if a.dry_run:
         print('(dry run)')
     else:
@@ -350,7 +351,7 @@ def package_server(a: argparse.Namespace) -> None:
         shutil.rmtree(tree / 'Saved/Server', ignore_errors=True)
     home = '/home/ue4'
     run(['timeout', SERVER_TIMEOUT, 'docker', 'run', '--rm', '-u', f'{os.getuid()}:{os.getgid()}', '-v', f'{tree}:/project',
-         '-e', f'HOME={home}', SERVER_IMAGE, *server_uat(maps, home)], a.dry_run)
+         '-e', f'HOME={home}', SERVER_IMAGE, *server_uat(maps, home, a.config)], a.dry_run)
     if a.dry_run:
         return
     built = tree / 'Saved/Server/LinuxServer'
@@ -360,7 +361,7 @@ def package_server(a: argparse.Namespace) -> None:
     shutil.copytree(built, out, symlinks=True)
     release = project / 'Saved/Packages' / version
     release.mkdir(parents=True, exist_ok=True)
-    archive = shutil.make_archive(str(release / share_name('LinuxServer', 'Development', version, 'Public' if a.public else '')), 'gztar', out.parent, out.name)
+    archive = shutil.make_archive(str(release / share_name('LinuxServer', a.config, version, 'Public' if a.public else '')), 'gztar', out.parent, out.name)
     print(f'Done: {out}, version {version}\n  to host: unpack {archive} anywhere and run {out.name}/DesktopForcesServer.sh (Docs/Hosting.md)')
 
 
@@ -519,7 +520,7 @@ def package(a: argparse.Namespace) -> None:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('platform', nargs='?', choices=['Linux', 'Windows', 'Android'], default='Windows' if WINDOWS else 'Linux')
-    ap.add_argument('config', nargs='?', choices=['Shipping', 'Development'], default='Shipping')
+    ap.add_argument('config', nargs='?', choices=['Shipping', 'Development'], help='default: Shipping for the game, Development for --server')
     ap.add_argument('--public', action='store_true', help='leave out the Classic and Unverified plugins')
     ap.add_argument('--downloads', action='store_true', help='core pack only in the build; the other packs for the server')
     ap.add_argument('--team', action='store_true', help='with --downloads: also a team server folder, a Classic zip and a Full zip')
@@ -528,10 +529,12 @@ def main(argv: list[str]) -> int:
     ap.add_argument('--compile-only', action='store_true', help='build the editor and game code, no cook')
     ap.add_argument('--clean', action='store_true', help="delete this host's Binaries / Intermediate/Build first")
     ap.add_argument('--dry-run', action='store_true', help='print the commands instead of running them')
-    ap.add_argument('--server', action='store_true', help='a dedicated Linux server (Development) instead of the game')
+    ap.add_argument('--server', action='store_true', help='a dedicated Linux server instead of the game (Development unless Shipping is given)')
     ap.add_argument('--version', help='the network version (ProjectVersion, yyyymmdd) instead of the commit date: '
                                       'a content-only rebuild that must still play with builds already out')
     a = ap.parse_args(argv)
+    if a.config is None:
+        a.config = 'Development' if a.server else 'Shipping'
     if a.team and not a.downloads:
         ap.error('--team needs --downloads')
     if a.server and (a.platform != 'Linux' or a.downloads or a.compile_only):

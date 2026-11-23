@@ -45,6 +45,15 @@ LinuxServer/DesktopForcesServer.sh "/MobileForcesClassic/Maps/mf-warehouse?game=
   -port=7777 -log "-ini:Game:[/Script/DesktopForces.DFGameMode]:AdminPassword=change-me"
 ```
 
+`python3 Tools/package.py Linux Shipping --server` builds the release server instead
+(`Saved/Packages/LinuxServer-Shipping/`, `DesktopForces-LinuxServer-<version>.tar.gz`, unpacking to
+`LinuxServer-Shipping/`): optimised and smaller (660 MB against 1.1 GB, 2026-11-23), but UE
+compiles logging and the cheat manager out of Shipping, so it writes no log at all (`-log` does
+nothing) and the `DF*` cheats are gone (`Admin` with engine commands like kick or servertravel
+should still work; not tried yet). Players joined it fine. An installed engine (Epic's image) can't turn Shipping logging
+back on for one target (`bUseLoggingInShipping` needs a source-built engine). Run Development
+while a server needs watching.
+
 Players join with the same day's build (`ProjectVersion`, set by the packager from the commit date:
 a client of another version is refused). Open UDP 7777 and the query port 7778 (game port + 1);
 `-nomaster` keeps it off the server list. Settings go in `LinuxServer/DesktopForces/Saved/Config/LinuxServer/Game.ini`
