@@ -955,7 +955,8 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 	DF::SpawnEffect(this, TEXT("WallHit"), At, 1.f, FVector(Normal).Rotation());
 	DF::SpawnDecal(this, DF::EDecal::BulletHole, At, Normal, 12.f);
 	// RageWallHit's chips (Rage commented them out; full marks only): MaxChips 5 at ChipOdds 0.2,
-	// a RageChip each: one of four poses, DrawScale 0.3-0.7, VRand()*200*FRand() + Normal*250 uu/s
+	// a RageChip each: one of four poses, DrawScale 0.3-0.7, at half Rage's never-shipped
+	// VRand()*200*FRand() + Normal*250 uu/s (Filip: they flew too far from the wall)
 	if (UDFUserSettings::Get().DecalQuality >= 2) {
 		static const TCHAR* Poses[] = { TEXT("RageEffects/RageChipM"), TEXT("RageEffects/RageChipM_F1"), TEXT("RageEffects/RageChipM_F2"), TEXT("RageEffects/RageChipM_F3") };
 		for (int32 i = 0; i < 5; ++i) {
@@ -967,9 +968,9 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 					: FMath::FRand() < 0.25f                                      ? 2
 																				  : 3];
 			Chip.Scale = FMath::FRand() * 0.4f + 0.3f;
-			Chip.MaxBounces = 2; // HitWall: after the first, bouncing on only 15 % of the time
+			Chip.MaxBounces = 1; // HitWall: after the first bounce bBounce goes off (85 %), then Landed stops it
 			Chip.Sound.Empty();
-			const FVector V = (FMath::VRand() * 200.f * FMath::FRand() + FVector(Normal) * 250.f) * 2.25f;
+			const FVector V = (FMath::VRand() * 100.f * FMath::FRand() + FVector(Normal) * 125.f) * 2.25f;
 			ADFShellCase::Launch(GetWorld(), Chip, FVector(At) + FVector(Normal) * 2.f, FMath::VRand().Rotation(), V);
 		}
 	}
