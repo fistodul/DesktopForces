@@ -305,8 +305,8 @@ ASeekerMines::ASeekerMines() {
 }
 
 void ASeekerMines::StartFire(bool bAlt) {
-	if (State == EDFWeaponState::Idle)
-		HeldButtons = 0; // a hold left over from before a switch or a throw
+	if (!bWinding)
+		HeldButtons = 0; // a hold left over from before a switch (its release went elsewhere)
 	HeldButtons |= bAlt ? 2 : 1;
 	Super::StartFire(true); // SeekerMines.Fire -> AltFire: both buttons wind up a throw
 }

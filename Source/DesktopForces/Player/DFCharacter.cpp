@@ -764,7 +764,10 @@ void ADFCharacter::EquipWeapon(ADFWeapon* Weapon) {
 		if (GetLocalRole() < ROLE_Authority)
 			ServerEquipWeapon(Weapon);
 		PendingWeapon = nullptr;
-		SetCurrentWeapon(Weapon, nullptr);
+		if (Weapon->bPutDownQueued)
+			Weapon->bPutDownQueued = false; // still mid-throw: the throw just carries on
+		else
+			SetCurrentWeapon(Weapon, nullptr);
 		return;
 	}
 	if (!Weapon || Weapon == CurrentWeapon || Weapon == PendingWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath || (CurrentWeapon && CurrentWeapon->LocksSelection()))

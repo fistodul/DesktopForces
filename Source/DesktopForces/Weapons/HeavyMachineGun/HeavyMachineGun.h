@@ -36,6 +36,8 @@ protected:
 	FTimerHandle DeploySoundTimer;
 	float SpinRate = 0.f; // MF FireAnimRate
 	float ShotAccumulator = 0.f;
+	/** World time of the last round: a press fires at once only past the full spin's interval. */
+	double LastRoundAt = -1.0;
 	UPROPERTY(EditDefaultsOnly, Category = "DF")
 	float SpinAccel = 1.f; // MF AnimAccelRate
 	UPROPERTY(EditDefaultsOnly, Category = "DF")

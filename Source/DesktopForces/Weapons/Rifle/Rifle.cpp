@@ -121,7 +121,9 @@ void ARifle::ForceInactive() {
 }
 
 void ARifle::CancelCharge() {
-	if (bCharging)
+	// the server never charges (the charge is the owner's), so it clears the beam whenever the
+	// rifle is put away, dropped or its holder dies
+	if (bCharging || (HasAuthority() && bLaser))
 		SetLaser(false);
 	bCharging = false;
 	ReleasedPower = 1.f;

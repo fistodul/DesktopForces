@@ -109,8 +109,10 @@ void AHeavyMachineGun::StartFire(bool bAlt) {
 		ServerStartFire(false);
 	if (IsSimulatingLocally() && ZoomLevel > 0 && State == EDFWeaponState::Idle && HasAmmoInClip()) {
 		State = EDFWeaponState::Firing;
-		// NormalFire.BeginState: a round at once, then the spin's (also over a run-out)
-		ShotAccumulator += 1.f;
+		// NormalFire.BeginState: a round at once, then the spin's (also over a run-out); taps no
+		// faster than the gun at full spin
+		if (GetWorld()->GetTimeSeconds() - LastRoundAt >= 1.0 / (MaxSpin * RoundsPerCycle))
+			ShotAccumulator += 1.f;
 		GetWorldTimerManager().SetTimer(SpinTimer, this, &AHeavyMachineGun::SpinTick, 1.f / 30.f, true);
 		SpinTick();
 	}
@@ -127,6 +129,7 @@ void AHeavyMachineGun::SpinTick() {
 		ShotAccumulator += SpinRate * RoundsPerCycle * Dt;
 		while (ShotAccumulator >= 1.f && HasAmmoInClip()) {
 			ShotAccumulator -= 1.f;
+			LastRoundAt = GetWorld()->GetTimeSeconds();
 			UseAmmo();
 			if (HasAuthority()) {
 				++BurstCounter;

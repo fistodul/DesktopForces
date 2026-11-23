@@ -298,9 +298,11 @@ void UDFSoldierAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 	if (C->IsFeigningDeath()) {
 		// RPlayer.PlayFeignDeath: TweenAnim DeathEnd, DeathEnd2 or DeathEnd3 (a third each), 0.5
 		static const FName Poses[] = { TEXT("DeathEnd"), TEXT("DeathEnd2"), TEXT("DeathEnd3") };
-		const FName Pose = Poses[FMath::Min<int32>(C->GetFeignPose(), 2)];
+		FName Pose = Poses[FMath::Min<int32>(C->GetFeignPose(), 2)];
+		if (!HasSequence(Pose))
+			Pose = Poses[0]; // a model without the variants
 		if (CurrentName != Pose)
-			Play(HasSequence(Pose) ? Pose : Poses[0], 1.f, 0.5f, false);
+			Play(Pose, 1.f, 0.5f, false);
 		return;
 	}
 	const bool bFalling = C->GetCharacterMovement()->IsFalling();

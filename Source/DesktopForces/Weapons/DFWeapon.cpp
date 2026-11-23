@@ -680,7 +680,8 @@ void ADFWeapon::EjectCasing(const FDFCasing& What, const FVector& PortUU) const 
 																						: 0.f;
 	// thrown to the right whatever the hand (MF's Y is the view's)
 	const FVector Draw = PortUU + FVector(ArmsOffset.X, Side * ArmsOffset.Y, ArmsOffset.Z);
-	ADFShellCase::Eject(GetWorld(), What, Eye, View, Draw * 2.25f, C->GetVelocity());
+	const AActor* Ride = C->GetAttachParentActor(); // a seated gunner moves with the vehicle
+	ADFShellCase::Eject(GetWorld(), What, Eye, View, Draw * 2.25f, Ride ? Ride->GetVelocity() : C->GetVelocity());
 }
 
 bool ADFWeapon::GetMuzzleFlashLocation(FVector& Location) const {
@@ -944,7 +945,8 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 			const FVector Dir = (FVector(At) - Eye).GetSafeNormal();
 			FHitResult Wall;
 			FCollisionQueryParams Params(SCENE_QUERY_STAT(DFBlood), false, this);
-			if (!Dir.IsZero() && GetWorld()->LineTraceSingleByChannel(Wall, At, FVector(At) + Dir * 576.f, ECC_GameTraceChannel2, Params))
+			// RPlayer.TraceBlood: world geometry only (HitActor.bWorldGeometry), never the soldier hit
+			if (!Dir.IsZero() && GetWorld()->LineTraceSingleByObjectType(Wall, At, FVector(At) + Dir * 576.f, FCollisionObjectQueryParams(ECC_WorldStatic), Params))
 				DF::SpawnDecal(this, DF::EDecal::Blood, Wall.ImpactPoint, Wall.ImpactNormal, 72.f * (1.f + FMath::FRand()));
 		}
 		return;

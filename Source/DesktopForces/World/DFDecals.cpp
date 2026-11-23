@@ -9,7 +9,6 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Core/DFContent.h"
-#include "UObject/StrongObjectPtr.h"
 #include "TimerManager.h"
 #if WITH_EDITOR
 #include "StaticMeshCompiler.h"
@@ -31,19 +30,14 @@ namespace {
 
 	UMaterialInterface* DecalMaterial(DF::EDecal Kind, int32 Variant, bool bQuad) {
 		if (Kind == DF::EDecal::Blood) {
-			// MF's own splats on the quad master (dark where the splat is): made here, as the
-			// textures are the classic pack's (the core game holds no material pointing at them)
-			static TMap<FString, TStrongObjectPtr<UMaterialInstanceDynamic>> Made;
-			const FString Name = DecalTexture(Kind, Variant);
-			if (const TStrongObjectPtr<UMaterialInstanceDynamic>* Found = Made.Find(Name); Found && Found->IsValid())
-				return Found->Get();
+			// MF's own splats on the quad master (dark where the splat is), made here as the textures
+			// are the classic pack's; the quads' ring keeps one per texture for the level's life
 			UMaterialInterface* Master = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_DecalQuad.M_MF_DecalQuad"), nullptr, LOAD_NoWarn | LOAD_Quiet);
-			UTexture* Tex = DF::LoadClassic<UTexture>(TEXT("Textures/RageEffects/") + Name);
+			UTexture* Tex = DF::LoadClassic<UTexture>(TEXT("Textures/RageEffects/") + DecalTexture(Kind, Variant));
 			if (!Master || !Tex)
 				return nullptr;
 			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Master, GetTransientPackage());
 			MID->SetTextureParameterValue(TEXT("Texture"), Tex);
-			Made.Add(Name, TStrongObjectPtr<UMaterialInstanceDynamic>(MID));
 			return MID;
 		}
 		const FString Name = FString::Printf(TEXT("MI_MF_%s%s"), *DecalTexture(Kind, Variant), bQuad ? TEXT("_Quad") : TEXT(""));
@@ -67,7 +61,7 @@ void DF::SpawnDecal(const UObject* WorldContext, EDecal Kind, const FVector& At,
 	if (!World->LineTraceSingleByChannel(Surface, At + N * 4.f, At - N * 4.f, ECC_GameTraceChannel2, Params) || !Surface.GetComponent() || Surface.GetComponent()->Mobility == EComponentMobility::Movable)
 		return;
 	const int32 Variant = FMath::RandRange(0, DecalVariants(Kind) - 1);
-	if (Kind != EDecal::BulletHole && Quality >= 2) {
+	if (Kind == EDecal::Scorch && Quality >= 2) { // blood stays quads: many, small, and off the scorches' cap
 		UMaterialInterface* Material = DecalMaterial(Kind, Variant, true);
 		if (Material) {
 			FActorSpawnParameters Spawn;

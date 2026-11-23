@@ -52,7 +52,8 @@ FName ADeagle::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
 }
 
 USoundBase* ADeagle::GetReloadSound() const {
-	if (ClipAmmo == 0) {
+	// ClipAmmo reaches only the owner (and the server): others hear the plain reload
+	if (ClipAmmo == 0 && (IsLocallyControlled() || HasAuthority())) {
 		if (!EmptyReloadSound)
 			const_cast<ADeagle*>(this)->EmptyReloadSound = DF::LoadSound(TEXT("deagleSFX.deagleEmptyReload"));
 		if (EmptyReloadSound)
