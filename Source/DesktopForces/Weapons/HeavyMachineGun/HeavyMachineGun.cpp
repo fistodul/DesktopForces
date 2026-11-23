@@ -15,7 +15,6 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AHeavyMachineGun::AHeavyMachineGun() {
-	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
 	ThirdPersonFlashScale = 0.15f;
 	ThirdPersonFlashOffset = FVector(-20.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "HeavyMachineGun", "%k gunned down %o like a worthless dog.");

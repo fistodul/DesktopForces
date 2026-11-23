@@ -53,6 +53,25 @@ void DF::Tint(UStaticMeshComponent* C, const FLinearColor& Color) {
 	C->SetCustomPrimitiveDataVector4(0, FVector4(Color.R, Color.G, Color.B, 1.f));
 }
 
+void DF::PlaceBeam(UStaticMeshComponent* Beam, const FVector& Start, const FVector& End, const FLinearColor& Color) {
+	const FVector Delta = End - Start;
+	if (!Beam || Delta.SizeSquared() < 1.f)
+		return;
+	Tint(Beam, Color);
+	Beam->SetWorldTransform(FTransform(Delta.Rotation(), Start + Delta * 0.5f, FVector(Delta.Size() / 100.f, 0.01f, 0.01f)));
+	Beam->SetVisibility(true);
+}
+
+UMaterialInstanceDynamic* DF::MakeTexturedMID(const TCHAR* Master, const FString& Texture, UObject* Outer) {
+	UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, Master, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UTexture* Tex = DF::LoadClassic<UTexture>(Texture);
+	if (!M || !Tex)
+		return nullptr;
+	UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(M, Outer);
+	MID->SetTextureParameterValue(TEXT("Texture"), Tex);
+	return MID;
+}
+
 bool DF::ApplyPropMesh(UStaticMeshComponent* C, const TCHAR* PackageAndName, float DrawScale, const FVector& Offset) {
 	if (!C)
 		return false;

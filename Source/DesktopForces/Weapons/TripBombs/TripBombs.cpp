@@ -121,7 +121,7 @@ void ATripBombs::BeginWindUp() {
 	PlayArms(TEXT("SlideBack"), SlideBackTime);
 	// PlayAnim('SlideBack') with nothing after it: the hand stays back while the throw charges
 	if (UDFTweenAnimInstance* Anim = IsLocallyControlled() ? GetArmsAnim() : nullptr)
-		Anim->HoldWhenDone();
+		Anim->SetIdle(NAME_None);
 	BusyFor(SlideBackTime, &ATripBombs::WindUpReady);
 }
 
@@ -133,9 +133,7 @@ void ATripBombs::WindUpReady() {
 void ATripBombs::Throw() {
 	if (!bWinding)
 		return;
-	const float Power = GetReleasePower(); // before the wind-up ends: GetThrowPower is 0 after
-	bWinding = false;
-	SetAmbientMFSound(nullptr);
+	const float Power = EndWindUp();
 	if (GetLocalRole() < ROLE_Authority)
 		ServerThrow(Power);
 	if (HasAuthority() ? ThrowNow(Power) : true)

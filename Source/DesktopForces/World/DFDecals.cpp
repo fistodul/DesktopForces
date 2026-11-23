@@ -9,37 +9,39 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Core/DFContent.h"
+#include "Core/DFProps.h"
 #include "TimerManager.h"
 #if WITH_EDITOR
 #include "StaticMeshCompiler.h"
 #endif
 
 namespace {
+	/** Per kind: its textures' name stem, how many, the first one's number (BulletHole0-3,
+	 *  Scorch0-1, MF's BloodSplat01-08). */
+	struct FDecalSet {
+		const TCHAR* Stem;
+		int32 Count;
+		int32 First;
+		bool bTwoDigits;
+	};
+	const FDecalSet& DecalSet(DF::EDecal Kind) {
+		static const FDecalSet Sets[] = { { TEXT("BulletHole"), 4, 0, false }, { TEXT("Scorch"), 2, 0, false }, { TEXT("BloodSplat"), 8, 1, true } };
+		return Sets[uint8(Kind)];
+	}
+
 	int32 DecalVariants(DF::EDecal Kind) {
-		return Kind == DF::EDecal::BulletHole ? 4 : Kind == DF::EDecal::Blood ? 8
-																			  : 2;
+		return DecalSet(Kind).Count;
 	}
 
 	FString DecalTexture(DF::EDecal Kind, int32 Variant) {
-		static const TCHAR* Holes[] = { TEXT("BulletHole0"), TEXT("BulletHole1"), TEXT("BulletHole2"), TEXT("BulletHole3") };
-		static const TCHAR* Scorches[] = { TEXT("Scorch0"), TEXT("Scorch1") };
-		if (Kind == DF::EDecal::Blood)
-			return FString::Printf(TEXT("BloodSplat0%d"), Variant % 8 + 1);
-		return Kind == DF::EDecal::BulletHole ? Holes[Variant % 4] : Scorches[Variant % 2];
+		const FDecalSet& Set = DecalSet(Kind);
+		const int32 N = Set.First + Variant % Set.Count;
+		return Set.bTwoDigits ? FString::Printf(TEXT("%s%02d"), Set.Stem, N) : FString::Printf(TEXT("%s%d"), Set.Stem, N);
 	}
 
 	UMaterialInterface* DecalMaterial(DF::EDecal Kind, int32 Variant, bool bQuad) {
-		if (Kind == DF::EDecal::Blood) {
-			// MF's own splats on the quad master (dark where the splat is), made here as the textures
-			// are the classic pack's; the quads' ring keeps one per texture for the level's life
-			UMaterialInterface* Master = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_DecalQuad.M_MF_DecalQuad"), nullptr, LOAD_NoWarn | LOAD_Quiet);
-			UTexture* Tex = DF::LoadClassic<UTexture>(TEXT("Textures/RageEffects/") + DecalTexture(Kind, Variant));
-			if (!Master || !Tex)
-				return nullptr;
-			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Master, GetTransientPackage());
-			MID->SetTextureParameterValue(TEXT("Texture"), Tex);
-			return MID;
-		}
+		if (Kind == DF::EDecal::Blood) // MF's own splats on the quad master, the classic pack's textures
+			return DF::MakeTexturedMID(TEXT("/Game/MF/Materials/M_MF_DecalQuad.M_MF_DecalQuad"), TEXT("Textures/RageEffects/") + DecalTexture(Kind, Variant), GetTransientPackage());
 		const FString Name = FString::Printf(TEXT("MI_MF_%s%s"), *DecalTexture(Kind, Variant), bQuad ? TEXT("_Quad") : TEXT(""));
 		return LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/MF/Materials/Decals/%s.%s"), *Name, *Name), nullptr, LOAD_NoWarn | LOAD_Quiet);
 	}
@@ -93,7 +95,7 @@ void DF::SpawnScorchBelow(const UObject* WorldContext, const FVector& Location, 
 	SpawnScorch(WorldContext, Location, FVector::UpVector, Size, Range);
 }
 
-void DF::SpawnScorch(const UObject* WorldContext, const FVector& Location, const FVector& Normal, float Size, float Range) {
+void DF::SpawnScorch(const UObject* WorldContext, const FVector& Location, const FVector& Normal, float Size, float Range, EDecal Kind) {
 	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	if (!World || World->GetNetMode() == NM_DedicatedServer)
 		return;
@@ -105,7 +107,7 @@ void DF::SpawnScorch(const UObject* WorldContext, const FVector& Location, const
 	};
 	const FVector N = Normal.GetSafeNormal();
 	if ((!N.IsZero() && Trace(N)) || (!N.Equals(FVector::UpVector, 0.01f) && Trace(FVector::UpVector)))
-		SpawnDecal(WorldContext, EDecal::Scorch, Hit.ImpactPoint, Hit.ImpactNormal, Size);
+		SpawnDecal(WorldContext, Kind, Hit.ImpactPoint, Hit.ImpactNormal, Size);
 }
 
 ADFDecalQuads::ADFDecalQuads() {

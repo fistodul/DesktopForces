@@ -59,9 +59,6 @@ public:
 
 	/** The idle loop is what plays. */
 	bool IsIdle() const { return !IdleName.IsNone() && CurrentName == IdleName; }
-	/** The one-shot playing now stays on its last frame instead of going back to the idle (UE1
-	 *  PlayAnim without a follow-up: a wind-up held until release). The next Play ends it. */
-	void HoldWhenDone() { bHeldLoop = true; }
 	/** A non-looping sequence still has frames to play. */
 	bool IsPlayingOnce() const;
 	/** Name's length at rate 1 (s), 0 if there is no such sequence. */
@@ -108,9 +105,7 @@ public:
 protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 	/** MF Pawn.uc: the movement sequence for the pawn's state, weapon and stance. */
-	FName PickMovement(class ADFCharacter* C, bool& bOutLoop, float& OutTween);
-	/** PickMovement's rate: 0 holds the pose's first frame (UE1 TweenAnim to a still pose). */
-	float PickRate = 1.f;
+	FName PickMovement(class ADFCharacter* C, bool& bOutLoop, float& OutTween, float& OutRate);
 
 	bool bWasFalling = false;
 	bool bDead = false;

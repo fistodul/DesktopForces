@@ -20,7 +20,6 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ARocketLauncher::ARocketLauncher() {
-	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
 	ThirdPersonFlashScale = 0.35f;
 	ThirdPersonFlashOffset = FVector(-8.f, 0.f, -4.f);
 	DeathMessage = NSLOCTEXT("DFKills", "RocketLauncher", "%o was rocketed by %k.");

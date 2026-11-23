@@ -624,11 +624,7 @@ void ADFCharacter::MulticastOnDeath_Implementation(FVector_NetQuantizeNormal Dir
 	if (GetNetMode() != NM_DedicatedServer) {
 		FTimerHandle Pool;
 		GetWorldTimerManager().SetTimer(Pool, FTimerDelegate::CreateWeakLambda(this, [this]() {
-			FHitResult Floor;
-			FCollisionQueryParams Params(SCENE_QUERY_STAT(DFBloodPool), false, this);
-			const FVector From = GetActorLocation();
-			if (GetWorld()->LineTraceSingleByChannel(Floor, From, From - FVector(0.f, 0.f, GetSimpleCollisionHalfHeight() + 100.f), ECC_GameTraceChannel2, Params))
-				DF::SpawnDecal(this, DF::EDecal::Blood, Floor.ImpactPoint, Floor.ImpactNormal, 72.f);
+			DF::SpawnScorch(this, GetActorLocation(), FVector::UpVector, 72.f, GetSimpleCollisionHalfHeight() + 100.f, DF::EDecal::Blood);
 		}),
 			1.f, false);
 	}
@@ -725,10 +721,16 @@ void ADFCharacter::RemoveWeapon(ADFWeapon* Weapon, bool bDestroy) {
 	if (!Weapon)
 		return;
 	Inventory.Remove(Weapon);
-	if (CurrentWeapon == Weapon)
-		CurrentWeapon = nullptr;
 	if (PendingWeapon == Weapon)
 		PendingWeapon = nullptr;
+	if (CurrentWeapon == Weapon) {
+		CurrentWeapon = nullptr;
+		// a switch asked for while it was mid-throw (the last trip bomb): that one comes up now
+		if (ADFWeapon* Next = PendingWeapon.Get()) {
+			PendingWeapon = nullptr;
+			SetCurrentWeapon(Next, nullptr);
+		}
+	}
 	if (bDestroy && HasAuthority())
 		Weapon->Destroy();
 	UpdateCarrySpeed(); // MF gotcha 7H: DeleteInventory keeps the carry penalty unless recalculated
@@ -764,10 +766,8 @@ void ADFCharacter::EquipWeapon(ADFWeapon* Weapon) {
 		if (GetLocalRole() < ROLE_Authority)
 			ServerEquipWeapon(Weapon);
 		PendingWeapon = nullptr;
-		if (Weapon->bPutDownQueued)
-			Weapon->bPutDownQueued = false; // still mid-throw: the throw just carries on
-		else
-			SetCurrentWeapon(Weapon, nullptr);
+		if (Weapon->GetState() == EDFWeaponState::PuttingDown)
+			SetCurrentWeapon(Weapon, nullptr); // (mid-throw, DefersPutDown: it just carries on)
 		return;
 	}
 	if (!Weapon || Weapon == CurrentWeapon || Weapon == PendingWeapon || !Weapon->bSelectable || !IsAlive() || bFeigningDeath || (CurrentWeapon && CurrentWeapon->LocksSelection()))

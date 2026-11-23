@@ -145,6 +145,9 @@ public:
 	/** MF Handedness (PlayerPawn.SetHand): Right, Left (the model mirrored), Center, Hidden. */
 	UPROPERTY(Config)
 	EDFWeaponHand WeaponHand = EDFWeaponHand::Right;
+	/** The hand's side along the view's Y: 1 right, -1 left, 0 centred (or hidden). */
+	float WeaponHandSide() const { return WeaponHand == EDFWeaponHand::Right ? 1.f : WeaponHand == EDFWeaponHand::Left ? -1.f
+																													   : 0.f; }
 
 	/** The console keys (~ the console, Tab one line) in the shipped game too; development
 	 *  builds default to enabled. */

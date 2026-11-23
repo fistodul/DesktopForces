@@ -28,7 +28,7 @@ namespace DF {
 	DESKTOPFORCES_API void SpawnScorchBelow(const UObject* WorldContext, const FVector& Location, float Size, float Range = 300.f);
 	/** A scorch mark on the surface an explosion went off against (Normal: out of it; a wall, a
 	 *  ceiling), or below it when there's none that way. */
-	DESKTOPFORCES_API void SpawnScorch(const UObject* WorldContext, const FVector& Location, const FVector& Normal, float Size, float Range = 300.f);
+	DESKTOPFORCES_API void SpawnScorch(const UObject* WorldContext, const FVector& Location, const FVector& Normal, float Size, float Range = 300.f, EDecal Kind = EDecal::Scorch);
 } // namespace DF
 
 /** The quad marks of a world: one instanced mesh per texture, a ring of slots reused oldest first. */

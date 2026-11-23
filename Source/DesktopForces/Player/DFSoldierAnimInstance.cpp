@@ -203,7 +203,7 @@ void UDFSoldierAnimInstance::OnDeath() {
 	Play(DeathAnims[FMath::RandHelper(UE_ARRAY_COUNT(DeathAnims))], 1.f, 0.1f, false);
 }
 
-FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, float& OutTween) {
+FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, float& OutTween, float& OutRate) {
 	const UCharacterMovementComponent* M = C->GetCharacterMovement();
 	const int32 Set = AnimSetOf(C);
 	const ADFWeapon* W = C->GetCurrentWeapon();
@@ -238,7 +238,7 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 		if (Pitch > 30.f && HasSequence(TEXT("HmachGUp"))) {
 			OutTween = 0.5f;
 			bOutLoop = true;
-			PickRate = 0.f; // TweenAnim: the pose, held
+			OutRate = 0.f; // TweenAnim: the pose, held
 			return TEXT("HmachGUp");
 		}
 		OutTween = CurrentName == TEXT("HmachGUp") ? 0.5f : 1.f;
@@ -266,10 +266,15 @@ FName UDFSoldierAnimInstance::PickMovement(ADFCharacter* C, bool& bOutLoop, floa
 		// AimUpSm / AimDnLg, which its meshes name per weapon: never shown there)
 		const float Pitch = FRotator::NormalizeAxis(C->GetBaseAimRotation().Pitch);
 		if (FMath::Abs(Pitch) > 22.5f) {
-			const FName Aim(*Still.ToString().Replace(TEXT("Still"), Pitch > 0.f ? TEXT("AimUp") : TEXT("AimDown")));
+			// "<Set>Still<Sm|Lg>" -> "<Set>AimUp<...>" / "<Set>AimDown<...>", built once per pose
+			static TMap<FName, TPair<FName, FName>> AimNames;
+			const TPair<FName, FName>* Names = AimNames.Find(Still);
+			if (!Names)
+				Names = &AimNames.Add(Still, { FName(*Still.ToString().Replace(TEXT("Still"), TEXT("AimUp"))), FName(*Still.ToString().Replace(TEXT("Still"), TEXT("AimDown"))) });
+			const FName Aim = Pitch > 0.f ? Names->Key : Names->Value;
 			if (HasSequence(Aim)) {
 				OutTween = 0.3f;
-				PickRate = 0.f; // TweenAnim: the pose, held
+				OutRate = 0.f; // TweenAnim: the pose, held
 				return Aim;
 			}
 		}
@@ -316,8 +321,8 @@ void UDFSoldierAnimInstance::NativeUpdateAnimation(float DeltaSeconds) {
 		return; // a throw, stab or landing plays out
 	bool bLoop = true;
 	float Tween = 0.15f;
-	PickRate = 1.f;
-	const FName Want = PickMovement(C, bLoop, Tween);
+	float Rate = 1.f;
+	const FName Want = PickMovement(C, bLoop, Tween, Rate);
 	if (Want != CurrentName)
-		Play(Want, PickRate, Tween, bLoop);
+		Play(Want, Rate, Tween, bLoop);
 }

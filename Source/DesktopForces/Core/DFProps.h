@@ -29,6 +29,13 @@ namespace DF {
 	/** A stand-in shape in one colour (a team's, mostly): the unlit tint material and its colour.
 	 *  Nothing on a dedicated server. */
 	DESKTOPFORCES_API void Tint(UStaticMeshComponent* C, const FLinearColor& Color);
+	/** A thin beam from Start to End in Color: a unit cube component (/Engine/BasicShapes/Cube)
+	 *  stretched between them (MF's Blue/RedBeamRifle: trip bomb lasers, the sniper's charge). */
+	DESKTOPFORCES_API void PlaceBeam(UStaticMeshComponent* Beam, const FVector& Start, const FVector& End, const FLinearColor& Color);
+	/** A dynamic instance of Master (a material's package path) with its "Texture" parameter set
+	 *  to a texture of whichever pack has it ("Textures/RageGame/BlueWall/BlueWall_A01"); null if
+	 *  either is missing (no classic pack). */
+	DESKTOPFORCES_API class UMaterialInstanceDynamic* MakeTexturedMID(const TCHAR* Master, const FString& Texture, UObject* Outer);
 	/**
 	 * MF's waving team flag, a skeletal mesh of the classic pack ("CTFFlagMesh": cloth on a
 	 * staff, RageGame.RageBlueFlag; "VehicleFlagMesh": a pennant, Rage.VehicleFlag), attached to

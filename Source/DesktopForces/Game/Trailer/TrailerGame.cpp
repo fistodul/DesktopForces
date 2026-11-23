@@ -85,11 +85,8 @@ void ATrailerBayWall::OnRep_Look() {
 	if (GetNetMode() == NM_DedicatedServer)
 		return;
 	const bool bBlue = Team != 1;
-	UTexture* Tex = DF::LoadClassic<UTexture>(bBlue ? TEXT("Textures/RageGame/BlueWall/BlueWall_A01") : TEXT("Textures/RageGame/RedWall/RedWall_A01"));
-	UMaterialInterface* Additive = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/MF/Materials/M_MF_Additive.M_MF_Additive"), nullptr, LOAD_NoWarn | LOAD_Quiet);
-	if (Tex && Additive && DF::ApplyPropMesh(Wall, bBlue ? TEXT("RageGame/WallMeshBlue") : TEXT("RageGame/WallMeshRed"), Radius / 2.25f * 0.02343f)) {
-		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Additive, this);
-		M->SetTextureParameterValue(TEXT("Texture"), Tex);
+	UMaterialInstanceDynamic* M = DF::MakeTexturedMID(TEXT("/Game/MF/Materials/M_MF_Additive.M_MF_Additive"), bBlue ? TEXT("Textures/RageGame/BlueWall/BlueWall_A01") : TEXT("Textures/RageGame/RedWall/RedWall_A01"), this);
+	if (M && DF::ApplyPropMesh(Wall, bBlue ? TEXT("RageGame/WallMeshBlue") : TEXT("RageGame/WallMeshRed"), Radius / 2.25f * 0.02343f)) {
 		for (int32 i = 0; i < Wall->GetNumMaterials(); ++i)
 			Wall->SetMaterial(i, M);
 		return;

@@ -305,9 +305,7 @@ void ADFHUD::DrawMuzzleFlash(ADFCharacter* C) {
 	// none through a scope: it would sit on the crosshair, the barrel being out of sight below
 	if (!W || W->UsesWorldMuzzleFlash() || !W->IsMuzzleFlashing() || C->IsBehindView() || W->IsScopeRaised())
 		return;
-	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
-	const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
-																						: 0.f;
+	const float Side = UDFUserSettings::Get().WeaponHandSide();
 	const bool bZoomed = W->IsZoomed();
 	const float PixelScale = Canvas->ClipX / 640.f;
 	const float Size = W->MuzzleFlashSize * 2.2f * PixelScale * FMath::FRandRange(0.8f, 1.2f);

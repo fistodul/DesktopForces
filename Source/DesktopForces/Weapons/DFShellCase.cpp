@@ -3,6 +3,7 @@
 #include "Core/DFProps.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Sound/SoundBase.h"
@@ -48,8 +49,8 @@ void ADFShellCase::Eject(UWorld* World, const FDFCasing& Casing, const FVector& 
 }
 
 ADFShellCase* ADFShellCase::Launch(UWorld* World, const FDFCasing& Casing, const FVector& At, const FRotator& Rotation, const FVector& Velocity) {
-	if (!World || World->GetNetMode() == NM_DedicatedServer || Casing.Mesh.IsEmpty())
-		return nullptr;
+	if (!World || World->GetNetMode() == NM_DedicatedServer || Casing.Mesh.IsEmpty() || !DF::LoadClassic<UStaticMesh>(TEXT("Props/") + Casing.Mesh))
+		return nullptr; // no classic content: no cases, no chips (and no actor spawned to find out)
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ADFShellCase* S = World->SpawnActor<ADFShellCase>(At, Rotation, SP);

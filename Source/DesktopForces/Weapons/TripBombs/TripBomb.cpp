@@ -82,16 +82,8 @@ void ATripBomb::OnRep_Laser() {
 }
 
 void ATripBomb::UpdateBeam() {
-	const FVector Start = GetActorLocation();
-	const FVector Delta = FVector(LaserEnd) - Start;
-	const float Len = Delta.Size();
-	if (Len < 1.f)
-		return;
-	// thin stretched cube in the planter's team colour (MF Blue/RedBeamRifle)
-	DF::Tint(Beam, Team == DF::NoTeam ? FLinearColor(1.f, 0.2f, 0.1f) : UDFGameSettings::Get().GetTeamColor(Team));
-	Beam->SetVisibility(true);
-	Beam->SetWorldLocationAndRotation(Start + Delta * 0.5f, Delta.Rotation());
-	Beam->SetWorldScale3D(FVector(Len / 100.f, 0.01f, 0.01f));
+	// a thin stretched cube in the planter's team colour (MF Blue/RedBeamRifle)
+	DF::PlaceBeam(Beam, GetActorLocation(), FVector(LaserEnd), Team == DF::NoTeam ? FLinearColor(1.f, 0.2f, 0.1f) : UDFGameSettings::Get().GetTeamColor(Team));
 }
 
 void ATripBomb::CheckBeam() {

@@ -19,7 +19,6 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 ARifle::ARifle() {
-	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
 	ThirdPersonFlashScale = 0.15f;
 	ThirdPersonFlashOffset = FVector(-10.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "Rifle", "%k sniped %o.");
@@ -51,8 +50,7 @@ ARifle::ARifle() {
 	ZoomedMoveScale = 0.f; // can't walk while scoped (MF: "no use to players on the move")
 	RecoilPower = 1.f;
 	MuzzleFlashSize = 40.f;
-	// at the barrel's end on the model (DFMuzzleProbe, 2026-11-23): MF's canvas spot stayed put
-	// while the firing animation threw the gun about, so the flash sat inside it (Filip's shots)
+	// DFMuzzleProbe, 2026-11-23 (DFWeapon.h MuzzleBone)
 	MuzzleBone = TEXT("DummyMainSnipe");
 	MuzzleOffset = FVector(-296.71f, -9.34f, -2.07f);
 	FlashY = -0.05f;
@@ -61,7 +59,6 @@ ARifle::ARifle() {
 	FlashYZoom = 0.3f;
 	FlashSZoom = 120.f;
 	Casing.Mesh = TEXT("RageWeapons/RifleBullet"); // EjectBrass
-	Casing.Scale = 1.f;
 	ClassicFireSound = TEXT("WeaponSFX_SniperRifle.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_SniperRifle.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_SniperRifle.Select");
@@ -134,8 +131,7 @@ void ARifle::CancelCharge() {
 void ARifle::ServerReleaseFire_Implementation(float Power) {
 	ReleasedPower = FMath::Clamp(Power, 1.f, 10.f);
 	bCharging = false;
-	bLaser = false;
-	OnRep_Laser();
+	SetLaser(false);
 	TryFire(false);
 }
 
@@ -216,27 +212,20 @@ void ARifle::UpdateLaser() {
 		return;
 	}
 	// TraceLaser: from the eyes along the aim to what it meets (MaxTraceDistance), drawn from 64 uu out
-	FVector Eye;
-	FRotator Aim;
-	C->GetActorEyesViewPoint(Eye, Aim);
-	Aim = C->GetBaseAimRotation();
-	const FVector X = Aim.Vector();
+	const FVector Eye = C->GetPawnViewLocation();
+	const FVector X = C->GetBaseAimRotation().Vector();
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DFRifleLaser), false, C);
 	Params.AddIgnoredActor(this);
 	const FVector End = GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + X * MaxTraceDistance, ECC_Visibility, Params) ? Hit.ImpactPoint : Eye + X * MaxTraceDistance;
 	const FVector Start = Eye + X * 144.f;
-	const FVector Delta = End - Start;
-	if (FVector::DotProduct(Delta, X) <= 0.f) {
+	if (FVector::DotProduct(End - Start, X) <= 0.f) {
 		LaserBeam->SetVisibility(false);
 		return;
 	}
+	// ScaleGlow = ShotPower / 10, in Blue/RedBeamRifle's colour
 	const float Power = FMath::Clamp(1.f + 2.f * float(GetWorld()->GetTimeSeconds() - LaserStart), 1.f, 10.f);
-	const uint8 Team = C->GetTeam();
-	DF::Tint(LaserBeam, (Team == 1 ? UDFGameSettings::Get().GetTeamColor(1) : UDFGameSettings::Get().GetTeamColor(0)) * (Power / 10.f));
-	LaserBeam->SetWorldLocationAndRotation(Start + Delta * 0.5f, Delta.Rotation());
-	LaserBeam->SetWorldScale3D(FVector(Delta.Size() / 100.f, 0.01f, 0.01f));
-	LaserBeam->SetVisibility(true);
+	DF::PlaceBeam(LaserBeam, Start, End, UDFGameSettings::Get().GetTeamColor(C->GetTeam() == 1 ? 1 : 0) * (Power / 10.f));
 }
 
 int32 ARifle::GetPowerLevel() const {

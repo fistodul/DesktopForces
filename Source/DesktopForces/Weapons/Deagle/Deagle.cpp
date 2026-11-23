@@ -3,7 +3,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "Player/DFSoldierAnimInstance.h"
-#include "Sound/SoundBase.h"
 
 #define LOCTEXT_NAMESPACE "DFDeagle"
 
@@ -26,6 +25,7 @@ ADeagle::ADeagle() {
 	AIRating = 0.5f;
 	ClassicFireSound = TEXT("deagleSFX.deagleFire");
 	ClassicReloadSound = TEXT("deagleSFX.deagleReload");
+	ClassicEmptyReloadSound = TEXT("deagleSFX.deagleEmptyReload"); // PlayEmptyReloadingAnim
 }
 
 void ADeagle::PostInitializeComponents() {
@@ -49,17 +49,6 @@ FName ADeagle::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
 			return Empty;
 	}
 	return Super::GetArmsAnimName(ForState, bAlt);
-}
-
-USoundBase* ADeagle::GetReloadSound() const {
-	// ClipAmmo reaches only the owner (and the server): others hear the plain reload
-	if (ClipAmmo == 0 && (IsLocallyControlled() || HasAuthority())) {
-		if (!EmptyReloadSound)
-			const_cast<ADeagle*>(this)->EmptyReloadSound = DF::LoadSound(TEXT("deagleSFX.deagleEmptyReload"));
-		if (EmptyReloadSound)
-			return EmptyReloadSound;
-	}
-	return Super::GetReloadSound();
 }
 
 #undef LOCTEXT_NAMESPACE

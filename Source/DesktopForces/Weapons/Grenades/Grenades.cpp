@@ -101,9 +101,7 @@ void AGrenades::Release() {
 	if (!bWinding)
 		return;
 	// MF: at least 1.5 on a throw, 3 on an alt (impact) throw
-	const float Power = FMath::Max(GetReleasePower(), bWindingAlt ? 3.f : ThrowReleaseMin);
-	bWinding = false;
-	SetAmbientMFSound(nullptr);
+	const float Power = FMath::Max(EndWindUp(), bWindingAlt ? 3.f : ThrowReleaseMin);
 	if (GetLocalRole() < ROLE_Authority)
 		ServerThrow(bWindingAlt, Power);
 	Throw(bWindingAlt, Power);

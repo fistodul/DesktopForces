@@ -18,9 +18,6 @@ public:
 
 protected:
 	/** deagle.uc: the last round fires ShootEmpty (AccurateAimFireEmpty under the sights), a reload
-	 *  from an empty clip plays ReloadEmpty with deagleEmptyReload. */
+	 *  from an empty clip plays ReloadEmpty (with ClassicEmptyReloadSound). */
 	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt) override;
-	virtual USoundBase* GetReloadSound() const override;
-	UPROPERTY(Transient)
-	TObjectPtr<USoundBase> EmptyReloadSound;
 };

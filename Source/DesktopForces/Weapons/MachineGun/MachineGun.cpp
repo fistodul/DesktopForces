@@ -12,7 +12,6 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AMachineGun::AMachineGun() {
-	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
 	ThirdPersonFlashScale = 0.1f;
 	ThirdPersonFlashOffset = FVector(8.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "MachineGun", "%k machine-gunned %o.");
@@ -42,8 +41,7 @@ AMachineGun::AMachineGun() {
 	RecoilPower = 0.8f;
 	TracerEvery = 5;
 	MuzzleFlashSize = 40.f;
-	// at the barrel's end on the model (DFMuzzleProbe, 2026-11-23): MF's canvas spot stayed put
-	// while the firing animation threw the gun about, so the flash sat inside it (Filip's shots)
+	// DFMuzzleProbe, 2026-11-23 (DFWeapon.h MuzzleBone)
 	MuzzleBone = TEXT("MainGunDummy");
 	MuzzleOffset = FVector(-138.98f, -3.25f, 7.31f);
 	FlashY = 0.11f; // RageWeapons defaults
@@ -53,7 +51,7 @@ AMachineGun::AMachineGun() {
 	FlashYZoom = 0.09f;
 	FireSide = 4.f;
 	Casing.Mesh = TEXT("RageWeapons/MachineGunBullet"); // EjectBrass
-	Casing.Scale = 0.7f; // RageWeapons TracerEvery
+	Casing.Scale = 0.7f;
 	ClassicFireSound = TEXT("WeaponSFX_MachineGun.Fire");
 	ClassicReloadSound = TEXT("WeaponSFX_MachineGun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_MachineGun.Select");

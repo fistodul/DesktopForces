@@ -137,6 +137,7 @@ void ADFWeapon::ResolveSounds() {
 	};
 	Load(FireSound, ClassicFireSound);
 	Load(ReloadSound, ClassicReloadSound);
+	Load(EmptyReloadSound, ClassicEmptyReloadSound);
 	Load(SelectSound, ClassicSelectSound);
 }
 
@@ -211,6 +212,13 @@ float ADFWeapon::GetThrowPower() const {
 float ADFWeapon::GetReleasePower() const {
 	const float P = GetThrowPower();
 	return FMath::Max(P < ThrowReleaseFloor ? P + ThrowReleaseFloor : P, ThrowReleaseMin);
+}
+
+float ADFWeapon::EndWindUp() {
+	const float Power = GetReleasePower();
+	bWinding = false;
+	SetAmbientMFSound(nullptr);
+	return Power;
 }
 
 float ADFWeapon::GetZoomScaleAlpha() const {
@@ -340,14 +348,13 @@ void ADFWeapon::Finish() {
 
 	if (bDestroyWhenEmpty && !HasAnyAmmo()) {
 		// MF: single-use items must leave the hands right away (loadout-consumables 6B)
-		bPutDownQueued = false;
 		if (HasAuthority())
 			OnDepleted();
 		return;
 	}
 
-	if (bPutDownQueued) {
-		OnPutDown(); // the switch asked for during the throw
+	if (C->GetPendingWeapon() && C->GetCurrentWeapon() == this) {
+		OnPutDown(); // the switch asked for during the throw (DefersPutDown)
 		return;
 	}
 
@@ -410,9 +417,9 @@ void ADFWeapon::StartReload() {
 		OnLocalReload();
 	SetState(EDFWeaponState::Reloading, ReloadTime);
 	if (HasAuthority())
-		MulticastReload();
+		MulticastReload(ClipAmmo == 0);
 	if (IsLocallyControlled())
-		PlaySoundLocal(GetReloadSound());
+		PlaySoundLocal(ClipAmmo == 0 && EmptyReloadSound ? EmptyReloadSound : ReloadSound);
 }
 
 void ADFWeapon::ServerReload_Implementation() {
@@ -618,9 +625,7 @@ void ADFWeapon::PlayFireEffects(bool bAlt) {
 		CasingCount = 0;
 		// EjectBrass: Owner.Location + CalcDrawOffset() + 30 X + (2.8 FireOffset.Y + 5) Y - Z, or
 		// 30 X + 2.8 Y - 6 Z under the sights; the weapon's hand sets the side
-		const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
-		const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
-																							: 0.f;
+		const float Side = UDFUserSettings::Get().WeaponHandSide();
 		const FVector Port = !CasingPort.IsZero() ? FVector(CasingPort.X, Side * CasingPort.Y, CasingPort.Z) : IsZoomed() ? FVector(30.f, 2.8f, -6.f)
 																														  : FVector(30.f, 2.8f * FireSide * Side + 5.f * Side, -1.f);
 		EjectCasing(Casing, Port);
@@ -654,18 +659,18 @@ void ADFWeapon::ShowThirdPersonFlash() {
 		// a particle: the texture's size x DrawScale (MuzzleFlashScale), uu -> cm
 		M->SetScalarParameterValue(TEXT("SpriteSize"), Tex->GetSizeX() * ThirdPersonFlashScale * 2.25f);
 		Flash3P->SetMaterial(0, M);
+		Flash3P->SetRelativeLocation(ThirdPersonFlashOffset * 2.25f / Mesh3P->GetComponentScale().GetMax());
+		Flash3P->SetWorldScale3D(FVector(ThirdPersonFlashScale));
 		Flash3P->RegisterComponent();
 	}
-	const FVector Scale3P = Mesh3P->GetComponentScale();
-	Flash3P->SetRelativeLocation(ThirdPersonFlashOffset * 2.25f / Scale3P.GetMax());
-	Flash3P->SetWorldScale3D(FVector(ThirdPersonFlashScale));
 	Flash3P->SetStaticMesh(Flash3PFrames[FMath::RandRange(0, Flash3PFrames.Num() - 1)]);
 	Flash3P->SetVisibility(true);
-	GetWorldTimerManager().SetTimer(Flash3PTimer, FTimerDelegate::CreateWeakLambda(this, [this]() {
-		if (Flash3P)
-			Flash3P->SetVisibility(false);
-	}),
-		0.05f, false);
+	GetWorldTimerManager().SetTimer(Flash3PTimer, this, &ADFWeapon::HideThirdPersonFlash, 0.05f, false);
+}
+
+void ADFWeapon::HideThirdPersonFlash() {
+	if (Flash3P)
+		Flash3P->SetVisibility(false);
 }
 
 void ADFWeapon::EjectCasing(const FDFCasing& What, const FVector& PortUU) const {
@@ -675,9 +680,7 @@ void ADFWeapon::EjectCasing(const FDFCasing& What, const FVector& PortUU) const 
 	FVector Eye;
 	FRotator View;
 	C->GetActorEyesViewPoint(Eye, View);
-	const EDFWeaponHand Hand = UDFUserSettings::Get().WeaponHand;
-	const float Side = Hand == EDFWeaponHand::Right ? 1.f : Hand == EDFWeaponHand::Left ? -1.f
-																						: 0.f;
+	const float Side = UDFUserSettings::Get().WeaponHandSide();
 	// thrown to the right whatever the hand (MF's Y is the view's)
 	const FVector Draw = PortUU + FVector(ArmsOffset.X, Side * ArmsOffset.Y, ArmsOffset.Z);
 	const AActor* Ride = C->GetAttachParentActor(); // a seated gunner moves with the vehicle
@@ -763,7 +766,8 @@ void ADFWeapon::PlayBodyFire(bool bAlt) const {
 void ADFWeapon::OnDepleted() {
 	if (ADFCharacter* C = GetOwnerCharacter()) {
 		C->RemoveWeapon(this, true);
-		C->SwitchToBestWeapon();
+		if (!C->GetCurrentWeapon()) // none asked for in the meantime
+			C->SwitchToBestWeapon();
 	}
 }
 
@@ -778,7 +782,6 @@ void ADFWeapon::OnGiven(ADFCharacter* NewOwner) {
 }
 
 void ADFWeapon::OnEquip() {
-	bPutDownQueued = false;
 	SetActorHiddenInGame(false);
 	SetState(EDFWeaponState::Equipping, EquipTime);
 	if (ADFCharacter* C = GetOwnerCharacter(); C && C->GetSoldierAnim())
@@ -788,11 +791,8 @@ void ADFWeapon::OnEquip() {
 }
 
 void ADFWeapon::OnPutDown() {
-	if (DefersPutDown()) {
-		bPutDownQueued = true;
-		return;
-	}
-	bPutDownQueued = false;
+	if (DefersPutDown())
+		return; // Finish puts it down: the character's PendingWeapon waits
 	bFireHeld = bAltFireHeld = false;
 	SetAmbientMFSound(nullptr);
 	if (ZoomLevel > 0)
@@ -918,7 +918,6 @@ void ADFWeapon::UpdateDroppedLook() {
 }
 
 void ADFWeapon::ForceInactive() {
-	bPutDownQueued = false;
 	ClearStateTimer();
 	GetWorldTimerManager().ClearTimer(MuzzleFlashTimer);
 	MuzzleFlashUntil = 0.f;
@@ -938,7 +937,7 @@ void ADFWeapon::MulticastImpactFX_Implementation(FVector_NetQuantize At, FVector
 		DF::SpawnEffect(this, TEXT("Blood"), At);
 		// RageWeapon.ProcessTraceHit -> RPlayer.TraceBlood: on the wall up to 256 uu behind the
 		// soldier along the shot, a RageBloodSplat (32 uu x DrawScale 1-2)
-		if (const ADFCharacter* Shooter = GetOwnerCharacter()) {
+		if (const ADFCharacter* Shooter = GetOwnerCharacter(); Shooter && GetNetMode() != NM_DedicatedServer && !UDFUserSettings::Get().bLowGore && UDFUserSettings::Get().DecalQuality > 0) {
 			FVector Eye;
 			FRotator View;
 			Shooter->GetActorEyesViewPoint(Eye, View);
@@ -1035,26 +1034,31 @@ UDFTweenAnimInstance* ADFWeapon::GetArmsAnim() const {
 	return Arms ? Cast<UDFTweenAnimInstance>(Arms->GetAnimInstance()) : nullptr;
 }
 
+FName ADFWeapon::PickArmsAnim(std::initializer_list<const TCHAR*> Names) {
+	// the first of these the arms mesh has; "Name0N" lists pick one of the numbered takes at random
+	UDFTweenAnimInstance* Anim = GetArmsAnim();
+	if (!Anim)
+		return NAME_None;
+	for (const TCHAR* N : Names) {
+		if (Anim->HasSequence(N))
+			return N;
+		TArray<FName, TInlineAllocator<4>> Takes;
+		for (int32 i = 1; i <= 4; ++i) {
+			const FName Take(*FString::Printf(TEXT("%s%02d"), N, i));
+			if (Anim->HasSequence(Take))
+				Takes.Add(Take);
+		}
+		if (Takes.Num())
+			return Takes[FMath::RandHelper(Takes.Num())];
+	}
+	return NAME_None;
+}
+
 FName ADFWeapon::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
 	UDFTweenAnimInstance* Anim = GetArmsAnim();
 	if (!Anim)
 		return NAME_None;
-	// the first of these the mesh has; "Name0N" lists pick one of the numbered takes at random
-	auto Pick = [Anim](std::initializer_list<const TCHAR*> Names) -> FName {
-		for (const TCHAR* N : Names) {
-			if (Anim->HasSequence(N))
-				return N;
-			TArray<FName, TInlineAllocator<4>> Takes;
-			for (int32 i = 1; i <= 4; ++i) {
-				const FName Take(*FString::Printf(TEXT("%s%02d"), N, i));
-				if (Anim->HasSequence(Take))
-					Takes.Add(Take);
-			}
-			if (Takes.Num())
-				return Takes[FMath::RandHelper(Takes.Num())];
-		}
-		return NAME_None;
-	};
+	auto Pick = [this](std::initializer_list<const TCHAR*> Names) { return PickArmsAnim(Names); };
 	const bool bZoomed = IsZoomed();
 	switch (ForState) {
 	case EDFWeaponState::Equipping: return Pick({ TEXT("SelectUp"), TEXT("SelectUpBothEmptyNoReload"), TEXT("EmptySelectUp") });
@@ -1147,12 +1151,12 @@ void ADFWeapon::UpdateFirstPersonView(bool bBehindView) {
 	UpdateMuzzleFlash();
 }
 
-void ADFWeapon::MulticastReload_Implementation() {
+void ADFWeapon::MulticastReload_Implementation(bool bFromEmpty) {
 	ADFCharacter* C = GetOwnerCharacter();
 	if (!C || GetNetMode() == NM_DedicatedServer)
 		return;
 	if (!IsLocallyControlled())
-		DF::PlaySoundRadius(this, GetReloadSound(), C->GetActorLocation(), 0.6f);
+		DF::PlaySoundRadius(this, bFromEmpty && EmptyReloadSound ? EmptyReloadSound : ReloadSound, C->GetActorLocation(), 0.6f);
 	if (UDFSoldierAnimInstance* Anim = C->GetSoldierAnim())
 		Anim->OnReload(ReloadTime);
 }

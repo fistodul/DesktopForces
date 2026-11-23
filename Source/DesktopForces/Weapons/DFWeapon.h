@@ -262,6 +262,7 @@ public:
 	TArray<TObjectPtr<class UStaticMesh>> Flash3PFrames;
 	FTimerHandle Flash3PTimer;
 	void ShowThirdPersonFlash();
+	void HideThirdPersonFlash();
 
 	/** Spent case thrown out on a shot (EjectBrass; no Mesh: none). */
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
@@ -367,6 +368,11 @@ public:
 	FString ClassicFireSound;
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicReloadSound;
+	/** A reload from an empty clip, if the gun has its own (deagle.PlayEmptyReloadingAnim: deagleEmptyReload). */
+	UPROPERTY(EditDefaultsOnly, Category = "DF|Sound")
+	FString ClassicEmptyReloadSound;
+	UPROPERTY(Transient)
+	TObjectPtr<USoundBase> EmptyReloadSound;
 	UPROPERTY(EditDefaultsOnly, Category = "DF|FX")
 	FString ClassicSelectSound;
 
@@ -380,8 +386,6 @@ public:
 	/** Before a fidget plays: a gun whose fidgets depend on its state sets IdleFidgets here
 	 *  (the shotgun's barrels, the knife without a knife). */
 	virtual void UpdateIdleFidgets() {}
-	/** The reload's sound (deagle.PlayEmptyReloadingAnim: its own from an empty clip). */
-	virtual USoundBase* GetReloadSound() const { return ReloadSound; }
 	/** Sets the fidgets as most of MF's do: Idle01 / Idle02, with Package.Idle01 / Idle02. */
 	void SetIdleFidgets(const TCHAR* SoundPackage) {
 		IdleFidgets[0] = TEXT("Idle01");
@@ -444,6 +448,8 @@ public:
 	/** MF's names for it (Pistol: SelectUp, Fire / AccurateAimFire, Reload, AccurateAimUp ...),
 	 *  the first one the mesh has. */
 	virtual FName GetArmsAnimName(EDFWeaponState ForState, bool bAlt);
+	/** The first of Names the arms mesh has (a numbered take, Name01-04, at random). */
+	FName PickArmsAnim(std::initializer_list<const TCHAR*> Names);
 	void SetupArms();
 	/** The arms at their hand's offset (ApplyHand), zoomed and scaled by the view's FOV. */
 	void PlaceArms();
@@ -485,7 +491,6 @@ public:
 	/** A switch asked for while this is mid-throw (MF: PutDown in a firing state sets
 	 *  bChangeWeapon, the switch comes at Finish): the throw plays out first. */
 	virtual bool DefersPutDown() const { return false; }
-	bool bPutDownQueued = false;
 	/** Immediately holster without animation (death, loadout). */
 	virtual void ForceInactive();
 
@@ -571,6 +576,8 @@ protected:
 	float GetThrowPower() const;
 	/** The power a release now throws with (ThrowReleaseFloor / ThrowReleaseMin applied). */
 	float GetReleasePower() const;
+	/** The wind-up ends: its release power (read first: GetThrowPower is 0 once it's over), the hum off. */
+	float EndWindUp();
 	/** Server: a client's release power, kept within what GetReleasePower can give. */
 	float ClampReleasePower(float Power) const { return FMath::Clamp(Power, FMath::Max(ThrowReleaseFloor, ThrowReleaseMin), 10.f); }
 
@@ -675,7 +682,7 @@ protected:
 	void MulticastTracer(FVector_NetQuantize Start, FVector_NetQuantize End);
 	/** Server: a reload started (others hear it, Owner.PlaySound, and see the soldier do it). */
 	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastReload();
+	void MulticastReload(bool bFromEmpty);
 	int32 TracerCount = 0;
 	/** Server: what happens on a hitscan hit (MF ProcessTraceHit). */
 	virtual void ProcessTraceHit(const FHitResult& Hit, const FVector& ShotDir, bool bAlt);

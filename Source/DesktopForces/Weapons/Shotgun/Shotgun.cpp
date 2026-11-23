@@ -14,7 +14,6 @@
 #define LOCTEXT_NAMESPACE "DFWeapons"
 
 AShotgun::AShotgun() {
-	// MuzzleFlashScale / MuzzleFlashOffset: the flash others see (MachineGunMuzzleFlashMesh as particles)
 	ThirdPersonFlashScale = 0.15f;
 	ThirdPersonFlashOffset = FVector(8.f, 0.f, 0.f);
 	DeathMessage = NSLOCTEXT("DFKills", "Shotgun", "%k blew away %o.");
@@ -53,8 +52,6 @@ AShotgun::AShotgun() {
 	ClassicReloadSound = TEXT("WeaponSFX_Shotgun.Reload");
 	ClassicSelectSound = TEXT("WeaponSFX_Shotgun.Select");
 	SetIdleFidgets(TEXT("WeaponSFX_Shotgun"));
-	IdleFidgets[0] = TEXT("Idle01BothFull"); // shotgun.uc IdleAnims(1-2)
-	IdleFidgets[1] = TEXT("Idle02BothFull");
 }
 
 void AShotgun::OnLocalReload() {
@@ -74,15 +71,9 @@ void AShotgun::OnLocalReload() {
 }
 
 FName AShotgun::GetArmsAnimName(EDFWeaponState ForState, bool bAlt) {
-	UDFTweenAnimInstance* Anim = GetArmsAnim();
-	if (!Anim)
+	if (!GetArmsAnim())
 		return NAME_None;
-	auto First = [Anim](std::initializer_list<const TCHAR*> Names) -> FName {
-		for (const TCHAR* N : Names)
-			if (Anim->HasSequence(N))
-				return N;
-		return NAME_None;
-	};
+	auto First = [this](std::initializer_list<const TCHAR*> Names) { return PickArmsAnim(Names); };
 	const int32 Shells = ClipAmmo; // after the shot while firing (UseAmmo comes first)
 	switch (ForState) {
 	case EDFWeaponState::Firing:
