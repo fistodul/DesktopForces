@@ -10,5 +10,6 @@ redistributable. List each one:
 | File | Source | Author | Licence |
 |---|---|---|---|
 | `textures/OmegaSquad/Hentai Anime/Hentai_Wall_1.png` | generated grey plaster (numpy noise), stands in for a withheld original on mf-nc (`mflib/textures.py` WITHHELD) | Desktop Forces | CC0 |
+| `textures/Engine/DefaultTexture.png` | generated running-bond brick (numpy), stands in for UE1's Engine.DefaultTexture (MF's red bricks on surfaces and props without a texture), so community content needs nothing from the classic pack | Desktop Forces | CC0 |
 
 Good CC0 sources: ambientCG, Poly Haven, Kenney, OpenGameArt (check licence), freesound (CC0 filter).
