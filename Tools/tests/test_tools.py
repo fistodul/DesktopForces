@@ -44,7 +44,9 @@ class ToolsTests(unittest.TestCase):
 
     def load(self, text, env=None):
         self.file.write_text(text, encoding='utf-8')
-        with patch.object(config, 'TOOL_DIR', self.root), patch.dict(os.environ, env or {}, clear=True), patch.object(config.platform, 'system', return_value='Linux'):
+        # a relative project: this checkout's own path is a Windows one on a Windows host, which a Linux config rejects
+        with patch.object(config, 'TOOL_DIR', self.root), patch.object(config, 'PROJECT_DIR', Path('project')), \
+                patch.dict(os.environ, env or {}, clear=True), patch.object(config.platform, 'system', return_value='Linux'):
             return config.load()
 
     def test_platform_and_environment_precedence(self):
@@ -94,13 +96,13 @@ class ToolsTests(unittest.TestCase):
 
     def test_linux_defaults_and_flags_without_positionals(self):
         args = play.command(self.cfg, ['-nosound'], 'Linux')
-        self.assertTrue(args[0].endswith('/Linux/UnrealEditor'))
+        self.assertEqual(Path(args[0]).parts[-2:], ('Linux', 'UnrealEditor'))
         self.assertEqual(args[2], '/MobileForcesClassic/Maps/mf-warehouse?game=dm?Bots=0')
         self.assertEqual(args[-1], '-nosound')
 
     def test_windows_editor_and_build(self):
         args = play.command(self.cfg, ['editor', '-nosound'], 'Windows')
-        self.assertTrue(args[0].endswith('/Win64/UnrealEditor.exe'))
+        self.assertEqual(Path(args[0]).parts[-2:], ('Win64', 'UnrealEditor.exe'))
         self.assertEqual(args[1], str(self.project))
         self.assertEqual(args[-1], '-nosound')
         ubt = self.cfg.ue_root / 'Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll'

@@ -501,7 +501,7 @@ Each item is sized for one focused conversation. Read `AGENTS.md`, then the link
     `DesktopForces.Gameplay.VehicleBlast` checks both.
 22. 🟡 **Online server testing** (Filip, 2026-11-09). `mf.nofisto.com:7787` (query 7788; MF's own
     server keeps 7777/7778/7780) runs mf-Sardine_City with 1 bot under systemd and is listed on
-    master.nofisto.com. Editor runs carry `ProjectVersion=20261108` (`DefaultGame.ini`) to join it
+    master.nofisto.com. Editor runs carry the last release's `ProjectVersion` (`DefaultGame.ini`) to join it
     while the replicated code matches that release. Done: the master list is read on threads of its
     own, replies polled every frame (ping no longer up to 50 ms high). Before, a `ParallelFor` in a
     background task did the master queries: a game thread waiting on the task graph can run such

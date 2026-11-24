@@ -2,11 +2,54 @@
 from __future__ import annotations
 
 import os
+import re
+import shutil
 import subprocess
 import threading
 from pathlib import Path
 
 from .config import Config
+
+
+def windows_ubt_prefix(root: Path) -> list[str]:
+    """Installed-engine UBT, with Epic's bundled runtime and no cmd.exe interpolation."""
+    ubt = root / 'Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll'
+    if not ubt.is_file():
+        raise FileNotFoundError(f'{ubt} missing; repair the engine install (Epic Games Launcher: Verify).')
+    if os.environ.get('UE_USE_SYSTEM_DOTNET') == '1':
+        dotnet = shutil.which('dotnet')
+    else:
+        arm = os.environ.get('PROCESSOR_ARCHITECTURE') == 'ARM64' or os.environ.get('ProgramFiles(Arm)')
+        arch = 'win-arm64' if arm else 'win-x64'
+        runtimes = list((root / 'Engine/Binaries/ThirdParty/DotNet').glob(f'*/{arch}/dotnet.exe'))
+
+        def version(runtime):
+            return tuple(int(part) for part in re.findall(r'\d+', runtime.parents[1].name))
+
+        dotnet = str(max(runtimes, key=version)) if runtimes else None
+    if not dotnet:
+        raise FileNotFoundError(f'No Windows .NET runtime found in {root}; repair the engine installation or set UE_USE_SYSTEM_DOTNET=1.')
+    return [dotnet, str(ubt)]
+
+
+def ubt_command(root: Path, windows: bool, target: str, platform: str, config: str, uproject: Path, *extra: str) -> list[str]:
+    """UnrealBuildTool building <target> (the editor for play.py, the game for package.py): on a
+    Windows host straight through the engine's .NET runtime, on Linux Build.sh. Run it as
+    ubt_launch says."""
+    prefix = windows_ubt_prefix(root) if windows else [str(root / 'Engine/Build/BatchFiles/Linux/Build.sh')]
+    return [*prefix, target, platform, config, f'-project={uproject}', '-waitmutex', '-NoUBA', *extra]
+
+
+def ubt_launch(root: Path, cmd: list[str], project_dir: Path) -> tuple[Path, dict]:
+    """The folder and environment to run <cmd> in: UBT run by its .NET runtime (ubt_command on
+    Windows) starts in Engine/Source with that runtime first, as Build.bat sets it up."""
+    env = os.environ.copy()
+    if not cmd[1:2] or not str(cmd[1]).endswith('UnrealBuildTool.dll'):
+        return project_dir, env
+    if env.get('UE_USE_SYSTEM_DOTNET') != '1':
+        env.update(DOTNET_ROOT=str(Path(cmd[0]).parent), DOTNET_MULTILEVEL_LOOKUP='0', DOTNET_ROLL_FORWARD='LatestMajor')
+        env['PATH'] = env['DOTNET_ROOT'] + os.pathsep + env.get('PATH', '')
+    return root / 'Engine/Source', env
 
 
 def editor_cmd(cfg: Config) -> Path:

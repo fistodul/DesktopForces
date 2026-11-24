@@ -83,6 +83,12 @@ def discover_engine(uproject: Path) -> Path | None:
     return max(valid, key=engine_version).resolve() if valid else None
 
 
+def map_folders(project: Path) -> list[tuple[Path, str]]:
+    """The folders holding built maps, each with its mount: the game's, then each content plugin's (a pack)."""
+    return [(project / 'Content/MF/Maps', '/Game/MF/Maps'), (project / 'Content/Maps', '/Game/Maps'),
+            *((d, f'/{d.parent.parent.name}/Maps') for d in sorted(project.glob('Plugins/*/Content/Maps')))]
+
+
 def native_path(value: str, base: Path, system: str) -> Path:
     if system != 'Windows' and PureWindowsPath(value).is_absolute():
         raise ValueError(f'Windows path {value!r} cannot be used on {system}. Set it in [windows] and add a [linux] override in mfport.toml.')

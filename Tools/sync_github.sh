@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Export individual source commits without switching the working checkout.
 #
-#   bash sync_github.sh                 # preview committed changes
-#   bash sync_github.sh --push          # fetch, prepare, then push
+#   bash sync_github.sh                 # fetch, prepare, then push
+#   bash sync_github.sh --dry-run       # only prepare, from the cached github/main
 #   bash sync_github.sh --source refs/heads/azure
 #
 # Requires Bash 4+ and Git. Authors and messages are preserved. Exclusions come
@@ -12,7 +12,7 @@ set -euo pipefail
 SOURCE_REF=HEAD
 REMOTE=github
 BRANCH=main
-PUSH=false
+PUSH=true
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -27,10 +27,6 @@ while [ $# -gt 0 ]; do
                 --branch) BRANCH="$2" ;;
             esac
             shift 2
-            ;;
-        --push)
-            PUSH=true
-            shift
             ;;
         --dry-run)
             PUSH=false
@@ -172,6 +168,6 @@ if [ "$COUNT" -eq 0 ]; then
 elif "$PUSH"; then
     git push -- "$REMOTE" "$PUBLIC_HEAD:refs/heads/$BRANCH"
 else
-    echo "Preview only; no refs changed or push performed."
+    echo "Dry run: no refs changed, nothing pushed."
     echo "Inspect: git diff $TARGET_COMMIT $PUBLIC_HEAD"
 fi

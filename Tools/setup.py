@@ -128,6 +128,21 @@ def check_ue():
     return None
 
 
+def check_tools():
+    """The workflow's other tools (AGENTS.md, Docs/Building.md): reported, not needed for setup."""
+    for tool, why in (('clang-format', 'formatting C++; .clang-format is for version 18'),
+                      ('rsync', 'Tools/upload_downloads.sh; on Windows it runs in WSL'),
+                      ('gh', 'GitHub releases')):
+        found = shutil.which(tool)
+        if not found and tool == 'rsync' and platform.system() == 'Windows' and shutil.which('wsl'):
+            try:  # the upload runs in WSL there
+                found = subprocess.run(['wsl', '-e', 'which', 'rsync'], capture_output=True, text=True, timeout=60).stdout.strip()
+                found = found and f'{found} (WSL)'
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        print(f'  {tool}: {found} ✓' if found else f'  {tool}: not found ({why})')
+
+
 def find_game_install():
     """Try to find a Mobile Forces installation."""
     from mfport.mflib.config import load
@@ -244,6 +259,8 @@ def main():
     ap.add_argument('--list-maps', action='store_true', help='List available core maps')
     ap.add_argument('--import-all', action='store_true', help='Import all core maps non-interactively')
     args = ap.parse_args()
+    # a Windows console or pipe in a legacy code page can't write the check marks
+    sys.stdout.reconfigure(errors='replace')
 
     if args.list_maps:
         list_maps()
@@ -257,13 +274,14 @@ def main():
     wine_ok = check_wine()
     ue_root = check_ue()
     game_dir = find_game_install()
+    check_tools()
 
     has_config = TOML_USER.exists()
     print(f'  mfport.toml: {"exists ✓" if has_config else "not yet created"}')
 
     if args.check:
         print()
-        if py_ok and wine_ok:
+        if py_ok and wine_ok and ue_root:
             print('Prerequisites OK. Run without --check to continue setup.')
         else:
             print('Some prerequisites are missing. See above.')

@@ -8,6 +8,8 @@ import tempfile
 import unittest
 
 TOOLS = Path(__file__).resolve().parents[1]
+# the scripts are bash with rsync and POSIX users: on Windows run these in WSL (AGENTS.md)
+posix_only = unittest.skipIf(os.name == 'nt', 'bash scripts: run Tools/tests in WSL on Windows')
 
 
 class Git:
@@ -24,6 +26,7 @@ class Git:
         return self.run(*args, **kwargs).decode().strip()
 
 
+@posix_only
 class PublicSyncTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -52,7 +55,7 @@ class PublicSyncTests(unittest.TestCase):
     def export(self, source, target):
         self.git.run('update-ref', 'refs/remotes/github/main', target)
         result = subprocess.run(
-            ['bash', str(TOOLS / 'sync_github.sh'), '--source', source],
+            ['bash', str(TOOLS / 'sync_github.sh'), '--dry-run', '--source', source],
             cwd=self.root, text=True, capture_output=True,
         )
         if result.returncode:
@@ -118,6 +121,7 @@ class PublicSyncTests(unittest.TestCase):
         self.assertEqual(self.git.text('show', f'{public}:Content/Private/allowed.txt'), 'now shareable')
 
 
+@posix_only
 class FileSyncTests(unittest.TestCase):
     def test_preview_copy_delete_and_exclusions(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -151,6 +155,7 @@ class FileSyncTests(unittest.TestCase):
             self.assertNotEqual(nested.returncode, 0)
 
 
+@posix_only
 class UploadDownloadsTests(unittest.TestCase):
     OLD, NEW = '20261030-003344-d222c87', '20261109-094119-beb543da'
 

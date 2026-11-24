@@ -31,11 +31,15 @@ classic content too).
 **Standalone server binary (no engine, no container where it runs).** Built once with
 
 ```bash
-python3 Tools/package.py Linux --server [--maps mf-warehouse,mf-Polar] [--public]
+python3 Tools/package.py Linux --server [--maps mf-warehouse,mf-Polar]
 ```
 
-this gives `Saved/Packages/LinuxServer/` and `Saved/Packages/<version>/DesktopForces-LinuxServer-Development-<version>.tar.gz`
-(every built map unless `--maps`; `--public` leaves out the Classic and Unverified packs). Copy the
+this gives `Saved/Packages/LinuxServer/` (every pack, every built map unless `--maps`) and, in
+`Saved/Packages/<version>/`, what `--zip` names as for the game ([Building](Building.md#package);
+`release,team` unless told otherwise): `DesktopForces-LinuxServer-Development-<version>.tar.gz`
+(without the unverified and classic packs: what anyone may host) and `-Team.tar.gz` (those packs,
+for the team: unpack it in the same folder, over the server, to host every map); `classic`,
+`unverified` and `full` as for the game. Copy the
 tarball to any x86-64 Linux (glibc 2.28 or newer: Debian 10, Ubuntu 20.04, Rocky 8 ...; nothing else
 to install), unpack it and run:
 

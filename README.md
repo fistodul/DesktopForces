@@ -56,7 +56,7 @@ python3 Tools/play.py mf-warehouse tdm 8
 <UE>/Engine/Binaries/Linux/UnrealEditor "$PWD/DesktopForces.uproject" -game
 ```
 
-On Windows: `py -3 Tools\package.py` builds and packages, and the pipeline runs with `py -3`
+On Windows: `python Tools\package.py` (or `py -3`) builds and packages, and the pipeline runs with `python`
 instead of Wine - [Docs/Building.md](Docs/Building.md#windows), also for dual boot (one
 checkout shared by Linux and Windows).
 
@@ -83,7 +83,7 @@ number the item in it. Map URL options: `?game=/Script/DesktopForces.TeamDeathMa
 | `Content/Maps/`, `Content/MF/Community/` | Converted community maps cleared for the game (tracked on Azure, generated on GitHub) |
 | `Plugins/MobileForcesClassic/` | Content converted from the original game - generated locally, **never committed** |
 | `Tools/setup.py` | Interactive first-time setup and map import helper |
-| `Tools/sync_github.sh` | Preview/export individual source commits to GitHub without checking out content |
+| `Tools/sync_github.sh` | Export individual source commits to GitHub (`--dry-run`: only prepare) without checking out content |
 | `Docs/` | How everything works |
 
 ## Docs

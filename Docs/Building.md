@@ -7,7 +7,7 @@ Visual Studio's C++ workload, a compatible Windows SDK and .NET Framework SDK;
 
 ## Build and play
 
-`play.py` works on Linux and Windows. Replace `python3` with `py -3` on Windows if
+`play.py` works on Linux and Windows. On Windows, use `python` (or `py -3` where the launcher is installed) instead of `python3` if
 needed. Run `python3 Tools/play.py --help` for the complete examples and mode list.
 
 ```bash
@@ -59,12 +59,12 @@ patches. There is no need to change the project association to a patch number.
 
 ## Package
 
-`Tools/package.py` packages on Linux and Windows (`py -3` instead of `python3` on Windows);
+`Tools/package.py` packages on Linux and Windows (`python` or `py -3` instead of `python3` on Windows);
 `--help` lists every option:
 
 ```bash
 python3 Tools/package.py Linux Development
-python3 Tools/package.py --public
+python3 Tools/package.py Windows --downloads --zip release,team   # a release (GitHub, the download server) and the team's add-on
 python3 Tools/package.py Windows Development --zip    # on Windows
 python3 Tools/package.py Windows Development --compile-only
 python3 Tools/package.py --dry-run Windows
@@ -80,26 +80,40 @@ Outputs, for every platform:
 
 | Folder | What |
 |---|---|
-| `Saved/Packages/<Platform>-<Config>[-public]/` | the game build (Shipping: release; Development: console and logs) |
-| `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: the packs for the download server, the modded community release (upload its contents) |
-| `Saved/Packages/<…>-downloads/Sideload/` (and with `--team`: `Private/`) | `--downloads`: the classic pack / every pack, for the team only |
-| `Saved/Packages/<version>/` | `--zip`, `--team`: what's handed around, named below |
+| `Saved/Packages/<Platform>-<Config>/` | the game build (Shipping: release; Development: console and logs) |
+| `Saved/Packages/<…>-downloads/Private/` | `--downloads`: every pack the build lacks, classic too: the team's |
+| `Saved/Packages/<…>-downloads/Downloads/` | `--downloads`: hard links to those without classic, for the download server (upload its contents) |
+| `Saved/Packages/<version>/`, `…/<version>/team/` | `--zip`: what's handed around, named below: the public files, and in `team/` those with classic or unverified content (only the top folder ever goes to GitHub) |
+
+The staged build (`Saved/StagedBuilds/<Platform>/`) is deleted once archived: it is a second copy of
+the game build, and each staging makes it anew.
 
 Everything shared follows one name, `DesktopForces-<Platform>[-Development]-<version>[-<Edition>]`:
 the order of Unreal's own files, which can't be renamed (`DesktopForces-Android-Shipping-arm64.apk`,
 `pakchunk1-Windows.pak`, the `Windows-Shipping` folder name), without the `Shipping` every release
 has. The version says which release; a new build of the same day replaces that day's files.
+`--zip` takes what to make, comma-separated (`--zip` alone: `release`):
 
-| File (Windows, `20261030`) | Made by | What | Share with |
+| `--zip` | File (Windows, `20261030`) | What | Share with |
 |---|---|---|---|
-| `DesktopForces-Windows-20261030.zip` | `--downloads --zip` | core pack; the rest downloads in game | the download server (modded community release) |
-| `DesktopForces-Windows-20261030-Full.zip` | `--downloads --team`, or `--zip` alone | every pack, classic too: unzip and play | the team |
-| `DesktopForces-Windows-20261030-Classic.zip` | `--downloads --team` | the classic pack, unzipped over the same build | the team |
-| `DesktopForces-Windows-20261030-Public.zip` | `--public --zip` | no Classic or Unverified | anyone |
+| `release` | `DesktopForces-Windows-20261030.zip` | `--downloads`: core and community; unverified downloads in game | anyone (the GitHub release) |
+| `team` | `DesktopForces-Windows-20261030-Team.zip` | every pack the release lacks (unverified, classic), unzipped over it: the full game | the team |
+| `classic`, `unverified` | `…-Classic.zip`, `…-Unverified.zip` | one of those packs, unzipped over the release | the team (in `team/`, as everything with classic or unverified content) |
+| `full` | `DesktopForces-Windows-20261030-Full.zip` | every pack in one file: the release and the Team zip together | the team |
 
-A `--downloads` Android build is one file, `DesktopForces-Android-<version>.apk`, with its
-`-Classic.zip` beside it; `--team` makes no Android Full zip (an APK stops at 2 GB). Linux is a
-`.zip` too; `unzip` keeps the executable bits.
+The release holds no Classic or Unverified content, so it is the public one: each release carries
+its community content, and releases can be compared. Without the download server (its build folder
+removed, or another server set) it plays the packs inside it, and the Team zip makes it the full
+game whether a server hosts the rest or not. `release,team` is the usual pair; `full` is the same
+content again in one file, so make it only when someone needs one. Without `--downloads` the build
+already has every pack and `--zip` makes the `-Full.zip` of it.
+
+A `--downloads` Android build is one file, `DesktopForces-Android-<version>.apk`, with the core
+pack alone (about 110 MB, the size of a small mobile shooter's install; community would add 600+
+MB); its Team zip carries community too (`--zip community` that pack alone), and there is no
+Android `full` (an APK stops at 2 GB). The release APK is a hard link to the built one. Linux is a
+`.zip` too; `unzip` keeps the executable bits. A `--server` build makes `.tar.gz` files the same way
+([Hosting](Hosting.md)).
 
 Each build carries its version, its commit's date (`20261030`, as releases are named; editor runs
 say `dev`): `ProjectVersion`, stamped into `DefaultGame.ini` while packaging. It is the network
@@ -123,7 +137,7 @@ Every build splits its content into one pak per pack (`Content/Paks/pakchunkN-<P
 |---|---|---|---|
 | 0 | core | the game: `/Game/MF`, engine content, anything unlabelled | 51 MB |
 | 1 | community | `/Game/Maps`, `/Game/MF/Community`, `/Game/MF/Replacements` (agreed authors) | 225 MB |
-| 2 | unverified | `/MobileForcesUnverified` (custom maps and mods not cleared yet: the modded community release, not `--public`) | 5 MB |
+| 2 | unverified | `/MobileForcesUnverified` (custom maps and mods not cleared yet: the modded community release: the download server, never inside a shared build) | 5 MB |
 | 3 | classic | `/MobileForcesClassic` (from your MF install: never share it) | 442 MB |
 
 A pack is just its three files (`.pak`, `.ucas`, `.utoc`). Drop them into `Content/Paks` to add the
@@ -143,18 +157,22 @@ the cooker's lists `Saved/Cooked/<Platform>/DesktopForces/Metadata/ChunkManifest
 
 ### Downloadable packs
 
-`--downloads` makes a build that carries the core pack (chunk 0) only and
-fetches the others in game (menu > Downloads; UE's ChunkDownloader plugin, `Core/DFDownloads`):
+`--downloads` makes a build without the Classic and Unverified packs that fetches them in game
+(menu > Downloads; UE's ChunkDownloader plugin, `Core/DFDownloads`). Desktop builds keep core and
+community; the Android APK keeps core alone, and community downloads too:
 
 ```bash
 python3 Tools/package.py Android --downloads
 python3 Tools/package.py Linux --downloads
 ```
 
-It cooks and stages as usual, then moves `pakchunk1`/`2` (community,
-unverified) out of the staged build into `<output>-downloads/Downloads/<Platform>/<content build
-id>/` with a `BuildManifest-<Platform>.txt` (file, size, SHA1, chunk) and `pakchunk3` (classic)
-into `<output>-downloads/Sideload/`, and the packager archives what's left. Copy the contents of
+It cooks and stages as usual, then reads each pack's cooker list and moves unverified and classic
+(`pakchunk2`, `pakchunk3`; on Android community, `pakchunk1`, too) out of the staged build into
+`<output>-downloads/Private/<Platform>/<content build id>/`, hard links those without classic into
+`Downloads/<Platform>/<content build id>/`, writes each folder a `BuildManifest-<Platform>.txt`
+(file, size, SHA1, chunk), and archives what's left. A pack is classic when its list names
+`MobileForcesClassic`, unverified when it names `MobileForcesUnverified`, community otherwise. The
+Downloads page lists only the server's packs, so a pack inside the install isn't shown there. Copy the contents of
 `Downloads/` to the server, `https://mf.nofisto.com/download/` (`DownloadServer` in
 `DefaultGame.ini`; players can set another in Options > Game): the game asks
 `<server>/<Platform>/<content build id>/`, e.g. `download/Android/20261029-125729-94671c9/`.
@@ -171,7 +189,7 @@ engine, shader and container-layout changes can affect them. Platforms have thei
 data and shaders (Android: ASTC textures, mobile shaders). See [Updating](Updating.md) for the
 verified code path, core-updater proposal and its relationship to `Mods/`.
 
-`Tools/upload_downloads.sh` uploads one build with rsync (Linux or WSL). Without arguments it
+`Tools/upload_downloads.sh` uploads one build with rsync (Linux, or WSL on Windows); the packager prints the command for the build it made. Without arguments it
 lists the local builds and the server's (`<Platform> <id>`); then name the build to upload and,
 optionally, the server builds to hardlink unchanged files to:
 
@@ -181,7 +199,7 @@ bash Tools/upload_downloads.sh --dry-run Windows 20261109-094119-beb543da 202610
 bash Tools/upload_downloads.sh Windows 20261109-094119-beb543da 20261030-112948-622d212
 ```
 
-It sends `Saved/Packages/*-downloads/Downloads/<Platform>/<id>/` (never `Private/` or `Sideload/`)
+It sends `Saved/Packages/*-downloads/Downloads/<Platform>/<id>/` (never `Private/`)
 to `<Platform>/<id>/` under `DF_DOWNLOAD_DEST` (default
 `mf.nofisto.com:/opt/mobileforces/website/public/download`), owned by `DF_DOWNLOAD_OWNER`
 (default `mobileforces:mobileforces`). Files are compared by content (`-c`) and get no times from
@@ -189,23 +207,19 @@ the build: a new cook gives unchanged paks new ones, and a hardlink needs equal 
 Re-running resumes. It deletes nothing; remove a build's folder once no player has it.
 
 The packager refuses to put a chunk into `Downloads/` whose cooker list names a classic package.
-**Classic content never goes on a public server.** For your own devices, copy the `Sideload/`
-files into the game's `Saved/Paks/` (mounted at start; on Android
-`/sdcard/Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/DesktopForces/Saved/Paks/`).
-To hand it to the team through a private channel, give them
-`Saved/Packages/<version>/DesktopForces-<Platform>-<version>-Classic.zip` (`--team`; a copy): the same
-files laid out to unzip over the install (desktop: the folder with `DesktopForces.exe` /
-`DesktopForces.sh`, into
-`DesktopForces/Content/Paks/`; Android: the phone's storage from a computer over USB, into the path
-above), with a README naming the content build id it was made with: it works only with that game
-build (the Downloads page shows it). On the desktop `--team` also makes a `-Full.zip` from the same
-cook, the build with every pack in place. Packs that come with the install show as "Included with
-the game" on the Downloads page, with nothing to download or delete.
+**Classic content never goes on a public server.** To hand it to the team through a private
+channel, give them the release and `Saved/Packages/<version>/DesktopForces-<Platform>-<version>-Team.zip`
+(`--zip team`): the packs the release lacks laid out to unzip over its install (desktop: the folder
+with `DesktopForces.exe` / `DesktopForces.sh`, into `DesktopForces/Content/Paks/`; Android: the
+phone's storage from a computer over USB, into
+`Android/data/com.fistodul.desktopforces/files/UnrealGame/DesktopForces/DesktopForces/Saved/Paks/`,
+mounted at start), with a README naming the content build id it was made with: it works only with
+that game build (the Downloads page shows it). Packs that come with the install show as "Included
+with the game" on the Downloads page, with nothing to download or delete.
 
-A team server can offer every pack, classic included: with `--team`,
-`<output>-downloads/Private/<Platform>/<content build id>/` holds all of them (hard links to the
-same files, no extra space; copies where the file system has no hard links) with their own
-manifest. Copy the contents of `Private/` to the team's server (never `mf.nofisto.com` or another
+A team server can offer every pack, classic included:
+`<output>-downloads/Private/<Platform>/<content build id>/` holds those the build lacks with their
+own manifest. Copy the contents of `Private/` to the team's server (never `mf.nofisto.com` or another
 public one; keep its address within the team), and each player sets that server in Options > Game
 > Download server. The Downloads page lists whatever the manifest offers; chunk 3 is named Classic (`DownloadPacks` in `DefaultGame.ini`).
 
@@ -225,10 +239,11 @@ cd Saved/Packages/Android-Development-downloads/Downloads && python3 -m http.ser
 Menu commands for scripted tests: `DFMenuPage 5`, `DFPacks`, `DFPackDownload N`,
 `DFPackCancel N`, `DFPackDelete N` ([Commands](Commands.md)).
 
-`--public` disables the Classic and Unverified content plugins for that
-build, restoring the project file afterward. Maps still borrowing their textures
-will need replacements (`mfport.py packs`). Builds containing original game content
-are for the team; do not publish that content with the public source.
+Community maps that borrow classic textures show them only while the classic pack is installed;
+they need replacements to look right without it (`mfport.py packs`). Builds containing original
+game content are for the team; do not publish that content with the public source. (`--public`, a
+build cooked without the Classic and Unverified plugins, was removed on 2026-11-24: the
+`--downloads` zip holds neither.)
 
 ## Android
 
@@ -324,8 +339,8 @@ alternative.
 ## Public GitHub sync
 
 ```bash
-bash Tools/sync_github.sh                # preview committed changes using cached github/main
-bash Tools/sync_github.sh --push         # fetch, prepare every commit, then push
+bash Tools/sync_github.sh                # fetch, prepare every commit, then push
+bash Tools/sync_github.sh --dry-run      # only prepare, from the cached github/main
 ```
 
 Individual source commits retain their authors, dates and messages. Mixed commits
@@ -335,10 +350,10 @@ new exports and older cherry-picks. Content-only and already-applied commits are
 
 The script uses temporary Git indexes instead of switching branches or checking out
 thousands of assets. It leaves the working files, real index and local branches alone.
-Preview creates unreachable Git objects for inspection, but changes no refs and does
+A dry run creates unreachable Git objects for inspection, but changes no refs and does
 not push. Uncommitted edits are never included. Conflicts or merge commits stop the
 operation; merges require manual handling rather than silently dropping changes.
-`--push` uses a normal fast-forward push, with no force option.
+The push is a normal fast-forward, with no force option.
 
 ## Formatting and tests
 

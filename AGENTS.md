@@ -43,15 +43,15 @@ checkout may be shared with Windows through a symlink, so verify resolved paths.
 Windows compile command (PowerShell):
 
 ```powershell
-py -3 Tools/package.py Windows Development --compile-only
+python Tools/package.py Windows Development --compile-only
 ```
 
 Pipeline prerequisites are Python 3.11+, Pillow, numpy, ffmpeg, and a local Mobile
 Forces installation; Linux conversion also uses Wine. A focused conversion is
 `python3 Tools/mfport/mfport.py all mf-warehouse`. Prefer the specific conversion
 and import steps described in `Docs/Pipeline.md` when only part of the output changes.
-For packaging, use `python3 Tools/package.py Linux Development` (Windows: `py -3 Tools/package.py`);
-see `Docs/Building.md` for public builds and platform requirements.
+For packaging, use `python3 Tools/package.py Linux Development` (Windows: `python Tools/package.py`, or `py -3`);
+see `Docs/Building.md` for release builds and platform requirements.
 
 ## Implementation conventions
 
@@ -90,12 +90,13 @@ branch. Check the current branch, `.gitignore`, `.gitignore.github`, and
 source-only checkout. Author-cleared community assets may be tracked on Azure.
 Treat `.uasset` and `.umap` files as binary and regenerate/edit them with Unreal
 or the pipeline. Preserve `.gitattributes` line-ending rules for both platforms.
-`Tools/sync_github.sh` previews filtered commits through temporary Git indexes.
-Only `--push` publishes; it never switches the working checkout.
+`Tools/sync_github.sh` exports filtered commits through temporary Git indexes and pushes them
+(`--dry-run` only prepares them); it never switches the working checkout.
 
 ## Validation
 
-`python3 -m unittest discover -s Tools/tests -v` checks configuration and sync tools.
+`python3 -m unittest discover -s Tools/tests -v` checks configuration, packaging and sync tools. On Windows
+(`python`) the bash-script tests are skipped: run them in WSL (`wsl -e python3 -m unittest test_sync` in `Tools/tests`).
 Native gameplay regression checks live in `Source/DesktopForces/Tests/` (ClientContext: run them
 in `-game` on a map, rendering, e.g. `UnrealEditor <uproject> /Game/MF/Maps/MF_TestRange -game
 -RenderOffscreen -ExecCmds="Automation RunTests DesktopForces" -unattended -TestExit="Automation

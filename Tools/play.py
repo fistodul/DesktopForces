@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run/build Desktop Forces on Linux or Windows (Python 3.11+).
 
-Run from any directory; on Windows, use `py -3` instead of `python3` if needed:
+Run from any directory; on Windows, use `python` (or `py -3`) instead of `python3` if needed:
 
     python3 play.py                         # warehouse, deathmatch, no bots
     python3 play.py mf-warehouse tdm 8       # team deathmatch with 8 bots
@@ -25,34 +25,12 @@ from __future__ import annotations
 import json
 import os
 import platform
-import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from mfport.mflib.config import Config, load
-
-
-def windows_build_prefix(root: Path) -> list[str]:
-    """Installed-engine UBT, with Epic's bundled runtime and no cmd.exe interpolation."""
-    ubt = root / 'Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll'
-    if not ubt.is_file():
-        raise FileNotFoundError(f'{ubt} missing; repair the engine install (Epic Games Launcher: Verify).')
-    if os.environ.get('UE_USE_SYSTEM_DOTNET') == '1':
-        dotnet = shutil.which('dotnet')
-    else:
-        arm = os.environ.get('PROCESSOR_ARCHITECTURE') == 'ARM64' or os.environ.get('ProgramFiles(Arm)')
-        arch = 'win-arm64' if arm else 'win-x64'
-        runtimes = list((root / 'Engine/Binaries/ThirdParty/DotNet').glob(f'*/{arch}/dotnet.exe'))
-
-        def version(runtime):
-            return tuple(int(part) for part in re.findall(r'\d+', runtime.parents[1].name))
-
-        dotnet = str(max(runtimes, key=version)) if runtimes else None
-    if not dotnet:
-        raise FileNotFoundError(f'No Windows .NET runtime found in {root}; repair the engine installation or set UE_USE_SYSTEM_DOTNET=1.')
-    return [dotnet, str(ubt)]
+from mfport.mflib.config import Config, load, map_folders
+from mfport.mflib.ue import ubt_command, ubt_launch
 
 
 def command(cfg: Config, args: list[str], system: str) -> list[str]:
@@ -62,10 +40,8 @@ def command(cfg: Config, args: list[str], system: str) -> list[str]:
     host = 'Win64' if windows else 'Linux'
     editor = cfg.ue_root / 'Engine/Binaries' / host / ('UnrealEditor.exe' if windows else 'UnrealEditor')
     project = str(cfg.uproject)
-    if args and args[0] == 'build':
-        batch = cfg.ue_root / 'Engine/Build/BatchFiles'
-        prefix = windows_build_prefix(cfg.ue_root) if windows else [str(batch / 'Linux/Build.sh')]
-        return [*prefix, 'DesktopForcesEditor', host, 'Development', f'-project={project}', '-waitmutex', '-NoUBA', *args[1:]]
+    if args and args[0] == 'build':  # the editor's modules; the game's are Tools/package.py's
+        return ubt_command(cfg.ue_root, windows, 'DesktopForcesEditor', host, 'Development', cfg.uproject, *args[1:])
     if args and args[0] == 'editor':
         return [str(editor), project, *args[1:]]
     # Engine flags can follow any number of positional arguments.
@@ -80,10 +56,7 @@ def command(cfg: Config, args: list[str], system: str) -> list[str]:
         map_path = name
     else:
         # wherever the map file is: the game's folders, then any content plugin (a pack)
-        root = cfg.uproject.parent
-        folders = [(root / 'Content/MF/Maps', '/Game/MF/Maps'), (root / 'Content/Maps', '/Game/Maps')]
-        folders += [(d, f'/{d.parent.parent.name}/Maps') for d in sorted(root.glob('Plugins/*/Content/Maps'))]
-        found = [mount for folder, mount in folders if (folder / (name + '.umap')).is_file()]
+        found = [mount for folder, mount in map_folders(cfg.uproject.parent) if (folder / (name + '.umap')).is_file()]
         fallback = '/Game/MF/Maps' if name.startswith('MF_') else '/MobileForcesClassic/Maps' # not converted here
         map_path = (found[0] if found else fallback) + '/' + name
     url = f'{map_path}?game={mode}?Bots={bots}' + os.environ.get('DF_OPTS', '')
@@ -106,15 +79,7 @@ def main(argv: list[str]) -> int:
             return 0
         if not Path(args[0]).is_file():
             raise FileNotFoundError(f'{args[0]} does not exist. Check UE_ROOT or the current platform section in Tools/mfport/mfport.toml.')
-        env = os.environ.copy()
-        cwd = cfg.uproject.parent
-        if os.name == 'nt' and 'DesktopForcesEditor' in args:
-            cwd = cfg.ue_root / 'Engine/Source'
-            if env.get('UE_USE_SYSTEM_DOTNET') != '1':
-                env['DOTNET_ROOT'] = str(Path(args[0]).parent)
-                env['DOTNET_MULTILEVEL_LOOKUP'] = '0'
-                env['DOTNET_ROLL_FORWARD'] = 'LatestMajor'
-                env['PATH'] = env['DOTNET_ROOT'] + os.pathsep + env.get('PATH', '')
+        cwd, env = ubt_launch(cfg.ue_root, args, cfg.uproject.parent)
         print('Launching:', json.dumps(args), flush=True)
         return subprocess.call(args, cwd=cwd, env=env)
     except (OSError, ValueError) as exc:
