@@ -41,7 +41,7 @@ class DownloadsTests(unittest.TestCase):
                 paks, lists = make(root, '')
                 (lists / 'pakchunk0.txt').write_text(listing)
                 with self.assertRaisesRegex(package.Fail, 'core pak'):
-                    package.split_downloads(paks, lists, root / 'Out', 'b1', 'Windows', keep_community=True)
+                    package.split_downloads(paks, lists, root / 'Out', 'b1', 'Windows')
                 self.assertEqual(len(list(paks.iterdir())), 13)
 
     def test_a_new_plugins_content_is_never_community(self):
@@ -49,7 +49,7 @@ class DownloadsTests(unittest.TestCase):
             root = Path(folder)
             paks, lists = make(root, '..\\Saved\\Cooked\\Windows\\DesktopForces\\Plugins\\NewMods\\Content\\Maps\\X\n')
             with self.assertRaisesRegex(package.Fail, 'newmods'):
-                package.split_downloads(paks, lists, root / 'Out', 'b1', 'Windows', keep_community=True)
+                package.split_downloads(paks, lists, root / 'Out', 'b1', 'Windows')
 
     def test_team_files_go_apart_from_the_public_ones(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -59,7 +59,7 @@ class DownloadsTests(unittest.TestCase):
             for what in ('team', 'classic', 'unverified', 'full'):
                 self.assertEqual(package.share_path(release, what), release / 'team')
 
-    def test_android_keeps_core_uploads_community_and_unverified(self):
+    def test_split_keeps_core_uploads_community_and_unverified(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             paks, lists = make(root, '..\\DesktopForces\\Content\\Maps\\mf-Tropics\n')
@@ -81,15 +81,13 @@ class DownloadsTests(unittest.TestCase):
             self.assertEqual(packs[private / 'pakchunk1-Android_ASTC_s1.ucas'], 'community')
             self.assertFalse((root / 'Out/Sideload').exists())
 
-    def test_desktop_build_keeps_community_uploads_unverified(self):
+    def test_downloads_are_hard_links_to_private(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             paks, lists = make(root, '..\\DesktopForces\\Content\\Maps\\mf-Tropics\n')
-            packs = package.split_downloads(paks, lists, root / 'Out', 'b1', 'Windows', keep_community=True)
-            self.assertEqual(chunks(paks.iterdir()), ['pakchunk0', 'pakchunk1'])
-            self.assertEqual(chunks((root / 'Out/Downloads/Windows/b1').iterdir()), ['pakchunk2'])
-            self.assertEqual(chunks((root / 'Out/Private/Windows/b1').iterdir()), ['pakchunk2', 'pakchunk3'])
-            self.assertEqual(sorted(set(packs.values())), ['classic', 'unverified'])
+            packs = package.split_downloads(paks, lists, root / 'Out', 'b1', 'Windows')
+            self.assertEqual(chunks(paks.iterdir()), ['pakchunk0'])  # every platform: the core pack alone
+            self.assertEqual(sorted(set(packs.values())), ['classic', 'community', 'unverified'])
             # Downloads/ holds hard links to Private/'s files, not copies
             self.assertTrue((root / 'Out/Downloads/Windows/b1/pakchunk2-Android_ASTC.pak').samefile(root / 'Out/Private/Windows/b1/pakchunk2-Android_ASTC.pak'))
 
@@ -104,14 +102,14 @@ class DownloadsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             paks, lists = make(root, '')
-            packs = package.split_downloads(paks, lists, root / 'Out', 'b1', 'Linux', keep_community=True)
+            packs = package.split_downloads(paks, lists, root / 'Out', 'b1', 'Linux')
             team = package.addon_zip(packs, 'Linux', 'b1', root / 'Team.zip', 'Team')
             with zipfile.ZipFile(team) as z:
                 names = z.namelist()
                 readme = z.read('README-Team.txt').decode()
             self.assertIn('DesktopForces/Content/Paks/pakchunk3-Android_ASTC.pak', names)
-            self.assertEqual(chunks(names), ['pakchunk2', 'pakchunk3'])
-            self.assertIn('classic, unverified', readme)
+            self.assertEqual(chunks(names), ['pakchunk1', 'pakchunk2', 'pakchunk3'])
+            self.assertIn('classic, community, unverified', readme)
             self.assertIn('for the team only', readme)
             unverified = {p: kind for p, kind in packs.items() if kind == 'unverified'}
             with zipfile.ZipFile(package.addon_zip(unverified, 'Linux', 'b1', root / 'Unverified.zip', 'Unverified')) as z:
@@ -184,7 +182,7 @@ class ArgumentTests(unittest.TestCase):
         self.refused(['Windows', '--downloads', '--zip', 'everything'])
         self.refused(['Windows', '--zip', 'team'])  # without --downloads the build has every pack
         self.refused(['Android', '--downloads', '--zip', 'full'])
-        self.refused(['Windows', '--downloads', '--zip', 'community'])
+        self.assertEqual(self.check(['Windows', '--downloads', '--zip', 'community']), ['community'])
 
 
 class ServerTests(unittest.TestCase):
@@ -217,8 +215,8 @@ class ServerTests(unittest.TestCase):
                 with tarfile.open(p) as t:
                     names[p.name] = t.getnames()
             self.assertIn('LinuxServer-Shipping/DesktopForcesServer.sh', names['release.tar.gz'])
-            self.assertEqual(chunks(names['release.tar.gz']), ['pakchunk0', 'pakchunk1'])
-            self.assertEqual(chunks(names['team.tar.gz']), ['pakchunk2', 'pakchunk3'])
+            self.assertEqual(chunks(names['release.tar.gz']), ['pakchunk0'])
+            self.assertEqual(chunks(names['team.tar.gz']), ['pakchunk1', 'pakchunk2', 'pakchunk3'])
             self.assertTrue(all(n.startswith('LinuxServer-Shipping/DesktopForces/Content/Paks/') for n in names['team.tar.gz']))
             self.assertEqual(chunks(names['classic.tar.gz']), ['pakchunk3'])
             self.assertEqual(chunks(names['full.tar.gz']), ['pakchunk0', 'pakchunk1', 'pakchunk2', 'pakchunk3'])

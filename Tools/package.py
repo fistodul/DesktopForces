@@ -7,9 +7,8 @@ starts on the main menu. On Windows use `python` (or `py -3`) instead of `python
     python3 package.py Windows --zip            (on Windows) and one file to hand around
     python3 package.py Android Development --maps MF_TestRange,mf-warehouse
                                                 an arm64 APK (ASTC textures) with two maps
-    python3 package.py Windows --downloads      core and community in the build; unverified for
-                                                the download server, classic apart (Docs/Building.md)
-    python3 package.py Android --downloads      core pack alone in the APK; community too for the server
+    python3 package.py Android --downloads      the core pack alone in the build (a small APK); the
+                                                others for the download server, classic apart (Docs/Building.md)
     python3 package.py --compile-only           build the editor and game code, no cook (CI)
     python3 package.py Linux --server           a dedicated server (Linux, Development; `Linux Shipping --server`
                                                 for the release one: faster, no logs, no cheats): built in
@@ -24,8 +23,8 @@ Engine: as Tools/play.py (UE_ROOT, mfport.toml `ue_root`).
 
 --zip names what's handed around, in Saved/Packages/<version>/, named as Unreal orders its own files
 (DesktopForces-<Platform>[-Development]-<version>[-<Edition>].zip; Android: .apk):
-    release     (no edition) --downloads: no Classic or Unverified, for anyone (GitHub releases);
-                desktop: core and community, Android: core (a small APK); the rest downloads in game.
+    release     (no edition) --downloads: the core pack alone, for anyone (GitHub releases), small
+                to download again for an update; the rest downloads in game.
                 Without --downloads the build has every pack: -Full
     team        -Team: every pack the release lacks, to unzip over it: the full game (for the team)
     classic, unverified, community
@@ -196,7 +195,7 @@ def write_manifest(folder: Path, lines: list[str], build_id: str, platform_name:
 
 def pack_kinds(chunks: set[int], chunk_lists: Path) -> dict[int, str]:
     """'classic', 'unverified' or 'community' for each chunk, from what the cooker put in it
-    (pakchunkN.txt): classic wins over unverified; community (shared in a release) only with no
+    (pakchunkN.txt): classic wins over unverified; community (on the download server) only with no
     project plugin's content but the unverified one, so content of a new plugin stops the build
     instead of being shared. No chunk ids are listed here: a new pack needs no change."""
     kinds = {}
@@ -239,18 +238,16 @@ def link(src: Path, dest: Path) -> None:
         shutil.copy2(src, dest)
 
 
-def split_downloads(paks: Path, chunk_lists: Path, out: Path, build_id: str, platform_name: str,
-                    keep_community: bool = False) -> dict[Path, str]:
-    """Move the packs other than core (chunk 0) out of the staged build - with keep_community, the
-    community ones stay in it - to <out>/Private/<platform>/<build id>/ (every pack the build lacks,
-    classic too: the team's) and hard link those without classic content - converted from the
+def split_downloads(paks: Path, chunk_lists: Path, out: Path, build_id: str, platform_name: str) -> dict[Path, str]:
+    """Move the packs other than core (chunk 0) out of the staged build to
+    <out>/Private/<platform>/<build id>/ (every pack the build lacks, classic too: the team's) and hard link those without classic content - converted from the
     player's own Mobile Forces, never on a public server - into <out>/Downloads/<platform>/<build id>/
     (the download server's); each folder with ChunkDownloader's BuildManifest-<platform>.txt (the
     game asks <server>/<platform>/<build id>/). Returns each file moved, with its pack's kind."""
     if not all((build_id, platform_name)):
         raise Fail('split_downloads: empty build id or platform')
     # decided before moving anything, from what the cooker put in each chunk
-    packs = {p: kind for p, kind in pack_files(paks, chunk_lists).items() if not (keep_community and kind == 'community')}
+    packs = pack_files(paks, chunk_lists)
     upload, private = out / 'Downloads' / platform_name / build_id, out / 'Private' / platform_name / build_id
     for d in (out / 'Downloads', out / 'Private'):
         shutil.rmtree(d, ignore_errors=True)
@@ -329,10 +326,10 @@ def addon_zip(packs: dict[Path, str], platform_name: str, build_id: str, archive
 
 def server_archives(out: Path, paks: Path, chunk_lists: Path, wanted: dict[str, Path]) -> list[Path]:
     """Tarballs of the server folder <out> (every pack), for each wanted --zip (its path without
-    .tar.gz): release without the unverified and classic packs (what anyone may host), full with
-    every pack, team / classic / unverified those packs alone, unpacked over the release (in the
-    folder holding it). With classic inside, for the team only."""
-    extra = {p: kind for p, kind in pack_files(paks, chunk_lists).items() if kind != 'community'}
+    .tar.gz): release with the core pack alone (what anyone may host), full with every pack, team /
+    classic / unverified / community those packs alone, unpacked over the release (in the folder
+    holding it). With classic inside, for the team only."""
+    extra = pack_files(paks, chunk_lists)
     member = lambda p: f'{out.name}/{p.relative_to(out).as_posix()}'  # noqa: E731
     made = []
     for what, base in wanted.items():
@@ -396,8 +393,8 @@ def package_server(a: argparse.Namespace) -> None:
     """A dedicated server: the project copied to a build tree (this checkout's own builds, caches
     and Zen untouched), built and cooked in Epic's engine image, archived to Saved/Packages/LinuxServer/
     (every pack) and packed as --zip says (server_archives): by default the release,
-    Saved/Packages/<version>/DesktopForces-LinuxServer-<version>.tar.gz (no unverified or classic
-    pack), and -Team.tar.gz (those two)."""
+    Saved/Packages/<version>/DesktopForces-LinuxServer-<version>.tar.gz (the core pack), and
+    -Team.tar.gz (the other packs)."""
     if WINDOWS:
         raise Fail('--server builds on Linux (docker); the server it makes runs on Linux')
     cfg = load()
@@ -544,12 +541,12 @@ def package(a: argparse.Namespace) -> None:
         if not a.downloads:
             run([*staging, '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
         else:
-            # stage, take the packs out of the staged build (desktop keeps community; the APK holds
-            # core alone, kept small), then package / archive what's left
+            # stage, take the packs but core out of the staged build (a small release, quick to
+            # download again for an update), then package / archive what's left
             run(staging, a.dry_run, env=env)
             if not a.dry_run:
                 packs = split_downloads(stage / uproject.stem / 'Content/Paks', project / 'Saved/Cooked' / stage_name / uproject.stem / 'Metadata/ChunkManifest',
-                                        downloads_out, build_id, a.platform, keep_community=a.platform != 'Android')
+                                        downloads_out, build_id, a.platform)
             run([*uat, *paks, '-skipcook', '-skipstage', '-skippak', '-archive', f'-archivedirectory={out}', *package_args], a.dry_run, env=env)
         if not a.dry_run:
             # the staged build is a second copy of <out> (with every pack when not --downloads) and
@@ -602,8 +599,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('platform', nargs='?', choices=PLATFORMS, default='Windows' if WINDOWS else 'Linux')
     ap.add_argument('config', nargs='?', choices=CONFIGS, help='default: Shipping for the game, Development for --server')
-    ap.add_argument('--downloads', action='store_true', help='no Classic or Unverified pack in the build (Android: core alone): '
-                                                             'those for the server and the team')
+    ap.add_argument('--downloads', action='store_true', help='the core pack alone in the build; the others for the server and the team')
     ap.add_argument('--maps', help='comma-separated map names (default: every built map)')
     ap.add_argument('--zip', nargs='?', const='release', metavar='WHAT',
                     help=f'files to share (above), comma-separated: {", ".join(ZIPS)}; alone: release; --server: release,team')
@@ -625,8 +621,6 @@ def main(argv: list[str]) -> int:
         ap.error('--zip: without --downloads the build has every pack: --zip alone')
     if 'full' in a.zip and a.platform == 'Android' and not a.server:
         ap.error('--zip full: not on Android (an APK stops at 2 GB); release,team gives the same')
-    if 'community' in a.zip and a.platform != 'Android':
-        ap.error('--zip community: only Android leaves it out of the release')
     if a.server and (a.platform != 'Linux' or a.downloads or a.compile_only):
         ap.error('--server: Linux only, without --downloads / --compile-only')
     try:

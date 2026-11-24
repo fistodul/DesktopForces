@@ -48,10 +48,10 @@ jobs:
       # ------------------------------------------------------------------------
       # The same script as a local build (Tools/package.py): engine lookup, pack labels, the
       # version, iostore paks. This repository is public and the runner keeps the converted content
-      # (clean: false), so only the release leaves it: a --downloads build, no Classic or Unverified
-      # pack (Docs/Building.md), never the build folder or a team/ file. package.py names the file
-      # it made (its step's `release` output). The release's unverified pack isn't uploaded to the
-      # download server from here, so its Downloads page offers nothing: it plays what it carries
+      # (clean: false), so only the release leaves it: a --downloads build, the core pack alone
+      # (Docs/Building.md), never the build folder or a team/ file. package.py names the file it
+      # made (its step's `release` output). This build's other packs aren't uploaded to the download
+      # server from here, so its Downloads page offers nothing: it plays the core maps
       # ------------------------------------------------------------------------
       - name: Compile (Windows)
         if: (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') && env.DO_PACKAGE != 'true'

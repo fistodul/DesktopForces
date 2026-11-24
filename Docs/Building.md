@@ -96,22 +96,20 @@ has. The version says which release; a new build of the same day replaces that d
 
 | `--zip` | File (Windows, `20261030`) | What | Share with |
 |---|---|---|---|
-| `release` | `DesktopForces-Windows-20261030.zip` | `--downloads`: core and community; unverified downloads in game | anyone (the GitHub release) |
-| `team` | `DesktopForces-Windows-20261030-Team.zip` | every pack the release lacks (unverified, classic), unzipped over it: the full game | the team |
+| `release` | `DesktopForces-Windows-20261030.zip` | `--downloads`: the core pack; the others download in game | anyone (the GitHub release) |
+| `team` | `DesktopForces-Windows-20261030-Team.zip` | every pack the release lacks (community, unverified, classic), unzipped over it: the full game | the team |
+| `community` | `…-Community.zip` | that pack alone, unzipped over the release | anyone |
 | `classic`, `unverified` | `…-Classic.zip`, `…-Unverified.zip` | one of those packs, unzipped over the release | the team (in `team/`, as everything with classic or unverified content) |
 | `full` | `DesktopForces-Windows-20261030-Full.zip` | every pack in one file: the release and the Team zip together | the team |
 
-The release holds no Classic or Unverified content, so it is the public one: each release carries
-its community content, and releases can be compared. Without the download server (its build folder
-removed, or another server set) it plays the packs inside it, and the Team zip makes it the full
-game whether a server hosts the rest or not. `release,team` is the usual pair; `full` is the same
-content again in one file, so make it only when someone needs one. Without `--downloads` the build
-already has every pack and `--zip` makes the `-Full.zip` of it.
+The release is the core pack alone on every platform (about 110-140 MB): small to download again for
+each update, and the public one. The team compares releases with their Team zips, which make a
+release the full game whether a download server hosts the rest or not. `release,team` is the usual
+pair; `full` is the same content again in one file, so make it only when someone needs one. Without
+`--downloads` the build already has every pack and `--zip` makes the `-Full.zip` of it.
 
-A `--downloads` Android build is one file, `DesktopForces-Android-<version>.apk`, with the core
-pack alone (about 110 MB, the size of a small mobile shooter's install; community would add 600+
-MB); its Team zip carries community too (`--zip community` that pack alone), and there is no
-Android `full` (an APK stops at 2 GB). The release APK is a hard link to the built one. Linux is a
+A `--downloads` Android build is one file, `DesktopForces-Android-<version>.apk` (the release APK
+is a hard link to the built one), and there is no Android `full` (an APK stops at 2 GB). Linux is a
 `.zip` too; `unzip` keeps the executable bits. A `--server` build makes `.tar.gz` files the same way
 ([Hosting](Hosting.md)).
 
@@ -157,17 +155,16 @@ the cooker's lists `Saved/Cooked/<Platform>/DesktopForces/Metadata/ChunkManifest
 
 ### Downloadable packs
 
-`--downloads` makes a build without the Classic and Unverified packs that fetches them in game
-(menu > Downloads; UE's ChunkDownloader plugin, `Core/DFDownloads`). Desktop builds keep core and
-community; the Android APK keeps core alone, and community downloads too:
+`--downloads` makes a build with the core pack alone that fetches the others in game (menu >
+Downloads; UE's ChunkDownloader plugin, `Core/DFDownloads`):
 
 ```bash
 python3 Tools/package.py Android --downloads
 python3 Tools/package.py Linux --downloads
 ```
 
-It cooks and stages as usual, then reads each pack's cooker list and moves unverified and classic
-(`pakchunk2`, `pakchunk3`; on Android community, `pakchunk1`, too) out of the staged build into
+It cooks and stages as usual, then reads each pack's cooker list and moves the packs but core
+(`pakchunk1`-`3`: community, unverified, classic) out of the staged build into
 `<output>-downloads/Private/<Platform>/<content build id>/`, hard links those without classic into
 `Downloads/<Platform>/<content build id>/`, writes each folder a `BuildManifest-<Platform>.txt`
 (file, size, SHA1, chunk), and archives what's left. A pack is classic when its list names
