@@ -532,7 +532,10 @@ protected:
 	void BlowUp(AController* By);
 	/** MF Vehicle.BlowUp: HurtRadius(ExplosionDamage 300, ExplosionRadius 400 uu, 'Exploded',
 	 *  ExplosionMomentum 200000 uu). Next to another car, x 1.5 for explosives and its armour. */
-	static constexpr float ExplosionDamage = 300.f, ExplosionRadius = 400.f * 2.25f, ExplosionMomentum = 200000.f;
+	// One declaration each: MSVC rejects later declarators of a static constexpr list in a DLL class (C2487).
+	static constexpr float ExplosionDamage = 300.f;
+	static constexpr float ExplosionRadius = 400.f * 2.25f;
+	static constexpr float ExplosionMomentum = 200000.f;
 	FVector DoorExit(int32 Door) const;
 };
 
